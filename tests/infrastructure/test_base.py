@@ -15,7 +15,7 @@ from prefect.infrastructure import (
     Process,
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
-from prefect.orion.schemas.core import Deployment
+from prefect.server.schemas.core import Deployment
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ class MockInfrastructure(Infrastructure):
 
 
 @pytest.mark.skip(reason="Unclear failure.")
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.parametrize(
     "infrastructure_type",
     [
@@ -83,7 +83,6 @@ async def test_flow_run_by_infrastructure_type(
     orion_client,
     patch_manifest_load,
 ):
-
     await patch_manifest_load(flow)
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = infrastructure_type().prepare_for_flow_run(flow_run)
@@ -250,7 +249,7 @@ async def test_submission_does_not_override_existing_name(
 
 @pytest.mark.skip("Flaky test that needs investigation")
 @pytest.mark.service("docker")
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.skipif(
     (Version(MIN_COMPAT_PREFECT_VERSION) > Version(prefect.__version__.split("+")[0])),
     reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",

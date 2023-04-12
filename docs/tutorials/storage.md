@@ -1,7 +1,6 @@
 ---
 description: Learn how to configure storage and infrastructure blocks used by Prefect flow deployments.
 tags:
-    - Orion
     - orchestration
     - deployments
     - storage
@@ -12,7 +11,7 @@ tags:
 
 # Storage and Infrastructure
 
-In previous tutorials, we've run flow and tasks entirely in a local execution environment using the local file system to store flow scripts. 
+In previous sections, we've run flow and tasks entirely in a local execution environment using the local file system to store flow scripts.
 
 For production workflows, you'll most likely want to configure deployments that create flow runs in remote execution environments &mdash; a VM, a Docker container, or a Kubernetes cluster, for example. These deployments require _remote storage_ and _infrastructure_ blocks that specify where your flow code is stored and how the flow run execution environment should be configured.
 
@@ -65,7 +64,7 @@ Your flow code may also load storage blocks to access configuration for accessin
 
 ## Create a storage block
 
-Most users will find it easiest to configure new storage blocks through the Prefect Orion or Prefect Cloud UI.
+Most users will find it easiest to configure new storage blocks through the Prefect server or Prefect Cloud UI.
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page.
 
@@ -103,7 +102,7 @@ Select **Create** to create the new storage block. Prefect displays the details 
 ![Viewing details of a new S3 storage block in the Prefect UI](../img/tutorials/new-storage-block.png)
 
 !!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
-    Note that, if you ran through this tutorial on a local Prefect Orion server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
+    Note that, if you ran through this tutorial on a local Prefect server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
 
 ## Using storage blocks with deployments
 
@@ -111,7 +110,7 @@ To demonstrate using a storage block, we'll create a new variation of the deploy
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -p test -o log-flow-s3-deployment.yaml
+$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
 Found flow 'log-flow'
 Successfully uploaded 3 files to s3://bucket-full-of-sunshine/flows/log-test
 Deployment YAML created at
@@ -127,7 +126,7 @@ What did we do here? Let's break down the command:
 -  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n log-flow-s3` specifies a name for the deployment. For ease of identification, the name includes a reference to the S3 storage.
 - `-sb s3/log-test` specifies a storage block by type and name.
-- `-q test` specifies a work pool for the deployment. Work pools direct scheduled runs to agents.
+- `-q test` specifies a work queue for the deployment. Work pools direct scheduled runs to agents. Since we didn't specify a work pool with `-p`, the default work pool will be used. 
 - `-o log-flow-s3-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
 In deployments, storage blocks are always referenced by name in the format `type/name`, with `type` and `name` separated by a forward slash. 
@@ -164,7 +163,7 @@ Infrastructure includes configuration for environments such as:
 - Kubernetes Jobs
 - Process configuration
 
-Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
+Most users will find it easiest to configure new infrastructure blocks through the Prefect server or Prefect Cloud UI. 
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 
@@ -252,5 +251,5 @@ if __name__ == "__main__":
 
 This recipe for loading blocks is useful across a wide variety of situations, not just deployments.  We can load arbitrary block types from the core `Block` class by referencing their slug.
 
-!!! tip "Next steps: Flow runs with Docker"
-    Continue on to the [Docker](/tutorials/docker/) tutorial where we'll put storage, infrastructure, and deployments together to run a flow in a Docker container.
+!!! tip "Next steps: Guides"
+    Congratulations, you've completed the Prefect tutorial! Now go check out [Concepts](/concepts/) for a deeper dive into a specific topic, or check out [Guides](/guides/) that put everything together.

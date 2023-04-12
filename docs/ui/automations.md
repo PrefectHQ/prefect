@@ -2,7 +2,6 @@
 description: Configure automations based on flow state from the Prefect UI and Prefect Cloud.
 icon: material/cloud-outline
 tags:
-    - Orion
     - UI
     - states
     - flow runs
@@ -18,7 +17,7 @@ Automations in Prefect Cloud enable you to configure [actions](#actions) that Pr
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/ui/notifications/) in the open-source Prefect Orion server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](/ui/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
 
 ## Automations overview
 
@@ -77,9 +76,10 @@ For example, if you would only like a trigger to execute an action if it receive
     "prefect.resource.id": "prefect.flow-run.*"
   },
   "match_related": {
-    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761",
+    "prefect.resource.role": "deployment"
   },
-  "forEach": [
+  "for_each": [
     "prefect.resource.id"
   ],
   "after": [],
@@ -99,8 +99,8 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
   "match": {
     "prefect.resource.id": "prefect.work-queue.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
   },
-  "matchRelated": {},
-  "forEach": [
+  "match_related": {},
+  "for_each": [
     "prefect.resource.id"
   ],
   "after": [
@@ -141,6 +141,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Run a deployment
 - Pause or resume a work queue
 - Send a [notification](#automation-notifications)
+- Call a webhook
 
 ![Configuring an action for an automation in Prefect Cloud.](../img/ui/automations-action.png)
 
@@ -189,10 +190,10 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRun)
-- [flow](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Flow)
-- [deployment](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Deployment)
-- [work_queue](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.WorkQueue)
+- [flow_run](/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
 
 In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 

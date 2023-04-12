@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client import get_client
-from prefect.orion import schemas
-from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+from prefect.server import schemas
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 
 
@@ -43,7 +43,7 @@ async def test_prefect_test_harness():
         test_task()
         return "foo"
 
-    existing_db_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    existing_db_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
 
     with prefect_test_harness():
         async with get_client() as client:
@@ -63,7 +63,7 @@ async def test_prefect_test_harness():
             assert client._ephemeral_app is not None
 
             # should be connected to a different database
-            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() != existing_db_url
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() != existing_db_url
 
     # outside the context, none of the test runs should not persist
     async with get_client() as client:
@@ -73,4 +73,4 @@ async def test_prefect_test_harness():
         assert len(flows) == 0
 
     # database connection should be reset
-    assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == existing_db_url
+    assert PREFECT_API_DATABASE_CONNECTION_URL.value() == existing_db_url

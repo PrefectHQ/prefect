@@ -4,11 +4,12 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import importlib
 import json
+import os
 import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -19,7 +20,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import (
@@ -31,8 +32,9 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
-from prefect.orion import schemas
-from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.projects.steps import run_step
+from prefect.server import schemas
+from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -45,8 +47,8 @@ from prefect.utilities.slugify import slugify
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name: str,
-    client: Optional[OrionClient] = None,
+    name: Union[str, UUID],
+    client: Optional[PrefectClient] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
@@ -64,7 +66,7 @@ async def run_deployment(
     checking the state of the flow run if completion is important moving forward.
 
     Args:
-        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        name: The deployment id or deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
@@ -86,7 +88,20 @@ async def run_deployment(
 
     parameters = parameters or {}
 
-    deployment = await client.read_deployment_by_name(name)
+    deployment_id = None
+
+    if isinstance(name, UUID):
+        deployment_id = name
+    else:
+        try:
+            deployment_id = UUID(name)
+        except ValueError:
+            pass
+
+    if deployment_id:
+        deployment = await client.read_deployment(deployment_id=deployment_id)
+    else:
+        deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
@@ -101,14 +116,20 @@ async def run_deployment(
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
 
+        if deployment_id:
+            flow = await client.read_flow(deployment.flow_id)
+            deployment_name = f"{flow.name}/{deployment.name}"
+        else:
+            deployment_name = name
+
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
-            name=name,
+            name=deployment_name,
             fn=lambda: None,
             version=deployment.version,
         )
         # Override the default task key to include the deployment name
-        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(name)}"
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=flow_run_ctx.flow_run.id,
@@ -148,7 +169,7 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: schemas.core.FlowRun, client: OrionClient, ignore_storage: bool = False
+    flow_run: schemas.core.FlowRun, client: PrefectClient, ignore_storage: bool = False
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -159,7 +180,8 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
-    if not ignore_storage:
+    if not ignore_storage and not deployment.pull_steps:
+        sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
                 deployment.storage_document_id
@@ -169,10 +191,18 @@ async def load_flow_from_flow_run(
             basepath = deployment.path or Path(deployment.manifest_path).parent
             storage_block = LocalFileSystem(basepath=basepath)
 
-        sys.path.insert(0, ".")
-
         logger.info(f"Downloading flow code from storage at {deployment.path!r}")
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
+
+    if deployment.pull_steps:
+        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        # TODO: allow for passing values between steps / stacking them
+        output = {}
+        for step in deployment.pull_steps:
+            output.update(await run_step(step))
+        if output.get("directory"):
+            logger.debug(f"Changing working directory to {output['directory']!r}")
+            os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     logger.debug(f"Importing flow code from '{import_path}'")
@@ -330,7 +360,8 @@ class Deployment(BaseModel):
         with open(path, "w") as f:
             # write header
             f.write(
-                f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+                "###\n### A complete description of a Prefect Deployment for flow"
+                f" {self.flow_name!r}\n###\n"
             )
 
             # write editable fields
@@ -400,7 +431,9 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
         default=None,
-        description="The path to the flow's manifest file, relative to the chosen storage.",
+        description=(
+            "The path to the flow's manifest file, relative to the chosen storage."
+        ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
@@ -413,11 +446,16 @@ class Deployment(BaseModel):
     )
     path: Optional[str] = Field(
         default=None,
-        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+        description=(
+            "The path to the working directory for the workflow, relative to remote"
+            " storage or an absolute path."
+        ),
     )
     entrypoint: Optional[str] = Field(
         default=None,
-        description="The path to the entrypoint for the workflow, relative to the `path`.",
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
     )
     parameter_openapi_schema: ParameterSchema = Field(
         default_factory=ParameterSchema,
@@ -472,25 +510,24 @@ class Deployment(BaseModel):
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
-        with open(str(path), "r") as f:
-            data = yaml.safe_load(f)
+        data = yaml.safe_load(await anyio.Path(path).read_bytes())
 
-            # load blocks from server to ensure secret values are properly hydrated
-            if data["storage"]:
-                block_doc_name = data["storage"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["storage"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["storage"] = block
+        # load blocks from server to ensure secret values are properly hydrated
+        if data.get("storage"):
+            block_doc_name = data["storage"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["storage"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["storage"] = block
 
-            if data["infrastructure"]:
-                block_doc_name = data["infrastructure"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["infrastructure"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["infrastructure"] = block
+        if data.get("infrastructure"):
+            block_doc_name = data["infrastructure"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["infrastructure"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["infrastructure"] = block
 
             return cls(**data)
 
@@ -594,7 +631,8 @@ class Deployment(BaseModel):
         elif self.storage:
             if "put-directory" not in self.storage.get_block_capabilities():
                 raise BlockMissingCapabilities(
-                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                    f"Storage block {self.storage!r} missing 'put-directory'"
+                    " capability."
                 )
 
             file_count = await self.storage.put_directory(
@@ -731,6 +769,9 @@ class Deployment(BaseModel):
 
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
+        # ensure the ignore file exists
+        Path(ignore_file).touch()
 
         if not deployment.version:
             deployment.version = flow.version

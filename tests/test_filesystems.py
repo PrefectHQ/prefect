@@ -7,11 +7,11 @@ import pytest
 
 import prefect
 from prefect.exceptions import InvalidRepositoryURLError
-from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
-from prefect.testing.utilities import AsyncMock
+from prefect.filesystems import Azure, GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str]:
@@ -46,17 +46,22 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
 class TestLocalFileSystem:
     async def test_read_write_roundtrip(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        await fs.write_path("test.txt", content=b"hello")
+        path = await fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
     def test_read_write_roundtrip_sync(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        fs.write_path("test.txt", content=b"hello")
+        path: str = fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        await fs.write_path(Path("folder") / "test.txt", content=b"hello")
+        dst = Path("folder") / "test.txt"
+        path = await fs.write_path(dst, content=b"hello")
+        # as_posix because of windows delimiter
+        assert Path(path).as_posix().endswith("folder/test.txt")
         assert (tmp_path / "folder").exists()
         assert (tmp_path / "folder" / "test.txt").read_text() == "hello"
 
@@ -83,13 +88,11 @@ class TestLocalFileSystem:
         await fs.get_directory(".", ".")
 
     async def test_dir_contents_copied_correctly_with_get_directory(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem()
 
             await f.get_directory(from_path=tmp_path, local_path=tmp_dst)
@@ -97,7 +100,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_dir_contents_copied_correctly_with_put_directory(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
@@ -114,7 +116,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_to_path_modifies_base_path_correctly(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
@@ -134,7 +135,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_to_path_raises_error_when_not_in_basepath(self, tmp_path):
-
         f = LocalFileSystem(basepath=tmp_path)
         outside_path = "~/puppy"
         with pytest.raises(
@@ -168,7 +168,6 @@ class TestLocalFileSystem:
 
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
             await f.put_directory(
@@ -204,7 +203,6 @@ class TestLocalFileSystem:
         expected_parent_contents = os.listdir(tmp_path)
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
             await f.put_directory(
@@ -227,12 +225,14 @@ class TestRemoteFileSystem:
 
     async def test_read_write_roundtrip(self):
         fs = RemoteFileSystem(basepath="memory://root")
-        await fs.write_path("test.txt", content=b"hello")
+        path = await fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
     def test_read_write_roundtrip_sync(self):
         fs = RemoteFileSystem(basepath="memory://root")
-        fs.write_path("test.txt", content=b"hello")
+        path: str = fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):
@@ -254,7 +254,9 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://foo")
         with pytest.raises(
             ValueError,
-            match="with scheme 'file' must use the same scheme as the base path 'memory'",
+            match=(
+                "with scheme 'file' must use the same scheme as the base path 'memory'"
+            ),
         ):
             await fs.write_path("file://foo/test.txt", content=b"hello")
 
@@ -627,3 +629,52 @@ class TestGitHub:
             await g.get_directory(local_path=tmp_dst)
 
             assert any(".git" in f for f in os.listdir(tmp_dst)) == expect_git_objects
+
+
+class TestAzure:
+    def test_init(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        monkeypatch.setattr("prefect.filesystems.RemoteFileSystem", remote_storage_mock)
+        Azure(
+            azure_storage_tenant_id="tenant",
+            azure_storage_account_name="account",
+            azure_storage_client_id="client_id",
+            azure_storage_account_key="key",
+            azure_storage_client_secret="secret",
+            bucket_path="bucket",
+        ).filesystem
+        remote_storage_mock.assert_called_once_with(
+            basepath="az://bucket",
+            settings={
+                "account_name": "account",
+                "account_key": "key",
+                "tenant_id": "tenant",
+                "client_id": "client_id",
+                "client_secret": "secret",
+                "anon": True,
+            },
+        )
+
+    def test_init_with_anon(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        monkeypatch.setattr("prefect.filesystems.RemoteFileSystem", remote_storage_mock)
+        Azure(
+            azure_storage_tenant_id="tenant",
+            azure_storage_account_name="account",
+            azure_storage_client_id="client_id",
+            azure_storage_account_key="key",
+            azure_storage_client_secret="secret",
+            bucket_path="bucket",
+            azure_storage_anon=False,
+        ).filesystem
+        remote_storage_mock.assert_called_once_with(
+            basepath="az://bucket",
+            settings={
+                "account_name": "account",
+                "account_key": "key",
+                "tenant_id": "tenant",
+                "client_id": "client_id",
+                "client_secret": "secret",
+                "anon": False,
+            },
+        )

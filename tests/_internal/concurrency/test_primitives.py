@@ -1,11 +1,9 @@
 import anyio
-import pytest
 
 from prefect._internal.concurrency.primitives import Event
 
 
 def test_event_set_in_sync_context_before_wait():
-
     event = Event()
     event.set()
 
@@ -110,7 +108,6 @@ async def test_event_set_from_async_thread_before_wait():
         await event.wait()
 
 
-@pytest.mark.skip(reason="This test deadlocks sometimes")
 async def test_dependent_events_in_two_loops_do_not_deadlock():
     event_one = None
     event_two = None
@@ -126,7 +123,7 @@ async def test_dependent_events_in_two_loops_do_not_deadlock():
     async def two():
         nonlocal event_two
         event_two = Event()
-        while event_two is None:
+        while event_one is None:
             await anyio.sleep(0)
         event_one.set()
         await event_two.wait()

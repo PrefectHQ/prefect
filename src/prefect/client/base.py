@@ -15,6 +15,11 @@ from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
+from prefect.settings import (
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+)
+from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app identities.
 APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
@@ -202,16 +207,28 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_seconds is None:
                 retry_seconds = 2**try_count
 
+            # Add jitter
+            jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+            if retry_seconds > 0 and jitter_factor > 0:
+                if response is not None and "Retry-After" in response.headers:
+                    # Always wait for _at least_ retry seconds if requested by the API
+                    retry_seconds = bounded_poisson_interval(
+                        retry_seconds, retry_seconds * (1 + jitter_factor)
+                    )
+                else:
+                    # Otherwise, use a symmetrical jitter
+                    retry_seconds = clamped_poisson_interval(
+                        retry_seconds, jitter_factor
+                    )
+
             logger.debug(
                 (
                     "Encountered retryable exception during request. "
                     if exc_info
                     else "Received response with retryable status code. "
                 )
-                + (
-                    f"Another attempt will be made in {retry_seconds}s. "
-                    f"This is attempt {try_count}/{self.RETRY_MAX + 1}."
-                ),
+                + f"Another attempt will be made in {retry_seconds}s. "
+                f"This is attempt {try_count}/{self.RETRY_MAX + 1}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)
@@ -231,10 +248,13 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_codes={
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
+                status.HTTP_502_BAD_GATEWAY,
+                *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=(
                 httpx.ReadTimeout,
                 httpx.PoolTimeout,
+                httpx.ConnectTimeout,
                 # `ConnectionResetError` when reading socket raises as a `ReadError`
                 httpx.ReadError,
                 # Sockets can be closed during writes resulting in a `WriteError`
@@ -251,7 +271,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
-        #       `OrionClient`
+        #       `PrefectClient`
         response.raise_for_status()
 
         return response

@@ -136,7 +136,7 @@ Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run s
 
 ## Parallel execution
 
-You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/catalog/). 
+You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Integrations](/integrations/catalog/). 
 
 For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
 
@@ -259,4 +259,4 @@ The ability to execute flow runs in a non-blocking or parallel manner is subject
 Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
 
 !!! tip "Next steps: Flow orchestration with Prefect"
-    The next step is learning about [the components of Prefect](/tutorials/orion/) that enable coordination and orchestration of your flow and task runs.
+    The next step is learning about [the components of Prefect](/tutorials/orchestration/) that enable coordination and orchestration of your flow and task runs.

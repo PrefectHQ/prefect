@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -11,9 +12,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
-from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_run_logger
-from prefect.orion.schemas.states import StateType
+from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
@@ -109,14 +109,16 @@ class TaskRunnerStandardTestSuite(ABC):
         assert c.is_pending()
         assert c.name == "NotReady"
         assert (
-            f"Upstream task run '{b.state_details.task_run_id}' did not reach a 'COMPLETED' state"
+            f"Upstream task run '{b.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state"
             in c.message
         )
 
         assert d.is_pending()
         assert d.name == "NotReady"
         assert (
-            f"Upstream task run '{c.state_details.task_run_id}' did not reach a 'COMPLETED' state"
+            f"Upstream task run '{c.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state"
             in d.message
         )
 
@@ -131,7 +133,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -158,7 +161,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -186,7 +190,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -212,7 +217,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -334,7 +340,7 @@ class TaskRunnerStandardTestSuite(ABC):
         async def fake_orchestrate_task_run(example_kwarg):
             return State(
                 type=StateType.COMPLETED,
-                data=DataDocument.encode("json", example_kwarg),
+                data=example_kwarg,
             )
 
         async with task_runner.start():
@@ -353,7 +359,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This will abort the run for {task_runner.concurrency_type} task runners."
+                f"This will abort the run for {task_runner.concurrency_type} task"
+                " runners."
             )
 
         task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
@@ -448,9 +455,9 @@ class TaskRunnerStandardTestSuite(ABC):
         """
         sleep_time = 0.25
 
-        if sys.platform != "darwin":
+        if os.environ.get("CI"):
             # CI machines are slow
-            sleep_time += 2.5
+            sleep_time += 3
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
@@ -469,7 +476,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -495,7 +503,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -524,7 +533,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -550,7 +560,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -566,92 +577,6 @@ class TaskRunnerStandardTestSuite(ABC):
         async def test_flow():
             await foo.submit()
             await bar.submit()
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "foo"
-
-    async def test_async_tasks_run_concurrently_with_task_group_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @task
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @task
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(foo.submit)
-                tg.start_soon(bar.submit)
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "foo"
-
-    def test_sync_subflows_run_sequentially_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        def foo():
-            time.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        def test_flow():
-            foo._run()
-            bar._run()
-
-        test_flow()
-
-        assert tmp_file.read_text() == "bar"
-
-    async def test_async_subflows_run_sequentially_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            await foo._run()
-            await bar._run()
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "bar"
-
-    async def test_async_subflows_run_concurrently_with_task_group_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(foo._run)
-                tg.start_soon(bar._run)
 
         await test_flow()
 

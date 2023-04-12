@@ -1,15 +1,16 @@
 /* Prefect Overrides */
 
 /* Code block background and highlight */
-:root > * {
-    /* theme */ 
+:root>* {
+    /* theme */
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
-    --md-primary-fg-color--dark:  #115AF4;  
-  }
+    --md-primary-fg-color--dark: #115AF4;
+    --nav-size: 0.8rem;
+}
 
 /* code block margin and padding  */
-.highlight > pre > code {
+.highlight>pre>code {
     margin-top: 1rem;
     margin-bottom: 1rem;
     border-radius: 10px;
@@ -28,7 +29,7 @@
 }
 
 /* terminal code block formatting */
-.terminal {  
+.terminal {
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #4a556a;
@@ -36,7 +37,7 @@
 }
 
 /* give terminal code a little more padding to look less crowded */
-.terminal > .highlight > pre > code {
+.terminal>.highlight>pre>code {
     padding-top: 30px;
     padding-bottom: 25px;
 }
@@ -47,11 +48,14 @@
     outline: none;
 }
 
+nav.md-code__nav {
+    margin-top: 20px;
+}
 /* Image drop shadow, separates browser from background */
 img {
     margin-top: 1rem;
     margin-bottom: 1rem;
-    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0, 0, 0, 0.2))
 }
 
 /* remove margin just for the top nav logo */
@@ -63,7 +67,7 @@ img {
 .video-wrapper {
     margin-top: 1rem;
     margin-bottom: 1rem;
-    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0, 0, 0, 0.2))
 }
 
 /* push "go to prefect cloud" */
@@ -75,9 +79,11 @@ img {
 .md-typeset table:not([class]) {
     font-size: .8rem;
 }
+
 .md-typeset table:not([class]) td {
     padding: 0.5em 1.25em;
 }
+
 .md-typeset table:not([class]) th {
     padding: 0.5em 1.25em;
 }
@@ -91,34 +97,34 @@ to force column width */
 
 /* collections and recipes catalogs */
 .collection-grid {
-    display: grid; 
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-    gap: .5rem; 
+    gap: .5rem;
 }
 
 .collection-item {
-    padding: 1rem; 
+    padding: 1rem;
     margin: .2rem;
-    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3); 
+    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3);
     border-radius: 5px;
 }
 
 .collection-item img {
-    max-height: 100px; 
+    max-height: 100px;
     max-width: 100px;
 }
 
 .recipe-grid {
-    display:grid; 
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-    gap: .5rem; 
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: .5rem;
     margin: 1rem 0 3rem;
 }
 
 .recipe-item {
-    padding: 1rem; 
+    padding: 1rem;
     margin: .2rem;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, .3); 
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
     border-radius: 8px;
     display: flex;
     flex-direction: column;
@@ -126,8 +132,8 @@ to force column width */
 }
 
 .recipe-item img {
-    max-height: 48px; 
-    max-width: 48px; 
+    max-height: 48px;
+    max-width: 48px;
     margin: 0 0.5em 0 auto;
 }
 
@@ -182,6 +188,7 @@ to force column width */
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
+    vertical-align: middle;
 }
 
 .beta::before {
@@ -273,56 +280,159 @@ to force column width */
 /* cloud admonition */
 :root {
     --md-admonition-icon--cloud-ad: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 18H6a4 4 0 0 1-4-4 4 4 0 0 1 4-4h.71C7.37 7.69 9.5 6 12 6a5.5 5.5 0 0 1 5.5 5.5v.5H19a3 3 0 0 1 3 3 3 3 0 0 1-3 3m.35-7.97A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.03A6.004 6.004 0 0 0 0 14a6 6 0 0 0 6 6h13a5 5 0 0 0 5-5c0-2.64-2.05-4.78-4.65-4.97Z"/></svg>')
-  }
-  .md-typeset .admonition.cloud-ad,
-  .md-typeset details.cloud-ad {
+}
+
+.md-typeset .admonition.cloud-ad,
+.md-typeset details.cloud-ad {
     border-color: #799AF7;
-  }
-  .md-typeset .cloud-ad > .admonition-title,
-  .md-typeset .cloud-ad > summary {
+}
+
+.md-typeset .cloud-ad>.admonition-title,
+.md-typeset .cloud-ad>summary {
     background-color: #799bf715;
-  }
-  .md-typeset .cloud-ad > .admonition-title::before,
-  .md-typeset .cloud-ad > summary::before {
+}
+
+.md-typeset .cloud-ad>.admonition-title::before,
+.md-typeset .cloud-ad>summary::before {
     background-color: #799AF7;
     -webkit-mask-image: var(--md-admonition-icon--cloud-ad);
-            mask-image: var(--md-admonition-icon--cloud-ad);
-  }
-  
-  /* discourse admonition */
+    mask-image: var(--md-admonition-icon--cloud-ad);
+}
+
+/* discourse admonition */
 :root {
     --md-admonition-icon--discourse: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M225.9 32C103.3 32 0 130.5 0 252.1 0 256 .1 480 .1 480l225.8-.2c122.7 0 222.1-102.3 222.1-223.9C448 134.3 348.6 32 225.9 32zM224 384c-19.4 0-37.9-4.3-54.4-12.1L88.5 392l22.9-75c-9.8-18.1-15.4-38.9-15.4-61 0-70.7 57.3-128 128-128s128 57.3 128 128-57.3 128-128 128z"/></svg>')
-  }
-  .md-typeset .admonition.discourse,
-  .md-typeset details.discourse {
+}
+
+.md-typeset .admonition.discourse,
+.md-typeset details.discourse {
     border-color: #cca701;
-  }
-  .md-typeset .discourse > .admonition-title,
-  .md-typeset .discourse > summary {
+}
+
+.md-typeset .discourse>.admonition-title,
+.md-typeset .discourse>summary {
     background-color: #cca70115;
-  }
-  .md-typeset .discourse > .admonition-title::before,
-  .md-typeset .discourse > summary::before {
+}
+
+.md-typeset .discourse>.admonition-title::before,
+.md-typeset .discourse>summary::before {
     background-color: #cca701;
     -webkit-mask-image: var(--md-admonition-icon--discourse);
-            mask-image: var(--md-admonition-icon--discourse);
-  }
+    mask-image: var(--md-admonition-icon--discourse);
+}
 
-    /* blog admonition */
+/* blog admonition */
 :root {
     --md-admonition-icon--blog: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M249.6 471.5c10.8 3.8 22.4-4.1 22.4-15.5V78.6c0-4.2-1.6-8.4-5-11C247.4 52 202.4 32 144 32 87.5 32 35.1 48.6 9 59.9c-5.6 2.4-9 8-9 14v380.2c0 11.9 12.8 20.2 24.1 16.5C55.6 460.1 105.5 448 144 448c33.9 0 79 14 105.6 23.5zm76.8 0C353 462 398.1 448 432 448c38.5 0 88.4 12.1 119.9 22.6 11.3 3.8 24.1-4.6 24.1-16.5V73.9c0-6.1-3.4-11.6-9-14C540.9 48.6 488.5 32 432 32c-58.4 0-103.4 20-123 35.6-3.3 2.6-5 6.8-5 11V456c0 11.4 11.7 19.3 22.4 15.5z"/></svg>')
-  }
-  .md-typeset .admonition.blog,
-  .md-typeset details.blog {
+}
+
+.md-typeset .admonition.blog,
+.md-typeset details.blog {
     border-color: #cca701;
-  }
-  .md-typeset .blog > .admonition-title,
-  .md-typeset .blog > summary {
+}
+
+.md-typeset .blog>.admonition-title,
+.md-typeset .blog>summary {
     background-color: #cca70115;
-  }
-  .md-typeset .blog > .admonition-title::before,
-  .md-typeset .blog > summary::before {
+}
+
+.md-typeset .blog>.admonition-title::before,
+.md-typeset .blog>summary::before {
     background-color: #cca701;
     -webkit-mask-image: var(--md-admonition-icon--blog);
-            mask-image: var(--md-admonition-icon--blog);
-  }
+    mask-image: var(--md-admonition-icon--blog);
+}
+
+.ul-line-height-compress {
+    line-height: 80%;
+    margin-bottom: 30px !important;
+}
+
+.full {
+    width: 31%;
+    padding: 20em;
+    margin-right: 2%
+}
+
+.md-header {
+    background-color: #0a082e;
+}
+
+.main-page-subheader {
+    margin-top: -2em !important;
+}
+
+.main-button--primary {
+    background: linear-gradient(90deg,#0a082e,#5988e3);
+    color: white !important;
+    border: none !important;
+    font-weight: 400 !important;
+    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    padding-right: 10px;
+    border-radius: 3px !important;
+}
+
+.main-button--primary:hover {
+    background: linear-gradient(45deg, var(--md-accent-fg-color), var(--md-accent-fg-color));
+    border-color: var(--md-accent-fg-color);
+    color: var(--md-accent-bg-color);
+}
+
+.main-button--secondary {
+    background: linear-gradient(90deg,#5988e3,#5988e3);
+    color: white !important;
+    border: none !important;
+    font-weight: 400 !important;
+    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    border-radius: 3px !important;
+}
+
+.main-button--secondary:hover {
+    background: linear-gradient(45deg, var(--md-accent-fg-color), var(--md-accent-fg-color));
+    border-color: var(--md-accent-fg-color);
+    color: var(--md-accent-bg-color);
+}
+
+/* 60em is the minimum width at which the full search 
+   box displays in the nav bar */
+@media screen and (min-width: 60em) {
+    .md-search__form {
+        background-color: #ffffff40;
+    }
+}
+
+/* At 76.1875em, the hamburger menu disappears 
+   and users see the full nav menu */
+@media screen and (min-width: 76.1875em) {
+    div[class="md-header__topic"]:not([data-md-component="header-topic"]) > span {
+        display: none;
+    }
+}
+
+/* At or below 59.9375em, git stats appear in mobile nav menu 
+   instead of in the main nav bar */
+@media screen and (max-width: 59.9375em) {
+    .md-nav__source {
+        background-color: #0a082e;
+    }
+
+    .full {
+        width: 66%;
+        margin-bottom: 10px;
+        margin-left: 17%
+    }
+}
+
+/* Mobile nav menu appears at 76.1875em */
+@media screen and (max-width: 76.1875em) {
+    .md-nav--primary .md-nav__title[for=__drawer] { 
+        background-color: #0a082e;
+    }
+}
+
+@media screen and (max-width: 40em) {
+    .full {
+        width: 86%;
+        margin-left: 7%
+    }
+}

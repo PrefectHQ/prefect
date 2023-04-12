@@ -1,6 +1,17 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
+from functools import partial
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 from typing_extensions import Self
@@ -8,7 +19,7 @@ from typing_extensions import Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingContextError
+from prefect.exceptions import MissingContextError, MissingResult
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
@@ -23,16 +34,17 @@ from prefect.utilities.pydantic import add_type_dispatch
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
 LITERAL_TYPES = {type(None), bool}
+DEFAULT_STORAGE_KEY_FN = lambda: uuid.uuid4().hex
 
 logger = get_logger("results")
 
-# from prefect.orion.schemas.states import State
+# from prefect.server.schemas.states import State
 R = TypeVar("R")
 
 
@@ -89,6 +101,13 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
+def _format_user_supplied_storage_key(key):
+    # Note here we are pinning to task runs since flow runs do not support storage keys
+    # yet; we'll need to split logic in the future or have two separate functions
+    runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
+    return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
+
+
 class ResultFactory(pydantic.BaseModel):
     """
     A utility to generate `Result` types.
@@ -99,10 +118,11 @@ class ResultFactory(pydantic.BaseModel):
     serializer: Serializer
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
+    storage_key_fn: Callable[[], str]
 
     @classmethod
     @inject_client
-    async def default_factory(cls, client: "OrionClient" = None, **kwargs):
+    async def default_factory(cls, client: "PrefectClient" = None, **kwargs):
         """
         Create a new result factory with default options.
 
@@ -119,13 +139,14 @@ class ResultFactory(pydantic.BaseModel):
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
+        kwargs.setdefault("storage_key_fn", DEFAULT_STORAGE_KEY_FN)
 
         return await cls.from_settings(**kwargs, client=client)
 
     @classmethod
     @inject_client
     async def from_flow(
-        cls: Type[Self], flow: "Flow", client: "OrionClient" = None
+        cls: Type[Self], flow: "Flow", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a flow.
@@ -152,6 +173,7 @@ class ResultFactory(pydantic.BaseModel):
                     )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
+                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
                 client=client,
             )
         else:
@@ -174,12 +196,13 @@ class ResultFactory(pydantic.BaseModel):
                     )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
+                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             )
 
     @classmethod
     @inject_client
     async def from_task(
-        cls: Type[Self], task: "Task", client: "OrionClient" = None
+        cls: Type[Self], task: "Task", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a task.
@@ -214,6 +237,11 @@ class ResultFactory(pydantic.BaseModel):
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
             client=client,
+            storage_key_fn=(
+                partial(_format_user_supplied_storage_key, task.result_storage_key)
+                if task.result_storage_key is not None
+                else DEFAULT_STORAGE_KEY_FN
+            ),
         )
 
     @classmethod
@@ -224,7 +252,8 @@ class ResultFactory(pydantic.BaseModel):
         result_serializer: ResultSerializer,
         persist_result: bool,
         cache_result_in_memory: bool,
-        client: "OrionClient",
+        storage_key_fn: Callable[[], str],
+        client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client
@@ -237,11 +266,12 @@ class ResultFactory(pydantic.BaseModel):
             serializer=serializer,
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
+            storage_key_fn=storage_key_fn,
         )
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage, client: "OrionClient"
+        result_storage: ResultStorage, client: "PrefectClient"
     ) -> Tuple[uuid.UUID, WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
@@ -291,25 +321,18 @@ class ResultFactory(pydantic.BaseModel):
         """
         Create a result type for the given object.
 
-        If persistence is disabled, the object is returned unaltered.
+        If persistence is disabled, the object is wrapped in an `UnpersistedResult` and
+        returned.
 
-        Literal types are converted into `LiteralResult`.
-
-        Other types are serialized, persisted to storage, and a reference is returned.
+        If persistence is enabled:
+        - Bool and null types are converted into `LiteralResult`.
+        - Other types are serialized, persisted to storage, and a reference is returned.
         """
-        if obj is None:
-            # Always write nulls as result types to distinguish from unpersisted results
-            return await LiteralResult.create(None)
+        # Null objects are "cached" in memory at no cost
+        should_cache_object = self.cache_result_in_memory or obj is None
 
         if not self.persist_result:
-            # Attach the object directly if persistence is disabled; it will be dropped
-            # when sent to the API
-            if self.cache_result_in_memory:
-                return obj
-            # Unless in-memory caching has been disabled, then this result will not be
-            # available downstream
-            else:
-                return None
+            return await UnpersistedResult.create(obj, cache_object=should_cache_object)
 
         if type(obj) in LITERAL_TYPES:
             return await LiteralResult.create(obj)
@@ -318,14 +341,17 @@ class ResultFactory(pydantic.BaseModel):
             obj,
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
+            storage_key_fn=self.storage_key_fn,
             serializer=self.serializer,
-            cache_object=self.cache_result_in_memory,
+            cache_object=should_cache_object,
         )
 
 
 @add_type_dispatch
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
+    artifact_type: Optional[str]
+    artifact_description: Optional[str]
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -351,6 +377,38 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     class Config:
         extra = "forbid"
+
+
+class UnpersistedResult(BaseResult):
+    """
+    Result type for results that are not persisted outside of local memory.
+    """
+
+    type = "unpersisted"
+
+    @sync_compatible
+    async def get(self) -> R:
+        if self.has_cached_object():
+            return self._cache
+
+        raise MissingResult("The result was not persisted and is no longer available.")
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[UnpersistedResult]",
+        obj: R,
+        cache_object: bool = True,
+    ) -> "UnpersistedResult[R]":
+        description = f"Unpersisted result of type `{type(obj).__name__}`"
+        result = cls(
+            artifact_type="result",
+            artifact_description=description,
+        )
+        # Only store the object in local memory, it will not be sent to the API
+        if cache_object:
+            result._cache_object(obj)
+        return result
 
 
 class LiteralResult(BaseResult):
@@ -380,11 +438,12 @@ class LiteralResult(BaseResult):
     ) -> "LiteralResult[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for result literal. "
-                f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
+                f"Unsupported type {type(obj).__name__!r} for result literal. Expected"
+                f" one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        return cls(value=obj)
+        description = f"Result with value `{obj}` persisted to Prefect."
+        return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
 class PersistedResult(BaseResult):
@@ -407,10 +466,11 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "OrionClient") -> R:
+    async def get(self, client: "PrefectClient") -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
+
         if self.has_cached_object():
             return self._cache
 
@@ -423,12 +483,24 @@ class PersistedResult(BaseResult):
         return obj
 
     @inject_client
-    async def _read_blob(self, client: "OrionClient") -> "PersistedResultBlob":
+    async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
         blob = PersistedResultBlob.parse_raw(content)
         return blob
+
+    @staticmethod
+    def _infer_path(storage_block, key) -> str:
+        """
+        Attempts to infer a path associated with a storage block key, this method will
+        defer to the block in the future
+        """
+
+        if hasattr(storage_block, "_resolve_path"):
+            return storage_block._resolve_path(key)
+        if hasattr(storage_block, "_remote_file_system"):
+            return storage_block._remote_file_system._resolve_path(key)
 
     @classmethod
     @sync_compatible
@@ -437,6 +509,7 @@ class PersistedResult(BaseResult):
         obj: R,
         storage_block: WritableFileSystem,
         storage_block_id: uuid.UUID,
+        storage_key_fn: Callable[[], str],
         serializer: Serializer,
         cache_object: bool = True,
     ) -> "PersistedResult[R]":
@@ -449,13 +522,30 @@ class PersistedResult(BaseResult):
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(serializer=serializer, data=data)
 
-        key = uuid.uuid4().hex
+        key = storage_key_fn()
+        if not isinstance(key, str):
+            raise TypeError(
+                f"Expected type 'str' for result storage key; got value {key!r}"
+            )
+
         await storage_block.write_path(key, content=blob.to_bytes())
+
+        description = f"Result of type `{type(obj).__name__}`"
+        uri = cls._infer_path(storage_block, key)
+        if uri:
+            if isinstance(storage_block, LocalFileSystem):
+                description += f" persisted to: `{uri}`"
+            else:
+                description += f" persisted to [{uri}]({uri})."
+        else:
+            description += f" persisted with storage block `{storage_block_id}`."
 
         result = cls(
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
+            artifact_type="result",
+            artifact_description=description,
         )
 
         if cache_object:

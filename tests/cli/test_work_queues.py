@@ -147,7 +147,10 @@ class TestSetConcurrencyLimit:
 
     def test_set_concurrency_limit_bad_queue_id(self):
         invoke_and_assert(
-            command=f"work-queue set-concurrency-limit 00000000-0000-0000-0000-000000000000 5",
+            command=(
+                f"work-queue set-concurrency-limit"
+                f" 00000000-0000-0000-0000-000000000000 5"
+            ),
             expected_code=1,
         )
 
@@ -202,8 +205,7 @@ class TestClearConcurrencyLimit:
         assert work_pool_queue.concurrency_limit == 5
 
         cmd = (
-            f"work-queue clear-concurrency-limit {work_pool_queue.name} "
-            f"-p {pool_name}"
+            f"work-queue clear-concurrency-limit {work_pool_queue.name} -p {pool_name}"
         )
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -222,7 +224,10 @@ class TestClearConcurrencyLimit:
 
     def test_clear_concurrency_limit_bad_queue_id(self):
         invoke_and_assert(
-            command=f"work-queue clear-concurrency-limit 00000000-0000-0000-0000-000000000000",
+            command=(
+                f"work-queue clear-concurrency-limit"
+                f" 00000000-0000-0000-0000-000000000000"
+            ),
             expected_code=1,
         )
 
@@ -261,9 +266,7 @@ class TestPauseWorkQueue:
         work_queue_1,
     ):
         assert not work_queue_1.is_paused
-        cmd = (
-            f"work-queue pause {work_queue_1.name} " f"-p {work_queue_1.work_pool.name}"
-        )
+        cmd = f"work-queue pause {work_queue_1.name} -p {work_queue_1.work_pool.name}"
         invoke_and_assert(
             command=cmd,
             expected_code=0,
@@ -335,7 +338,7 @@ class TestResumeWorkQueue:
         )
         assert work_pool_queue.is_paused
 
-        cmd = f"work-queue resume {work_queue_1.name} " f"-p {pool_name}"
+        cmd = f"work-queue resume {work_queue_1.name} -p {pool_name}"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
@@ -392,10 +395,7 @@ class TestInspectWorkQueue:
         self,
         work_queue_1,
     ):
-        cmd = (
-            f"work-queue inspect {work_queue_1.name} "
-            f"-p {work_queue_1.work_pool.name}"
-        )
+        cmd = f"work-queue inspect {work_queue_1.name} -p {work_queue_1.work_pool.name}"
         invoke_and_assert(
             command=cmd,
             expected_output_contains=[
@@ -455,7 +455,7 @@ class TestDelete:
         work_queue_1,
     ):
         pool_name = work_queue_1.work_pool.name
-        cmd = f"work-queue delete {work_queue_1.name} " f"-p {pool_name}"
+        cmd = f"work-queue delete {work_queue_1.name} -p {pool_name}"
         invoke_and_assert(
             command=cmd,
             expected_code=0,
@@ -470,7 +470,7 @@ class TestDelete:
         work_queue_1,
     ):
         pool_name = work_queue_1.work_pool.name
-        cmd = f"work-queue delete {work_queue_1.name} " f"-p {pool_name}bad"
+        cmd = f"work-queue delete {work_queue_1.name} -p {pool_name}bad"
         invoke_and_assert(
             command=cmd,
             expected_code=1,
@@ -502,10 +502,7 @@ class TestPreview:
         self,
         work_queue_1,
     ):
-        cmd = (
-            f"work-queue preview {work_queue_1.name} "
-            f"-p {work_queue_1.work_pool.name}"
-        )
+        cmd = f"work-queue preview {work_queue_1.name} -p {work_queue_1.work_pool.name}"
         invoke_and_assert(
             command=cmd,
             expected_code=0,

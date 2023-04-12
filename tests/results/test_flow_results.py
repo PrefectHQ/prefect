@@ -3,14 +3,14 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
-from prefect.orion import schemas
-from prefect.results import LiteralResult
+from prefect.results import UnpersistedResult
 from prefect.serializers import (
     CompressedSerializer,
     JSONSerializer,
     PickleSerializer,
     Serializer,
 )
+from prefect.server import schemas
 from prefect.settings import PREFECT_HOME
 from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
@@ -65,6 +65,22 @@ async def test_flow_with_uncached_and_unpersisted_result(orion_client):
         await api_state.result()
 
 
+async def test_flow_with_uncached_and_unpersisted_null_result(orion_client):
+    @flow(persist_result=False, cache_result_in_memory=False)
+    def foo():
+        return None
+
+    state = foo(return_state=True)
+    # Nulls do not consume memory and are still available
+    assert await state.result() is None
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    with pytest.raises(MissingResult):
+        await api_state.result()
+
+
 async def test_flow_with_uncached_but_persisted_result(orion_client):
     @flow(persist_result=True, cache_result_in_memory=False)
     def foo():
@@ -96,7 +112,7 @@ async def test_flow_with_uncached_but_literal_result(orion_client):
     assert await api_state.result() is True
 
 
-async def test_flow_result_not_missing_with_null_return(orion_client):
+async def test_flow_result_missing_with_null_return(orion_client):
     @flow
     def foo():
         return None
@@ -107,7 +123,8 @@ async def test_flow_result_not_missing_with_null_return(orion_client):
     api_state = (
         await orion_client.read_flow_run(state.state_details.flow_run_id)
     ).state
-    assert await api_state.result() is None
+    with pytest.raises(MissingResult):
+        await api_state.result()
 
 
 @pytest.mark.parametrize("value", [True, False, None])
@@ -304,7 +321,7 @@ async def test_child_flow_result_storage(orion_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
-async def test_child_flow_result_not_missing_with_null_return(orion_client):
+async def test_child_flow_result_missing_with_null_return(orion_client):
     @flow
     def foo():
         return bar(return_state=True)
@@ -315,13 +332,14 @@ async def test_child_flow_result_not_missing_with_null_return(orion_client):
 
     parent_state = foo(return_state=True)
     child_state = await parent_state.result()
-    assert isinstance(child_state.data, LiteralResult)
+    assert isinstance(child_state.data, UnpersistedResult)
     assert await child_state.result() is None
 
     api_state = (
         await orion_client.read_flow_run(child_state.state_details.flow_run_id)
     ).state
-    assert await api_state.result() is None
+    with pytest.raises(MissingResult):
+        await api_state.result()
 
 
 @pytest.mark.parametrize("empty_type", [dict, list])
@@ -341,6 +359,8 @@ def test_flow_empty_result_is_retained(persist_result, empty_type):
         {"type": "foo"},
         {"type": "literal", "user-stuff": "bar"},
         {"type": "persisted"},
+        {"type": "persisted", "value": "test"},
+        {"type": "unpersisted"},
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])

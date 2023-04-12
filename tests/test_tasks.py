@@ -4,7 +4,7 @@ import time
 import warnings
 from asyncio import Event, sleep
 from typing import Any, Dict, List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from uuid import UUID
 
 import anyio
@@ -13,7 +13,6 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
-from prefect.deprecated.data_documents import DataDocument
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
@@ -22,11 +21,12 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion import models
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import StateType
+from prefect.server import models
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
+from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import allow_failure, unmapped
@@ -607,7 +607,7 @@ class TestTaskStates:
             return State(
                 type=StateType.FAILED,
                 message="Test returned state",
-                data=DataDocument.encode("json", True),
+                data=True,
             )
 
         @flow(version="test")
@@ -967,7 +967,6 @@ class TestTaskCaching:
         assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
-
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
@@ -2305,7 +2304,7 @@ class TestTaskWaitFor:
         assert task_state.result() == 2
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @task
@@ -2401,6 +2400,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=False,
             timeout_seconds=None,
             refresh_cache=False,
+            result_storage_key="foo",
         )
         def initial_task():
             pass
@@ -2419,6 +2419,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=True,
             timeout_seconds=42,
             refresh_cache=True,
+            result_storage_key="bar",
         )
 
         assert task_with_options.name == "Copied task"
@@ -2434,6 +2435,7 @@ class TestTaskWithOptions:
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache == True
+        assert task_with_options.result_storage_key == "bar"
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2453,6 +2455,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=False,
             timeout_seconds=42,
             refresh_cache=True,
+            result_storage_key="test",
         )
         def initial_task():
             pass
@@ -2476,6 +2479,7 @@ class TestTaskWithOptions:
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache == True
+        assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
@@ -2483,6 +2487,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             refresh_cache=True,
+            result_storage_key="test",
         )
         def initial_task():
             pass
@@ -2492,11 +2497,13 @@ class TestTaskWithOptions:
             result_serializer=None,
             result_storage=None,
             refresh_cache=None,
+            result_storage_key=None,
         )
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
         assert task_with_options.refresh_cache is None
+        assert task_with_options.result_storage_key is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
@@ -2572,7 +2579,10 @@ class TestTaskRegistration:
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
             UserWarning,
-            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+            match=(
+                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
+                r" task."
+            ),
         ):
 
             @task(name="my_task")
@@ -2658,6 +2668,26 @@ class TestTaskMap:
         def my_flow():
             numbers_state = some_numbers._run()
             return TestTaskMap.add_one.map(numbers_state)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_can_take_quoted_iterable_as_input(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_does_not_treat_quote_as_iterable(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
@@ -2965,7 +2995,7 @@ class TestTaskMap:
             [4, 5, 6, 7],
         ]
 
-    def test_with_default_kwargs(self):
+    def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
             return x + y
@@ -2977,6 +3007,138 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+    def test_with_keyword_with_iterable_default(self):
+        @task
+        def add_some(x, y=[1, 4]):
+            return x + sum(y)
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [6, 7, 8]
+
+    def test_with_variadic_keywords_and_iterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=[4, 5, 6])
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [5, 7, 9]
+
+    def test_with_variadic_keywords_and_noniterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=1)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        async def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
 
 class TestTaskConstructorValidation:
@@ -3027,3 +3189,233 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client)
     assert tr_state.is_completed()
     task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "chris-wuz-here"
+
+
+def create_hook(mock_obj):
+    def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+def create_async_hook(mock_obj):
+    async def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+class TestTaskHooksOnCompletion:
+    def test_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, completed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    def test_on_completion_hooks_dont_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, completed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state == StateType.FAILED
+            assert my_mock.call_args_list == []
+
+    def test_other_completion_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("oops")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, exception_hook, completed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_completion_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_completion=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
+class TestTaskHooksOnFailure:
+    def test_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, failed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_dont_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, failed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == []
+
+    def test_other_failure_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("bad hook")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, exception_hook, failed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_failure_hooks_work_with_sync_and_async_functions(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_failure=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call(), call()]
+
+    def test_failure_hooks_dont_run_on_retries(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        @task(retries=2, on_failure=[failed1])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1")]

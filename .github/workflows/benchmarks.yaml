@@ -62,17 +62,16 @@ jobs:
           path: ./.benchmarks
           # Pushes benchmark results for this branch and sha, this will always be a cache miss
           # and `restore-keys` will be used to get the benchmarks for comparison
-          key: ${{ runner.os }}-${{ github.head_ref }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ github.head_ref || 'main' }}-${{ github.sha }}
           # Pulls benchmark results for the base branch
           restore-keys: |
             ${{ runner.os }}-${{ github.base_ref }}-
-            ${{ runner.os }}-${{ github.head_ref }}-
-            ${{ runner.os }}-
+            ${{ runner.os }}-main-
 
 
       - name: Start server
         run: |
-          prefect orion start&
+          prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
@@ -81,7 +80,7 @@ jobs:
       - name: Run benchmarks
         # Includes comparison to previous benchmarks if available
         run: >
-          uniquename=${{ github.head_ref }}-${{ github.sha }}
+          uniquename=${{ github.head_ref || 'main' }}-${{ github.sha }}
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches

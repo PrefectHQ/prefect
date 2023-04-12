@@ -1,12 +1,8 @@
-import asyncio
 import json
 import logging
-import queue
 import sys
-import threading
 import time
 import uuid
-import warnings
 from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
@@ -32,7 +28,7 @@ from prefect.logging.configuration import (
     setup_logging,
 )
 from prefect.logging.formatters import JsonFormatter
-from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
+from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
     disable_logger,
@@ -43,17 +39,17 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.orion.schemas.actions import LogCreate
+from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_MARKUP,
-    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
-    PREFECT_LOGGING_ORION_BATCH_SIZE,
-    PREFECT_LOGGING_ORION_ENABLED,
-    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW,
     PREFECT_LOGGING_SETTINGS_PATH,
+    PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
+    PREFECT_LOGGING_TO_API_BATCH_SIZE,
+    PREFECT_LOGGING_TO_API_ENABLED,
+    PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
+    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
     temporary_settings,
 )
 from prefect.testing.cli import temporary_console_width
@@ -129,7 +125,6 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     config_file.write_text("foo: bar")
 
     with temporary_settings({PREFECT_LOGGING_SETTINGS_PATH: config_file}):
-
         setup_logging()
         expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
         expected_config["incremental"] = False
@@ -138,7 +133,6 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
-
     with temporary_settings(
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
@@ -148,8 +142,8 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     expected_config["incremental"] = False
 
     # Test setting a value for a simple key
-    env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
-    expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
+    env["PREFECT_LOGGING_HANDLERS_API_LEVEL"] = "API_LEVEL_VAL"
+    expected_config["handlers"]["api"]["level"] = "API_LEVEL_VAL"
 
     # Test setting a value for the root logger
     env["PREFECT_LOGGING_ROOT_LEVEL"] = "ROOT_LEVEL_VAL"
@@ -180,7 +174,7 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
 
 
 @pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deployment):
     """
     Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
@@ -253,15 +247,15 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 @pytest.fixture
 def mock_log_worker(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.logging.handlers.OrionLogWorker", mock)
+    monkeypatch.setattr("prefect.logging.handlers.APILogWorker", mock)
     return mock
 
 
-@pytest.mark.enable_orion_handler
-class TestOrionHandler:
+@pytest.mark.enable_api_log_handler
+class TestAPILogHandler:
     @pytest.fixture
     def handler(self):
-        yield OrionHandler()
+        yield APILogHandler()
 
     @pytest.fixture
     def logger(self, handler):
@@ -271,41 +265,10 @@ class TestOrionHandler:
         yield logger
         logger.removeHandler(handler)
 
-    def test_handler_instances_share_log_worker(self):
-        first = OrionHandler().get_worker(prefect.context.get_settings_context())
-        second = OrionHandler().get_worker(prefect.context.get_settings_context())
-        assert first is second
-        assert len(OrionHandler.workers) == 1
-
-    def test_log_workers_are_cached_by_profile(self):
-        a = OrionHandler().get_worker(prefect.context.get_settings_context())
-        b = OrionHandler().get_worker(
-            prefect.context.get_settings_context().copy(update={"name": "foo"})
-        )
-        assert a is not b
-        assert len(OrionHandler.workers) == 2
-
-    def test_instantiates_log_worker(self, mock_log_worker):
-        OrionHandler().get_worker(prefect.context.get_settings_context())
-        mock_log_worker.assert_called_once_with(prefect.context.get_settings_context())
-        mock_log_worker().start.assert_called_once_with()
-
-    def test_worker_is_not_started_until_log_is_emitted(self, mock_log_worker, logger):
-        mock_log_worker().start.assert_not_called()
-        logger.setLevel(logging.INFO)
-        logger.debug("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().start.assert_not_called()
-        logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().start.assert_called()
-
     def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
-        handler = OrionHandler()
-        handler.get_worker(prefect.context.get_settings_context())
+        handler = APILogHandler()
         handler.close()
-        mock_log_worker().flush.assert_called_once()
-        # The worker cannot be stopped because it is a singleton and other handler
-        # instances may be using it
-        mock_log_worker().stop.assert_not_called()
+        mock_log_worker.drain_all.assert_called_once()
 
     @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
@@ -314,33 +277,10 @@ class TestOrionHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush(block=True)
+        await handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
-
-    async def test_logs_cannot_be_sent_after_worker_stop(
-        self, logger, handler, flow_run, orion_client, capsys
-    ):
-        logger.info("Test", extra={"flow_run_id": flow_run.id})
-        for worker in handler.workers.values():
-            worker.stop()
-
-        # Send a log that will not be sent
-        logger.info("Test", extra={"flow_run_id": flow_run.id})
-
-        logs = await orion_client.read_logs()
-        assert len(logs) == 1
-
-        output = capsys.readouterr()
-        assert (
-            "RuntimeError: Logs cannot be enqueued after the Orion log worker is stopped."
-            in output.err
-        )
-
-    def test_worker_is_not_stopped_if_not_set_on_handler_close(self, mock_log_worker):
-        OrionHandler().close()
-        mock_log_worker().stop.assert_not_called()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
@@ -354,9 +294,9 @@ class TestOrionHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     def test_sends_flow_run_log_to_worker(self, logger, mock_log_worker, flow_run):
         with FlowRunContext.construct(flow_run=flow_run):
@@ -370,9 +310,9 @@ class TestOrionHandler:
             message="test-flow",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_flow_run_id(
@@ -395,9 +335,9 @@ class TestOrionHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_task_run_id(
@@ -421,14 +361,14 @@ class TestOrionHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     def test_does_not_emit_logs_below_level(self, logger, mock_log_worker):
         logger.setLevel(logging.WARNING)
         logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_explicit_task_run_id_still_requires_flow_run_id(
         self, logger, mock_log_worker
@@ -439,7 +379,7 @@ class TestOrionHandler:
         ):
             logger.info("test-task", extra={"task_run_id": task_run_id})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_sets_timestamp_from_record_created_time(
         self, logger, mock_log_worker, flow_run, handler
@@ -451,7 +391,7 @@ class TestOrionHandler:
             logger.info("test-flow")
 
         record = handler.emit.call_args[0][0]
-        log_dict = mock_log_worker().enqueue.call_args[0][0]
+        log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert (
             log_dict["timestamp"] == pendulum.from_timestamp(record.created).isoformat()
@@ -474,7 +414,7 @@ class TestOrionHandler:
         with FlowRunContext.construct(flow_run=flow_run):
             logger.info("test-flow")
 
-        log_dict = mock_log_worker().enqueue.call_args[0][0]
+        log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert log_dict["timestamp"] == pendulum.from_timestamp(now).isoformat()
 
@@ -482,18 +422,18 @@ class TestOrionHandler:
         with TaskRunContext.construct(task_run=task_run):
             logger.info("test", extra={"send_to_orion": False})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_does_not_send_logs_when_handler_is_disabled(
         self, logger, mock_log_worker, task_run
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_ENABLED: "False"},
+            updates={PREFECT_LOGGING_TO_API_ENABLED: "False"},
         ):
             with TaskRunContext.construct(task_run=task_run):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_does_not_send_logs_outside_of_run_context_with_default_setting(
         self, logger, mock_log_worker, capsys
@@ -504,17 +444,30 @@ class TestOrionHandler:
         ):
             logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
 
+    def test_does_not_raise_when_logger_outside_of_run_context_with_default_setting(
+        self,
+        logger,
+    ):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "Logger 'tests.test_logging' attempted to send logs to the API without"
+                " a flow run id."
+            ),
+        ):
+            logger.info("test")
+
     def test_does_not_send_logs_outside_of_run_context_with_error_setting(
         self, logger, mock_log_worker, capsys
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "error"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "error"},
         ):
             with pytest.raises(
                 MissingContextError,
@@ -522,31 +475,56 @@ class TestOrionHandler:
             ):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_warn_when_logger_outside_of_run_context_with_error_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "error"},
+        ):
+            with pytest.raises(
+                MissingContextError,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
         self, logger, mock_log_worker, capsys
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "ignore"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "ignore"},
         ):
             logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
 
+    def test_does_not_raise_or_warn_when_logger_outside_of_run_context_with_ignore_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "ignore"},
+        ):
+            logger.info("test")
+
     def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
         self, logger, mock_log_worker, capsys
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "warn"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
             # Warns in the main process
             with pytest.warns(
@@ -554,11 +532,29 @@ class TestOrionHandler:
             ):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_when_logger_outside_of_run_context_with_warn_setting(
+        self, logger
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
+        ):
+            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
+            #       capture the warning call and skip checing that we use it correctly
+            #       See https://github.com/pytest-dev/pytest/issues/9288
+            with pytest.raises(
+                UserWarning,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
 
     def test_missing_context_warning_refers_to_caller_lineno(
         self, logger, mock_log_worker
@@ -574,20 +570,20 @@ class TestOrionHandler:
             # The above dynamic collects the line number so that added tests do not
             # break this test
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         assert warnings.pop().lineno == lineno
 
     def test_writes_logging_errors_to_stderr(
         self, logger, mock_log_worker, capsys, monkeypatch
     ):
         monkeypatch.setattr(
-            "prefect.logging.handlers.OrionHandler.prepare",
+            "prefect.logging.handlers.APILogHandler.prepare",
             MagicMock(side_effect=RuntimeError("Oh no!")),
         )
         # No error raised
         logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # Error is in stderr
         output = capsys.readouterr()
@@ -598,10 +594,10 @@ class TestOrionHandler:
     ):
         logger.info("test", extra={"send_to_orion": False})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         output = capsys.readouterr()
         assert (
-            "RuntimeError: Attempted to send logs to Orion without a flow run id."
+            "RuntimeError: Attempted to send logs to the API without a flow run id."
             not in output.err
         )
 
@@ -609,10 +605,10 @@ class TestOrionHandler:
         self, task_run, logger, capsys, mock_log_worker
     ):
         with TaskRunContext.construct(task_run=task_run):
-            with temporary_settings(updates={PREFECT_LOGGING_ORION_MAX_LOG_SIZE: "1"}):
+            with temporary_settings(updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: "1"}):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         output = capsys.readouterr()
         assert "ValueError" in output.err
         assert "is greater than the max size of 1" in output.err
@@ -629,11 +625,15 @@ class TestOrionHandler:
 
         log_size = len(json.dumps(dict_log))
         assert log_size == 211
-        handler = OrionHandler()
-        assert handler.get_log_size(dict_log) == log_size
+        handler = APILogHandler()
+        assert handler._get_payload_size(dict_log) == log_size
 
 
-class TestOrionLogWorker:
+class TestAPILogWorker:
+    @pytest.fixture
+    async def worker(self):
+        return APILogWorker.instance()
+
     @pytest.fixture
     def log_dict(self):
         return LogCreate(
@@ -645,78 +645,23 @@ class TestOrionLogWorker:
             message="hello",
         ).dict(json_compatible=True)
 
-    @pytest.fixture
-    def log_size(self, log_dict) -> int:
-        return OrionHandler().get_log_size(log_dict)
-
-    @pytest.fixture
-    def worker(self, get_worker):
-        yield get_worker()
-
-    @pytest.fixture
-    def get_worker(self):
-        # Ensures that a worker is stopped _before_ the test is torn down. Otherwise,
-        # remaining logs could be written by a background thread after all the tests
-        # finish and the database has been reset.
-        worker = None
-
-        def get_worker():
-            nonlocal worker
-            worker = OrionLogWorker(prefect.context.get_settings_context())
-            return worker
-
-        yield get_worker
-
-        if worker:
-            worker.stop()
-        else:
-            warnings.warn("`get_worker` fixture was specified but not called.")
-
-    def test_start_is_idempotent(self, worker):
-        worker._send_thread = MagicMock()
-        worker.start()
-        worker.start()
-        worker._send_thread.start.assert_called_once()
-
-    def test_stop_is_idempotent(self, worker):
-        worker._send_thread = MagicMock()
-        worker._stop_event = MagicMock()
-        worker._flush_event = MagicMock()
-        worker.stop()
-        worker._stop_event.set.assert_not_called()
-        worker._flush_event.set.assert_not_called()
-        worker._send_thread.join.assert_not_called()
-        worker.start()
-        worker.stop()
-        worker.stop()
-        worker._flush_event.set.assert_called_once()
-        worker._stop_event.set.assert_called_once()
-        worker._send_thread.join.assert_called_once()
-
-    def test_enqueue(self, log_dict, log_size, worker):
-        worker.enqueue(log_dict, log_size)
-        assert worker._queue.get_nowait() == (log_dict, log_size)
-
-    async def test_send_logs_single_record(
-        self, log_dict, log_size, orion_client, worker
-    ):
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs()
+    async def test_send_logs_single_record(self, log_dict, orion_client, worker):
+        worker.send(log_dict)
+        await worker.drain()
         logs = await orion_client.read_logs()
         assert len(logs) == 1
         assert logs[0].dict(include=log_dict.keys(), json_compatible=True) == log_dict
 
     async def test_send_logs_many_records(self, log_dict, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.PREFECT_ORION_API_DEFAULT_LIMIT.value()
+        count = prefect.settings.PREFECT_API_DEFAULT_LIMIT.value()
         log_dict.pop("message")
 
         for i in range(count):
             new_log = log_dict.copy()
             new_log["message"] = str(i)
-            new_log_size = OrionHandler().get_log_size(new_log)
-            worker.enqueue(new_log, new_log_size)
-        await worker.send_logs()
+            worker.send(new_log)
+        await worker.drain()
 
         logs = await orion_client.read_logs()
         assert len(logs) == count
@@ -729,135 +674,52 @@ class TestOrionLogWorker:
             )
         assert len(set(log.message for log in logs)) == count, "Each log is unique"
 
-    async def test_send_logs_retries_on_next_call_on_exception(
-        self, log_dict, log_size, orion_client, monkeypatch, capsys, worker
-    ):
-        create_logs = orion_client.create_logs
-        monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
-            MagicMock(side_effect=ValueError("Test")),
-        )
-
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs()
-
-        # Log moved from queue to pending logs
-        assert worker._pending_logs == [log_dict]
-        with pytest.raises(queue.Empty):
-            worker._queue.get_nowait()
-
-        # Restore client
-        monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
-            create_logs,
-        )
-        await worker.send_logs()
-
-        logs = await orion_client.read_logs()
-        assert len(logs) == 1
-
     @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(
-        self, log_dict, log_size, capsys, monkeypatch, exiting, worker
+        self, log_dict, capsys, monkeypatch, exiting, worker
     ):
         monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
+            "prefect.client.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs(exiting=exiting)
+        worker.send(log_dict)
+        await worker.drain()
 
         err = capsys.readouterr().err
-        assert "--- Orion logging error ---" in err
+        assert "--- Error logging to API ---" in err
         assert "ValueError: Test" in err
-        if not exiting:
-            assert "will attempt to send these logs again" in err
-        else:
-            assert "log worker is stopping and these logs will not be sent" in err
 
-    async def test_send_logs_batches_by_size(
-        self, log_dict, log_size, monkeypatch, get_worker
-    ):
+    async def test_send_logs_batches_by_size(self, log_dict, monkeypatch):
         mock_create_logs = AsyncMock()
-        monkeypatch.setattr("prefect.client.OrionClient.create_logs", mock_create_logs)
+        monkeypatch.setattr(
+            "prefect.client.PrefectClient.create_logs", mock_create_logs
+        )
+
+        log_size = APILogHandler()._get_payload_size(log_dict)
 
         with temporary_settings(
             updates={
-                PREFECT_LOGGING_ORION_BATCH_SIZE: log_size + 1,
-                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: log_size,
+                PREFECT_LOGGING_TO_API_BATCH_SIZE: log_size + 1,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: log_size,
             }
         ):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.enqueue(log_dict, log_size)
-            worker.enqueue(log_dict, log_size)
-            await worker.send_logs()
+            worker = APILogWorker.instance()
+            worker.send(log_dict)
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
 
         assert mock_create_logs.call_count == 3
 
-    @pytest.mark.flaky(max_runs=3)
-    async def test_logs_are_sent_when_started(
-        self, log_dict, log_size, orion_client, get_worker, monkeypatch
-    ):
-        event = threading.Event()
-        unpatched_create_logs = orion_client.create_logs
-
-        async def create_logs(self, *args, **kwargs):
-            result = await unpatched_create_logs(*args, **kwargs)
-            event.set()
-            return result
-
-        monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
-
-        with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "0.001"}
-        ):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-
-        # We want to ensure logs are written without the thread being joined
-        await asyncio.sleep(0.01)
-        event.wait()
-        logs = await orion_client.read_logs()
-        # TODO: CI failures sometimes find one log here instead of two.
-        assert len(logs) == 2
-
-    def test_batch_interval_is_respected(self, get_worker):
-
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "5"}):
-            worker = get_worker()
-            worker._flush_event = MagicMock(return_val=False)
-            worker.start()
-
-            # Wait for the a loop to complete
-            worker._send_logs_finished_event.wait(1)
-
-        worker._flush_event.wait.assert_called_with(5)
-
-    def test_flush_event_is_cleared(self, get_worker):
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "5"}):
-            worker = get_worker()
-            worker._flush_event = MagicMock(return_val=False)
-            worker.start()
-            worker.flush(block=True)
-
-        worker._flush_event.wait.assert_called_with(5)
-        worker._flush_event.clear.assert_called()
-
-    async def test_logs_are_sent_immediately_when_stopped(
-        self, log_dict, log_size, orion_client, get_worker
-    ):
+    async def test_logs_are_sent_immediately_when_stopped(self, log_dict, orion_client):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.stop()
+        with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
+            worker = APILogWorker.instance()
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
         end_time = time.time()
 
         assert (
@@ -866,32 +728,16 @@ class TestOrionLogWorker:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
-
-    async def test_raises_on_enqueue_after_stop(self, worker, log_dict, log_size):
-        worker.start()
-        worker.stop()
-        with pytest.raises(
-            RuntimeError, match="Logs cannot be enqueued after .* is stopped"
-        ):
-            worker.enqueue(log_dict, log_size)
-
-    async def test_raises_on_start_after_stop(self, worker):
-        worker.start()
-        worker.stop()
-        with pytest.raises(RuntimeError, match="cannot be started after stopping"):
-            worker.start()
 
     async def test_logs_are_sent_immediately_when_flushed(
-        self, log_dict, log_size, orion_client, get_worker
+        self, log_dict, orion_client, worker
     ):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.flush(block=True)
+        with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
         end_time = time.time()
 
         assert (
@@ -900,29 +746,6 @@ class TestOrionLogWorker:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
-
-    async def test_logs_can_be_flushed_repeatedly(
-        self, log_dict, log_size, orion_client, get_worker
-    ):
-        # Set a long interval
-        start_time = time.time()
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.flush()
-            worker.flush()
-            worker.enqueue(log_dict, log_size)
-            worker.flush(block=True)
-        end_time = time.time()
-
-        assert (
-            end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
-
-        logs = await orion_client.read_logs()
-        assert len(logs) == 3
 
 
 def test_flow_run_logger(flow_run):
@@ -1267,7 +1090,6 @@ class TestJsonFormatter:
         assert deserialized["lineno"] == 1
 
     def test_json_log_formatter_with_exception(self):
-
         exc_info = None
         try:
             raise Exception("test exception")  # noqa

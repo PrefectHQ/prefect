@@ -90,7 +90,6 @@ def mock_docker_client(monkeypatch):
 def test_name_cast_to_valid_container_name(
     mock_docker_client, requested_name, container_name
 ):
-
     DockerContainer(command=["echo", "hello"], name=requested_name).run()
     mock_docker_client.containers.create.assert_called_once()
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
@@ -135,13 +134,15 @@ async def test_kill_raises_infra_not_available_with_bad_host_url(mock_docker_cli
 async def test_kill_raises_infra_not_found_with_bad_container_id(
     mock_docker_client,
 ):
-
     mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
 
     BAD_CONTAINER_ID = "bad-container-id"
     with pytest.raises(
         InfrastructureNotFound,
-        match=f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not found.",
+        match=(
+            f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not"
+            " found."
+        ),
     ):
         await DockerContainer().kill(
             infrastructure_pid=f"{FAKE_BASE_URL}:{BAD_CONTAINER_ID}", grace_seconds=0
@@ -265,7 +266,6 @@ def test_uses_network_setting(mock_docker_client, networks):
 def test_uses_label_setting(
     mock_docker_client,
 ):
-
     DockerContainer(
         command=["echo", "hello"], labels={"foo": "FOO", "bar": "BAR"}
     ).run()
@@ -277,7 +277,6 @@ def test_uses_label_setting(
 def test_uses_network_mode_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], network_mode="bridge").run()
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -287,7 +286,6 @@ def test_uses_network_mode_setting(
 def test_uses_env_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}).run()
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
@@ -417,7 +415,6 @@ def test_network_mode_defaults_to_none_if_using_networks(mock_docker_client):
 
 
 def test_network_mode_defaults_to_none_if_using_nonlocal_api(mock_docker_client):
-
     DockerContainer(
         command=["echo", "hello"], env=dict(PREFECT_API_URL="http://foo/test")
     ).run()
@@ -459,11 +456,10 @@ def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
     assert network_mode is None
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
-    mock_docker_client, hosted_orion_api
+    mock_docker_client, hosted_api_server
 ):
-
     DockerContainer(
         command=["echo", "hello"],
         network_mode="bridge",
@@ -471,15 +467,15 @@ def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
-    assert call_env["PREFECT_API_URL"] == hosted_orion_api.replace(
+    assert call_env["PREFECT_API_URL"] == hosted_api_server.replace(
         "localhost", "host.docker.internal"
     )
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_does_not_replace_localhost_api_when_using_host_network(
     mock_docker_client,
-    hosted_orion_api,
+    hosted_api_server,
     monkeypatch,
 ):
     # We will warn if setting 'host' network mode on non-linux platforms
@@ -492,10 +488,10 @@ def test_does_not_replace_localhost_api_when_using_host_network(
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
-    assert call_env["PREFECT_API_URL"] == hosted_orion_api
+    assert call_env["PREFECT_API_URL"] == hosted_api_server
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
     mock_docker_client,
     monkeypatch,
@@ -664,7 +660,7 @@ def test_does_not_add_docker_host_gateway_on_other_platforms(
         "http://host.docker.internal:10/foo/api",
     ],
 )
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     mock_docker_client,
     explicit_api_url,
@@ -677,7 +673,7 @@ def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     with pytest.warns(
         UserWarning,
         match=(
-            "`host.docker.internal` could not be automatically resolved.*"
+            f"`host.docker.internal` could not be automatically resolved.*"
             f"feature is not supported on Docker Engine v19.1.1"
         ),
     ):
@@ -729,7 +725,7 @@ def test_task_status_receives_result_identifier(mock_docker_client):
     fake_status.started.assert_called_once_with(result.identifier)
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.parametrize("platform", ["win32", "darwin"])
 def test_does_not_warn_about_gateway_if_not_using_linux(
     mock_docker_client,
@@ -865,7 +861,8 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
     ).run()
 
     assert (
-        "An unexpected Docker API error occured while streaming output from container fake-name."
+        "An unexpected Docker API error occured while streaming output from container"
+        " fake-name."
         in caplog.text
     )
 

@@ -61,9 +61,11 @@ def display_block_type(block_type):
     block_type_table.add_row("Block Type id", str(block_type.id))
     block_type_table.add_row(
         "Description",
-        block_type.description.splitlines()[0].partition(".")[0]
-        if block_type.description is not None
-        else "",
+        (
+            block_type.description.splitlines()[0].partition(".")[0]
+            if block_type.description is not None
+            else ""
+        ),
         end_section=True,
     )
 
@@ -124,7 +126,8 @@ async def register(
     # Handles if both options are specified or if neither are specified
     if not (bool(file_path) ^ bool(module_name)):
         exit_with_error(
-            "Please specify either a module or a file containing blocks to be registered, but not both."
+            "Please specify either a module or a file containing blocks to be"
+            " registered, but not both."
         )
 
     if module_name:
@@ -255,7 +258,7 @@ async def block_create(
 
         if not PREFECT_UI_URL:
             exit_with_error(
-                "Prefect must be configured to use a hosted Orion server or "
+                "Prefect must be configured to use a hosted Prefect server or "
                 "Prefect Cloud to display the Prefect UI"
             )
 
@@ -320,9 +323,11 @@ async def list_types():
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
             str(blocktype.slug),
-            str(blocktype.description.splitlines()[0].partition(".")[0])
-            if blocktype.description is not None
-            else "",
+            (
+                str(blocktype.description.splitlines()[0].partition(".")[0])
+                if blocktype.description is not None
+                else ""
+            ),
             f"prefect block create {blocktype.slug}",
         )
 

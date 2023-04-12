@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import pendulum
 from pydantic import Field, root_validator, validator
 
-from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
 # These are defined by Prefect Cloud
 MAXIMUM_LABELS_PER_RESOURCE = 500
@@ -113,6 +113,10 @@ class Event(PrefectBaseModel):
         default_factory=uuid4,
         description="The client-provided identifier of this event",
     )
+
+    @property
+    def involved_resources(self) -> Iterable[Resource]:
+        return [self.resource] + list(self.related)
 
     @validator("related")
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):

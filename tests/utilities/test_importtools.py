@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 import prefect
-from prefect import __root_path__
+from prefect import __development_base_path__
 from prefect.docker import docker_client
 from prefect.exceptions import ScriptError
 from prefect.utilities.filesystem import tmpchdir
@@ -19,7 +19,7 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-TEST_PROJECTS_DIR = __root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
 
 def my_fn():
@@ -28,6 +28,10 @@ def my_fn():
 
 class Foo:
     pass
+
+
+# Note we use the hosted API to avoid Postgres engine caching errors
+pytest.mark.usefixtures("hosted_orion")
 
 
 @pytest.fixture
@@ -142,10 +146,22 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
     "working_directory,script_path",
     [
         # Working directory is not necessary for these imports to work
-        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py"),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py",
+        ),
         # They also work with the working directory set to the project
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.py"),
         (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),
@@ -158,7 +174,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
 def test_import_object_from_script_with_relative_imports(
     working_directory, script_path
 ):
-
     with tmpchdir(working_directory):
         foobar = import_object(f"{script_path}:foobar")
 
@@ -183,7 +198,6 @@ def test_import_object_from_script_with_relative_imports(
 def test_import_object_from_script_with_relative_imports_expected_failures(
     working_directory, script_path
 ):
-
     with tmpchdir(working_directory):
         with pytest.raises(ScriptError):
             import_object(f"{script_path}:foobar")

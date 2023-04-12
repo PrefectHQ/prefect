@@ -9,6 +9,15 @@ query-filters:
   - exclude:
       # catching base exceptions is required
       id: py/catch-base-exception
+  - exclude:
+      # too many false positives with prefect.runtime
+      id: py/undefined-export
+  - exclude:
+      # sometimes necessary for __init__ files
+      id: py/import-and-import-from
+  - exclude:
+      # we dont need CodeQL quality linting
+      id: py/mixed-returns
 
 paths-ignore:
   - tests/**/test_*.py

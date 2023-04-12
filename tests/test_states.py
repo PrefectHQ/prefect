@@ -4,7 +4,12 @@ import pytest
 
 from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
-from prefect.results import LiteralResult, PersistedResult, ResultFactory
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    ResultFactory,
+    UnpersistedResult,
+)
 from prefect.states import (
     Cancelled,
     Completed,
@@ -151,7 +156,7 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data == LiteralResult(value=None)
+        assert isinstance(result_state.data, UnpersistedResult)
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self, factory):
@@ -169,7 +174,11 @@ class TestReturnValueToState:
         state = Completed(data=result)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data is result
+        # Pydantic makes a copy of the result type during state so we cannot assert that
+        # it is the original `result` object but we can assert there is not a copy in
+        # `return_value_to_state`
+        assert result_state.data is state.data
+        assert result_state.data == result
         assert await result_state.result() == "test"
 
     async def test_all_completed_states(self, factory):

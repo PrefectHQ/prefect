@@ -18,27 +18,9 @@
         <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
 </p>
 
-# Prefect 2
+# Prefect
 
-Prefect 2 is the second-generation dataflow coordination and orchestration platform from [Prefect](https://www.prefect.io).
-
-Prefect 2 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Prefect Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
-
-_**You should love your workflows again.**_
-
-[Read the docs](https://docs.prefect.io/), run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
-
-**"Don't Panic"**
-
-Still using Prefect 1 Core and Server? Find the [legacy Prefect 1 docs](https://docs-v1.prefect.io/) at [https://docs-v1.prefect.io/](https://docs.prefect.io/).
-
----
-
-## Hello, Orion!
-
-Powered by the Orion engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
-
-Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
+Prefect is an orchestrator for data-intensive workflows. It's the simplest way to transform any Python function into a unit of work that can be observed and orchestrated. With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes. With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more. Every activity is tracked and can be monitored with the Prefect server or Prefect Cloud dashboard.
 
 ```python
 from prefect import flow, task
@@ -63,41 +45,32 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect"])
 ```
 
-After running some flows, fire up the UI to gain insight into their execution:
+After running some flows, fire up the Prefect UI to see what happened:
 
 ```bash
-prefect orion start
+prefect server start
 ```
 
-![](/docs/img/ui/orion-dashboard.png)
+![](/docs/img/ui/flow-run-page.png)
 
-From here, you can continue to use Prefect interactively or set up automated [deployments](https://docs.prefect.io/concepts/deployments).
+From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote envirnments, running on a scheduled or event-driven basis.
 
-## Next steps
+## Getting Started
 
-Prefect 2 was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
+Prefect requires Python 3.7 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
 
-### Getting started
+```bash
+pip install prefect
+```
 
-Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine--Prefect currently supports the following Python versions: 3.7, 3.8, 3.9, 3.10. Then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
-
-### Concepts
-
-Learn more about Prefect's features and design by reading our in-depth [concept docs](https://docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
-
-### Frequently asked questions
-
-Prefect 2 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://docs.prefect.io/faq).
-
-### API reference
-
-Prefect provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
-
-### Contributing
-
-See our [documentation on contributing to Prefect 2](https://docs.prefect.io/contributing/overview/).
-
+Start by then exploring the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/), then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example.
 
 ## Join the community
 
-Prefect 2 was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data engineers to help build a new kind of workflow system.
+Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more abou Prefect, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an community-driven knowledge base to find answers to your Prefect-related questions. All community forums, including code contributions, issue discussions, and slack messages are subject to our [Code of Conduct](https://discourse.prefect.io/faq).
+
+## Contribute
+
+See our [documentation on contributing to Prefect](https://docs.prefect.io/contributing/overview/).
+
+Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
