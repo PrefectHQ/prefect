@@ -652,7 +652,7 @@ class Block(BaseModel, ABC):
                 "prefect.resource.id": (
                     f"prefect.block-document.{self._block_document_id}"
                 ),
-                "prefect.name": self._block_document_name,
+                "prefect.resource.name": self._block_document_name,
             },
             [
                 {
