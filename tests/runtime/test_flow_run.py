@@ -24,6 +24,10 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(flow_run)
         assert "foo" not in dir(flow_run)
 
+    async def test_attribute_override_via_env_var(self, monkeypatch):
+        monkeypatch.setenv(name="PREFECT__RUNTIME__FLOW_RUN__NEW_KEY", value="foobar")
+        assert flow_run.new_key == "foobar"
+
 
 class TestID:
     """
