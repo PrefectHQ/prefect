@@ -40,15 +40,21 @@ async def start(
     ),
     work_queues: List[str] = typer.Option(
         None,
+        "-q",
+        "--work-queue",
+        help=(
+            "One or more work queue names for the worker to pull from. If not provided,"
+            " the worker will pull from all work queues in the work pool."
+        ),
+    ),
+    worker_type: Optional[str] = typer.Option(
+        None,
         "-t",
         "--type",
         help=(
             "The type of worker to start. If not provided, the worker type will be"
             " inferred from the work pool."
         ),
-    ),
-    worker_type: Optional[str] = typer.Option(
-        None, "-t", "--type", help="The type of worker to start."
     ),
     prefetch_seconds: int = SettingsOption(
         PREFECT_WORKER_PREFETCH_SECONDS,
