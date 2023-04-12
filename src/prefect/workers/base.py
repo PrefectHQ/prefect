@@ -5,12 +5,15 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.engine import propose_state
+from prefect.events import emit_event
+from prefect.events.related import object_as_related_resource, tags_as_related_resources
+from prefect.events.schemas import RelatedResource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.server import schemas
@@ -18,6 +21,7 @@ from prefect.server.schemas.actions import WorkPoolUpdate
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import apply_values, resolve_block_document_references
 
 if TYPE_CHECKING:
@@ -57,6 +61,8 @@ class BaseJobConfiguration(BaseModel):
             "job configuration."
         ),
     )
+
+    _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     @validator("command")
     def _coerce_command(cls, v):
@@ -123,6 +129,12 @@ class BaseJobConfiguration(BaseModel):
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
     ):
+        self._related_objects = {
+            "deployment": deployment,
+            "flow": flow,
+            "flow-run": flow_run,
+        }
+
         if deployment is not None:
             deployment_labels = self._base_deployment_labels(deployment)
         else:
@@ -200,6 +212,17 @@ class BaseJobConfiguration(BaseModel):
             "prefect.io/flow-id": str(flow.id),
             "prefect.io/flow-name": flow.name,
         }
+
+    def _related_resources(self) -> List[RelatedResource]:
+        tags = set()
+        related = []
+
+        for kind, obj in self._related_objects.items():
+            if hasattr(obj, "tags"):
+                tags.update(obj.tags)
+            related.append(object_as_related_resource(kind=kind, role=kind, object=obj))
+
+        return related + tags_as_related_resources(tags)
 
 
 class BaseVariables(BaseModel):
@@ -323,6 +346,9 @@ class BaseWorker(abc.ABC):
             "job_configuration": cls.job_configuration.json_template(),
             "variables": variables_schema,
         }
+
+    def get_name_slug(self):
+        return slugify(self.name)
 
     @abc.abstractmethod
     async def run(
@@ -556,10 +582,12 @@ class BaseWorker(abc.ABC):
         try:
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
+            configuration = await self._get_configuration(flow_run)
+            self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
-                configuration=await self._get_configuration(flow_run),
+                configuration=configuration,
             )
         except Exception as exc:
             if not task_status._future.done():
@@ -722,3 +750,27 @@ class BaseWorker(abc.ABC):
 
     def __repr__(self):
         return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"
+
+    def _event_resource(self):
+        return {
+            "prefect.resource.id": f"prefect.worker.{self.type}.{self.get_name_slug()}",
+            "prefect.name": self.name,
+            "prefect.version": prefect.__version__,
+            "prefect.worker-type": self.type,
+        }
+
+    def _emit_flow_run_submitted_event(self, configuration: BaseJobConfiguration):
+        related = configuration._related_resources()
+
+        if self._work_pool:
+            related.append(
+                object_as_related_resource(
+                    kind="work-pool", role="work-pool", object=self._work_pool
+                )
+            )
+
+        emit_event(
+            event=f"prefect.worker.submitted-flow-run",
+            resource=self._event_resource(),
+            related=related,
+        )

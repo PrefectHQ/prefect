@@ -24,13 +24,13 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     ]
 
 
-def object_as_related_resource(kind: str, object: Any) -> RelatedResource:
+def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
     resource_id = f"prefect.{kind}.{object.id}"
 
     return RelatedResource(
         __root__={
             "prefect.resource.id": resource_id,
-            "prefect.resource.role": kind,
+            "prefect.resource.role": role,
             "prefect.name": object.name,
         }
     )
@@ -76,7 +76,7 @@ async def related_resources_from_run_context(
     tags = set()
 
     for kind, obj in objects.items():
-        resource = object_as_related_resource(kind=kind, object=obj)
+        resource = object_as_related_resource(kind=kind, role=kind, object=obj)
 
         if resource.id in exclude:
             continue
