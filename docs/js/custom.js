@@ -141,26 +141,31 @@ function enhanceCopyButtons() {
                 function copyCleaner() {
                     // Look up the code block referenced by the button's 
                     // "data-clipboard-target" attribute.
-                    var codeBlockSelector = button.getAttribute("data-clipboard-target");
+                    let codeBlockSelector = button.getAttribute("data-clipboard-target");
 
                     // return early if we've already cleaned this code block
                     if (codeBlockSelector.startsWith("#__cleaned")) { return; }
-                    var codeBlock = document.querySelector(codeBlockSelector);
+                    let codeBlock = document.querySelector(codeBlockSelector);
 
                     // clean the code block by removing leading $ signs and trim whitespace
-                    var cleanedCode = codeBlock.innerText.replace(/^\$\s/gm, "").trim();
-                    var cleanedCodeId = "__cleaned_" + codeBlockSelector.replace('#','').split(" ")[0];
-                    var cleanedCodeBlock = document.getElementById(cleanedCodeId);
+                    let cleanedCode = codeBlock.innerText.replace(/^\$\s/gm, "").trim();
+                    let cleanedCodeId = "__cleaned_"
+                        + codeBlockSelector.replace('#','').split(" ")[0];
+                    let cleanedCodeBlock = document.getElementById(cleanedCodeId);
 
                     // if the cleaned code block doesn't exist, create it and add it to the DOM
                     if (cleanedCodeBlock == null) {
                         cleanedCodeBlock = document.createElement("code");
                         cleanedCodeBlock.id = cleanedCodeId;
-                        cleanedCodeBlock.innerHTML = cleanedCode;
+                        // escape HTML entities via createTextNode
+                        let textNode = document.createTextNode(cleanedCode);
+                        cleanedCodeBlock.appendChild(textNode);
                         
                         cleanedCodeBlock.style.display = "none";
                         document.body.appendChild(cleanedCodeBlock);
                     }
+                    // update the button's "data-clipboard-target" attribute to reference 
+                    // the cleaned code block
                     button.setAttribute("data-clipboard-target", "#" + cleanedCodeId);
                 }
             }
