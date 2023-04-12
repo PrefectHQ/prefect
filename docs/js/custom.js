@@ -113,20 +113,20 @@ function setupTermynal() {
 }
 
 /**
- * This function is enhances the 'copy to clipboard' buttons on code blocks 
- * by removing leading $ signs. This is useful for code blocks containing
- * shell commands.
+ * This function is enhances the 'copy to clipboard' buttons on terminal blocks 
+ * by removing leading $ signs. This ensures users can copy and paste the
+ * commands into their terminal without having to manually remove the $ signs.
  */
 function enhanceCopyButtons() {
-    // wait until the DOM is loaded before looking up the buttons
+    // Wait until the DOM is loaded before looking up the buttons
     document.addEventListener("DOMContentLoaded", function() {
         var buttons = document.querySelectorAll(
             ".terminal pre[id^='__code_'] button.md-code__button");
         buttons.forEach(function(button) {
-            // check if the button's "data-clipboard-target" attribute is already
-            // a cleaned textarea
+            // Check if the button's "data-clipboard-target" attribute is already
+            // a cleaned textarea - if so, no need to clean it again.
             if (!button.getAttribute("data-clipboard-target").startsWith("#__cleaned")) {
-                // Adds event listeners to the button to clean the code block
+                // Next, add event listeners to the button to clean the code block
                 // before the 'click' event handler copies the code to the clipboard.
 
                 // On desktop devices, clean the code block when the user
@@ -139,7 +139,8 @@ function enhanceCopyButtons() {
                 button.addEventListener("touchstart", copyCleaner);
 
                 function copyCleaner() {
-                    // look up the code block
+                    // Look up the code block referenced by the button's 
+                    // "data-clipboard-target" attribute.
                     var codeBlockSelector = button.getAttribute("data-clipboard-target");
 
                     // return early if we've already cleaned this code block
@@ -155,8 +156,6 @@ function enhanceCopyButtons() {
                     if (cleanedCodeBlock == null) {
                         cleanedCodeBlock = document.createElement("code");
                         cleanedCodeBlock.id = cleanedCodeId;
-
-                        // preserve newlines by replacing them with <br />
                         cleanedCodeBlock.innerHTML = cleanedCode;
                         
                         cleanedCodeBlock.style.display = "none";
