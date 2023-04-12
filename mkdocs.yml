@@ -135,13 +135,13 @@ nav:
         - Deploy: 
             - Deployments: concepts/deployments.md
             - Projects: concepts/projects.md
-            - Workers & Work Pools: concepts/work-pools.md
+            - Worker Pools, Workers & Agents: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
             - Infrastructure: concepts/infrastructure.md
             - Schedules: concepts/schedules.md
             - Logging: concepts/logs.md
-        - Serve: 
+        - Host: 
             - Server: concepts/server.md
             - Database: concepts/database.md
             - Notifications: concepts/notifications.md
