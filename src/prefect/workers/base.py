@@ -418,6 +418,8 @@ class BaseWorker(abc.ABC):
         """Cleans up resources after the worker is stopped."""
         self._logger.debug("Tearing down worker...")
         self.is_setup = False
+        for scope in self._scheduled_task_scopes:
+            scope.cancel()
         if self._runs_task_group:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
@@ -877,7 +879,7 @@ class BaseWorker(abc.ABC):
         )
 
     async def _set_work_pool_template(self, work_pool, job_template):
-        """Updates the `base_job_template` for the worker's workerpool server side."""
+        """Updates the `base_job_template` for the worker's work pool server side."""
         await self._client.update_work_pool(
             work_pool_name=work_pool.name,
             work_pool=WorkPoolUpdate(
@@ -897,7 +899,7 @@ class BaseWorker(abc.ABC):
         async def wrapper(task_status):
             # If we are shutting down, do not sleep; otherwise sleep until the scheduled
             # time or shutdown
-            if self.setup:
+            if self.is_setup:
                 with anyio.CancelScope() as scope:
                     self._scheduled_task_scopes.add(scope)
                     task_status.started()
