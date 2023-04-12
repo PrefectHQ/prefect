@@ -6,7 +6,7 @@ tags:
     - rate limits
 ---
 
-# Prefect Cloud API Rate Limits
+# API Rate Limits <span class="badge cloud"></span>
 
 API rate limits restrict the number of requests that a single client can make in a given time period. They ensure Prefect Cloud's stability, so that when you make an API call, you always get a response.
 

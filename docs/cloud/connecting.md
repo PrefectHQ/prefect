@@ -7,17 +7,17 @@ tags:
     - agents
     - workers
     - troubleshooting
-    -connecting
+    - connecting
 ---
 
-# Connecting & Troubleshooting Prefect Cloud
+# Connecting & Troubleshooting Prefect Cloud <span class="badge cloud"></span>
 
 To create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you need to  
 
 - Configure the execution environment with the location of the API. 
 - Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
 
-## Log into Prefect Cloud from a terminal <span class="badge cloud"></span>
+## Log into Prefect Cloud from a terminal 
 
 Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 

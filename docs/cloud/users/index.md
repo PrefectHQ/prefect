@@ -5,7 +5,7 @@ tags:
     - Users
 ---
 
-# Users
+# Users <span class="badge cloud"></span>
 
 Reuter drafting
 

@@ -10,16 +10,6 @@ tags:
 
 # Events <span class="badge cloud"></span>
 
----
-description: An event is a notification of a change from a resource
-tags:
-    - resources
-    - events
-    - observability
----
-
-# Events <span class="badge cloud"></span>
-
 An event is a notification of a change. Together, events form a feed of activity recording what's happening across your stack. 
 
 Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations. 
