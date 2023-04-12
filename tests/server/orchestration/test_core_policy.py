@@ -12,10 +12,11 @@ from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits
 from prefect.server.orchestration.core_policy import (
+    BypassCancellingScheduledFlowRuns,
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
-    HandleCancellingStateTransitions,
+    EnforceCancellingToCancelledTransition,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
@@ -2616,7 +2617,9 @@ class TestHandleCancellingStateTransitions:
             *intended_transition,
         )
 
-        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
@@ -2643,8 +2646,99 @@ class TestHandleCancellingStateTransitions:
             *intended_transition,
         )
 
-        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
+
+
+class TestHandleCancellingScheduledFlows:
+    async def test_rejects_cancelling_scheduled_flow_and_sets_to_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Scheduled flows should skip the cancelling state and be set immediately to cancelled
+        because they don't have infra to shut down.
+        """
+
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [s for s in ALL_ORCHESTRATION_STATES if s != states.StateType.SCHEDULED],
+    )
+    async def test_allows_all_other_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+    ):
+        """All other transitions should be left alone by this policy."""
+
+        intended_transition = (initial_state_type, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
+
+    async def test_accepts_cancelling_flow_run_with_pid(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Flow runs awaiting retry should still go into a cancelling state as they have an associated pid, even though they
+        are technically "Scheduled".
+        """
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        # Make sure that the transition is rejected with the PID
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
+        # Check that providing the run a PID will allow the transition to continue
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        ctx.run.infrastructure_pid = "my-pid-42"
+
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
