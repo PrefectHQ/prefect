@@ -31,7 +31,7 @@ def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedReso
         __root__={
             "prefect.resource.id": resource_id,
             "prefect.resource.role": role,
-            "prefect.name": object.name,
+            "prefect.resource.name": object.name,
         }
     )
 

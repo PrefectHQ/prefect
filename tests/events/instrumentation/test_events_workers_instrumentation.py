@@ -50,7 +50,7 @@ async def test_worker_calls_run_with_expected_arguments(
 
     assert dict(submit_event.resource.items()) == {
         "prefect.resource.id": f"prefect.worker.events-test.{worker.get_name_slug()}",
-        "prefect.name": worker.name,
+        "prefect.resource.name": worker.name,
         "prefect.version": str(__version__),
         "prefect.worker-type": worker.type,
     }
@@ -63,17 +63,17 @@ async def test_worker_calls_run_with_expected_arguments(
         {
             "prefect.resource.id": f"prefect.deployment.{worker_deployment_wq1.id}",
             "prefect.resource.role": "deployment",
-            "prefect.name": worker_deployment_wq1.name,
+            "prefect.resource.name": worker_deployment_wq1.name,
         },
         {
             "prefect.resource.id": f"prefect.flow.{flow.id}",
             "prefect.resource.role": "flow",
-            "prefect.name": flow.name,
+            "prefect.resource.name": flow.name,
         },
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.role": "flow-run",
-            "prefect.name": flow_run.name,
+            "prefect.resource.name": flow_run.name,
         },
         {
             "prefect.resource.id": "prefect.tag.flow-run-one",
@@ -86,6 +86,6 @@ async def test_worker_calls_run_with_expected_arguments(
         {
             "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
             "prefect.resource.role": "work-pool",
-            "prefect.name": work_pool.name,
+            "prefect.resource.name": work_pool.name,
         },
     ]

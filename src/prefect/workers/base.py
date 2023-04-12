@@ -754,7 +754,7 @@ class BaseWorker(abc.ABC):
     def _event_resource(self):
         return {
             "prefect.resource.id": f"prefect.worker.{self.type}.{self.get_name_slug()}",
-            "prefect.name": self.name,
+            "prefect.resource.name": self.name,
             "prefect.version": prefect.__version__,
             "prefect.worker-type": self.type,
         }
