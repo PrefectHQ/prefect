@@ -1,4 +1,5 @@
 import abc
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -309,7 +310,7 @@ class BaseWorker(abc.ABC):
     @classmethod
     def get_default_base_job_template(cls) -> Dict:
         if cls.job_configuration_variables is None:
-            schema = cls.job_configuration.schema()
+            schema = deepcopy(cls.job_configuration.schema())
             # remove "template" key from all dicts in schema['properties'] because it is not a
             # relevant field
             for key, value in schema["properties"].items():
