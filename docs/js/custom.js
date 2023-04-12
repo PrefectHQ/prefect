@@ -112,8 +112,66 @@ function setupTermynal() {
     loadVisibleTermynals();
 }
 
+/**
+ * This function is enhances the 'copy to clipboard' buttons on code blocks 
+ * by removing leading $ signs. This is useful for code blocks containing
+ * shell commands.
+ */
+function enhanceCopyButtons() {
+    // wait until the DOM is loaded before looking up the buttons
+    document.addEventListener("DOMContentLoaded", function() {
+        var buttons = document.querySelectorAll(
+            ".terminal pre[id^='__code_'] button.md-code__button");
+        buttons.forEach(function(button) {
+            // check if the button's "data-clipboard-target" attribute is already
+            // a cleaned textarea
+            if (!button.getAttribute("data-clipboard-target").startsWith("#__cleaned")) {
+                // Adds event listeners to the button to clean the code block
+                // before the 'click' event handler copies the code to the clipboard.
+
+                // On desktop devices, clean the code block when the user
+                // hovers over the button.
+                button.addEventListener("mouseenter", copyCleaner);
+
+                // On mobile devices, clean the code block when the user
+                // taps on the button. This works because the 'click' event
+                // is fired after the 'touchstart' event.
+                button.addEventListener("touchstart", copyCleaner);
+
+                function copyCleaner() {
+                    // look up the code block
+                    var codeBlockSelector = button.getAttribute("data-clipboard-target");
+
+                    // return early if we've already cleaned this code block
+                    if (codeBlockSelector.startsWith("#__cleaned")) { return; }
+                    var codeBlock = document.querySelector(codeBlockSelector);
+
+                    // clean the code block by removing leading $ signs and trim whitespace
+                    var cleanedCode = codeBlock.innerText.replace(/^\$\s/gm, "").trim();
+                    var cleanedCodeId = "__cleaned_" + codeBlockSelector.replace('#','').split(" ")[0];
+                    var cleanedCodeBlock = document.getElementById(cleanedCodeId);
+
+                    // if the cleaned code block doesn't exist, create it and add it to the DOM
+                    if (cleanedCodeBlock == null) {
+                        cleanedCodeBlock = document.createElement("code");
+                        cleanedCodeBlock.id = cleanedCodeId;
+
+                        // preserve newlines by replacing them with <br />
+                        cleanedCodeBlock.innerHTML = cleanedCode;
+                        
+                        cleanedCodeBlock.style.display = "none";
+                        document.body.appendChild(cleanedCodeBlock);
+                    }
+                    button.setAttribute("data-clipboard-target", "#" + cleanedCodeId);
+                }
+            }
+        });
+    });
+} 
+
 async function main() {
     setupTermynal();
+    enhanceCopyButtons();
 }
 
 main()
