@@ -221,15 +221,15 @@ class TestCancelFlowRun:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled,
             Running,
-            Late,
             Pending,
-            AwaitingRetry,
             Retrying,
         ],
     )
-    async def test_non_terminal_states_set_to_cancelled(self, orion_client, state):
+    async def test_non_terminal_states_set_to_cancelling(self, orion_client, state):
+        """Should set the state of the flow to Cancelling. Does not include Scheduled
+        states, because they should be set to Cancelled instead.
+        """
         before = await orion_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
@@ -249,6 +249,36 @@ class TestCancelFlowRun:
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
         assert after.state.type == StateType.CANCELLING
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled,
+            AwaitingRetry,
+            Late,
+        ],
+    )
+    async def test_scheduled_states_set_to_cancelled(self, orion_client, state):
+        """Should set the state of the flow run to Cancelled."""
+        before = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(before.id),
+            ],
+            expected_code=0,
+            expected_output_contains=(
+                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+            ),
+        )
+        after = await orion_client.read_flow_run(before.id)
+        assert before.state.name != after.state.name
+        assert before.state.type != after.state.type
+        assert after.state.type == StateType.CANCELLED
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(
