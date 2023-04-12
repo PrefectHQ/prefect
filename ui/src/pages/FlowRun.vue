@@ -4,7 +4,7 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
-    <FlowRunTimeline v-if="flowRun" :flow-run="flowRun" />
+    <FlowRunTimeline v-if="flowRun" :key="flowRunTimelineKey" :flow-run="flowRun" />
 
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">
       <template #details>
@@ -90,6 +90,8 @@
     return values
   })
 
+  const flowRunTimelineKey = ref(0)
+
   const api = useWorkspaceApi()
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
@@ -99,6 +101,7 @@
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
     if (oldFlowRunId !== newFlowRunId) {
       selectedTab.value = 'Logs'
+      flowRunTimelineKey.value += 1
     }
   })
 
