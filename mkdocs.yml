@@ -96,7 +96,6 @@ plugins:
                     show_signature: False
                     heading_level: 1
                     filters: ["!^_"]
-
     render_swagger: {}
     search: {}
     gen-files:
@@ -132,15 +131,16 @@ nav:
             - Blocks: concepts/blocks.md
             - Task Runners: concepts/task-runners.md 
             - Runtime Context: concepts/runtime-context.md
-            - Logging: concepts/logs.md
             - Settings: concepts/settings.md
         - Deploy: 
             - Deployments: concepts/deployments.md
-            - Agents & Work Pools: concepts/work-pools.md
+            - Projects: concepts/projects.md
+            - Workers & Work Pools: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
             - Infrastructure: concepts/infrastructure.md
             - Schedules: concepts/schedules.md
+            - Logging: concepts/logs.md
         - Serve: 
             - Server: concepts/server.md
             - Database: concepts/database.md
