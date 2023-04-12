@@ -124,7 +124,6 @@ nav:
         - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
->>>>>>>>> Temporary merge branch 2
     - Concepts: 
         - concepts/index.md
         - Develop: 
