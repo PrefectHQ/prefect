@@ -6,8 +6,7 @@
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
     --md-primary-fg-color--dark: #115AF4;
-    <<<<<<<<< Temporary merge branch 1=========--nav-size: 0.8rem;
-    >>>>>>>>>Temporary merge branch 2
+    --nav-size: 0.8rem;
 }
 
 /* code block margin and padding  */
@@ -346,13 +345,7 @@ to force column width */
 }
 
 .ul-line-height-compress {
-    <<<<<<<<< Temporary merge branch 1 line-height: 80%
-}
-
-.full {
-    width: 33%;
-    padding: 20em;
-    =========line-height: 80%;
+    line-height: 80%;
     margin-bottom: 30px !important;
 }
 
@@ -443,6 +436,4 @@ to force column width */
         width: 86%;
         margin-left: 7%
     }
-
-    >>>>>>>>>Temporary merge branch 2
 }
