@@ -15,6 +15,14 @@
         <FlowRunLogs v-if="flowRun" :flow-run="flowRun" />
       </template>
 
+      <template #results>
+        <FlowRunResults v-if="flowRun" :flow-run="flowRun" />
+      </template>
+
+      <template #artifacts>
+        <FlowRunArtifacts v-if="flowRun" :flow-run="flowRun" />
+      </template>
+
       <template #task-runs>
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
@@ -42,10 +50,12 @@
   import { media } from '@prefecthq/prefect-design'
   import {
     PageHeadingFlowRun,
+    FlowRunArtifacts,
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunTimeline,
+    FlowRunResults,
     FlowRunSubFlows,
     useFavicon,
     useWorkspaceApi,
@@ -67,6 +77,8 @@
     const values = [
       'Logs',
       'Task Runs',
+      'Results',
+      'Artifacts',
       'Subflow Runs',
       'Parameters',
     ]
@@ -82,7 +94,7 @@
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
   const deploymentId = computed(() => flowRun.value?.deploymentId)
-  const deployment = useDeployment(deploymentId)
+  const { deployment } = useDeployment(deploymentId)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
     if (oldFlowRunId !== newFlowRunId) {

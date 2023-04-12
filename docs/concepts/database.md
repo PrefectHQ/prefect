@@ -8,7 +8,7 @@ tags:
     - PostgreSQL
 ---
 
-# Pefect Database
+# Prefect Database
 
 The Prefect database persists data used by many features of Prefect to persist and track the state of your flow runs, including:
 
@@ -79,7 +79,7 @@ docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5
 
 The above command:
 
-- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.
+- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect.
 - Starts a container with the name `prefect-postgres`.
 - Creates a database `prefect` with a user `postgres` and `yourTopSecretPassword` password.
 - Mounts the PostgreSQL data to a Docker volume called `prefectdb` to provide persistence if you ever have to restart or rebuild that container.
@@ -121,3 +121,43 @@ The following database versions are required for use with Prefect:
 
 - SQLite 3.24 or newer
 - PostgreSQL 13.0 or newer
+
+
+## Migrations
+
+Prefect uses [Alembic](https://alembic.sqlalchemy.org/en/latest/) to manage database migrations. Alembic is a 
+database migration tool for usage with the SQLAlchemy Database Toolkit for Python. Alembic provides a framework for 
+generating and applying schema changes to a database.
+
+### Running migrations
+To apply migrations to your database you can run the following commands:
+
+To upgrade:
+<div class="terminal">
+```bash
+prefect server database upgrade -y
+```
+</div>
+To downgrade:
+<div class="terminal">
+```bash
+prefect server database downgrade -y
+```
+</div>
+
+You can use the `-r` flag to specify a specific migration version to upgrade or downgrade to. 
+For example, to downgrade to the previous migration version you can run:
+<div class="terminal">
+```bash
+prefect server database downgrade -y -r -1
+```
+</div>
+or to downgrade to a specific revision:
+<div class="terminal">
+```bash
+prefect server database downgrade -y -r d20618ce678e
+```
+</div>
+
+### Creating migrations
+See the [contributing docs](/contributing/overview/#adding-database-migrations) for more information on how to create new migrations

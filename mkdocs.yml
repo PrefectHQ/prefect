@@ -1,4 +1,4 @@
-site_name: Prefect
+site_name: Prefect Docs
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -54,7 +54,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-logo-mark-solid-white-500.png
+    logo: img/logos/prefect-logo-gradient-white.svg
     palette:
       - media: "(prefers-color-scheme)"
         toggle:
@@ -76,6 +76,8 @@ theme:
             name: Switch to light mode
 plugins:
     mike:
+      canonical_version: latest
+      version_selector: true
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -107,18 +109,15 @@ nav:
         - index.md  
         - Installation: getting-started/installation.md
         - Cloud Quickstart: ui/cloud-quickstart.md
-    - Tutorial: 
+    - Tutorials: 
         - tutorials/index.md
-        - tutorials/first-steps.md
-        - tutorials/flow-task-config.md
-        - tutorials/execution.md
-        - tutorials/orchestration.md
-        - tutorials/deployments.md
-        - tutorials/storage.md
-        - tutorials/docker.md
-        - Cloud Agent Quickstart: tutorials/cloud-agent.md
-        - tutorials/testing.md
-        - tutorials/dask-ray-task-runners.md
+        - Flows & Tasks: tutorials/first-steps.md
+        - Configuration: tutorials/flow-task-config.md
+        - Execution: tutorials/execution.md
+        - Orchestration: tutorials/orchestration.md
+        - Projects: tutorials/projects.md
+        - Deployments: tutorials/deployments.md
+        - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
         - concepts/index.md
         - Flows: concepts/flows.md
@@ -128,17 +127,20 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
-        - Agents & Work Pools: concepts/work-pools.md
+        - Projects: concepts/projects.md
+        - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
+        - Runtime Context: concepts/runtime-context.md
         - Logging: concepts/logs.md
+        - Artifacts: concepts/artifacts.md
+        - Events & Resources: concepts/events-and-resources.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - UI & Cloud:
         - ui/index.md
-        - UI Overview: ui/overview.md
         - Cloud Overview: ui/cloud.md
         - Cloud Quickstart: ui/cloud-quickstart.md
         - Cloud Concepts: 
@@ -158,14 +160,18 @@ nav:
         - Roles (RBAC): ui/roles.md
         - Single Sign-on (SSO): ui/sso.md
         - Audit Log: ui/audit-log.md
+        - Events: ui/events.md
         - Troubleshooting: ui/troubleshooting.md
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
         - guides/index.md
-        - Migration Guide: migration-guide.md
-        - Prefect Recipes: 
-            - Recipes Catalog: recipes/recipes.md
-            - Contributing Recipes: recipes/contribute-recipes.md
+        - Testing: guides/testing.md
+        - Dask & Ray: guides/dask-ray-task-runners.md
+        - Deployment:
+            - Docker: guides/deployment/docker.md
+            - Azure Container Instance: guides/deployment/aci.md
+        - Recipes: recipes/recipes.md
+        - Migration Guide: guides/migration-guide.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md
@@ -187,6 +193,7 @@ nav:
             - 'prefect.runtime': 
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
+                - 'prefect.runtime.task_run': api-ref/prefect/runtime/task_run.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md

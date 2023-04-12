@@ -1226,6 +1226,7 @@ class TestCreateFlowRunFromDeployment:
             deployment.infrastructure_document_id
         )
         assert response.json()["work_queue_name"] == deployment.work_queue_name
+        assert response.json()["state_type"] == schemas.states.StateType.SCHEDULED
 
     async def test_create_flow_run_from_deployment_uses_work_queue_name(
         self, deployment, client, session

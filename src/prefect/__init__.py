@@ -33,6 +33,8 @@ from prefect.results import BaseResult
 from prefect.engine import pause_flow_run, resume_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
+import prefect.variables
+import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
@@ -69,6 +71,9 @@ prefect.plugins.load_extra_entrypoints()
 import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
+prefect.logging.get_logger("profiles").debug(
+    f"Using profile {prefect.context.get_settings_context().profile.name!r}"
+)
 
 # Ensure moved names are accessible at old locations
 import prefect.client

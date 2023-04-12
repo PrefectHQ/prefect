@@ -1,5 +1,25 @@
 {% extends "base.html" %}
 
+{% block announce %}
+<div style="color: white;">
+  <a href="https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-290" style="color: #07e798;">
+    <strong>Prefect 2.9.0 is here!</strong>
+  </a> Track and manage data with artifacts, configure result storage keys, expanded prefect.runtime module, and
+  <a href="https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-290" style="color: #07e798;">
+    <strong>more!</strong>
+  </a>
+</div>
+
+<!-- <div style="color: white;">
+    Looking for the 
+    <a href="http://docs-v1.prefect.io/" style="color: #07e798;">
+      <strong>Prefect 1 docs</strong>
+    </a> for Prefect 1 Core and Server? Find them at: 
+    <a href="http://docs-v1.prefect.io/" style="color: #07e798;">
+      <strong>http://docs-v1.prefect.io/</strong>
+    </a>
+  </div> -->
+{% endblock %}
 
 {% block analytics %}
 {{ super() }}

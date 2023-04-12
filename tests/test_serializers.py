@@ -15,6 +15,7 @@ from prefect.serializers import (
     prefect_json_object_decoder,
     prefect_json_object_encoder,
 )
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.dispatch import get_registry_for_type
 
 # Freeze a UUID for deterministic tests
@@ -51,6 +52,9 @@ SERIALIZER_TEST_CASES = [
     "test string".encode("ASCII"),
     MyDataclassBytes(x=1, y="test".encode("utf-8")),
 ]
+
+# Exceptions are a little trickier to compare, so we test them separately
+EXCEPTION_TEST_CASES = [Exception("foo"), ValueError("bar")]
 
 complex_str = """
 def dog(some_param: str) -> int:
@@ -146,6 +150,12 @@ class TestPickleSerializer:
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
 
+    @pytest.mark.parametrize("data", EXCEPTION_TEST_CASES)
+    def test_exception_roundtrip(self, data):
+        serializer = PickleSerializer()
+        serialized = serializer.dumps(data)
+        assert exceptions_equal(serializer.loads(serialized), data)
+
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
     def test_simple_roundtrip_with_builtin_pickle(self, data):
         serializer = PickleSerializer(picklelib="pickle")
@@ -196,6 +206,12 @@ class TestJSONSerializer:
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
+
+    @pytest.mark.parametrize("data", EXCEPTION_TEST_CASES)
+    def test_exception_roundtrip(self, data):
+        serializer = JSONSerializer()
+        serialized = serializer.dumps(data)
+        assert exceptions_equal(serializer.loads(serialized), data)
 
     @pytest.mark.parametrize(
         "data",

@@ -19,8 +19,10 @@ from prefect.server.utilities.schemas import (
     copy_model_fields,
     orjson_dumps_extra_compatible,
 )
+from prefect.utilities.pydantic import get_class_fields_only
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
+LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 
 def validate_block_type_slug(value):
@@ -42,9 +44,19 @@ def validate_block_document_name(value):
 
 
 def validate_artifact_key(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+    if value is not None and not bool(
+        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
+    ):
         raise ValueError(
             "Artifact key must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
+
+
+def validate_variable_name(value):
+    if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX, value)):
+        raise ValueError(
+            "name must only contain lowercase letters, numbers, and underscores"
         )
     return value
 
@@ -132,6 +144,7 @@ class DeploymentCreate(ActionBaseModel):
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
+    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -396,6 +409,10 @@ class BlockTypeUpdate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.BlockType)
     code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
 
+    @classmethod
+    def updatable_fields(cls) -> set:
+        return get_class_fields_only(cls)
+
 
 @copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
@@ -576,3 +593,37 @@ class ArtifactUpdate(ActionBaseModel):
     data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
     description: Optional[str] = FieldFrom(schemas.core.Artifact)
     metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+
+
+@copy_model_fields
+class VariableCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create a Variable."""
+
+    name: str = FieldFrom(schemas.core.Variable)
+    value: str = FieldFrom(schemas.core.Variable)
+    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+
+
+@copy_model_fields
+class VariableUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update a Variable."""
+
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: Optional[str] = Field(
+        default=None,
+        description="The value of the variable",
+        example="my-value",
+        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+    )
+    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)

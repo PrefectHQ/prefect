@@ -10,7 +10,8 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 ARG BUILD_PYTHON_VERSION=3.8
 # THe version used to build the UI distributable.
 ARG NODE_VERSION=16.15
-
+# Any extra Python requirements to install
+ARG EXTRA_PIP_PACKAGES=""
 
 # Build the UI distributable.
 FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
@@ -27,7 +28,7 @@ RUN apt-get update && \
 RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
-COPY ./ui/package*.json .
+COPY ./ui/package*.json ./
 RUN npm ci install
 
 # Build static UI files
@@ -113,6 +114,9 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+
+ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
+RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version

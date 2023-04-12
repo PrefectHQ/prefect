@@ -248,6 +248,83 @@ async def test_task_result_storage(orion_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
+async def test_task_result_static_storage_key(orion_client):
+    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task(result_storage=storage, persist_result=True, result_storage_key="test")
+    def bar():
+        return 1
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert await task_state.result() == 1
+    assert task_state.data.storage_key == "test"
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert await api_state.result() == 1
+    assert task_state.data.storage_key == "test"
+
+
+async def test_task_result_parameter_formatted_storage_key(orion_client):
+    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+
+    @flow
+    def foo():
+        return bar(y="foo", return_state=True)
+
+    @task(
+        result_storage=storage,
+        persist_result=True,
+        result_storage_key="{parameters[x]}-{parameters[y]}-bar",
+    )
+    def bar(x: int = 1, y: str = "test"):
+        return 1
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert await task_state.result() == 1
+    assert task_state.data.storage_key == "1-foo-bar"
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert await api_state.result() == 1
+    assert task_state.data.storage_key == "1-foo-bar"
+
+
+async def test_task_result_flow_run_formatted_storage_key(orion_client):
+    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+
+    @flow
+    def foo():
+        return bar(y="foo", return_state=True)
+
+    @task(
+        result_storage=storage,
+        persist_result=True,
+        result_storage_key="{flow_run.flow_name}__bar",
+    )
+    def bar(x: int = 1, y: str = "test"):
+        return 1
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert await task_state.result() == 1
+    assert task_state.data.storage_key == "foo__bar"
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert await api_state.result() == 1
+    assert task_state.data.storage_key == "foo__bar"
+
+
 async def test_task_result_missing_with_null_return(orion_client):
     @flow
     def foo():

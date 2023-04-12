@@ -1487,12 +1487,26 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         example="my-artifact-%",
     )
 
+    exists_: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If `true`, only include artifacts with a non-null key. If `false`, "
+            "only include artifacts with a null key."
+        ),
+    )
+
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
         if self.like_ is not None:
             filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
+        if self.exists_ is not None:
+            filters.append(
+                db.Artifact.key.isnot(None)
+                if self.exists_
+                else db.Artifact.key.is_(None)
+            )
         return filters
 
 
@@ -1524,6 +1538,25 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
+class ArtifactFilterType(PrefectFilterBaseModel):
+    """Filter by `Artifact.type`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.type.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.Artifact.type.notin_(self.not_any_))
+        return filters
+
+
 class ArtifactFilter(PrefectOperatorFilterBaseModel):
     """Filter artifacts. Only artifacts matching all criteria will be returned"""
 
@@ -1539,6 +1572,9 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
     task_run_id: Optional[ArtifactFilterTaskRunId] = Field(
         default=None, description="Filter criteria for `Artifact.task_run_id`"
     )
+    type: Optional[ArtifactFilterType] = Field(
+        default=None, description="Filter criteria for `Artifact.type`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -1551,5 +1587,264 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.flow_run_id.as_sql_filter(db))
         if self.task_run_id is not None:
             filters.append(self.task_run_id.as_sql_filter(db))
+        if self.type is not None:
+            filters.append(self.type.as_sql_filter(db))
 
+        return filters
+
+
+class ArtifactCollectionFilterLatestId(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.latest_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of artifact ids to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.ArtifactCollection.latest_id.in_(self.any_))
+        return filters
+
+
+class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.key`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact keys to include"
+    )
+
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match artifact keys against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-artifact-%",
+    )
+
+    exists_: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If `true`, only include artifacts with a non-null key. If `false`, "
+            "only include artifacts with a null key. Should return all rows in "
+            "the ArtifactCollection table if specified."
+        ),
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.ArtifactCollection.key.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.ArtifactCollection.key.ilike(f"%{self.like_}%"))
+        if self.exists_ is not None:
+            filters.append(
+                db.ArtifactCollection.key.isnot(None)
+                if self.exists_
+                else db.ArtifactCollection.key.is_(None)
+            )
+        return filters
+
+
+class ArtifactCollectionFilterFlowRunId(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.flow_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run IDs to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.ArtifactCollection.flow_run_id.in_(self.any_))
+        return filters
+
+
+class ArtifactCollectionFilterTaskRunId(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.task_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of task run IDs to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.ArtifactCollection.task_run_id.in_(self.any_))
+        return filters
+
+
+class ArtifactCollectionFilterType(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.type`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.ArtifactCollection.type.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.ArtifactCollection.type.notin_(self.not_any_))
+        return filters
+
+
+class ArtifactCollectionFilter(PrefectOperatorFilterBaseModel):
+    """Filter artifact collections. Only artifact collections matching all criteria will be returned"""
+
+    latest_id: Optional[ArtifactCollectionFilterLatestId] = Field(
+        default=None, description="Filter criteria for `Artifact.id`"
+    )
+    key: Optional[ArtifactCollectionFilterKey] = Field(
+        default=None, description="Filter criteria for `Artifact.key`"
+    )
+    flow_run_id: Optional[ArtifactCollectionFilterFlowRunId] = Field(
+        default=None, description="Filter criteria for `Artifact.flow_run_id`"
+    )
+    task_run_id: Optional[ArtifactCollectionFilterTaskRunId] = Field(
+        default=None, description="Filter criteria for `Artifact.task_run_id`"
+    )
+    type: Optional[ArtifactCollectionFilterType] = Field(
+        default=None, description="Filter criteria for `Artifact.type`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.latest_id is not None:
+            filters.append(self.latest_id.as_sql_filter(db))
+        if self.key is not None:
+            filters.append(self.key.as_sql_filter(db))
+        if self.flow_run_id is not None:
+            filters.append(self.flow_run_id.as_sql_filter(db))
+        if self.task_run_id is not None:
+            filters.append(self.task_run_id.as_sql_filter(db))
+        if self.type is not None:
+            filters.append(self.type.as_sql_filter(db))
+
+        return filters
+
+
+class VariableFilterId(PrefectFilterBaseModel):
+    """Filter by `Variable.id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of variable ids to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.id.in_(self.any_))
+        return filters
+
+
+class VariableFilterName(PrefectFilterBaseModel):
+    """Filter by `Variable.name`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of variables names to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match variable names against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my_variable_%",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Variable.name.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class VariableFilterValue(PrefectFilterBaseModel):
+    """Filter by `Variable.value`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of variables value to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match variable value against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-value-%",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.value.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Variable.value.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class VariableFilterTags(PrefectOperatorFilterBaseModel):
+    """Filter by `Variable.tags`."""
+
+    all_: Optional[List[str]] = Field(
+        default=None,
+        example=["tag-1", "tag-2"],
+        description=(
+            "A list of tags. Variables will be returned only if their tags are a"
+            " superset of the list"
+        ),
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include Variables without tags"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        from prefect.server.utilities.database import json_has_all_keys
+
+        filters = []
+        if self.all_ is not None:
+            filters.append(json_has_all_keys(db.Variable.tags, self.all_))
+        if self.is_null_ is not None:
+            filters.append(
+                db.Variable.tags == [] if self.is_null_ else db.Variable.tags != []
+            )
+        return filters
+
+
+class VariableFilter(PrefectOperatorFilterBaseModel):
+    """Filter variables. Only variables matching all criteria will be returned"""
+
+    id: Optional[VariableFilterId] = Field(
+        default=None, description="Filter criteria for `Variable.id`"
+    )
+    name: Optional[VariableFilterName] = Field(
+        default=None, description="Filter criteria for `Variable.name`"
+    )
+    value: Optional[VariableFilterValue] = Field(
+        default=None, description="Filter criteria for `Variable.value`"
+    )
+    tags: Optional[VariableFilterTags] = Field(
+        default=None, description="Filter criteria for `Variable.tags`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter(db))
+        if self.value is not None:
+            filters.append(self.value.as_sql_filter(db))
+        if self.tags is not None:
+            filters.append(self.tags.as_sql_filter(db))
         return filters

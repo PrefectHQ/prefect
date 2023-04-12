@@ -29,19 +29,29 @@ Creating a _deployment_ for a Prefect workflow means packaging workflow code, se
 The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
 
 ```mermaid
-graph LR
-    F(Flow Code):::yellow -.-> A(Deployment Definition):::gold
-    subgraph Server [Prefect API]
-    D(Deployment):::green
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontSize': '19px'
+    }
+  }
+}%%
+
+flowchart LR
+    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
+    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
+        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
     end
-    subgraph Remote Storage
-    B(Flow):::yellow
+    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
+        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
     end
-    subgraph Infrastructure
-    G(Flow Run):::blue
+    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
+        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
     end
+
     A --> D
-    D --> E(Agent):::red
+    D --> E("<div style='margin: 5px 10px 5px 5px;'>Agent</div>"):::red
     B -.-> E
     A -.-> B
     E -.-> G
@@ -532,7 +542,7 @@ if __name__ == "__main__":
 
 ## Examples
 
-- [How to deploy Prefect 2 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
-- [How to deploy Prefect 2 flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
-- [How to deploy Prefect 2 flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
-- [How to deploy Prefect 2 flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)
+- [How to deploy Prefect flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
+- [How to deploy Prefect flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
+- [How to deploy Prefect flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
+- [How to deploy Prefect flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)

@@ -8,6 +8,10 @@
     --md-primary-fg-color--dark: #115AF4;
 }
 
+--md-primary-fg-color--dark: #115AF4;
+--nav-size: 0.8rem;
+}
+
 /* code block margin and padding  */
 .highlight>pre>code {
     margin-top: 1rem;
@@ -45,6 +49,10 @@
     -webkit-tap-highlight-color: #a2a2a2;
     color: #a2a2a2b1;
     outline: none;
+}
+
+nav.md-code__nav {
+    margin-top: 20px;
 }
 
 /* Image drop shadow, separates browser from background */
@@ -184,6 +192,7 @@ to force column width */
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
+    vertical-align: middle;
 }
 
 .beta::before {
@@ -336,13 +345,4 @@ to force column width */
     background-color: #cca701;
     -webkit-mask-image: var(--md-admonition-icon--blog);
     mask-image: var(--md-admonition-icon--blog);
-}
-
-.ul-line-height-compress {
-    line-height: 80%
-}
-
-.full {
-    width: 33%;
-    padding: 20em;
 }

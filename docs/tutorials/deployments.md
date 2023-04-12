@@ -12,7 +12,7 @@ tags:
 
 # Flow deployments
 
-In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, and so on. But so far, you've run flows as scripts. 
+Leading up to this section, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, and so on. But so far, you've run flows as scripts.
 
 [Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a flow run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities. Deployments also enable remote flow run execution.
 
@@ -20,6 +20,9 @@ In the tutorials leading up to this one, you've been able to explore Prefect cap
     The same steps demonstrated in this tutorial work to apply deployments and create flow runs from them with Prefect Cloud. 
 
     See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect server.
+
+!!! tip "Projects: An improved experience"
+    Prefect Deployments are getting even easier with the introduction of [Projects](/tutorials/projects), currently in beta.
 
 ## Components of a deployment
 

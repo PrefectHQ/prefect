@@ -9,16 +9,7 @@ tags:
     - subflows
 ---
 
-# First steps
-
-If you've never used Prefect before, let's start by exploring the core elements of Prefect workflows: flows and tasks.
-
-If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
-
-## Prerequisites
-
-These tutorials assume you have [installed Prefect 2](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
-## Flows, tasks, and subflows
+# Flows and tasks
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
