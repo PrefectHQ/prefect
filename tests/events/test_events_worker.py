@@ -99,8 +99,8 @@ async def test_includes_related_resources_from_run_context(
 
     assert event.related[0].id == f"prefect.flow-run.{flow_run.id}"
     assert event.related[0].role == "flow-run"
-    assert event.related[0]["prefect.name"] == flow_run.name
+    assert event.related[0]["prefect.resource.name"] == flow_run.name
 
     assert event.related[1].id == f"prefect.flow.{db_flow.id}"
     assert event.related[1].role == "flow"
-    assert event.related[1]["prefect.name"] == db_flow.name
+    assert event.related[1]["prefect.resource.name"] == db_flow.name

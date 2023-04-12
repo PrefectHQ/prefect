@@ -59,14 +59,14 @@ async def test_gets_related_from_run_context(orion_client):
             __root__={
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
-                "prefect.name": flow_run.name,
+                "prefect.resource.name": flow_run.name,
             }
         ),
         RelatedResource(
             __root__={
                 "prefect.resource.id": f"prefect.flow.{db_flow.id}",
                 "prefect.resource.role": "flow",
-                "prefect.name": db_flow.name,
+                "prefect.resource.name": db_flow.name,
             }
         ),
         RelatedResource(
@@ -119,14 +119,14 @@ async def test_gets_flow_run_from_task_run_context(orion_client):
             __root__={
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
-                "prefect.name": flow_run.name,
+                "prefect.resource.name": flow_run.name,
             }
         ),
         RelatedResource(
             __root__={
                 "prefect.resource.id": f"prefect.flow.{db_flow.id}",
                 "prefect.resource.role": "flow",
-                "prefect.name": db_flow.name,
+                "prefect.resource.name": db_flow.name,
             }
         ),
     ]
