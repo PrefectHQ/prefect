@@ -15,7 +15,10 @@ from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
+from prefect.settings import (
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+)
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app identities.
@@ -245,10 +248,13 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_codes={
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
+                status.HTTP_502_BAD_GATEWAY,
+                *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=(
                 httpx.ReadTimeout,
                 httpx.PoolTimeout,
+                httpx.ConnectTimeout,
                 # `ConnectionResetError` when reading socket raises as a `ReadError`
                 httpx.ReadError,
                 # Sockets can be closed during writes resulting in a `WriteError`

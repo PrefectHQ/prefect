@@ -14,7 +14,7 @@ from typing import (
 )
 
 from prefect.events import Event
-from prefect.events.worker import get_events_worker
+from prefect.events.worker import EventsWorker
 
 ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
@@ -37,8 +37,7 @@ def emit_instance_method_called_event(
         event=f"{kind}.{method_name}.{result}", resource=resource, related=related
     )
 
-    with get_events_worker() as events:
-        events.emit(event)
+    EventsWorker.instance().send(event)
 
 
 def instrument_instance_method_call():

@@ -1,0 +1,20 @@
+prefect-version: null
+name: null
+description: "Store project within a GCS bucket"
+
+required_inputs:
+  bucket: "The bucket to store and retrieve this project from"
+
+build: null
+
+push: 
+  - prefect_gcp.projects.steps.push_project_to_gcs:
+      requires: "prefect-gcp>=0.4.0"
+      bucket: "{{ bucket }}" 
+      folder: "{{ name }}"
+
+pull:
+  - prefect_gcp.projects.steps.pull_project_from_gcs:
+      requires: "prefect-gcp>=0.4.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ folder }}"

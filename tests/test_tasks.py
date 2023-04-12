@@ -26,6 +26,7 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
+from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import allow_failure, unmapped
@@ -2671,6 +2672,26 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
+    def test_can_take_quoted_iterable_as_input(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_does_not_treat_quote_as_iterable(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
     def test_map_can_take_future_as_input(self):
         @task
         def some_numbers():
@@ -2987,6 +3008,19 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
 
+    def test_with_keyword_with_iterable_default(self):
+        @task
+        def add_some(x, y=[1, 4]):
+            return x + sum(y)
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [6, 7, 8]
+
     def test_with_variadic_keywords_and_iterable(self):
         @task
         def add_some(x, **kwargs):
@@ -3012,6 +3046,99 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        async def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
 
 class TestTaskConstructorValidation:

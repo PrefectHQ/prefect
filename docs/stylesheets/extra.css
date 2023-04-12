@@ -6,7 +6,8 @@
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
     --md-primary-fg-color--dark: #115AF4;
-    --nav-size: 0.8rem;
+    <<<<<<<<< Temporary merge branch 1=========--nav-size: 0.8rem;
+    >>>>>>>>>Temporary merge branch 2
 }
 
 /* code block margin and padding  */
@@ -46,6 +47,10 @@
     -webkit-tap-highlight-color: #a2a2a2;
     color: #a2a2a2b1;
     outline: none;
+}
+
+nav.md-code__nav {
+    margin-top: 20px;
 }
 
 /* Image drop shadow, separates browser from background */
@@ -341,7 +346,13 @@ to force column width */
 }
 
 .ul-line-height-compress {
-    line-height: 80%;
+    <<<<<<<<< Temporary merge branch 1 line-height: 80%
+}
+
+.full {
+    width: 33%;
+    padding: 20em;
+    =========line-height: 80%;
     margin-bottom: 30px !important;
 }
 
@@ -360,11 +371,11 @@ to force column width */
 }
 
 .main-button--primary {
-    background: linear-gradient(90deg,#0a082e,#5988e3);
+    background: linear-gradient(90deg, #0a082e, #5988e3);
     color: white !important;
     border: none !important;
     font-weight: 400 !important;
-    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    clip-path: polygon(0 0, 0 0, 100% 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0 100%);
     padding-right: 10px;
     border-radius: 3px !important;
 }
@@ -376,11 +387,11 @@ to force column width */
 }
 
 .main-button--secondary {
-    background: linear-gradient(90deg,#5988e3,#5988e3);
+    background: linear-gradient(90deg, #5988e3, #5988e3);
     color: white !important;
     border: none !important;
     font-weight: 400 !important;
-    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    clip-path: polygon(0 0, 0 0, 100% 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0 100%);
     border-radius: 3px !important;
 }
 
@@ -401,11 +412,7 @@ to force column width */
 /* At 76.1875em, the hamburger menu disappears 
    and users see the full nav menu */
 @media screen and (min-width: 76.1875em) {
-<<<<<<< HEAD
-    div[class="md-header__topic"]:not([data-md-component="header-topic"]) {
-=======
-    div[class="md-header__topic"]:not([data-md-component="header-topic"]) > span {
->>>>>>> origin/main
+    div[class="md-header__topic"]:not([data-md-component="header-topic"])>span {
         display: none;
     }
 }
@@ -426,7 +433,7 @@ to force column width */
 
 /* Mobile nav menu appears at 76.1875em */
 @media screen and (max-width: 76.1875em) {
-    .md-nav--primary .md-nav__title[for=__drawer] { 
+    .md-nav--primary .md-nav__title[for=__drawer] {
         background-color: #0a082e;
     }
 }
@@ -436,4 +443,6 @@ to force column width */
         width: 86%;
         margin-left: 7%
     }
+
+    >>>>>>>>>Temporary merge branch 2
 }

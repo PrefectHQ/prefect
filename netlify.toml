@@ -111,11 +111,6 @@ to = "/integrations/contribute/"
 status = 301
 
 [[redirects]]
-from = "/tutorials/first-steps/"
-to = "/tutorials/"
-status = 301
-
-[[redirects]]
 from = "/migration-guide/"
 to = "/guides/migration-guide/"
 status = 301

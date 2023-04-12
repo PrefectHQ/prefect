@@ -19,6 +19,10 @@
         <FlowRunResults v-if="flowRun" :flow-run="flowRun" />
       </template>
 
+      <template #artifacts>
+        <FlowRunArtifacts v-if="flowRun" :flow-run="flowRun" />
+      </template>
+
       <template #task-runs>
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
@@ -46,6 +50,7 @@
   import { media } from '@prefecthq/prefect-design'
   import {
     PageHeadingFlowRun,
+    FlowRunArtifacts,
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
@@ -73,6 +78,7 @@
       'Logs',
       'Task Runs',
       'Results',
+      'Artifacts',
       'Subflow Runs',
       'Parameters',
     ]
