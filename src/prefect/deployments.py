@@ -187,12 +187,12 @@ async def load_flow_from_flow_run(
                 deployment.storage_document_id
             )
             storage_block = Block._from_block_document(storage_document)
-        elif deployment.path or deployment.manifest_path:
+        else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
             storage_block = LocalFileSystem(basepath=basepath)
 
-            logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-            await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
+        await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
@@ -769,6 +769,9 @@ class Deployment(BaseModel):
 
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
+        # ensure the ignore file exists
+        Path(ignore_file).touch()
 
         if not deployment.version:
             deployment.version = flow.version

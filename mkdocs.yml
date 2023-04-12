@@ -131,6 +131,7 @@ nav:
         - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
+        - Variables: concepts/variables.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Runtime Context: concepts/runtime-context.md
@@ -180,6 +181,7 @@ nav:
         - api-ref/index.md
         - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md
+            - 'prefect.artifacts': api-ref/prefect/artifacts.md
             # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
             - 'prefect.deployments': api-ref/prefect/deployments.md
@@ -190,6 +192,10 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.infrastructure': api-ref/prefect/infrastructure.md
             - 'prefect.logging': api-ref/prefect/logging.md
+            - 'prefect.projects':
+                - 'prefect.projects.base': api-ref/prefect/projects/base.md
+                - 'prefect.projects.steps.core': api-ref/prefect/projects/steps/core.md
+                - 'prefect.projects.steps.pull': api-ref/prefect/projects/steps/pull.md
             - 'prefect.runtime': 
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
@@ -218,6 +224,7 @@ nav:
                 - 'prefect.cli.config': api-ref/prefect/cli/config.md
                 - 'prefect.cli.dev': api-ref/prefect/cli/dev.md
                 - 'prefect.cli.profile': api-ref/prefect/cli/profile.md
+                - 'prefect.cli.project': api-ref/prefect/cli/project.md
                 - 'prefect.cli.work_queue': api-ref/prefect/cli/work_queue.md
                 - 'prefect.cli.root': api-ref/prefect/cli/root.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md

@@ -79,6 +79,40 @@ async def artifacts(flow_run, task_run, client):
     ]
 
 
+@pytest.fixture
+async def flow_artifacts(client, deployment):
+    flow_data = {"name": "my-flow"}
+    response = await client.post("/flows/", json=flow_data)
+
+    flow = response.json()
+
+    response = await client.post(
+        f"deployments/{deployment.id}/create_flow_run", json={}
+    )
+
+    flow_run = response.json()
+
+    artifact1_schema = actions.ArtifactCreate(
+        key="artifact-1",
+        data=1,
+        description="# This is a markdown description title",
+        flow_run_id=flow_run["id"],
+        type="table",
+    ).dict(json_compatible=True)
+    artifact1 = await client.post("/artifacts/", json=artifact1_schema)
+
+    artifact2_schema = actions.ArtifactCreate(
+        key="artifact-1",
+        data=1,
+        description="# This is a markdown description title",
+        flow_run_id=flow_run["id"],
+        type="table",
+    ).dict(json_compatible=True)
+    artifact2 = await client.post("/artifacts/", json=artifact2_schema)
+
+    return [flow, artifact1.json(), artifact2.json(), deployment.id]
+
+
 class TestCreateArtifact:
     async def test_create_artifact(self, flow_run, task_run, client):
         artifact = actions.ArtifactCreate(
@@ -390,6 +424,36 @@ class TestReadArtifacts:
         assert len(response.json()) == 1
         assert response.json()[0]["key"] == artifacts[0]["key"]
 
+    async def test_reading_artifacts_by_flow_name(self, flow_artifacts, client):
+        flow_name = flow_artifacts[0]["name"]
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/filter", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert len(json) == 2
+        assert sorted([json[0]["id"], json[1]["id"]]) == sorted(
+            [flow_artifacts[1]["id"], flow_artifacts[2]["id"]]
+        )
+
+    async def test_reading_artifacts_by_deployment(self, flow_artifacts, client):
+        deployment_id = flow_artifacts[3]
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/filter", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert len(json) == 2
+        assert sorted([json[0]["id"], json[1]["id"]]) == sorted(
+            [flow_artifacts[1]["id"], flow_artifacts[2]["id"]]
+        )
+
 
 class TestReadLatestArtifacts:
     @pytest.fixture
@@ -561,6 +625,32 @@ class TestReadLatestArtifacts:
             [item["task_run_id"] == str(task_run_id) for item in response.json()]
         )
 
+    async def test_reading_latest_artifacts_by_flow_name(self, flow_artifacts, client):
+        flow_name = flow_artifacts[0]["name"]
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/latest/filter", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert len(json) == 1
+        assert json[0]["latest_id"] == flow_artifacts[2]["id"]
+
+    async def test_reading_latest_artifacts_by_deployment(self, flow_artifacts, client):
+        deployment_id = flow_artifacts[3]
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/latest/filter", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert len(json) == 1
+        assert json[0]["latest_id"] == flow_artifacts[2]["id"]
+
 
 class TestCountArtifacts:
     async def test_counting_artifacts(self, artifacts, session):
@@ -612,6 +702,56 @@ class TestCountArtifacts:
 
         assert response.status_code == 200
         assert response.json() == 1
+
+    async def test_count_artifacts_by_flow_name(self, flow_artifacts, client):
+        flow_name = flow_artifacts[0]["name"]
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/count", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 2
+
+    async def test_count_artifacts_by_deployment(self, flow_artifacts, client):
+        deployment_id = flow_artifacts[3]
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/count", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 2
+
+    async def test_counting_latest_artifacts_by_flow_name(self, flow_artifacts, client):
+        flow_name = flow_artifacts[0]["name"]
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/latest/count", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 1
+
+    async def test_counting_latest_artifacts_by_deployment(
+        self, flow_artifacts, client
+    ):
+        deployment_id = flow_artifacts[3]
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/latest/count", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 1
 
 
 class TestUpdateArtifact:

@@ -15,7 +15,7 @@ from prefect.projects.base import (
     register_flow,
 )
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,11 @@ class TestRecipes:
         [
             d.absolute().name
             for d in Path(
-                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
             ).iterdir()
             if d.is_dir()
         ],
@@ -75,7 +79,11 @@ class TestRecipes:
         [
             d.absolute().name
             for d in Path(
-                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
             ).iterdir()
             if d.is_dir() and "git" in d.absolute().name
         ],
@@ -134,6 +142,35 @@ class TestInitProject:
 
         build_step = contents["build"][0]
         assert "prefect_docker.projects.steps.build_docker_image" in build_step
+
+    @pytest.mark.parametrize(
+        "recipe",
+        [
+            d.absolute().name
+            for d in Path(
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
+            ).iterdir()
+            if d.is_dir() and "docker" in d.absolute().name
+        ],
+    )
+    async def test_initialize_project_with_docker_recipe_default_image(self, recipe):
+        files = initialize_project(recipe=recipe)
+        assert len(files) >= 3
+
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        build_step = contents["build"][0]
+        assert "prefect_docker.projects.steps.build_docker_image" in build_step
+
+        with open("deployment.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        assert contents["work_pool"]["job_variables"]["image"] == "{{ image_name }}"
 
 
 class TestRegisterFlow:

@@ -19,7 +19,7 @@ A project is a minimally opinionated set of files that describe how to prepare o
 
 - [`deployment.yaml`](#the-deployment-yaml-file): a YAML file describing base settings for a deployment produced from this project
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing procedural steps for preparing a deployment from this project, as well as instructions for preparing the execution environment for a deployment run
-- [`./prefect`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
+- [`.prefect/`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
 
 Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.  
 
@@ -43,7 +43,6 @@ schedule: null
 # flow-specific fields
 flow_name: null
 entrypoint: null
-path: null
 parameters: {}
 parameter_openapi_schema: null
 
@@ -61,7 +60,7 @@ You can create deployments via the CLI command `prefect deploy` without ever nee
 Values that you place within your `deployment.yaml` file can reference dynamic values in two different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `deployment.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
-- **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`
+- **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
 
 As an example, consider the following `deployment.yaml` file:
 
@@ -133,24 +132,36 @@ For more information on the mechanics of steps, [see below](#deployment-mechanic
 
 ### The Build Section
 
-The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If we initialize with the docker recipe we find a template for such a step: 
+The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag: 
 
 <div class="terminal">
 ```bash
 $ prefect project init --recipe docker
+>> image_name: < insert image name here >
+>> tag: < insert image tag here >
 ```
 </div>
 
+!!! tip "Use `--field` to avoid the interactive experience"
+    We recommend that you only initialize a recipe when you begin a project, and afterwards store your configuration files within version control; however, sometimes you may need to initialize programmatically and avoid the interactive prompts.  To do so, provide all required fields for your recipe using the `--field` flag:
+    <div class="terminal">
+    ```bash
+    $ prefect project init --recipe docker \
+        --field image_name=my-repo/my-image \
+        --field tag=my-tag
+    ```
+    </div>
+    
 ```yaml
 build:
 - prefect_docker.projects.steps.build_docker_image:
-    requires: prefect-docker>0.1.0
-    image_name: null
-    tag: null
+    requires: prefect-docker>=0.2.0
+    image_name: my-repo/my-image
+    tag: my-tag
     dockerfile: auto
 ```
 
-Once we edit the `null` fields to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
 
 
 !!! note Some steps require Prefect integrations
@@ -165,6 +176,7 @@ For example, a user wishing to store their project in an S3 bucket and rely on d
 <div class="terminal">
 ```bash
 $ prefect project init --recipe s3
+>> bucket: < insert bucket name here >
 ```
 </div>
 
@@ -172,27 +184,29 @@ Inspecting our newly created `prefect.yaml` file we find that the `push` and `pu
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.projects.steps.push_project_to_s3:
       requires: prefect-aws>=0.3.0
-      bucket: null
+      bucket: my-bucket
       folder: project-name
       credentials: null
 
 pull:
-  - prefect_aws.projects.steps.push_project_to_s3:
+  - prefect_aws.projects.steps.pull_project_from_s3:
       requires: prefect-aws>=0.3.0
-      bucket: null
-      folder: project-name
+      bucket: my-bucket
+      folder: "{{ folder }}"
       credentials: null
 ```
 
-Note that for these steps to function properly, at a minimum we must provide a bucket name; as discussed above, if you are using [blocks](/concepts/blocks/), the credentials section can be templated with a block reference for secure and dynamic credentials access:
+The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the `folder` property of the `push` step is a template - the `pull_project_from_s3` step outputs both a `bucket` value as well as a `folder` value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits. 
+
+As discussed above, if you are using [blocks](/concepts/blocks/), the credentials section can be templated with a block reference for secure and dynamic credentials access:
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.projects.steps.push_project_to_s3:
       requires: prefect-aws>=0.3.0
-      bucket: null
+      bucket: my-bucket
       folder: project-name
       credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
 ```
@@ -202,6 +216,15 @@ Anytime you run `prefect deploy`, this `push` section will be executed upon succ
 ### The Pull Section
 
 The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing this project for a deployment run.  These instructions will be executed each time a deployment created wthin this project is run via a worker.
+
+There are three main types of steps that typically show up in a `pull` section:
+
+- `set_working_directory`: this step simply sets the working directory for the process prior to importing your flow
+- `git_clone_project`: this step clones the provided repository on the provided branch
+- `pull_project_from_{cloud}`: this step pulls the project directory from a Cloud storage location (e.g., S3)
+
+!!! tip "Use block and variable references"
+    All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
 ## The `.prefect/` directory
 
@@ -222,12 +245,18 @@ Registration also allows users to share their projects without requiring a full 
 
 ## Deployment mechanics
 
-Anytime you run `prefect deploy`, the following steps are taken in order:
+Anytime you run `prefect deploy`, the following actions are taken in order:
 
 - the project `prefect.yaml` file is loaded; first, the `prefect.yaml` `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided
 - next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
-- lastly, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
-- Next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
-- The final step occurs when the fully realized deployment specification is registered with the Prefect API
+- next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
+- next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
+- the final step occurs when the fully realized deployment specification is registered with the Prefect API
 
-Note that anytime an `ImportError` is encountered while executing a step, the `requires` field is looked up and installed.  The step then retries with the newly installed dependency.
+Anytime a step is run, the following actions are taken in order:
+
+- The step's inputs and block / variable references are resolved (see [the templating documentation above](#templating-options) for more details)
+- The step's function is imported; if it cannot be found, the special `requires` keyword is used to install the necessary packages
+- The step's function is called with the resolved inputs
+- The step's output is returned and used to resolve inputs for subsequent steps
+
