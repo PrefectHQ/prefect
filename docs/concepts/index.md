@@ -7,11 +7,9 @@ tags:
     - overview
 ---
 
-# Concepts Overview
+# Explore Prefect concepts
 
-TK maybe just an an outline of the concepts pages in hyperink format.
-
-Explore Prefect concepts
+If you're getting started, check out [flows](../concepts/flows/).
 
 --
 
