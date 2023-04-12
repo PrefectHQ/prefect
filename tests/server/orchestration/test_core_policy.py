@@ -2710,7 +2710,7 @@ class TestHandleCancellingScheduledFlows:
         session,
         initialize_orchestration,
     ):
-        """Flow runs awaiting retry should still go into a cancelling state even though they.
+        """Flow runs awaiting retry should still go into a cancelling state as they have an associated pid, even though they
         are technically "Scheduled".
         """
         intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)

@@ -848,8 +848,5 @@ class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
         if not context.run.infrastructure_pid:
             await self.reject_transition(
                 state=states.Cancelled(),
-                reason=(
-                    "Scheduled flows are transitioned immediately to Cancelled because"
-                    " there is no infrastructure to shut down."
-                ),
+                reason="Scheduled flow run has no infrastructure to terminate.",
             )
