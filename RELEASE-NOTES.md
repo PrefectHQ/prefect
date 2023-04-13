@@ -16,9 +16,9 @@ your project's configuration.
 ### Fixes
 - Prevent scheduled flow runs from getting stuck in `CANCELLING` state  — [#8414](https://github.com/PrefectHQ/prefect/pull/8414)
 - Fix `work_queues` and `worker_type` arguments for the `prefect worker start` CLI command — [#9154](https://github.com/PrefectHQ/prefect/pull/9154)
-- Logs overflow container in ui [`#1342`](https://github.com/PrefectHQ/prefect-ui-library/pull/1342)
-- Schema form incorrectly marking reference objects as optional [`#1332`](https://github.com/PrefectHQ/prefect-ui-library/pull/1332)
-- Prevent flow graph shortcuts when metakey [`#1333`](https://github.com/PrefectHQ/prefect-ui-library/pull/1333)
+- Fix overflow in flow run logger UI [`#1342`](https://github.com/PrefectHQ/prefect-ui-library/pull/1342)
+- Fix schema form handling of reference objects [`#1332`](https://github.com/PrefectHQ/prefect-ui-library/pull/1332)
+- Improve flow graph UX by suppressing shortcuts when a metakey is active [`#1333`](https://github.com/PrefectHQ/prefect-ui-library/pull/1333)
 
 ### Experimental
 - Emit an event when a worker submits a flow run for execution — [#9203](https://github.com/PrefectHQ/prefect/pull/9203)
