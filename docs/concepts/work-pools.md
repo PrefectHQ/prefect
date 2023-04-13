@@ -26,7 +26,7 @@ To run deployments, you must configure at least one agent or worker (and its ass
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
 
-Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) `prefect config set PREFECT_AGENT_QUERY_INTERVAL=10`.
+Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with `prefect config set PREFECT_AGENT_QUERY_INTERVAL=10`.
 
 It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 
@@ -381,3 +381,7 @@ By default, the worker begins submitting flow runs a short time (10 seconds) bef
 In some cases, infrastructure will take longer than 10 seconds to start the flow run. The prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time.
+
+### Polling for work
+Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with `prefect config set
+PREFECT_WORKER_QUERY_SECONDS='10.0'`.
