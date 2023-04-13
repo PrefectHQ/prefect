@@ -57,8 +57,17 @@ def git_clone_project(
     # Limit git history
     cmd += ["--depth", "1"]
 
-    subprocess.check_call(
-        cmd, shell=sys.platform == "win32", stderr=sys.stderr, stdout=sys.stdout
-    )
+    try:
+        subprocess.check_call(
+            cmd, shell=sys.platform == "win32", stderr=sys.stderr, stdout=sys.stdout
+        )
+    except subprocess.CalledProcessError as exc:
+        # Hide the command used to avoid leaking the access token
+        exc_chain = None if access_token else exc
+        raise RuntimeError(
+            f"Failed to clone repository {repository!r} with exit code"
+            f" {exc.returncode}."
+        ) from exc_chain
+
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
     return {"directory": directory}

@@ -1,9 +1,11 @@
 import os
 import shutil
 import sys
+from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pendulum
 import pytest
 import readchar
 import yaml
@@ -190,6 +192,57 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
 
+    async def test_project_deploy_with_no_deployment_file(
+        self, project_dir, orion_client
+    ):
+        # delete deployment.yaml
+        Path(project_dir, "deployment.yaml").unlink()
+
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar"
+            ),
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
+
+    async def test_project_deploy_with_empty_dep_file(self, project_dir, orion_client):
+        # delete deployment.yaml and rewrite as empty
+        Path(project_dir, "deployment.yaml").unlink()
+
+        with open(Path(project_dir, "deployment.yaml"), "w") as f:
+            f.write("{}")
+
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+
     async def test_project_deploy_templates_values(self, project_dir, orion_client):
         await orion_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -367,4 +420,94 @@ class TestProjectDeploy:
             command="deploy",
             expected_code=1,
             expected_output="An entrypoint or flow name must be provided.",
+        )
+
+
+class TestSchedules:
+    async def test_passing_cron_schedules_to_deploy(self, project_dir, orion_client):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *'"
+                " --timezone 'Europe/Berlin'"
+            ),
+        )
+        assert result.exit_code == 0
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.cron == "0 4 * * *"
+        assert deployment.schedule.timezone == "Europe/Berlin"
+
+    async def test_passing_interval_schedules_to_deploy(
+        self, project_dir, orion_client
+    ):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 42"
+                " --anchor-date 2040-02-02 --timezone 'America/New_York'"
+            ),
+        )
+        assert result.exit_code == 0
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.interval == timedelta(seconds=42)
+        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert deployment.schedule.timezone == "America/New_York"
+
+    async def test_passing_anchor_without_interval_exits(self, project_dir):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --anchor-date 2040-02-02"
+            ),
+            expected_code=1,
+            expected_output_contains=(
+                "An anchor date can only be provided with an interval schedule"
+            ),
+        )
+
+    async def test_parsing_rrule_schedule_string_literal(
+        self, project_dir, orion_client
+    ):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name "
+                "--rrule"
+                " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
+            ),
+            expected_code=0,
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert (
+            deployment.schedule.rrule
+            == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+        )
+
+    @pytest.mark.parametrize(
+        "schedules",
+        [
+            ["--cron", "cron-str", "--interval", "42"],
+            ["--rrule", "rrule-str", "--interval", "42"],
+            ["--rrule", "rrule-str", "--cron", "cron-str"],
+            ["--rrule", "rrule-str", "--cron", "cron-str", "--interval", "42"],
+        ],
+    )
+    async def test_providing_multiple_schedules_exits_with_error(
+        self, project_dir, schedules
+    ):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name "
+            + " ".join(schedules),
+            expected_code=1,
+            expected_output="Only one schedule type can be provided.",
         )

@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "1.7.0",
-    "@prefecthq/prefect-ui-library": "1.4.5",
-    "@prefecthq/vue-compositions": "1.4.0",
+    "@prefecthq/prefect-ui-library": "1.4.6",
+    "@prefecthq/vue-compositions": "1.4.1",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
     "lodash.debounce": "4.0.8",
@@ -22,7 +22,7 @@
     "vue-router": "4.1.6"
   },
   "devDependencies": {
-    "@playwright/test": "1.32.2",
+    "@playwright/test": "1.32.3",
     "@prefecthq/eslint-config": "1.0.25",
     "@vitejs/plugin-vue": "4.1.0",
     "autoprefixer": "10.4.14",

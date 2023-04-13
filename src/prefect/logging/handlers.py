@@ -24,6 +24,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_MARKUP,
+    PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
@@ -39,6 +40,10 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
             - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
             PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
         )
+
+    @property
+    def _min_interval(self):
+        return PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
 
     async def _handle_batch(self, items: List):
         try:

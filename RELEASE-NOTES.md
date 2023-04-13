@@ -1,5 +1,47 @@
 # Prefect Release Notes
 
+## Release 2.10.3
+
+This release builds on 2.10 to further improve the experience of setting up and deploying from [a prefect project](https://docs.prefect.io/latest/tutorials/projects/).  In particular, initializing with a recipe now initializes an interactive CLI experience that guides you to a correct setup.  This experience can be avoided for programmatic initialization by providing all required fields for the recipe via CLI.  For more information, see [the project documentation](https://docs.prefect.io/latest/concepts/projects/).  We will continue to enhance the deployment experience as we receive feedback, so please keep it coming!
+
+This release also includes [a critical fix](https://github.com/PrefectHQ/prefect/pull/9180) for Prefect logs that were sometimes delayed in being sent to the API.
+
+
+### Enhancements
+- Rename `__root_path__` to `__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
+- Include flow run and flow as related resources when emitting events via the events worker — https://github.com/PrefectHQ/prefect/pull/9129
+- Cloud storage recipe improvements — https://github.com/PrefectHQ/prefect/pull/9145
+- Use new sessions and transactions for each query during `CancellationCleanup` — https://github.com/PrefectHQ/prefect/pull/9124
+- Stream `git` output during `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9149
+- Update deployment defaults with project init — https://github.com/PrefectHQ/prefect/pull/9146
+- Mock runtime via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
+- Wire up scheduling kwargs to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
+- Add deployment and flow filters to `/artifacts/filter` and `/artifacts/latest/filter` routes — https://github.com/PrefectHQ/prefect/pull/9089
+- Add `/artifacts/latest/count` route — https://github.com/PrefectHQ/prefect/pull/9090
+- add flow run to task run logging — https://github.com/PrefectHQ/prefect/pull/9170
+- Add pragma statements automatically if sqlite — https://github.com/PrefectHQ/prefect/pull/9169
+- Improved recipe initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
+
+### Fixes
+- Update `prefect deploy` to pull `flow_name` and `entrypoint` from deployment.yaml if specified — https://github.com/PrefectHQ/prefect/pull/9157
+- Fix bug where non-zero status codes would be reported when deployed flow runs paused or failed — https://github.com/PrefectHQ/prefect/pull/9175
+- Hide command when access token is provided and `git_clone_project` fails — https://github.com/PrefectHQ/prefect/pull/9150
+- Fix bug where log worker only sent logs to API on flush rather than on an interval — https://github.com/PrefectHQ/prefect/pull/9180
+- Fix apply artifact collection filter — https://github.com/PrefectHQ/prefect/pull/9153
+
+### Documentation
+- Adds artifacts to api-ref — https://github.com/PrefectHQ/prefect/pull/9143
+- Expands upon project step documentation — https://github.com/PrefectHQ/prefect/pull/9151
+- small project doc fixes — https://github.com/PrefectHQ/prefect/pull/9161
+
+### Collections
+- add prefect-spark-on-k8s-operator to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
+
+### Contributors
+* @tardunge made their first contribution in https://github.com/PrefectHQ/prefect/pull/9029
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.2...2.10.3
+
 ## Release 2.10.2
 
 Fixes a bug where deployments were not downloaded from remote storage blocks during flow runs — https://github.com/PrefectHQ/prefect/pull/9138

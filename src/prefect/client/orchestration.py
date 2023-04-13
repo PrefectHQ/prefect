@@ -1422,7 +1422,7 @@ class PrefectClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         is_schedule_active: bool = None,
     ):
-        deployment_create = schemas.actions.DeploymentUpdate(
+        deployment_update = schemas.actions.DeploymentUpdate(
             version=deployment.version,
             schedule=schedule if schedule is not None else deployment.schedule,
             is_schedule_active=(
@@ -1442,9 +1442,12 @@ class PrefectClient:
             infra_overrides=deployment.infra_overrides,
         )
 
+        if getattr(deployment, "work_pool_name", None) is not None:
+            deployment_update.work_pool_name = deployment.work_pool_name
+
         response = await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_create.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True),
         )
 
     async def _create_deployment_from_schema(
