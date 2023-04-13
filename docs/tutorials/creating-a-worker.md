@@ -290,7 +290,7 @@ The `run` method has the following signature:
         ...
 ```
 
-The `run` method is passed the flow run to execute, the execution environment configuration for the flow run, and a task status object that allows the worker to track whether the flow run was submitted successfully.
+The `run` method is passed: the flow run to execute, the execution environment configuration for the flow run, and a task status object that allows the worker to track whether the flow run was submitted successfully.
 
 The `run` method must also return a `BaseWorkerResult` object. The `BaseWorkerResult` object returned contains information about the flow run execution. For the most part, you can implement the `BaseWorkerResult` with no modifications like so:
 
@@ -305,7 +305,7 @@ If you would like to return more information about a flow run, then additional a
 
 ### Worker Implementation Example
 
-Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the abovementioned concepts.
+Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the aforementioned concepts.
 
 ```python
 from prefect.workers.base import BaseWorker, BaseWorkerResult, BaseJobConfiguration, BaseVariables
@@ -362,7 +362,7 @@ class MyWorker(BaseWorker):
         )
 ```
 
-Most of the execution logic is omitted from the example above, but it shows that the typical flow for execution in the `run` method is:
+Most of the execution logic is omitted from the example above, but it shows that the typical order of operations in the `run` method is:
     1. Create the execution environment and start the flow run execution
     2. Mark the flow run as started via the passed `task_status` object
     3. Monitor the execution
@@ -379,7 +379,7 @@ If your worker is in a package, you can add an entry point to your setup file in
 ```python
 entry_points={
     "prefect.collections": [
-        "my_pacakge_name = my_worker_module",
+        "my_package_name = my_worker_module",
     ]
 },
 ```
