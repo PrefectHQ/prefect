@@ -1,5 +1,33 @@
 # Prefect Release Notes
 
+## Release 2.10.4
+
+This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
+[workers](https://docs.prefect.io/latest/concepts/work-pools/#worker-overview), fixes for flow run cancellation and the worker CLI, and more.
+
+### More flexible project deployments
+Prior to this release, removing keys from a project's `deployment.yaml` caused an error. Thanks to the changes in [#9190](https://github.com/PrefectHQ/prefect/pull/9190), Prefect now uses default values for any required keys missing from your project's configuration.
+
+### Enhancements
+- Allow partial `deployment.yaml` files for projects by using defaults for missing values — [#9190](https://github.com/PrefectHQ/prefect/pull/9190)
+- Add flow run cancellation support for workers - [#9198](https://github.com/PrefectHQ/prefect/pull/9198)
+
+### Fixes
+- Prevent scheduled flow runs from getting stuck in `CANCELLING` state  — [#8414](https://github.com/PrefectHQ/prefect/pull/8414)
+- Fix `work_queues` and `worker_type` arguments for the `prefect worker start` CLI command — [#9154](https://github.com/PrefectHQ/prefect/pull/9154)
+- Fix overflow in flow run logger UI [`#1342`](https://github.com/PrefectHQ/prefect-ui-library/pull/1342)
+- Fix schema form handling of reference objects [`#1332`](https://github.com/PrefectHQ/prefect-ui-library/pull/1332)
+- Improve flow graph UX by suppressing shortcuts when a metakey is active [`#1333`](https://github.com/PrefectHQ/prefect-ui-library/pull/1333)
+
+### Experimental
+- Emit an event when a worker submits a flow run for execution — [#9203](https://github.com/PrefectHQ/prefect/pull/9203)
+
+### Documentation
+- Fix a broken link by removing an obsolete redirect — [#9189](https://github.com/PrefectHQ/prefect/pull/9189)
+- Add polling interval information to worker and agent documentation — [#9209](https://github.com/PrefectHQ/prefect/pull/9209)
+- Update documentation badge styling to improve docs usability — [#9207](https://github.com/PrefectHQ/prefect/pull/9207)
+
+
 ## Release 2.10.3
 
 This release builds on 2.10 to further improve the experience of setting up and deploying from [a prefect project](https://docs.prefect.io/latest/tutorials/projects/).  In particular, initializing with a recipe now initializes an interactive CLI experience that guides you to a correct setup.  This experience can be avoided for programmatic initialization by providing all required fields for the recipe via CLI.  For more information, see [the project documentation](https://docs.prefect.io/latest/concepts/projects/).  We will continue to enhance the deployment experience as we receive feedback, so please keep it coming!
