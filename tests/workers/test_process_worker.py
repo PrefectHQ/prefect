@@ -1,6 +1,9 @@
+import signal
+import socket
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import call
 from uuid import UUID
 
 import anyio
@@ -13,6 +16,7 @@ import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
@@ -432,3 +436,113 @@ async def test_process_worker_command_override(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
         assert mock.call_args.args == (override_command.split(" "),)
+
+
+async def test_task_status_receives_infrastructure_pid(
+    work_pool, patch_run_process, monkeypatch, flow_run
+):
+    patch_client(monkeypatch)
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+            task_status=fake_status,
+        )
+
+        hostname = socket.gethostname()
+        fake_status.started.assert_called_once_with(f"{hostname}:{result.identifier}")
+
+
+async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"not-{socket.gethostname()}:12345"
+
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        with pytest.raises(InfrastructureNotAvailable):
+            await worker.kill_infrastructure(infrastructure_pid=infrastructure_pid)
+
+    os_kill.assert_not_called()
+
+
+async def test_process_kill_no_matching_pid(monkeypatch, work_pool):
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        with pytest.raises(InfrastructureNotFound):
+            await worker.kill_infrastructure(infrastructure_pid=infrastructure_pid)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="SIGTERM/SIGKILL are only used in non-Windows environments",
+)
+async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 2
+
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        await worker.kill_infrastructure(
+            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+        )
+
+    os_kill.assert_has_calls(
+        [
+            call(12345, signal.SIGTERM),
+            call(12345, 0),
+            call(12345, signal.SIGKILL),
+        ]
+    )
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="SIGTERM/SIGKILL are only used in non-Windows environments",
+)
+async def test_process_kill_early_return(monkeypatch, work_pool):
+    os_kill = MagicMock(side_effect=[None, ProcessLookupError])
+    anyio_sleep = AsyncMock()
+    monkeypatch.setattr("os.kill", os_kill)
+    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 30
+
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        await worker.kill_infrastructure(
+            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+        )
+
+    os_kill.assert_has_calls(
+        [
+            call(12345, signal.SIGTERM),
+            call(12345, 0),
+        ]
+    )
+
+    anyio_sleep.assert_called_once_with(3)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="CTRL_BREAK_EVENT is only defined in Windows",
+)
+async def test_process_kill_windows_sends_ctrl_break(monkeypatch, work_pool):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 15
+
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        await worker.kill_infrastructure(
+            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+        )
+
+    os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)
