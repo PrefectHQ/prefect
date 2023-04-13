@@ -2,7 +2,6 @@
 Base `prefect` command-line application
 """
 import asyncio
-from copy import deepcopy
 import json
 import platform
 import sys
