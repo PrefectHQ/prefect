@@ -8,7 +8,7 @@ workers, fixes for flow run cancellation and the worker CLI, and more.
 ### Enhancements
 - Allow partial deployment.yaml files for projects by using defaults for missing values — [#9190](https://github.com/PrefectHQ/prefect/pull/9190)
 - Add flow run cancellation support for workers - [#9198](https://github.com/PrefectHQ/prefect/pull/9198)
-- 
+
 ### Fixes
 - Prevent scheduled flow runs from getting stuck in `CANCELLING` state  — [#8414](https://github.com/PrefectHQ/prefect/pull/8414)
 - Fix `work_queues` and `worker_type` arguments for the `prefect worker start` CLI command — [#9154](https://github.com/PrefectHQ/prefect/pull/9154)
