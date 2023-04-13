@@ -161,6 +161,16 @@ to force column width */
     border-radius: 5px;
 }
 
+/* vertical align badges inlined in h2 elements */
+h2 > .badge::before {
+    vertical-align: middle;
+}
+
+/* Avoid displaying badges in the right sidebar */
+.md-sidebar--secondary .badge {
+    display: none;
+}
+
 .badge-api::before {
     background-color: #1860F2;
     color: white;
