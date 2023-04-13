@@ -2,10 +2,10 @@
 Base `prefect` command-line application
 """
 import asyncio
-from copy import deepcopy
 import json
 import platform
 import sys
+from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -15,6 +15,7 @@ import rich.console
 import typer
 import typer.core
 import yaml
+from rich.panel import Panel
 
 import prefect
 import prefect.context
@@ -285,7 +286,25 @@ async def deploy(
     Should be run from a project root directory.
     """
 
-    options = deepcopy(locals())
+    options = {
+        "entrypoint": entrypoint,
+        "flow_name": flow_name,
+        "names": names,
+        "description": description,
+        "version": version,
+        "tags": tags,
+        "work_pool_name": work_pool_name,
+        "work_queue_name": work_queue_name,
+        "variables": variables,
+        "cron": cron,
+        "interval": interval,
+        "interval_anchor": interval_anchor,
+        "rrule": rrule,
+        "timezone": timezone,
+        "param": param,
+        "params": params,
+        "deploy_all": deploy_all,
+    }
 
     # load the default deployment file for key consistency
     default_file = (
@@ -319,33 +338,36 @@ async def deploy(
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
 
-    if len(names) <= 1:
+    try:
         if "deployments" in base_deploy:
-            base_deploy = next(
-                (
-                    deployment
-                    for deployment in base_deploy["deployments"]
-                    if deployment["name"] == names[0]
-                ),
-                None,
+            await _run_multi_deploy(
+                base_deploys=base_deploy["deployments"],
+                project=project,
+                options=options,
             )
-        if base_deploy is None:
-            app.console.print(
-                "No deployment.yaml file found, defaulting to empty values.",
-                style="orange",
+        else:
+            if len(names) > 1:
+                exit_with_error(
+                    "Multiple deployment names were provided, but only one deployment"
+                    " was found in deployment.yaml. Please provide a single deployment"
+                    " name or remove the --name flag."
+                )
+            options["name"] = names[0] if names else None
+            await _run_single_deploy(
+                base_deploy=base_deploy,
+                project=project,
+                options=options,
             )
-            base_deploy = {}
-        await _run_deploy(
-            base_deploy=base_deploy,
-            project=project,
-            options=options,
-        )
+    except Exception as exc:
+        exit_with_error(str(exc))
 
 
-async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
-    base_deploy = base_deploy if base_deploy else {}
-    project = project if project else {}
-    options = options if options else {}
+async def _run_single_deploy(
+    base_deploy: Dict, project: Dict, options: Optional[Dict] = None
+):
+    base_deploy = deepcopy(base_deploy) if base_deploy else {}
+    project = deepcopy(project) if project else {}
+    options = deepcopy(options) if options else {}
 
     name = options.get("name") or base_deploy.get("name")
     flow_name = options.get("flow_name") or base_deploy.get("flow_name")
@@ -353,6 +375,7 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
     param = options.get("param")
     params = options.get("params")
     variables = options.get("variables")
+    version = options.get("version")
     tags = options.get("tags")
     description = options.get("description")
     work_pool_name = options.get("work_pool_name")
@@ -363,26 +386,24 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
     interval_anchor = options.get("interval_anchor")
     timezone = options.get("timezone")
 
-    # sanitize
-    if project.get("build") is None:
-        project["build"] = []
-    if project.get("push") is None:
-        project["push"] = []
-    if project.get("pull") is None:
-        project["pull"] = []
+    build_steps = base_deploy.get("build", project.get("build", [])) or []
+    pull_steps = base_deploy.get("pull", project.get("pull", [])) or []
+    push_steps = base_deploy.get("push", project.get("push", [])) or []
 
     if interval_anchor and not interval:
-        exit_with_error("An anchor date can only be provided with an interval schedule")
+        raise ValueError(
+            "An anchor date can only be provided with an interval schedule"
+        )
 
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
-        exit_with_error("Only one schedule type can be provided.")
+        raise ValueError("Only one schedule type can be provided.")
 
     if not flow_name and not entrypoint:
-        exit_with_error("An entrypoint or flow name must be provided.")
+        raise ValueError("An entrypoint or flow name must be provided.")
     if not name:
-        exit_with_error("A deployment name must be provided.")
+        raise ValueError("A deployment name must be provided.")
     if flow_name and entrypoint:
-        exit_with_error("Can only pass an entrypoint or a flow name but not both.")
+        raise ValueError("Can only pass an entrypoint or a flow name but not both.")
 
     # Pull from deployment config if not passed
     if entrypoint is None:
@@ -398,12 +419,12 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
     elif flow_name:
         prefect_dir = find_prefect_directory()
         if not prefect_dir:
-            exit_with_error(
+            raise ValueError(
                 "No .prefect directory could be found - run [yellow]`prefect project"
                 " init`[/yellow] to create one."
             )
         if not (prefect_dir / "flows.json").exists():
-            exit_with_error(
+            raise ValueError(
                 f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
                 " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
                 " its location."
@@ -412,7 +433,7 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
             flows = json.load(f)
 
         if flow_name not in flows:
-            exit_with_error(
+            raise ValueError(
                 f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
                 " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
                 " its location."
@@ -427,12 +448,9 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
     ## parse parameters
     # minor optimization in case we already loaded the flow
     if not flow:
-        try:
-            flow = await run_sync_in_worker_thread(
-                load_flow_from_entrypoint, base_deploy["entrypoint"]
-            )
-        except Exception as exc:
-            exit_with_error(exc)
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, base_deploy["entrypoint"]
+        )
 
     base_deploy["parameter_openapi_schema"] = parameter_schema(flow)
 
@@ -485,7 +503,7 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
-    for step in project["build"] + project["push"]:
+    for step in build_steps + push_steps:
         step_outputs.update(await run_step(step))
 
     variable_overrides = {}
@@ -525,7 +543,7 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
         base_deploy["schedule"] = schedule
 
     # prepare the pull step
-    project["pull"] = apply_values(project["pull"], step_outputs)
+    pull_steps = apply_values(pull_steps, step_outputs)
 
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
@@ -564,7 +582,7 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
             path=base_deploy.get("path"),
             entrypoint=base_deploy["entrypoint"],
             parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
-            pull_steps=project["pull"],
+            pull_steps=pull_steps,
             infra_overrides=base_deploy["work_pool"]["job_variables"],
         )
 
@@ -605,5 +623,66 @@ async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
             )
 
 
-def _run_multi_deploy():
-    pass
+async def _run_multi_deploy(base_deploys, project, options):
+    base_deploys = deepcopy(base_deploys) if base_deploys else []
+    project = deepcopy(project) if project else {}
+    options = deepcopy(options) if options else {}
+
+    deploy_all = options.pop("deploy_all", False)
+
+    names = options.pop("names", [])
+
+    has_passed_options = any(options.values())
+
+    if not names and not deploy_all:
+        raise ValueError(
+            "There are multiple deployments declared in deployment.yaml. Please specify"
+            " at least one deployment name."
+        )
+    if len(names) == 1:
+        try:
+            base_deploy = next(
+                base_deploy
+                for base_deploy in base_deploys
+                if base_deploy.get("name") == names[0]
+            )
+        except StopIteration:
+            raise ValueError(
+                f"Deployment {names[0]} not found in deployment.yaml. Please specify a "
+                "valid deployment name."
+            )
+        await _run_single_deploy(base_deploy, project, options)
+    elif deploy_all:
+        app.console.log("Deploying all deployments for current project...")
+        if has_passed_options:
+            app.console.print(
+                (
+                    "You have passed options to the deploy command, but you are"
+                    " deploying multiple deployments. These options will be ignored."
+                ),
+                style="yellow",
+            )
+        for base_deploy in base_deploys:
+            if base_deploy.get("name") is None:
+                app.console.print(
+                    "Discovered deployment with no name. Skipping...", style="yellow"
+                )
+                continue
+            app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
+            await _run_single_deploy(base_deploy, project)
+    else:
+        picked_base_deploys = [
+            base_deploy for base_deploy in base_deploys if base_deploy["name"] in names
+        ]
+        app.console.log("Deploying selected deployments for current project...")
+        if has_passed_options:
+            app.console.print(
+                (
+                    "You have passed options to the deploy command, but you are"
+                    " deploying multiple deployments. These options will be ignored."
+                ),
+                style="yellow",
+            )
+        for base_deploy in picked_base_deploys:
+            app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
+            await _run_single_deploy(base_deploy, project)

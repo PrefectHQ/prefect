@@ -511,3 +511,7 @@ class TestSchedules:
             expected_code=1,
             expected_output="Only one schedule type can be provided.",
         )
+
+
+class TestMultiDeploy:
+    pass
