@@ -2,8 +2,10 @@
 
 ## Release 2.10.4
 
-This release further refines Prefect 2.10 with enhancements for project deployments and
-workers, fixes for flow run cancellation and the worker CLI, and more.
+This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
+[workers](https://docs.prefect.io/latest/concepts/work-pools/#worker-overview), fixes for flow run cancellation and the worker CLI, and more.
+
+With this release
 
 ### Enhancements
 - Allow partial deployment.yaml files for projects by using defaults for missing values — [#9190](https://github.com/PrefectHQ/prefect/pull/9190)
