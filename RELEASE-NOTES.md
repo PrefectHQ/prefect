@@ -10,7 +10,7 @@ Prior to this release, removing keys from a project's `deployment.yaml` caused a
 your project's configuration.
 
 ### Enhancements
-- Allow partial deployment.yaml files for projects by using defaults for missing values — [#9190](https://github.com/PrefectHQ/prefect/pull/9190)
+- Allow partial `deployment.yaml` files for projects by using defaults for missing values — [#9190](https://github.com/PrefectHQ/prefect/pull/9190)
 - Add flow run cancellation support for workers - [#9198](https://github.com/PrefectHQ/prefect/pull/9198)
 
 ### Fixes
