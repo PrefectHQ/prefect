@@ -9,7 +9,7 @@ on:
       - 'netlify.toml'
   release:
     types:
-      - created
+      - published
 
 jobs:
   update_docs:
