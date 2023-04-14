@@ -759,6 +759,8 @@ class BaseWorker(abc.ABC):
                 ),
             )
 
+        self._emit_flow_run_monitored_event(result, configuration)
+
         return result
 
     def get_status(self):
@@ -947,6 +949,29 @@ class BaseWorker(abc.ABC):
 
         emit_event(
             event=f"prefect.worker.submitted-flow-run",
+            resource=self._event_resource(),
+            related=related,
+        )
+
+    def _emit_flow_run_monitored_event(
+        self, result: BaseWorkerResult, configuration: BaseJobConfiguration
+    ):
+        related = configuration._related_resources()
+
+        if self._work_pool:
+            related.append(
+                object_as_related_resource(
+                    kind="work-pool", role="work-pool", object=self._work_pool
+                )
+            )
+
+        for resource in related:
+            if resource.role == "flow-run":
+                resource["prefect.infrastructure.identifier"] = str(result.identifier)
+                resource["prefect.infrastructure.status-code"] = str(result.status_code)
+
+        emit_event(
+            event=f"prefect.worker.monitored-flow-run",
             resource=self._event_resource(),
             related=related,
         )

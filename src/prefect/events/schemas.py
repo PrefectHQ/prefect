@@ -25,6 +25,10 @@ class Labelled(PrefectBaseModel):
     def __getitem__(self, label: str) -> str:
         return self.__root__[label]
 
+    def __setitem__(self, label: str, value: str) -> str:
+        self.__root__[label] = value
+        return value
+
 
 class Resource(Labelled):
     """An observable business object of interest to the user"""
