@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'netlify.toml'
   release:
     types:
       - created
