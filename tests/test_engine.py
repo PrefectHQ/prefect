@@ -3,6 +3,7 @@ import os
 import signal
 import statistics
 import sys
+import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
@@ -16,10 +17,13 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
+    API_HEALTHCHECKS,
     begin_flow_run,
+    check_api_reachable,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
@@ -111,6 +115,7 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
                 client=orion_client,
                 task_runner=test_task_runner,
                 result_factory=result_factory,
+                parameters={},
             )
 
     return _get_flow_run_context
@@ -2000,3 +2005,69 @@ class TestLinkStateToResult:
         with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status
+
+
+class TestAPIHealthcheck:
+    @pytest.fixture(autouse=True)
+    def reset_cache(self):
+        API_HEALTHCHECKS.clear()
+        yield
+
+    async def test_healthcheck_for_ephemeral_client(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+
+        # Check caching
+        assert "http://ephemeral-prefect/api/" in API_HEALTHCHECKS
+        assert isinstance(API_HEALTHCHECKS["http://ephemeral-prefect/api/"], float)
+
+        assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == pytest.approx(
+            time.monotonic() + 60 * 10, abs=5
+        )
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_healthcheck_for_remote_client(self, hosted_api_server):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+
+        expected_url = hosted_api_server + "/"  # httpx client appends trailing /
+
+        assert expected_url in API_HEALTHCHECKS
+        assert isinstance(API_HEALTHCHECKS[expected_url], float)
+
+        assert API_HEALTHCHECKS[expected_url] == pytest.approx(
+            time.monotonic() + 60 * 10, abs=10
+        )
+
+    async def test_healthcheck_not_reset_within_expiration(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+            value = API_HEALTHCHECKS["http://ephemeral-prefect/api/"]
+            for _ in range(2):
+                await check_api_reachable(client, fail_message="test")
+                assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == value
+
+    async def test_healthcheck_reset_after_expiration(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+            value = API_HEALTHCHECKS[
+                "http://ephemeral-prefect/api/"
+            ] = time.monotonic()  # set it to expire now
+            await check_api_reachable(client, fail_message="test")
+            assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] != value
+            assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == pytest.approx(
+                time.monotonic() + 60 * 10, abs=5
+            )
+
+    async def test_failed_healthcheck(self):
+        async with get_client() as client:
+            client.api_healthcheck = AsyncMock(return_value=ValueError("test"))
+            with pytest.raises(
+                RuntimeError,
+                match="test. Failed to reach API at http://ephemeral-prefect/api/.",
+            ):
+                await check_api_reachable(client, fail_message="test")
+
+            # Not cached
+            assert "http://ephemeral-prefect/api/" not in API_HEALTHCHECKS
+            assert len(API_HEALTHCHECKS.keys()) == 0

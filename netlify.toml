@@ -11,7 +11,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 || mkdocs build --config-file mkdocs.yml \
@@ -107,11 +107,6 @@ status = 301
 [[redirects]]
 from = "/collections/contribute/"
 to = "/integrations/contribute/"
-status = 301
-
-[[redirects]]
-from = "/tutorials/first-steps/"
-to = "/tutorials/"
 status = 301
 
 [[redirects]]

@@ -4,6 +4,7 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import importlib
 import json
+import os
 import sys
 from datetime import datetime
 from functools import partial
@@ -31,6 +32,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
+from prefect.projects.steps import run_step
 from prefect.server import schemas
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
@@ -178,7 +180,8 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
-    if not ignore_storage:
+    if not ignore_storage and not deployment.pull_steps:
+        sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
                 deployment.storage_document_id
@@ -188,10 +191,18 @@ async def load_flow_from_flow_run(
             basepath = deployment.path or Path(deployment.manifest_path).parent
             storage_block = LocalFileSystem(basepath=basepath)
 
-        sys.path.insert(0, ".")
-
         logger.info(f"Downloading flow code from storage at {deployment.path!r}")
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
+
+    if deployment.pull_steps:
+        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        # TODO: allow for passing values between steps / stacking them
+        output = {}
+        for step in deployment.pull_steps:
+            output.update(await run_step(step))
+        if output.get("directory"):
+            logger.debug(f"Changing working directory to {output['directory']!r}")
+            os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     logger.debug(f"Importing flow code from '{import_path}'")
@@ -502,7 +513,7 @@ class Deployment(BaseModel):
         data = yaml.safe_load(await anyio.Path(path).read_bytes())
 
         # load blocks from server to ensure secret values are properly hydrated
-        if data["storage"]:
+        if data.get("storage"):
             block_doc_name = data["storage"].get("_block_document_name")
             # if no doc name, this block is not stored on the server
             if block_doc_name:
@@ -510,7 +521,7 @@ class Deployment(BaseModel):
                 block = await Block.load(f"{block_slug}/{block_doc_name}")
                 data["storage"] = block
 
-        if data["infrastructure"]:
+        if data.get("infrastructure"):
             block_doc_name = data["infrastructure"].get("_block_document_name")
             # if no doc name, this block is not stored on the server
             if block_doc_name:
@@ -758,6 +769,9 @@ class Deployment(BaseModel):
 
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
+        # ensure the ignore file exists
+        Path(ignore_file).touch()
 
         if not deployment.version:
             deployment.version = flow.version

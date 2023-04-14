@@ -41,7 +41,8 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             HandleFlowTerminalStateTransitions,
-            HandleCancellingStateTransitions,
+            EnforceCancellingToCancelledTransition,
+            BypassCancellingScheduledFlowRuns,
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
@@ -802,7 +803,7 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
             )
 
 
-class HandleCancellingStateTransitions(BaseOrchestrationRule):
+class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
     """
     Rejects transitions from Cancelling to any terminal state except for Cancelled.
     """
@@ -824,3 +825,28 @@ class HandleCancellingStateTransitions(BaseOrchestrationRule):
             ),
         )
         return
+
+
+class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
+    """Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
+    if the flow run has no associated infrastructure process ID.
+
+    The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
+    to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
+    a `Scheduled` state that may have associated infrastructure.
+    """
+
+    FROM_STATES = {StateType.SCHEDULED}
+    TO_STATES = {StateType.CANCELLING}
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+        if not context.run.infrastructure_pid:
+            await self.reject_transition(
+                state=states.Cancelled(),
+                reason="Scheduled flow run has no infrastructure to terminate.",
+            )

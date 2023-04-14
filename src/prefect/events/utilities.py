@@ -1,17 +1,17 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from prefect.server.utilities.schemas import DateTimeTZ
 
-from .schemas import Event
-from .worker import get_events_worker
+from .schemas import Event, RelatedResource
+from .worker import EventsWorker
 
 
 def emit_event(
     event: str,
     resource: Dict[str, str],
     occurred: Optional[DateTimeTZ] = None,
-    related: Optional[List[Dict[str, str]]] = None,
+    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
 ) -> None:
@@ -46,6 +46,4 @@ def emit_event(
         event_kwargs["id"] = id
 
     event_obj = Event(**event_kwargs)
-
-    with get_events_worker() as worker:
-        worker.emit(event_obj)
+    EventsWorker.instance().send(event_obj)

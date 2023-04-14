@@ -13,6 +13,7 @@ import anyio
 import httpcore
 import httpx
 import pendulum
+import pydantic
 import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
@@ -27,7 +28,7 @@ from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.server import schemas
 from prefect.server.api.server import SERVER_API_VERSION, create_app
-from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.server.schemas.actions import ArtifactCreate, LogCreate, WorkPoolCreate
 from prefect.server.schemas.core import FlowRunNotificationPolicy
 from prefect.server.schemas.filters import (
     FlowRunNotificationPolicyFilter,
@@ -1611,3 +1612,167 @@ class TestWorkPools:
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)
+
+
+class TestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, orion_client):
+        artifact1 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=1,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact2 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=2,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact3 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="lotus",
+                data=3,
+                type="markdown",
+                description="# This is a markdown description title",
+            )
+        )
+
+        return [artifact1, artifact2, artifact3]
+
+    async def test_create_then_read_artifact(self, orion_client, client):
+        artifact_schema = ArtifactCreate(
+            key="voltaic",
+            data=1,
+            description="# This is a markdown description title",
+            metadata_={"data": "opens many doors"},
+        )
+        artifact = await orion_client.create_artifact(artifact=artifact_schema)
+        response = await client.get(f"/artifacts/{artifact.id}")
+        assert response.status_code == 200
+        assert response.json()["key"] == artifact.key
+        assert response.json()["description"] == artifact.description
+
+    async def test_read_artifacts(self, orion_client, artifacts):
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 3
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_latest_filter(self, orion_client, artifacts):
+        artifact_list = await orion_client.read_latest_artifacts()
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_key_filter(self, orion_client, artifacts):
+        key_artifact_filter = schemas.filters.ArtifactFilter(
+            key=schemas.filters.ArtifactFilterKey(any_=["voltaic"])
+        )
+
+        artifact_list = await orion_client.read_artifacts(
+            artifact_filter=key_artifact_filter
+        )
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+        }
+
+    async def test_delete_artifact_succeeds(self, orion_client, artifacts):
+        await orion_client.delete_artifact(artifacts[1].id)
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("lotus", 3),
+        }
+
+    async def test_delete_nonexistent_artifact_raises(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_artifact(uuid4())
+
+
+class TestVariables:
+    @pytest.fixture
+    async def variable(
+        self,
+        client,
+    ):
+        res = await client.post(
+            "/variables/",
+            json=schemas.actions.VariableCreate(
+                name="my_variable", value="my-value", tags=["123", "456"]
+            ).dict(json_compatible=True),
+        )
+        assert res.status_code == 201
+        return pydantic.parse_obj_as(schemas.core.Variable, res.json())
+
+    @pytest.fixture
+    async def variables(
+        self,
+        client,
+    ):
+        variables = [
+            schemas.actions.VariableCreate(
+                name="my_variable1", value="my-value1", tags=["1"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable2", value="my-value2", tags=["2"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable3", value="my-value3", tags=["3"]
+            ),
+        ]
+        results = []
+        for variable in variables:
+            res = await client.post(
+                "/variables/", json=variable.dict(json_compatible=True)
+            )
+            assert res.status_code == 201
+            results.append(res.json())
+        return pydantic.parse_obj_as(List[schemas.core.Variable], results)
+
+    async def test_read_variable_by_name(self, orion_client, variable):
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert res.name == variable.name
+        assert res.value == variable.value
+        assert res.tags == variable.tags
+
+    async def test_read_variable_by_name_doesnt_exist(self, orion_client):
+        res = await orion_client.read_variable_by_name("doesnt_exist")
+        assert res is None
+
+    async def test_delete_variable_by_name(self, orion_client, variable):
+        await orion_client.delete_variable_by_name(variable.name)
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert not res
+
+    async def test_delete_variable_by_name_doesnt_exist(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_variable_by_name("doesnt_exist")
+
+    async def test_read_variables(self, orion_client, variables):
+        res = await orion_client.read_variables()
+        assert len(res) == len(variables)
+        assert {r.name for r in res} == {v.name for v in variables}
+
+    async def test_read_variables_with_limit(self, orion_client, variables):
+        res = await orion_client.read_variables(limit=1)
+        assert len(res) == 1
+        assert res[0].name == variables[0].name
