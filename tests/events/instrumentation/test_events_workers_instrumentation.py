@@ -128,7 +128,7 @@ async def test_worker_emits_monitored_event(
     assert len(asserting_events_worker._client.events) == 2
 
     monitored_event = asserting_events_worker._client.events[1]
-    assert monitored_event.event == "prefect.worker.monitored-flow-run"
+    assert monitored_event.event == "prefect.worker.executed-flow-run"
 
     assert dict(monitored_event.resource.items()) == {
         "prefect.resource.id": f"prefect.worker.events-test.{worker.get_name_slug()}",

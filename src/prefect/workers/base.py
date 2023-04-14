@@ -971,7 +971,7 @@ class BaseWorker(abc.ABC):
                 resource["prefect.infrastructure.status-code"] = str(result.status_code)
 
         emit_event(
-            event=f"prefect.worker.monitored-flow-run",
+            event=f"prefect.worker.executed-flow-run",
             resource=self._event_resource(),
             related=related,
         )
