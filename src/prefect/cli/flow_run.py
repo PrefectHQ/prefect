@@ -160,8 +160,8 @@ async def logs(
         "--num-logs",
         "-n",
         help=(
-            "Number of logs to show when using the --head flag. If None, defaults to"
-            f" {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
+            "Number of logs to show when using the --head or tail flag. If None,"
+            f" defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
         ),
         min=1,
     ),
@@ -171,12 +171,14 @@ async def logs(
         "-r",
         help="Reverse the logs order to print the most recent logs first",
     ),
-    tail: int = typer.Option(
-        None,
+    tail: bool = typer.Option(
+        False,
         "--tail",
         "-t",
-        help="Show the last N logs",
-        min=1,
+        help=(
+            f"Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
+            " all logs."
+        ),
     ),
 ):
     """
@@ -187,13 +189,20 @@ async def logs(
     more_logs = True
     num_logs_returned = 0
     tail_limit = 0
-    # If head is specified, we need to stop after we've retrieved enough logs
-    if head or num_logs:
+
+    # if head and tail flags are being used together
+    if head and tail:
+        exit_with_error(
+            f"Head and Tail option can't be used together. \nPlease chosse only one!"
+        )
+
+    if tail:
         user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-    elif tail:
-        user_specified_num_logs = tail
-        offset = max(0, tail - LOGS_DEFAULT_PAGE_SIZE)
-        tail_limit = min(tail, LOGS_DEFAULT_PAGE_SIZE)
+        offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
+        tail_limit = min(user_specified_num_logs, LOGS_DEFAULT_PAGE_SIZE)
+    # If head is specified, we need to stop after we've retrieved enough logs
+    elif head or num_logs:
+        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
     else:
         user_specified_num_logs = None
 
@@ -227,7 +236,7 @@ async def logs(
                 ),
             )
 
-            for log in reversed(page_logs) if tail else page_logs:
+            for log in reversed(page_logs) if tail and not reverse else page_logs:
                 app.console.print(
                     # Print following the flow run format (declared in logging.yml)
                     (

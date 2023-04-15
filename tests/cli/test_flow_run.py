@@ -564,7 +564,7 @@ class TestFlowRunLogs:
             expected_line_count=10,
         )
 
-    async def test_when_tail_passed_then_returns_num_logs(self, flow_run_factory):
+    async def test_passing_head_and_tail_raises(self, flow_run_factory):
         # Given
         flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
@@ -576,21 +576,35 @@ class TestFlowRunLogs:
                 "logs",
                 str(flow_run.id),
                 "--tail",
+                "--num-logs",
                 "10",
+                "--head",
             ],
+            expected_code=1,
+            expected_output_contains=(
+                "Head and Tail option can't be used together. \nPlease chosse only one!"
+            ),
+        )
+
+    async def test_default_tail_returns_default_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "logs", str(flow_run.id), "-t"],
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
                 for i in range(
-                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 10, -1
+                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 20, -1
                 )
             ],
-            expected_line_count=10,
+            expected_line_count=20,
         )
 
-    async def test_when_t_shortcuts_passed_then_returns_num_logs(
-        self, flow_run_factory
-    ):
+    async def test_reverse_tail_with_num_logs(self, flow_run_factory):
         # Given
         flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
@@ -601,15 +615,17 @@ class TestFlowRunLogs:
                 "flow-run",
                 "logs",
                 str(flow_run.id),
-                "-t",
-                "5",
+                "--tail",
+                "--num-logs",
+                "10",
+                "--reverse",
             ],
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
                 for i in range(
-                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 5, -1
+                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 10, -1
                 )
             ],
-            expected_line_count=5,
+            expected_line_count=10,
         )
