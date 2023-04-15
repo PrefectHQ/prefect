@@ -3313,6 +3313,47 @@ async def test_task_run_name_is_set_with_function_not_returning_string(orion_cli
         my_flow("anon")
 
 
+async def test_sets_run_name_once():
+    generate_task_run_name = MagicMock(return_value="some-string")
+    mocked_task_method = MagicMock(side_effect=RuntimeError("Oh-no!, anyway"))
+
+    decorated_task_method = task(task_run_name=generate_task_run_name, retries=3)(
+        mocked_task_method
+    )
+
+    @flow
+    def my_flow(name):
+        return decorated_task_method()
+
+    state = my_flow(name="some-name", return_state=True)
+
+    assert state.type == StateType.FAILED
+    assert mocked_task_method.call_count == 4
+    assert generate_task_run_name.call_count == 1
+
+
+async def test_sets_run_name_once_per_call():
+    generate_task_run_name = MagicMock(return_value="some-string")
+    mocked_task_method = MagicMock()
+
+    decorated_task_method = task(task_run_name=generate_task_run_name)(
+        mocked_task_method
+    )
+
+    @flow
+    def my_flow(name):
+        decorated_task_method()
+        decorated_task_method()
+
+        return "hi"
+
+    state = my_flow(name="some-name", return_state=True)
+
+    assert state.type == StateType.COMPLETED
+    assert mocked_task_method.call_count == 2
+    assert generate_task_run_name.call_count == 2
+
+
 def create_hook(mock_obj):
     def my_hook(task, task_run, state):
         mock_obj()

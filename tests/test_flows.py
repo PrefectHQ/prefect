@@ -4,7 +4,7 @@ import sys
 import time
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
 import pydantic
@@ -2087,6 +2087,46 @@ class TestFlowRunName:
             ),
         ):
             flow_with_name(bar="two")
+
+    async def test_sets_run_name_once(self):
+        generate_flow_run_name = MagicMock(return_value="some-string")
+
+        def flow_method():
+            pass
+
+        mocked_flow_method = create_autospec(
+            flow_method, side_effect=RuntimeError("some-error")
+        )
+        decorated_flow = flow(flow_run_name=generate_flow_run_name, retries=3)(
+            mocked_flow_method
+        )
+
+        state = decorated_flow(return_state=True)
+
+        assert state.type == StateType.FAILED
+        assert mocked_flow_method.call_count == 4
+        assert generate_flow_run_name.call_count == 1
+
+    async def test_sets_run_name_once_per_call(self):
+        generate_flow_run_name = MagicMock(return_value="some-string")
+
+        def flow_method():
+            pass
+
+        mocked_flow_method = create_autospec(flow_method, return_value="hello")
+        decorated_flow = flow(flow_run_name=generate_flow_run_name)(mocked_flow_method)
+
+        state1 = decorated_flow(return_state=True)
+
+        assert state1.type == StateType.COMPLETED
+        assert mocked_flow_method.call_count == 1
+        assert generate_flow_run_name.call_count == 1
+
+        state2 = decorated_flow(return_state=True)
+
+        assert state2.type == StateType.COMPLETED
+        assert mocked_flow_method.call_count == 2
+        assert generate_flow_run_name.call_count == 2
 
 
 def create_hook(mock_obj):

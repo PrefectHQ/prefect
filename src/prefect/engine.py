@@ -614,6 +614,9 @@ async def orchestrate_flow_run(
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
+    # flag to ensure we only update the flow run name once
+    run_name_set = False
+
     while state.is_running():
         waited_for_task_runs = False
 
@@ -627,7 +630,7 @@ async def orchestrate_flow_run(
                 parameters=parameters,
             ) as flow_run_context:
                 # update flow run name
-                if flow.flow_run_name:
+                if not run_name_set and flow.flow_run_name:
                     flow_run_name = _resolve_custom_flow_run_name(
                         flow=flow, parameters=parameters
                     )
@@ -640,6 +643,7 @@ async def orchestrate_flow_run(
                         f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}"
                     )
                     flow_run.name = flow_run_name
+                    run_name_set = True
 
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
