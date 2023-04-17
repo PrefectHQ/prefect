@@ -95,7 +95,7 @@ async def test_worker_emits_submitted_event(
     ]
 
 
-async def test_worker_emits_monitored_event(
+async def test_worker_emits_executed_event(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
     orion_client: PrefectClient,
@@ -127,19 +127,21 @@ async def test_worker_emits_monitored_event(
     # which is covered by the test_worker_emits_submitted_event above.
     assert len(asserting_events_worker._client.events) == 2
 
-    monitored_event = asserting_events_worker._client.events[1]
-    assert monitored_event.event == "prefect.worker.executed-flow-run"
+    submitted_event = asserting_events_worker._client.events[0]
+    executed_event = asserting_events_worker._client.events[1]
 
-    assert dict(monitored_event.resource.items()) == {
+    assert executed_event.event == "prefect.worker.executed-flow-run"
+
+    assert dict(executed_event.resource.items()) == {
         "prefect.resource.id": f"prefect.worker.events-test.{worker.get_name_slug()}",
         "prefect.resource.name": worker.name,
         "prefect.version": str(__version__),
         "prefect.worker-type": worker.type,
     }
 
-    assert len(monitored_event.related) == 6
+    assert len(executed_event.related) == 6
 
-    related = [dict(r.items()) for r in monitored_event.related]
+    related = [dict(r.items()) for r in executed_event.related]
 
     assert related == [
         {
@@ -173,3 +175,5 @@ async def test_worker_emits_monitored_event(
             "prefect.resource.name": work_pool.name,
         },
     ]
+
+    assert executed_event.follows == submitted_event.id

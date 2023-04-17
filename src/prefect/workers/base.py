@@ -12,7 +12,7 @@ import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.engine import propose_state
-from prefect.events import emit_event
+from prefect.events import Event, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.events.schemas import RelatedResource
 from prefect.exceptions import (
@@ -714,7 +714,7 @@ class BaseWorker(abc.ABC):
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
             configuration = await self._get_configuration(flow_run)
-            self._emit_flow_run_submitted_event(configuration)
+            submitted_event = self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -759,7 +759,7 @@ class BaseWorker(abc.ABC):
                 ),
             )
 
-        self._emit_flow_run_monitored_event(result, configuration)
+        self._emit_flow_run_executed_event(result, configuration, submitted_event)
 
         return result
 
@@ -937,7 +937,9 @@ class BaseWorker(abc.ABC):
             "prefect.worker-type": self.type,
         }
 
-    def _emit_flow_run_submitted_event(self, configuration: BaseJobConfiguration):
+    def _emit_flow_run_submitted_event(
+        self, configuration: BaseJobConfiguration
+    ) -> Event:
         related = configuration._related_resources()
 
         if self._work_pool:
@@ -947,14 +949,17 @@ class BaseWorker(abc.ABC):
                 )
             )
 
-        emit_event(
+        return emit_event(
             event=f"prefect.worker.submitted-flow-run",
             resource=self._event_resource(),
             related=related,
         )
 
-    def _emit_flow_run_monitored_event(
-        self, result: BaseWorkerResult, configuration: BaseJobConfiguration
+    def _emit_flow_run_executed_event(
+        self,
+        result: BaseWorkerResult,
+        configuration: BaseJobConfiguration,
+        submitted_event: Event,
     ):
         related = configuration._related_resources()
 
@@ -974,4 +979,5 @@ class BaseWorker(abc.ABC):
             event=f"prefect.worker.executed-flow-run",
             resource=self._event_resource(),
             related=related,
+            follows=submitted_event,
         )
