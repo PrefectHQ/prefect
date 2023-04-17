@@ -193,7 +193,7 @@ async def logs(
     # if head and tail flags are being used together
     if head and tail:
         exit_with_error(
-            f"Head and Tail option can't be used together. \nPlease chosse only one!"
+            "Head and Tail option can't be used together. \nPlease chosse only one!"
         )
 
     if tail:
