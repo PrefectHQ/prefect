@@ -23,7 +23,7 @@ With Prefect you gain:
     <li> <a href="/concepts/logs/"> logging </a> </li>
     <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
     <li> <a href="/concepts/task-runners/#task-runners"> async</a> </li>
-    <li> <a href="/could/automations/"> notifications</a> </li>
+    <li> <a href="/cloud/automations/"> notifications</a> </li>
     <li> <a href="/cloud/overview/"> observability</a> </li>
 </ul>
 
