@@ -32,3 +32,9 @@ class TestConcurrentTaskRunner(TaskRunnerStandardTestSuite):
     @pytest.fixture
     def task_runner(self):
         yield ConcurrentTaskRunner()
+
+
+class TestConcurrentTaskRunnerMaxWorkers(TaskRunnerStandardTestSuite):
+    @pytest.fixture
+    def task_runner(self):
+        yield ConcurrentTaskRunner(max_workers=4)

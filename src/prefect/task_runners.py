@@ -67,10 +67,10 @@ from uuid import UUID
 
 import anyio
 
-from prefect.utilities.collections import AutoEnum
-
 if TYPE_CHECKING:
     import anyio.abc
+
+from contextlib import nullcontext
 
 from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
@@ -218,6 +218,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     A concurrent task runner that allows tasks to switch when blocking on IO.
     Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 
+    Parameters
+    ------------
+        max_workers: int
+            max number of tasks to run in parallel
+
     Example:
         ```
         Using a thread for concurrency:
@@ -229,14 +234,13 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         ```
     """
 
-    def __init__(self):
-        # TODO: Consider adding `max_workers` support using anyio capacity limiters
-
+    def __init__(self, max_workers: Optional[int] = None):
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
         self._result_events: Dict[UUID, Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
+        self._max_workers: int = max_workers
 
         super().__init__()
 
@@ -264,7 +268,12 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._result_events[key] = Event()
 
         # Rely on the event loop for concurrency
-        self._task_group.start_soon(self._run_and_store_result, key, call)
+        if self._capacity_limiter:
+            self._task_group.start_soon(
+                self._run_and_store_result, key, call, self._capacity_limiter
+            )
+        else:
+            self._task_group.start_soon(self._run_and_store_result, key, call)
 
     async def wait(
         self,
@@ -280,7 +289,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         return await self._get_run_result(key, timeout)
 
     async def _run_and_store_result(
-        self, key: UUID, call: Callable[[], Awaitable[State[R]]]
+        self,
+        key: UUID,
+        call: Callable[[], Awaitable[State[R]]],
+        capacity_limiter: Optional[anyio.CapacityLimiter] = None,
     ):
         """
         Simple utility to store the orchestration result in memory on completion
@@ -288,13 +300,14 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Since this run is occuring on the main thread, we capture exceptions to prevent
         task crashes from crashing the flow run.
         """
-        try:
-            result = await call()
-        except BaseException as exc:
-            result = await exception_to_crashed_state(exc)
+        async with capacity_limiter if capacity_limiter else nullcontext():
+            try:
+                result = await call()
+            except BaseException as exc:
+                result = await exception_to_crashed_state(exc)
 
-        self._results[key] = result
-        self._result_events[key].set()
+            self._results[key] = result
+            self._result_events[key].set()
 
     async def _get_run_result(
         self, key: UUID, timeout: float = None
@@ -319,6 +332,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
+        )
+        self._capacity_limiter = (
+            anyio.CapacityLimiter(self._max_workers) if self._max_workers else None
         )
 
     def __getstate__(self):
