@@ -271,6 +271,7 @@ class Deployment(BaseModel):
             if stored on a local filesystem, an absolute path
         entrypoint: The path to the entrypoint for the workflow, always relative to the `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        pull_steps: Pull steps for cloning and running this deployment.
 
     Examples:
 
@@ -324,6 +325,7 @@ class Deployment(BaseModel):
             "schedule",
             "is_schedule_active",
             "infra_overrides",
+            "pull_steps",
         ]
 
         # if infrastructure is baked as a pre-saved block, then
@@ -462,6 +464,11 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
+
+    pull_steps: Optional[List[dict]] = Field(
+        default_factory=list,
+        description="Pull steps for cloning and running this deployment.",
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -706,6 +713,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                pull_steps=self.pull_steps,
             )
 
             return deployment_id

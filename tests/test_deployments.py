@@ -641,6 +641,29 @@ class TestDeploymentApply:
         dep = await orion_client.read_deployment(dep_id)
         assert dep.is_schedule_active == expected
 
+    @pytest.mark.parametrize(
+        "provided, expected",
+        [([], []), ([{"my_function": {}}], [{"my_function": {}}]), (None, None)],
+    )
+    async def test_deployment_pull_steps_is_set(
+        self, flow_function, provided, expected, orion_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+            pull_steps=provided,
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.pull_steps == provided
+
+        dep_id = await d.apply()
+        dep = await orion_client.read_deployment(dep_id)
+        assert dep.pull_steps == expected
+
 
 class TestRunDeployment:
     @pytest.mark.parametrize(
