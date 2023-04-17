@@ -490,12 +490,12 @@ async def _run_multi_deploy(base_deploys, project, options):
             )
         except StopIteration:
             raise ValueError(
-                f"Deployment {names[0]} not found in deployment.yaml. Please specify a "
-                "valid deployment name."
+                f"Deployment {names[0]!r} not found in deployment.yaml. Please specify"
+                " a valid deployment name."
             )
         await _run_single_deploy(base_deploy, project, options)
     elif deploy_all:
-        app.console.log("Deploying all deployments for current project...")
+        app.console.print("Deploying all deployments for current project...")
         if has_passed_options:
             app.console.print(
                 (
@@ -517,7 +517,18 @@ async def _run_multi_deploy(base_deploys, project, options):
         picked_base_deploys = [
             base_deploy for base_deploy in base_deploys if base_deploy["name"] in names
         ]
-        app.console.log("Deploying selected deployments for current project...")
+        if len(picked_base_deploys) != len(names):
+            missing_deployments = set(names).difference(
+                base_deploy["name"] for base_deploy in picked_base_deploys
+            )
+            app.console.print(
+                (
+                    "The following deployment(s) could not be found and will not be"
+                    f" deployed: {' ,'.join(missing_deployments)}"
+                ),
+                style="yellow",
+            )
+        app.console.print("Deploying selected deployments for current project...")
         if has_passed_options:
             app.console.print(
                 (
