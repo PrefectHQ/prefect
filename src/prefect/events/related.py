@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
 from uuid import UUID
 
 from .schemas import RelatedResource
@@ -10,6 +10,30 @@ if TYPE_CHECKING:
 
 ObjectDict = Dict[str, Union["Flow", "FlowRun"]]
 related_resource_cache: Dict[UUID, ObjectDict] = {}
+
+
+def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
+    return [
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": f"prefect.tag.{tag}",
+                "prefect.resource.role": "tag",
+            }
+        )
+        for tag in sorted(tags)
+    ]
+
+
+def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
+    resource_id = f"prefect.{kind}.{object.id}"
+
+    return RelatedResource(
+        __root__={
+            "prefect.resource.id": resource_id,
+            "prefect.resource.role": role,
+            "prefect.resource.name": object.name,
+        }
+    )
 
 
 async def related_resources_from_run_context(
@@ -52,30 +76,18 @@ async def related_resources_from_run_context(
     tags = set()
 
     for kind, obj in objects.items():
-        resource_id = f"prefect.{kind}.{obj.id}"
-        if resource_id in exclude:
+        resource = object_as_related_resource(kind=kind, role=kind, object=obj)
+
+        if resource.id in exclude:
             continue
 
-        related.append(
-            RelatedResource(
-                __root__={
-                    "prefect.resource.id": resource_id,
-                    "prefect.resource.role": kind,
-                    "prefect.name": obj.name,
-                }
-            )
-        )
+        related.append(resource)
         tags |= set(obj.tags)
 
     related += [
-        RelatedResource(
-            __root__={
-                "prefect.resource.id": f"prefect.tag.{tag}",
-                "prefect.resource.role": "tag",
-            }
-        )
-        for tag in sorted(tags)
-        if f"prefect.tag.{tag}" not in exclude
+        resource
+        for resource in tags_as_related_resources(tags)
+        if resource.id not in exclude
     ]
 
     return related

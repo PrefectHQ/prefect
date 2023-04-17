@@ -40,15 +40,21 @@ async def start(
     ),
     work_queues: List[str] = typer.Option(
         None,
+        "-q",
+        "--work-queue",
+        help=(
+            "One or more work queue names for the worker to pull from. If not provided,"
+            " the worker will pull from all work queues in the work pool."
+        ),
+    ),
+    worker_type: Optional[str] = typer.Option(
+        None,
         "-t",
         "--type",
         help=(
             "The type of worker to start. If not provided, the worker type will be"
             " inferred from the work pool."
         ),
-    ),
-    worker_type: Optional[str] = typer.Option(
-        None, "-t", "--type", help="The type of worker to start."
     ),
     prefetch_seconds: int = SettingsOption(
         PREFECT_WORKER_PREFETCH_SECONDS,
@@ -108,6 +114,7 @@ async def start(
                     interval=PREFECT_WORKER_QUERY_SECONDS.value(),
                     run_once=run_once,
                     printer=app.console.print,
+                    jitter_range=0.3,
                 )
             )
             # schedule the sync loop
@@ -118,6 +125,17 @@ async def start(
                     interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
                     run_once=run_once,
                     printer=app.console.print,
+                    jitter_range=0.3,
+                )
+            )
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    workload=worker.check_for_cancelled_flow_runs,
+                    interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                    run_once=run_once,
+                    printer=app.console.print,
+                    jitter_range=0.3,
                 )
             )
 

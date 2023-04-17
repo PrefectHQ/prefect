@@ -17,7 +17,7 @@ Work pools and the services that poll them, workers and agents, bridge the Prefe
 
 Each work pool has a default queue that all runs will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
 
-To run deployments, you must configure at least one agent (and its associated work pool):
+To run deployments, you must configure at least one agent or worker (and its associated work pool):
 
 1. [Start an agent](#starting-an-agent)
 2. [Configure a work pool](#work-pool-configuration) (optional)
@@ -25,6 +25,8 @@ To run deployments, you must configure at least one agent (and its associated wo
 ## Agent overview
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
+
+Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
 
 It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 
@@ -388,3 +390,7 @@ By default, the worker begins submitting flow runs a short time (10 seconds) bef
 In some cases, infrastructure will take longer than 10 seconds to start the flow run. The prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time.
+
+### Polling for work
+Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with the
+`PREFECT_WORKER_QUERY_SECONDS` setting.
