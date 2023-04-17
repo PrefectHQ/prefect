@@ -466,7 +466,7 @@ class Deployment(BaseModel):
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
 
     pull_steps: Optional[List[dict]] = Field(
-        default_factory=list,
+        default=None,
         description="Pull steps for cloning and running this deployment.",
     )
 
