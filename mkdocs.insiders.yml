@@ -9,5 +9,6 @@ plugins:
 theme:
     features:
         - content.code.copy
+        - navigation.indexes
 
 
