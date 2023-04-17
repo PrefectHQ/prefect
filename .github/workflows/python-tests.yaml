@@ -159,7 +159,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install pip==23.0.1
           # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
