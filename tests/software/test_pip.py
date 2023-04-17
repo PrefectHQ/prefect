@@ -5,6 +5,13 @@ import pytest
 from prefect.software.pip import PipRequirement, current_environment_requirements
 
 
+def test_noop():
+    # DO NOT MERGE WITH THIS TEST.
+    # This test is just to cause the python tests to run in CI to debug the
+    # issue with the pip tests failing in CI.
+    pass
+
+
 class TestPipRequirement:
     def is_packaging_subclass(self):
         r = PipRequirement("prefect")
