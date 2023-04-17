@@ -79,6 +79,7 @@ def test_json_representation():
         ],
         payload={"hello": "world"},
         id=uuid4(),
+        follows=uuid4(),
     )
 
     jsonified = json.loads(event.json().encode())
@@ -94,6 +95,7 @@ def test_json_representation():
         ],
         "payload": {"hello": "world"},
         "id": str(event.id),
+        "follows": str(event.follows),
     }
 
 
