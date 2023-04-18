@@ -15,8 +15,8 @@ Service accounts enable you to create a Prefect Cloud API key that is not associ
 
 Service accounts are non-user organization accounts that have the following:
 
-- Prefect Cloud [API keys](../cloud-api-keys/)
-- Organization [roles](../cloud/roles/) and permissions
+- Prefect Cloud [API keys](/cloud-api-keys/)
+- Organization [roles](/cloud/roles/) and permissions
 
 Using service account credentials, you can [configure an execution environment](/cloud/connecting/#configure-a-local-execution-environment) to interact with your Prefect Cloud organization workspaces without a user having to manually log in from that environment. Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting organization user accounts.
 
