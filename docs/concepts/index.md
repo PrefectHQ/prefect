@@ -12,5 +12,4 @@ tags:
 Learn how to develop, deploy, and host Prefect by exploring the concepts in the menu to the left.
 
 Features specific to [Prefect Cloud](../cloud/) are in their own subheading.
---
 
