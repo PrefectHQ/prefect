@@ -1,10 +1,12 @@
 import pendulum
+import pytest
 
 from prefect import __version__
 from prefect.client.orchestration import PrefectClient
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.states import Scheduled
+from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 
@@ -177,3 +179,75 @@ async def test_worker_emits_executed_event(
     ]
 
     assert executed_event.follows == submitted_event.id
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_lifecycle_events(
+    asserting_events_worker: EventsWorker, reset_worker_events, work_pool
+):
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            work_pool.name,
+            "-n",
+            "test-worker",
+            "-t",
+            "process",
+        ],
+        expected_code=0,
+    )
+
+    asserting_events_worker.drain()
+
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    assert len(asserting_events_worker._client.events) == 2
+
+    started_event = asserting_events_worker._client.events[0]
+
+    assert started_event.event == "prefect.worker.started"
+
+    assert dict(started_event.resource.items()) == {
+        "prefect.resource.id": f"prefect.worker.process.test-worker",
+        "prefect.resource.name": "test-worker",
+        "prefect.version": str(__version__),
+        "prefect.worker-type": "process",
+    }
+
+    assert len(started_event.related) == 1
+
+    related = [dict(r.items()) for r in started_event.related]
+
+    assert related == [
+        {
+            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+            "prefect.resource.role": "work-pool",
+            "prefect.resource.name": work_pool.name,
+        },
+    ]
+
+    stopped_event = asserting_events_worker._client.events[1]
+
+    assert stopped_event.event == "prefect.worker.stopped"
+
+    assert dict(stopped_event.resource.items()) == {
+        "prefect.resource.id": f"prefect.worker.process.test-worker",
+        "prefect.resource.name": "test-worker",
+        "prefect.version": str(__version__),
+        "prefect.worker-type": "process",
+    }
+
+    assert len(stopped_event.related) == 1
+
+    related = [dict(r.items()) for r in stopped_event.related]
+
+    assert related == [
+        {
+            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+            "prefect.resource.role": "work-pool",
+            "prefect.resource.name": work_pool.name,
+        },
+    ]
