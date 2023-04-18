@@ -1,0 +1,20 @@
+prefect-version: null
+name: null
+description: "Store project within an S3 bucket"
+
+required_inputs:
+  bucket: "The bucket to store and retrieve this project from"
+
+build: null
+
+push: 
+  - prefect_aws.projects.steps.push_project_to_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ name }}"
+
+pull:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ folder }}"

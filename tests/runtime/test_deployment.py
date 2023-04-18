@@ -29,6 +29,10 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(deployment)
         assert "foo" not in dir(deployment)
 
+    async def test_attribute_override_via_env_var(self, monkeypatch):
+        monkeypatch.setenv(name="PREFECT__RUNTIME__DEPLOYMENT__NEW_KEY", value="foobar")
+        assert deployment.new_key == "foobar"
+
 
 class TestID:
     """
