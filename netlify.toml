@@ -254,6 +254,34 @@ to = "/cloud/rate-limits/"
 status = 301
 
 
+[[redirects]]
+from = "/cloud/overview/"
+to = "/cloud/"
+status = 301
+
+
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/blocks/"
+to = "/concepts/blocks/"
+status = 301
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+[[redirects]]
+from = "/ui/"
+to = "/cloud/"
+status = 301
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"

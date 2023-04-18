@@ -35,7 +35,7 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 </figure>
 
 #### New to Prefect?
-If you're ready to dive in and learn Prefect, try the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
+If you're ready to dive in and learn Prefect, try the [tutorial](/tutorials/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
 
 [Tutorials](/tutorials/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts){ .md-button .main-button--secondary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
