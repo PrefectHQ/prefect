@@ -53,6 +53,29 @@ class TestCreateDeployment:
         )
         await session.commit()
 
+    async def test_creating_a_deployment_does_not_create_work_queue(
+        self, session, flow
+    ):
+        # There was an issue where create_deployment always created a work queue when its name was provided.
+        # This test ensures that this no longer happens. See: https://github.com/PrefectHQ/prefect/pull/9046
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is None
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is None
+
     async def test_create_deployment_with_work_pool(self, session, flow, work_queue):
         deployment = await models.deployments.create_deployment(
             session=session,
