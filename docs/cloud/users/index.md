@@ -7,9 +7,8 @@ tags:
 
 # Users <span class="badge cloud"></span>
 
-Reuter drafting
+Explore the Prefect Cloud user features in the pages linked in the menu to the left.
 
-Some content taken from old ui/flow-run page if we want it:
 
 ## Flow run retention policy
 
@@ -25,4 +24,4 @@ The flow run retention policy represents the number of days each flow run is ava
 
 This retention policy applies to all [details about a flow run](/ui/flow-runs/#inspect-a-flow-run), including its task runs. Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state. 
 
-If you or your organization have needs that require a tailored retention period, [contact our Sales team](https://www.prefect.io/pricing).
+If you or your organization have needs that require a tailored retention period, [contact the Prefect Sales team](https://www.prefect.io/pricing).
