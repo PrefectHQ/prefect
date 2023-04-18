@@ -1041,3 +1041,58 @@ class TestUpdateDeployment:
             session=session, work_queue_id=updated_deployment.work_queue_id
         )
         assert work_queue.name == "new-work-pool-queue"
+
+    async def test_updating_deployment_does_not_duplicate_work_queue(
+        self,
+        session,
+        deployment,
+        work_pool,
+    ):
+        # There was an issue where update_deployment would always create a work_queue in the default pool when
+        # a work_queue_name was provided. This also happened when the work_pool_name was provided. In case of
+        # the latter, the work_queue should only have been created in the specified pool, not duplicated in
+        # the default pool.
+        # This test ensures that this no longer happens. See: https://github.com/PrefectHQ/prefect/pull/9046
+
+        new_queue_name = "new-work-queue-name"
+
+        # Assert queue does not exist before update_deployment
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_queue_name=new_queue_name,
+                work_pool_name=work_pool.name,
+            ),
+        )
+        await session.commit()
+
+        # Assert it only exists in the custom work pool, not also in the default pool
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is not None
+        assert wq.work_pool == work_pool
