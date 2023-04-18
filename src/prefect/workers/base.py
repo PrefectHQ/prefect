@@ -981,3 +981,34 @@ class BaseWorker(abc.ABC):
             related=related,
             follows=submitted_event,
         )
+
+    async def _emit_worker_started_event(self):
+        related = []
+        if self._work_pool:
+            related.append(
+                object_as_related_resource(
+                    kind="work-pool", role="work-pool", object=self._work_pool
+                )
+            )
+
+        return emit_event(
+            "prefect.worker.started",
+            resource=self._event_resource(),
+            related=related,
+        )
+
+    async def _emit_worker_stopped_event(self, started_event: Event):
+        related = []
+        if self._work_pool:
+            related.append(
+                object_as_related_resource(
+                    kind="work-pool", role="work-pool", object=self._work_pool
+                )
+            )
+
+        emit_event(
+            "prefect.worker.stopped",
+            resource=self._event_resource(),
+            related=related,
+            follows=started_event,
+        )
