@@ -26,7 +26,7 @@ To run deployments, you must configure at least one agent or worker (and its ass
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
 
-Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
+Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](../../settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
 
 It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 

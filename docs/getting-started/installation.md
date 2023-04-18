@@ -270,7 +270,7 @@ The following sections provide important notes for users upgrading from Prefect 
 
 ### Upgrading to 2.0b6
 
-In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
+In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/concepts/blocks/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
 
 After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2 API.
 

@@ -296,6 +296,11 @@ from = "/ui/deployments"
 to = "/concepts/deployments/"
 status = 301
 
+[[redirects]]
+from = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
+status = 301
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"

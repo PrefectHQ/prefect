@@ -548,7 +548,7 @@ async with get_client() as client:
         )
 ```
 
-To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.PrefectClient.delete_concurrency_limit_by_tag), passing the tag:
+To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
 
 ```python
 async with get_client() as client:

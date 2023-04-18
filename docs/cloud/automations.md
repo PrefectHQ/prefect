@@ -16,7 +16,7 @@ Automations in Prefect Cloud enable you to configure [actions](#actions) that Pr
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](../concepts/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](../../concepts/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
 
 ## Automations overview
 

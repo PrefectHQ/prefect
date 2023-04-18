@@ -13,7 +13,7 @@ tags:
 Once you've installed Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. At the same time you've also installed an [API server](../../api-ref/) backed by a [database](/concepts/database/) and a UI.
 
 TK add screenshot of Prefect Server UI timeline view
-![Prefect Server UI](../../img/timeline-view-server-ui.png)
+![Prefect Server UI](../img/timeline-view-server-ui.png)
 
 Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
 
