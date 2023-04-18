@@ -124,7 +124,7 @@ class PrefectFormatter(logging.Formatter):
         if record.name == "prefect.flow_runs":
             style = self._flow_run_style
         elif record.name.startswith("prefect.workers") and getattr(
-            record, "flow_run_id"
+            record, "flow_run_id", None
         ):
             # Use the flow run style for worker logs that are associated with a flow run
             style = self._flow_run_style
