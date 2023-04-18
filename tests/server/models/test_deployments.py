@@ -35,20 +35,21 @@ class TestCreateDeployment:
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
-        self, session, flow
+        self, session, flow, work_queue
     ):
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
-            ),
+        # work_queue fixture creates a work queue with name "wq-1"
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name=work_queue.name
         )
-        await session.commit()
+        assert wq == work_queue
 
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="d2", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+                name="d1",
+                work_queue_name=work_queue.name,
+                flow_id=flow.id,
+                manifest_path="",
             ),
         )
         await session.commit()
