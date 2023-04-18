@@ -491,7 +491,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 
 - Prefect [CLI](#cli)
 - Prefect API by using `PrefectClient` [Python client](#python-client)
-- [Prefect server UI](/ui/task-concurrency/) or Prefect Cloud
+- Prefect server UI or Prefect Cloud
 
 #### CLI
 
@@ -528,7 +528,7 @@ $ prefect concurrency-limit inspect small_instance
 
 #### Python client
 
-To update your tag concurrency limits programmatically, use [`PrefectClient.create_concurrency_limit`](/api-ref/prefect/client/#prefect.client.PrefectClient.create_concurrency_limit). 
+To update your tag concurrency limits programmatically, use [`PrefectClient.orchestration.create_concurrency_limit`](../../api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit). 
 
 `create_concurrency_limit` takes two arguments:
 

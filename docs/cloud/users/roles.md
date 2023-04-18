@@ -71,7 +71,7 @@ Custom roles created using an inherited role will follow Prefect's default works
 
 To configure an inherited role when configuring a custom role, select the **Inherit permission from a default role** check box, then select the role from which the new role should inherit permissions.
 
-![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](../img/ui/org-inherited-role.png)
+![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](../../img/ui/org-inherited-role.png)
 
 ## Workspace role permissions
 

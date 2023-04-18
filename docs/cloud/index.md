@@ -99,7 +99,7 @@ See the [service accounts](/cloud/users/service-accounts/) documentation for mor
 
 Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.
 
-See the [role-based access controls (RBAC)](/cloud/roles/) documentation for more information about managing user roles in a Prefect Cloud organization.
+See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation for more information about managing user roles in a Prefect Cloud organization.
 
 ## Single Sign-on (SSO) <span class="badge orgs"></span> <span class="badge enterprise"></span>
 

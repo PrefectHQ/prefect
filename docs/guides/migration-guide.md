@@ -53,7 +53,7 @@ The changes listed below require you to modify your workflow code. The following
 | Retries | `@task(max_retries=2, retry_delay=timedelta(seconds=5))` | `@task(retries=2, retry_delay_seconds=5)`  | [How can I specify the retry behavior for a specific task?](https://discourse.prefect.io/t/how-can-i-specify-the-retry-behavior-for-a-specific-task/60) |
 | Logger syntax. | Logger is retrieved from `prefect.context` and can only be used within tasks. | In Prefect 2, you can log not only from tasks, but also within flows. To get the logger object, use: `prefect.get_run_logger()`. | [How can I add logs to my flow?](https://discourse.prefect.io/t/how-can-i-add-logs-to-my-flow/86)   |
 | The syntax and contents of Prefect context. | Context is a thread-safe way of accessing variables related to the flow run and task run. The syntax to retrieve it: `prefect.context`. | Context is still available, but its content is much richer, allowing you to retrieve even more information about your flow runs and task runs. The syntax to retrieve it: `prefect.context.get_run_context()`. | [How to access Prefect context values?](https://discourse.prefect.io/t/how-to-access-prefect-context-values/62) |
-| Task library. | Included in the [main Prefect Core repository](https://docs.prefect.io/core/task_library/overview.html). | Separated into [individual repositories](../integrations/catalog/) per system, cloud provider, or technology. | [How to migrate Prefect 1 tasks to Prefect 2 integrations](https://discourse.prefect.io/t/how-to-migrate-prefect-1-0-task-library-tasks-to-a-prefect-collection-repository-in-prefect-2-0/792). |
+| Task library. | Included in the [main Prefect Core repository](https://docs.prefect.io/core/task_library/overview.html). | Separated into [individual repositories](../integrations/) per system, cloud provider, or technology. | [How to migrate Prefect 1 tasks to Prefect 2 integrations](https://discourse.prefect.io/t/how-to-migrate-prefect-1-0-task-library-tasks-to-a-prefect-collection-repository-in-prefect-2-0/792). |
 
 ### What changed in dataflow orchestration?
 
@@ -91,7 +91,7 @@ The following new components and capabilities are enabled by Prefect 2.
 - Native `async` support.
 - Out-of-the-box `pydantic` validation.
 - [Blocks](/ui/blocks/) allowing you to securely store UI-editable, type-checked configuration to external systems and an easy-to-use Key-Value Store. All those components are configurable in one place and provided as part of the open-source Prefect 2 product. In contrast, the concept of [Secrets](https://docs.prefect.io/orchestration/concepts/secrets.html) in Prefect 1 was much more narrow and only available in Prefect Cloud.  
-- [Notifications](/ui/notifications/) available in the open-source Prefect 2 version, as opposed to Cloud-only [Automations](https://docs.prefect.io/orchestration/ui/automations.html) in Prefect 1.  
+- [Notifications](../concepts/notifications/) available in the open-source Prefect 2 version, as opposed to Cloud-only [Automations](https://docs.prefect.io/orchestration/ui/automations.html) in Prefect 1.  
 - A first-class `subflows` concept: Prefect 1 only allowed the [flow-of-flows orchestrator pattern](https://discourse.prefect.io/tag/orchestrator-pattern). With Prefect 2 subflows, you gain a natural and intuitive way of organizing your flows into modular sub-components. For more details, see [the following list of resources about subflows](https://discourse.prefect.io/tag/subflows).
 
 

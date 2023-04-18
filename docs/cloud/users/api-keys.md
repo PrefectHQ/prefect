@@ -32,4 +32,4 @@ Service accounts are a feature of Prefect Cloud [organizations](/cloud/organizat
 
 Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure. Events and logs for flow runs in those environments are then associated with the service account rather than a user, and API access may be managed or revoked by configuring or removing the service account without disrupting user access.
 
-See the [service accounts](/cloud/service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
+See the [service accounts](../service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.

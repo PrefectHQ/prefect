@@ -107,7 +107,7 @@ Events can optionally contain related resources, used to associate the event wit
 
 # Events in the Cloud UI
 
-Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the [event feed page](/concepts/events-and-resources/).
+Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the event feed page.
 
 ![Event feed](../img/ui/event-feed.png)
 

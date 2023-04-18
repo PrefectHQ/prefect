@@ -54,7 +54,7 @@ Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspa
 ```
 </div>
 
-You can also log in by providing a [Prefect Cloud API key](/cloud/api-keys/) that you create.
+You can also log in by providing a [Prefect Cloud API key](./users/api-keys/) that you create.
 
 ### Change workspaces
 

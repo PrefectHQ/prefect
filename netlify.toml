@@ -281,6 +281,20 @@ from = "/ui/"
 to = "/cloud/"
 status = 301
 
+[[redirects]]
+from = "/ui/task-concurrency"
+to = "/concepts/tasks/"
+status = 301
+
+[[redirects]]
+from = "/ui/flow-runs"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/ui/deployments"
+to = "/concepts/deployments/"
+status = 301
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
