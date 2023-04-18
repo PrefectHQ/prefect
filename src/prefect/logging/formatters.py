@@ -123,6 +123,11 @@ class PrefectFormatter(logging.Formatter):
     def formatMessage(self, record: logging.LogRecord):
         if record.name == "prefect.flow_runs":
             style = self._flow_run_style
+        elif record.name.startswith("prefect.workers") and getattr(
+            record, "flow_run_id"
+        ):
+            # Use the flow run style for worker logs that are associated with a flow run
+            style = self._flow_run_style
         elif record.name == "prefect.task_runs":
             style = self._task_run_style
         else:

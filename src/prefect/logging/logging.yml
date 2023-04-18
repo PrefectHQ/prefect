@@ -68,6 +68,10 @@ loggers:
         level: "${PREFECT_LOGGING_LEVEL}"
         handlers: [api]
 
+    prefect.workers:
+        level: NOTSET
+        handlers: [api]
+
     prefect.flow_runs:
         level: NOTSET
         handlers: [api]

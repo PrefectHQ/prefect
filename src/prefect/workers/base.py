@@ -1,5 +1,6 @@
 import abc
 import inspect
+import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -21,7 +22,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import PrefectLogAdapter, get_logger
 from prefect.server import schemas
 from prefect.server.schemas.actions import WorkPoolUpdate
 from prefect.server.schemas.filters import (
@@ -369,6 +370,21 @@ class BaseWorker(abc.ABC):
 
     def get_name_slug(self):
         return slugify(self.name)
+
+    def get_logger(self, flow_run: "FlowRun") -> logging.Logger:
+        """
+        Returns a logger for the given flow run.
+        """
+        return PrefectLogAdapter(
+            get_logger("prefect.workers"),
+            extra={
+                **{
+                    "flow_run_name": flow_run.name,
+                    "flow_run_id": str(flow_run.id),
+                    "flow_name": "<unknown>",
+                },
+            },
+        )
 
     @abc.abstractmethod
     async def run(
