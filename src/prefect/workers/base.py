@@ -937,10 +937,12 @@ class BaseWorker(abc.ABC):
             "prefect.worker-type": self.type,
         }
 
-    def _emit_flow_run_submitted_event(
-        self, configuration: BaseJobConfiguration
-    ) -> Event:
-        related = configuration._related_resources()
+    def _event_related_resources(
+        self, configuration: Optional[BaseJobConfiguration] = None
+    ) -> List[RelatedResource]:
+        related = []
+        if configuration:
+            related += configuration._related_resources()
 
         if self._work_pool:
             related.append(
@@ -949,10 +951,15 @@ class BaseWorker(abc.ABC):
                 )
             )
 
+        return related
+
+    def _emit_flow_run_submitted_event(
+        self, configuration: BaseJobConfiguration
+    ) -> Event:
         return emit_event(
             event=f"prefect.worker.submitted-flow-run",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(configuration=configuration),
         )
 
     def _emit_flow_run_executed_event(
@@ -961,14 +968,7 @@ class BaseWorker(abc.ABC):
         configuration: BaseJobConfiguration,
         submitted_event: Event,
     ):
-        related = configuration._related_resources()
-
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
+        related = self._event_related_resources(configuration=configuration)
 
         for resource in related:
             if resource.role == "flow-run":
@@ -982,33 +982,17 @@ class BaseWorker(abc.ABC):
             follows=submitted_event,
         )
 
-    async def _emit_worker_started_event(self):
-        related = []
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
-
+    async def _emit_worker_started_event(self) -> Event:
         return emit_event(
             "prefect.worker.started",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(),
         )
 
     async def _emit_worker_stopped_event(self, started_event: Event):
-        related = []
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
-
         emit_event(
             "prefect.worker.stopped",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(),
             follows=started_event,
         )
