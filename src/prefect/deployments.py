@@ -192,7 +192,9 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        await storage_block.get_directory(
+            from_path=deployment.path, local_path=deployment.path
+        )
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
@@ -204,7 +206,9 @@ async def load_flow_from_flow_run(
             logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
-    import_path = relative_path_to_current_platform(deployment.entrypoint)
+    import_path = relative_path_to_current_platform(
+        os.path.join(deployment.path, deployment.entrypoint)
+    )
     logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
