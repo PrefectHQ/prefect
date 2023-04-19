@@ -42,6 +42,7 @@ theme:
     features:
         - announce.dismiss
         - content.action.edit
+        - content.code.copy
         # - toc.integrate # have to make index pages for sections if want emoji for them
         # - navigation.tabs
         - navigation.tabs.sticky
