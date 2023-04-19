@@ -20,7 +20,11 @@ from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFoun
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
-from prefect.workers.process import ProcessWorker, ProcessWorkerResult
+from prefect.workers.process import (
+    ProcessJobConfiguration,
+    ProcessWorker,
+    ProcessWorkerResult,
+)
 
 
 @flow
@@ -463,17 +467,24 @@ async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         with pytest.raises(InfrastructureNotAvailable):
-            await worker.kill_infrastructure(infrastructure_pid=infrastructure_pid)
+            await worker.kill_infrastructure(
+                infrastructure_pid=infrastructure_pid,
+                configuration=ProcessJobConfiguration(),
+            )
 
     os_kill.assert_not_called()
 
 
 async def test_process_kill_no_matching_pid(monkeypatch, work_pool):
+    patch_client(monkeypatch)
     infrastructure_pid = f"{socket.gethostname()}:12345"
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         with pytest.raises(InfrastructureNotFound):
-            await worker.kill_infrastructure(infrastructure_pid=infrastructure_pid)
+            await worker.kill_infrastructure(
+                infrastructure_pid=infrastructure_pid,
+                configuration=ProcessJobConfiguration(),
+            )
 
 
 @pytest.mark.skipif(
@@ -481,6 +492,7 @@ async def test_process_kill_no_matching_pid(monkeypatch, work_pool):
     reason="SIGTERM/SIGKILL are only used in non-Windows environments",
 )
 async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
+    patch_client(monkeypatch)
     os_kill = MagicMock()
     monkeypatch.setattr("os.kill", os_kill)
 
@@ -489,7 +501,9 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         await worker.kill_infrastructure(
-            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+            infrastructure_pid=infrastructure_pid,
+            grace_seconds=grace_seconds,
+            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_has_calls(
@@ -506,6 +520,7 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch, work_pool):
     reason="SIGTERM/SIGKILL are only used in non-Windows environments",
 )
 async def test_process_kill_early_return(monkeypatch, work_pool):
+    patch_client(monkeypatch)
     os_kill = MagicMock(side_effect=[None, ProcessLookupError])
     anyio_sleep = AsyncMock()
     monkeypatch.setattr("os.kill", os_kill)
@@ -516,7 +531,9 @@ async def test_process_kill_early_return(monkeypatch, work_pool):
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         await worker.kill_infrastructure(
-            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+            infrastructure_pid=infrastructure_pid,
+            grace_seconds=grace_seconds,
+            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_has_calls(
@@ -534,6 +551,7 @@ async def test_process_kill_early_return(monkeypatch, work_pool):
     reason="CTRL_BREAK_EVENT is only defined in Windows",
 )
 async def test_process_kill_windows_sends_ctrl_break(monkeypatch, work_pool):
+    patch_client(monkeypatch)
     os_kill = MagicMock()
     monkeypatch.setattr("os.kill", os_kill)
 
@@ -542,7 +560,9 @@ async def test_process_kill_windows_sends_ctrl_break(monkeypatch, work_pool):
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         await worker.kill_infrastructure(
-            infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+            infrastructure_pid=infrastructure_pid,
+            grace_seconds=grace_seconds,
+            configuration=ProcessJobConfiguration(),
         )
 
     os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)

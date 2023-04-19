@@ -59,8 +59,8 @@ def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
-    stream_output: bool
-    working_dir: Optional[Path]
+    stream_output: bool = Field(default=True)
+    working_dir: Optional[Path] = Field(default=None)
 
     @validator("working_dir")
     def validate_command(cls, v):
@@ -195,7 +195,10 @@ class ProcessWorker(BaseWorker):
         )
 
     async def kill_infrastructure(
-        self, infrastructure_pid: str, grace_seconds: int = 30
+        self,
+        infrastructure_pid: str,
+        configuration: ProcessJobConfiguration,
+        grace_seconds: int = 30,
     ):
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
