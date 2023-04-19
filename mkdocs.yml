@@ -160,7 +160,6 @@ nav:
         - Connecting & Troubleshooting: cloud/connecting.md
     - Host: 
         - index.md
-        - Database: concepts/database.md
     - Guides: 
         - guides/index.md
         - Testing: guides/testing.md

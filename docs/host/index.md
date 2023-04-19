@@ -14,7 +14,6 @@ After you install Prefect you have a Python SDK client that can communicate with
 
 In this section you'll learn how to host your own Prefect Server.
 
-
 ![Prefect Server UI](/img/ui/flow-run-page-server.png)
 
 Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
@@ -34,7 +33,7 @@ Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the term
 
 ## Differences between Prefect Server and Cloud
 
-Prefect Server and Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](../../cloud/) section of the docs. 
+Prefect Server and Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
 
     - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
     - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
@@ -58,24 +57,27 @@ $ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 </div>
 
-!!! TK
-You must set the API Server address to use Prefect within a container, such a a Docker container. 
 
-You can save the API server address in a Prefect [profile](). Whenever that profile is acitve, the API endpoint will be be at that address.
+!!! tip "`PREFECT_API_URL` required when running Prefect inside a container"
+    You must set the API Server address to use Prefect within a container, such a a Docker container. 
 
-See [Settings]() for more information on profiles and configurable Prefect settings.
+    You can save the API server address in a [Prefect profile](/concepts/settings/). Whenever that profile is active, the API endpoint will be be at that address.
+
+    See [Profiles & Connfiguration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
 
 # Prefect Database
 
-The Prefect database persists data used by many features of Prefect to persist and track the state of your flow runs, including:
+The Prefect database persists data to track the state of your flow runs and related Prefect concepts, including:
 
-- Flow and task state
+- Flow run and task run state
 - Run history
 - Logs
 - Deployments
 - Flow and task run concurrency limits
 - Storage blocks for flow and task results
-- Work queue configuration and status
+- Variables
+- Artifacts
+- Work pool and work queue configuration and status
 
 Currently Prefect supports the following databases:
 
@@ -84,11 +86,9 @@ Currently Prefect supports the following databases:
 
 ## Using the database
 
-A local SQLite database is the default for Prefect. A local SQLite database is configured on installation.
+A local SQLite database is the default database and is configured upon Prefect installation. The database is located at `~/.prefect/prefect.db` by default.
 
-When you first install Prefect, your database will be located at `~/.prefect/prefect.db`.
-
-If at any point in your testing you'd like to reset your database, run the CLI command:  
+To reset your database, run the CLI command:  
 
 <div class="terminal">
 ```bash
@@ -96,7 +96,7 @@ prefect server database reset -y
 ```
 </div>
 
-This will completely clear all data and reapply the schema.
+This command will clear all data and reapply the schema.
 
 ## Database settings
 
