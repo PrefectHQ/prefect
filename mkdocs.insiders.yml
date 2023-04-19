@@ -6,8 +6,3 @@ plugins:
         cards_color:
             fill: "#115AF4"
     typeset:
-theme:
-    features:
-        - content.code.copy
-
-
