@@ -385,7 +385,10 @@ class BaseWorker(abc.ABC):
         )
 
     async def kill_infrastructure(
-        self, infrastructure_pid: str, grace_seconds: int = 30
+        self,
+        infrastructure_pid: str,
+        configuration: BaseJobConfiguration,
+        grace_seconds: int = 30,
     ):
         """
         Method for killing infrastructure created by a worker. Should be implemented by
@@ -505,8 +508,13 @@ class BaseWorker(abc.ABC):
             )
             return
 
+        configuration = await self._get_configuration(flow_run)
+
         try:
-            await self.kill_infrastructure(flow_run.infrastructure_pid)
+            await self.kill_infrastructure(
+                infrastructure_pid=flow_run.infrastructure_pid,
+                configuration=configuration,
+            )
         except NotImplementedError:
             self._logger.error(
                 f"Worker type {self.type!r} does not support killing created "
@@ -526,6 +534,7 @@ class BaseWorker(abc.ABC):
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
+            self._emit_flow_run_cancelled_event(flow_run)
             await self._mark_flow_run_as_cancelled(flow_run)
             self._logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
@@ -711,8 +720,6 @@ class BaseWorker(abc.ABC):
         self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
     ) -> Union[BaseWorkerResult, Exception]:
         try:
-            # TODO: Add functionality to handle base job configuration and
-            # job configuration variables when kicking off a flow run
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
@@ -937,10 +944,12 @@ class BaseWorker(abc.ABC):
             "prefect.worker-type": self.type,
         }
 
-    def _emit_flow_run_submitted_event(
-        self, configuration: BaseJobConfiguration
-    ) -> Event:
-        related = configuration._related_resources()
+    def _event_related_resources(
+        self, configuration: Optional[BaseJobConfiguration] = None
+    ) -> List[RelatedResource]:
+        related = []
+        if configuration:
+            related += configuration._related_resources()
 
         if self._work_pool:
             related.append(
@@ -949,10 +958,15 @@ class BaseWorker(abc.ABC):
                 )
             )
 
+        return related
+
+    def _emit_flow_run_submitted_event(
+        self, configuration: BaseJobConfiguration
+    ) -> Event:
         return emit_event(
-            event=f"prefect.worker.submitted-flow-run",
+            event="prefect.worker.submitted-flow-run",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(configuration=configuration),
         )
 
     def _emit_flow_run_executed_event(
@@ -961,14 +975,7 @@ class BaseWorker(abc.ABC):
         configuration: BaseJobConfiguration,
         submitted_event: Event,
     ):
-        related = configuration._related_resources()
-
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
+        related = self._event_related_resources(configuration=configuration)
 
         for resource in related:
             if resource.role == "flow-run":
@@ -976,39 +983,40 @@ class BaseWorker(abc.ABC):
                 resource["prefect.infrastructure.status-code"] = str(result.status_code)
 
         emit_event(
-            event=f"prefect.worker.executed-flow-run",
+            event="prefect.worker.executed-flow-run",
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
         )
 
-    async def _emit_worker_started_event(self):
-        related = []
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
-
+    async def _emit_worker_started_event(self) -> Event:
         return emit_event(
             "prefect.worker.started",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(),
         )
 
     async def _emit_worker_stopped_event(self, started_event: Event):
-        related = []
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
-
         emit_event(
             "prefect.worker.stopped",
             resource=self._event_resource(),
-            related=related,
+            related=self._event_related_resources(),
             follows=started_event,
+        )
+
+    def _emit_flow_run_cancelled_event(self, flow_run: "FlowRun"):
+        related = self._event_related_resources()
+
+        related_flow_run = object_as_related_resource(
+            kind="flow-run", role="flow-run", object=flow_run
+        )
+        related_flow_run["prefect.infrastructure.identifier"] = str(
+            flow_run.infrastructure_pid
+        )
+        related.append(related_flow_run)
+
+        emit_event(
+            event="prefect.worker.cancelled-flow-run",
+            resource=self._event_resource(),
+            related=related + tags_as_related_resources(flow_run.tags),
         )

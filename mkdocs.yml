@@ -41,6 +41,8 @@ theme:
     favicon: img/favicon.png
     features:
         - announce.dismiss
+        - content.action.edit
+        - content.code.copy
         # - toc.integrate # have to make index pages for sections if want emoji for them
         # - navigation.tabs
         # - toc.integrate # have to make index pages for sections if want emoji for them
@@ -57,6 +59,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
+        edit: material/pencil
     logo: img/logos/prefect-logo-gradient-white.svg
     palette:
       - media: "(prefers-color-scheme)"
