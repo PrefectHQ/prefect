@@ -225,7 +225,10 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 (
                     "Encountered retryable exception during request. "
                     if exc_info
-                    else "Received response with retryable status code. "
+                    else (
+                        "Received response with retryable status code"
+                        f" {response.status_code}"
+                    )
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
                 f"This is attempt {try_count}/{self.RETRY_MAX + 1}.",
