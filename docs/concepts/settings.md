@@ -73,23 +73,12 @@ PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 ```
 ### Database settings
 
-Prefect provides several settings for configuring the [Prefect database](/concepts/database/).
-
-```bash
-PREFECT_API_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/prefect.db'
-PREFECT_API_DATABASE_ECHO='False'
-PREFECT_API_DATABASE_MIGRATE_ON_START='True'
-PREFECT_API_DATABASE_PASSWORD='None'
-```
+Prefect provides several self-hosting database configuration settings you can read about [here](/host/).
 
 ### Logging settings
 
-Prefect provides several settings for configuring [logging level and loggers](/concepts/logs/).
+Prefect provides several logging configuration settings that you can read about in the [logging docs](/concepts/logs/).
 
-```bash
-PREFECT_LOGGING_EXTRA_LOGGERS=''
-PREFECT_LOGGING_LEVEL='INFO'
-```
 
 ## Configuring settings
 

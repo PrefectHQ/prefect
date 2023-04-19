@@ -132,7 +132,7 @@ nav:
             - Blocks: concepts/blocks.md
             - Task Runners: concepts/task-runners.md 
             - Runtime Context: concepts/runtime-context.md
-            - Settings: concepts/settings.md
+            - Profiles & Configuration: concepts/settings.md
         - Deploy: 
             - Deployments: concepts/deployments.md
             - Projects: concepts/projects.md
