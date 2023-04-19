@@ -385,7 +385,10 @@ class BaseWorker(abc.ABC):
         )
 
     async def kill_infrastructure(
-        self, infrastructure_pid: str, grace_seconds: int = 30
+        self,
+        infrastructure_pid: str,
+        configuration: BaseJobConfiguration,
+        grace_seconds: int = 30,
     ):
         """
         Method for killing infrastructure created by a worker. Should be implemented by
@@ -505,8 +508,13 @@ class BaseWorker(abc.ABC):
             )
             return
 
+        configuration = await self._get_configuration(flow_run)
+
         try:
-            await self.kill_infrastructure(flow_run.infrastructure_pid)
+            await self.kill_infrastructure(
+                infrastructure_pid=flow_run.infrastructure_pid,
+                configuration=configuration,
+            )
         except NotImplementedError:
             self._logger.error(
                 f"Worker type {self.type!r} does not support killing created "
@@ -711,8 +719,6 @@ class BaseWorker(abc.ABC):
         self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
     ) -> Union[BaseWorkerResult, Exception]:
         try:
-            # TODO: Add functionality to handle base job configuration and
-            # job configuration variables when kicking off a flow run
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
