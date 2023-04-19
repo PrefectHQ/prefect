@@ -17,7 +17,7 @@ jobs:
     steps:
     - name: Trigger docs update in PrefectHQ/docs
       env:
-        REPO_ACCESS_TOKEN: ${{ secrets.PREFECT_DOCS_REPO_ACCESS_TOKEN }}
+        REPO_ACCESS_TOKEN: ${{ secrets.DOCS_CONTENTS_RW }}
       run: |
         version="unreleased"
         if [[ $GITHUB_EVENT_NAME == "release" ]]; then
