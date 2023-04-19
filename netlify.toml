@@ -276,6 +276,31 @@ from = "/ui/work-pools/"
 to = "/concepts/work-pools/"
 status = 301
 
+
+[[redirects]]
+from = "/concepts/server/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/database/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/notifications/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
 [[redirects]]
 from = "/ui/"
 to = "/cloud/"

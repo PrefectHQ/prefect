@@ -127,6 +127,7 @@ nav:
             - Flows: concepts/flows.md
             - Tasks: concepts/tasks.md
             - Results: concepts/results.md
+            - Artifacts: concepts/artifacts.md
             - States: concepts/states.md
             - Blocks: concepts/blocks.md
             - Task Runners: concepts/task-runners.md 
@@ -141,10 +142,6 @@ nav:
             - Infrastructure: concepts/infrastructure.md
             - Schedules: concepts/schedules.md
             - Logging: concepts/logs.md
-        - Host: 
-            - Server: concepts/server.md
-            - Database: concepts/database.md
-            - Notifications: concepts/notifications.md
     - Cloud:
         - cloud/index.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
@@ -161,6 +158,9 @@ nav:
         - Automations: cloud/automations.md
         - API Rate Limits: cloud/rate-limits.md
         - Connecting & Troubleshooting: cloud/connecting.md
+    - Host: 
+        - index.md
+        - Database: concepts/database.md
     - Guides: 
         - guides/index.md
         - Testing: guides/testing.md

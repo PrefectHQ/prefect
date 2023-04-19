@@ -1,13 +1,15 @@
 ---
-description: Prefect settings let you customize your workflow environment, including working with remote Prefect servers and Prefect Cloud.
+description: Prefect settings let you customize your workflow environment, including working with Prefect server and Prefect Cloud.
 tags:
     - configuration
     - settings
     - environment variables
     - profiles
+title: 
+    - Profiles & Configuration
 ---
 
-# Settings
+# Profiles & Configuration
 
 Prefect's settings are [documented][prefect.settings.Settings] and type-validated. By modifying the default settings, you can customize various aspects of the system.
 
@@ -110,7 +112,6 @@ PREFECT_LOGGING_LEVEL='DEBUG'
 ```
 
 You can show the sources of values with `--show-sources`:
-
 
 ```bash
 $ prefect config view --show-sources
