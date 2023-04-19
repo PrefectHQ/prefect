@@ -106,11 +106,6 @@ async def create_deployment(
     result = await session.execute(query)
     model = result.scalar()
 
-    if model.work_queue_name:
-        await models.work_queues._ensure_work_queue_exists(
-            session=session, name=model.work_queue_name, db=db
-        )
-
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
     await _delete_scheduled_runs(
@@ -185,12 +180,6 @@ async def update_deployment(
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
-
-    # create work queue if it doesn't exist
-    if update_data.get("work_queue_name"):
-        await models.work_queues._ensure_work_queue_exists(
-            session=session, name=update_data["work_queue_name"], db=db
-        )
 
     return result.rowcount > 0
 
