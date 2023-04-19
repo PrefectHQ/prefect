@@ -5,7 +5,7 @@ from prefect import __version__
 from prefect.client.orchestration import PrefectClient
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
-from prefect.states import Scheduled
+from prefect.states import Cancelling, Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
@@ -18,7 +18,9 @@ class WorkerEventsTestImpl(BaseWorker):
     async def run(self):
         pass
 
-    async def verify_submitted_deployment(self, deployment):
+    async def kill_infrastructure(
+        self, infrastructure_pid: str, grace_seconds: int = 30
+    ):
         pass
 
 
@@ -249,5 +251,59 @@ def test_lifecycle_events(
             "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
             "prefect.resource.role": "work-pool",
             "prefect.resource.name": work_pool.name,
+        },
+    ]
+
+
+async def test_worker_emits_cancelled_event(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events,
+    orion_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Cancelling(),
+        tags=["flow-run-one"],
+    )
+    await orion_client.update_flow_run(flow_run.id, infrastructure_pid="process123")
+    flow = await orion_client.read_flow(flow_run.flow_id)
+
+    async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
+        await worker.check_for_cancelled_flow_runs()
+
+    asserting_events_worker.drain()
+
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    assert len(asserting_events_worker._client.events) == 1
+    cancelled_event = asserting_events_worker._client.events[0]
+
+    assert cancelled_event.event == "prefect.worker.cancelled-flow-run"
+
+    assert dict(cancelled_event.resource.items()) == {
+        "prefect.resource.id": f"prefect.worker.events-test.{worker.get_name_slug()}",
+        "prefect.resource.name": worker.name,
+        "prefect.version": str(__version__),
+        "prefect.worker-type": worker.type,
+    }
+
+    related = [dict(r.items()) for r in cancelled_event.related]
+
+    assert related == [
+        {
+            "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+            "prefect.resource.role": "flow-run",
+            "prefect.resource.name": flow_run.name,
+            "prefect.infrastructure.identifier": "process123",
+        },
+        {
+            "prefect.resource.id": "prefect.tag.flow-run-one",
+            "prefect.resource.role": "tag",
+        },
+        {
+            "prefect.resource.id": "prefect.tag.test",
+            "prefect.resource.role": "tag",
         },
     ]
