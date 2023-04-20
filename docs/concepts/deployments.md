@@ -79,7 +79,7 @@ A deployment additionally enables you to:
 
 - Schedule flow runs.
 - Assign a work queue name to delegate deployment flow runs to work queues.
-- Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the [Prefect UI](/ui/flow-runs/).
+- Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the Prefect UI.
 - Assign custom parameter values for flow runs based on the deployment.
 - Create ad-hoc flow runs from the API or Prefect UI.
 - Upload flow files to a defined storage location for retrieval at run time.
@@ -502,7 +502,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
 ### Create a flow run with Prefect UI
-In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
+In the Prefect UI, you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
 
