@@ -736,14 +736,14 @@ class TestProfilesCollection:
         profile = Profile(name="test", settings={})
         profiles = ProfilesCollection(profiles=[profile])
         assert profiles.profiles_by_name == {"test": profile}
-        assert profiles.active_name == None
+        assert profiles.active_name is None
 
     def test_init_stores_multiple_profile(self):
         foo = Profile(name="foo", settings={})
         bar = Profile(name="bar", settings={})
         profiles = ProfilesCollection(profiles=[foo, bar])
         assert profiles.profiles_by_name == {"foo": foo, "bar": bar}
-        assert profiles.active_name == None
+        assert profiles.active_name is None
 
     def test_init_sets_active_name(self):
         foo = Profile(name="foo", settings={})
@@ -851,7 +851,7 @@ class TestProfilesCollection:
 
     def test_remove_profile_does_not_exist(self):
         foo = Profile(name="foo", settings={})
-        bar = Profile(name="bar", settings={})
+        Profile(name="bar", settings={})
         profiles = ProfilesCollection(profiles=[foo], active=None)
         assert "bar" not in profiles.names
         with pytest.raises(KeyError):

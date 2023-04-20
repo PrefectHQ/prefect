@@ -143,7 +143,7 @@ class TestCreateOrionAPI:
         with pytest.raises(
             ValueError,
             match="Router override for '/logs' defines a different prefix '/foo'",
-        ) as exc:
+        ):
             create_orion_api(router_overrides={"/logs": router})
 
     def test_checks_for_new_prefix_during_override(self):
@@ -152,7 +152,7 @@ class TestCreateOrionAPI:
         with pytest.raises(
             KeyError,
             match="Router override provided for prefix that does not exist: '/foo'",
-        ) as exc:
+        ):
             create_orion_api(router_overrides={"/foo": router})
 
     def test_only_includes_missing_paths_in_override_error(self):

@@ -201,21 +201,21 @@ class TestReadBlockTypes:
         block_type_duck = await models.block_types.create_block_type(
             session=session, block_type=Duck._to_block_type()
         )
-        block_schema_duck = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Duck._to_block_schema(block_type_id=block_type_duck.id),
         )
         block_type_bird = await models.block_types.create_block_type(
             session=session, block_type=Bird._to_block_type()
         )
-        block_schema_bird = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Bird._to_block_schema(block_type_id=block_type_bird.id),
         )
         block_type_cat = await models.block_types.create_block_type(
             session=session, block_type=Cat._to_block_type()
         )
-        block_schema_cat = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Cat._to_block_schema(block_type_id=block_type_cat.id),
         )
@@ -438,7 +438,7 @@ class TestReadBlockDocumentsForBlockType:
         ]
 
     async def test_read_block_documents_for_nonexistent_block_type(self, client):
-        response = await client.get(f"/block_types/slug/nonsense/block_documents")
+        response = await client.get("/block_types/slug/nonsense/block_documents")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -532,5 +532,5 @@ class TestSystemBlockTypes:
         # install system blocks
         await client.post("/block_types/install_system_block_types")
         # read date-time system block
-        response = await client.get(f"/block_types/slug/date-time")
+        response = await client.get("/block_types/slug/date-time")
         assert response.json()["is_protected"]

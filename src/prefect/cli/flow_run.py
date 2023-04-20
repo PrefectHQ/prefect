@@ -116,7 +116,7 @@ async def delete(id: UUID):
     async with get_client() as client:
         try:
             await client.delete_flow_run(id)
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run '{id}' not found!")
 
     exit_with_success(f"Successfully deleted flow run '{id}'.")
@@ -131,7 +131,7 @@ async def cancel(id: UUID):
             result = await client.set_flow_run_state(
                 flow_run_id=id, state=cancelling_state
             )
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run '{id}' not found!")
 
     if result.status == SetStateStatus.ABORT:
@@ -192,7 +192,7 @@ async def logs(
         # Get the flow run
         try:
             flow_run = await client.read_flow_run(id)
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run {str(id)!r} not found!")
 
         while more_logs:

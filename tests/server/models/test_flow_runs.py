@@ -374,7 +374,7 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_3.id}
 
     async def test_read_flow_runs_filters_by_name(self, flow, session):
-        flow_run_1 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, name="my flow run 1"),
         )
@@ -469,7 +469,7 @@ class TestReadFlowRuns:
                 state=schemas.states.Completed(name="My Completed State"),
             ),
         )
-        flow_run_3 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id, state=schemas.states.Failed(name="RIP")
@@ -517,7 +517,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="beta"),
         )
-        flow_run_3 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
@@ -977,7 +977,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_filters_by_flow_and_task_run_criteria(
         self, flow, session
     ):
-        flow_run_1 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
@@ -1024,7 +1024,7 @@ class TestReadFlowRuns:
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="work-pool-queue"),
         )
-        flow_run_1 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
@@ -1051,7 +1051,7 @@ class TestReadFlowRuns:
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="work-pool-queue"),
         )
-        flow_run_1 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
@@ -1070,7 +1070,7 @@ class TestReadFlowRuns:
 
     async def test_read_flow_runs_applies_sort(self, flow, session):
         now = pendulum.now()
-        flow_run_1 = await models.flow_runs.create_flow_run(
+        await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,

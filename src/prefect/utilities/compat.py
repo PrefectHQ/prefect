@@ -7,11 +7,9 @@ import shutil
 import sys
 
 if sys.version_info < (3, 10):
-    import importlib_metadata
-    from importlib_metadata import EntryPoint, EntryPoints, entry_points
+    pass
 else:
-    import importlib.metadata as importlib_metadata
-    from importlib.metadata import EntryPoint, EntryPoints, entry_points
+    pass
 
 if sys.version_info < (3, 9):
     # https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread
@@ -24,7 +22,7 @@ if sys.version_info < (3, 9):
         return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
 
 else:
-    from asyncio import to_thread as asyncio_to_thread
+    pass
 
 if sys.version_info < (3, 8):
     import os
@@ -74,7 +72,7 @@ if sys.version_info < (3, 8):
         os.kill(os.getpid(), signal)
 
 else:
-    from signal import raise_signal
+    pass
 
 if sys.version_info < (3, 8) and sys.platform != "win32":
     # https://docs.python.org/3/library/asyncio-policy.html#asyncio.ThreadedChildWatcher
@@ -87,7 +85,6 @@ if sys.version_info < (3, 8) and sys.platform != "win32":
     import logging
     import os
     import threading
-    import time
     import warnings
 
     logger = logging.getLogger()
@@ -175,4 +172,4 @@ if sys.version_info < (3, 8) and sys.platform != "win32":
             self._threads.pop(expected_pid)
 
 elif sys.platform != "win32":
-    from asyncio import ThreadedChildWatcher
+    pass

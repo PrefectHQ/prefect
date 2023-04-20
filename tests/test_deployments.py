@@ -110,7 +110,7 @@ class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
         self, orion_client, flow, storage_document_id, infrastructure_document_id
     ):
-        response = await orion_client.create_deployment(
+        await orion_client.create_deployment(
             name="My Deployment",
             version="mint",
             path="/",
@@ -154,7 +154,7 @@ class TestDeploymentLoad:
     async def test_deployment_load_doesnt_overwrite_set_fields(
         self, orion_client, flow, storage_document_id, infrastructure_document_id
     ):
-        response = await orion_client.create_deployment(
+        await orion_client.create_deployment(
             name="My Deployment",
             version="mint",
             path="/",
@@ -263,14 +263,14 @@ class TestDeploymentUpload:
 class TestDeploymentBuild:
     async def test_build_from_flow_requires_name(self, flow_function):
         with pytest.raises(TypeError, match="required positional argument: 'name'"):
-            d = await Deployment.build_from_flow(flow=flow_function)
+            await Deployment.build_from_flow(flow=flow_function)
 
         with pytest.raises(ValueError, match="name must be provided"):
-            d = await Deployment.build_from_flow(flow=flow_function, name=None)
+            await Deployment.build_from_flow(flow=flow_function, name=None)
 
     async def test_build_from_flow_raises_on_bad_inputs(self, flow_function):
         with pytest.raises(ValidationError, match="extra fields not permitted"):
-            d = await Deployment.build_from_flow(
+            await Deployment.build_from_flow(
                 flow=flow_function, name="foo", typo_attr="bar"
             )
 
@@ -386,7 +386,7 @@ class TestDeploymentBuild:
         assert d.description == "foobar"
         assert d.tags == ["A", "B"]
         assert d.version == "12"
-        assert d.is_schedule_active == False
+        assert d.is_schedule_active is False
 
     async def test_build_from_flow_doesnt_load_existing(self, flow_function):
         d = await Deployment.build_from_flow(
@@ -613,7 +613,7 @@ class TestDeploymentApply:
             name="TEST",
             flow_name="fn",
         )
-        deployment_id = await d.apply(work_queue_concurrency=424242)
+        await d.apply(work_queue_concurrency=424242)
         queue_name = d.work_queue_name
         work_queue = await orion_client.read_work_queue_by_name(queue_name)
         assert work_queue.concurrency_limit == 424242

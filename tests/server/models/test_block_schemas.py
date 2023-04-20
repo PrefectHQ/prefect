@@ -79,7 +79,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -131,7 +131,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -187,7 +187,7 @@ class TestCreateBlockSchema:
             session=session, block_type=X._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=X._to_block_schema(block_type_id=block_type_x.id),
         )
@@ -282,7 +282,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -335,7 +335,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -394,7 +394,7 @@ class TestCreateBlockSchema:
             session=session, block_type=X._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=X._to_block_schema(block_type_id=block_type_x.id),
         )
@@ -696,7 +696,7 @@ class TestReadBlockSchemas:
             )
         ).scalar()
         assert before_read.fields.get("block_schema_references") is None
-        read_result = await models.block_schemas.read_block_schema(
+        await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
         await session.commit()
@@ -1181,21 +1181,21 @@ async def block_schemas_with_capabilities(session):
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=Duck._to_block_type()
     )
-    block_schema_a = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Duck._to_block_schema(block_type_id=block_type_a.id),
     )
     block_type_b = await models.block_types.create_block_type(
         session=session, block_type=Bird._to_block_type()
     )
-    block_schema_b = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Bird._to_block_schema(block_type_id=block_type_b.id),
     )
     block_type_c = await models.block_types.create_block_type(
         session=session, block_type=Cat._to_block_type()
     )
-    block_schema_c = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Cat._to_block_schema(block_type_id=block_type_c.id),
     )

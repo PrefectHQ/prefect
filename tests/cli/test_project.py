@@ -73,7 +73,7 @@ class TestProjectInit:
     @pytest.mark.usefixtures("interactive_console")
     def test_project_init_with_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 "project init --name test_project --recipe docker",
                 expected_code=0,
                 temp_dir=str(tempdir),
@@ -106,7 +106,7 @@ class TestProjectInit:
     @pytest.mark.usefixtures("interactive_console")
     def test_project_init_with_partial_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 "project init --name test_project --recipe docker --field tag=my-tag",
                 expected_code=0,
                 temp_dir=str(tempdir),
@@ -134,7 +134,7 @@ class TestProjectInit:
 
     def test_project_init_with_no_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 (
                     "project init --name test_project --recipe docker --field"
                     " tag=my-tag --field image_name=my-image/foo"
@@ -460,7 +460,7 @@ class TestSchedules:
         assert deployment.schedule.timezone == "America/New_York"
 
     async def test_passing_anchor_without_interval_exits(self, project_dir):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name --anchor-date 2040-02-02"
@@ -474,7 +474,7 @@ class TestSchedules:
     async def test_parsing_rrule_schedule_string_literal(
         self, project_dir, orion_client
     ):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name "
@@ -504,7 +504,7 @@ class TestSchedules:
     async def test_providing_multiple_schedules_exits_with_error(
         self, project_dir, schedules
     ):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name "
             + " ".join(schedules),

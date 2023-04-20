@@ -29,11 +29,11 @@ class InstrumentedClass:
     def _event_method_called_resources(self) -> ResourceTuple:
         return (
             {
-                "prefect.resource.id": f"prefect.instrumented-class",
+                "prefect.resource.id": "prefect.instrumented-class",
             },
             [
                 {
-                    "prefect.resource.id": f"prefect.class.InstrumentedClass",
+                    "prefect.resource.id": "prefect.class.InstrumentedClass",
                     "prefect.resource.role": "class",
                 }
             ],

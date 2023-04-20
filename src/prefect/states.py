@@ -189,7 +189,7 @@ async def exception_to_failed_state(
                 "Exception was not passed and no active exception could be found."
             )
     else:
-        exc_tb = exc.__traceback__
+        pass
 
     if result_factory:
         data = await result_factory.create_result(exc)

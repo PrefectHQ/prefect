@@ -95,7 +95,7 @@ class TestPydanticSubclass:
 
     def test_parent_is_unchanged(self):
         original_fields = self.Parent.__fields__.copy()
-        Child = pydantic_subclass(self.Parent)
+        pydantic_subclass(self.Parent)
         assert self.Parent.__fields__ == original_fields
 
     def test_default_subclass_name(self):

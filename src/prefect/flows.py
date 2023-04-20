@@ -803,7 +803,7 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
     with PrefectObjectRegistry(
         block_code_execution=True,
         capture_failures=True,
-    ) as registry:
+    ):
         path, func_name = entrypoint.split(":")
         try:
             flow = import_object(entrypoint)

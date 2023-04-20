@@ -274,7 +274,7 @@ async def retrieve_flow_then_begin_flow_run(
     flow_run = await client.read_flow_run(flow_run_id)
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
-    except Exception as exc:
+    except Exception:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
@@ -642,7 +642,7 @@ async def orchestrate_flow_run(
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+                        "Beginning execution...", extra={"state_message": True}
                     )
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
@@ -1347,14 +1347,11 @@ async def begin_task_run(
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
-            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
-            background_tasks = await stack.enter_async_context(
-                anyio.create_task_group()
-            )
+            await stack.enter_async_context(anyio.create_task_group())
 
         await stack.enter_async_context(report_task_run_crashes(task_run, client))
 
@@ -1543,7 +1540,7 @@ async def orchestrate_task_run(
                         logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                     else:
                         logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
+                            "Beginning execution...", extra={"state_message": True}
                         )
 
                         call = from_async.call_soon_in_new_thread(
@@ -2081,7 +2078,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, task=task, task_run=task_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
@@ -2114,7 +2111,7 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, flow=flow, flow_run=flow_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,

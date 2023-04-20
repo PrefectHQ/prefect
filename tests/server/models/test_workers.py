@@ -540,7 +540,7 @@ class TestDeleteWorkQueue:
         )
 
     async def test_delete_queue_updates_priorities(self, session, work_pool):
-        result_1 = await models.workers.create_work_queue(
+        await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="A"),
@@ -550,7 +550,7 @@ class TestDeleteWorkQueue:
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="B"),
         )
-        result_3 = await models.workers.create_work_queue(
+        await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="C"),

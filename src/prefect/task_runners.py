@@ -158,13 +158,13 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
             raise RuntimeError("The task runner is already started!")
 
         async with AsyncExitStack() as exit_stack:
-            self.logger.debug(f"Starting task runner...")
+            self.logger.debug("Starting task runner...")
             try:
                 await self._start(exit_stack)
                 self._started = True
                 yield self
             finally:
-                self.logger.debug(f"Shutting down task runner...")
+                self.logger.debug("Shutting down task runner...")
                 self._started = False
 
     async def _start(self, exit_stack: AsyncExitStack) -> None:

@@ -550,7 +550,7 @@ class Deployment(BaseModel):
                     f"{self.flow_name}/{self.name}"
                 )
                 if deployment.storage_document_id:
-                    storage = Block._from_block_document(
+                    Block._from_block_document(
                         await client.read_block_document(deployment.storage_document_id)
                     )
 
@@ -612,7 +612,6 @@ class Deployment(BaseModel):
                 to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
                 in the current working directory
         """
-        deployment_path = None
         file_count = None
         if storage_block:
             storage = await Block.load(storage_block)

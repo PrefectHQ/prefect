@@ -235,7 +235,8 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     )
 
     # Executed on module load
-    callback = lambda _: warnings.warn(message, DeprecationWarning, stacklevel=3)
+    def callback(_):
+        return warnings.warn(message, DeprecationWarning, stacklevel=3)
 
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)

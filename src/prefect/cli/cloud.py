@@ -272,7 +272,7 @@ async def login_with_browser() -> str:
         if timeout_scope and timeout_scope.cancel_called:
             exit_with_error("Timed out while waiting for authorization.")
         else:
-            exit_with_error(f"Aborted.")
+            exit_with_error("Aborted.")
 
     if result.type == "success":
         return result.content.api_key
