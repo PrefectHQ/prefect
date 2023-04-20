@@ -11,22 +11,22 @@ With the new `Deploy a Prefect flow` Github action, you can deploy a flow to Pre
 Workers, Prefect's next-generation agents, have dedicated infrastructure types. This week, we are shipping types workers for each major cloud provider, AWS, GCP, and Azure. You will be able to find them in the [prefect-aws](https://github.com/PrefectHQ/prefect-aws), [prefect-gcp](https://prefecthq.github.io/prefect-gcp/), and [prefect-azure](https://github.com/PrefectHQ/prefect-azure) collections, respectively. 
 
 ### Enhancements
-* In order to allow more space for the flow run graph, the metadata in right side bar of the flow run page has moved to the new "Details" tab - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
+- In order to allow more space for the flow run graph, the metadata in right side bar of the flow run page has moved to the new "Details" tab - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 
 ### Fixes
-* fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
-* Add `configuration` to `kill_infrastructure` signature by @desertaxle in https://github.com/PrefectHQ/prefect/pull/9250
+- fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
+- Add `configuration` to `kill_infrastructure` signature by @desertaxle in https://github.com/PrefectHQ/prefect/pull/9250
 
 ### Experimental
-* Add worker.executed-flow-run event by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9227
-* Emit worker lifecycle events. by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9249
-* Emit cancelled-flow-run event when worker cancels a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9255
+- Add worker.executed-flow-run event by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9227
+- Emit worker lifecycle events. by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9249
+- Emit cancelled-flow-run event when worker cancels a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9255
 
 ### Documentation
-* fix broken link by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/9247
-* Remove outdated warning from task run concurrency UI docs by @rpeden in https://github.com/PrefectHQ/prefect/pull/9256
-* Add documentation edit button by @jawnsy in https://github.com/PrefectHQ/prefect/pull/9259
-* Add GitHub action to trigger versioned builds in docs repository by @rpeden in https://github.com/PrefectHQ/prefect/pull/8984
+- fix broken link by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/9247
+- Remove outdated warning from task run concurrency UI docs by @rpeden in https://github.com/PrefectHQ/prefect/pull/9256
+- Add documentation edit button by @jawnsy in https://github.com/PrefectHQ/prefect/pull/9259
+- Add GitHub action to trigger versioned builds in docs repository by @rpeden in https://github.com/PrefectHQ/prefect/pull/8984
 
 
 ## Release 2.10.4
