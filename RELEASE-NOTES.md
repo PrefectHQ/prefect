@@ -14,13 +14,13 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Add details tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 
 ### Fixes
-- Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046] (https://github.com/PrefectHQ/prefect/pull/9046)
-- Add `configuration` to `Worker.kill_infrastructure` signature - [#9250] (https://github.com/PrefectHQ/prefect/pull/9250)
+- Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046](https://github.com/PrefectHQ/prefect/pull/9046)
+- Add `configuration` to `Worker.kill_infrastructure` signature - [#9250](https://github.com/PrefectHQ/prefect/pull/9250)
 
 ### Experimental
-- Add `worker.executed-flow-run` event - [#9227] (https://github.com/PrefectHQ/prefect/pull/9227)
-- Emit events for worker lifecycle - [#9249] https://github.com/PrefectHQ/prefect/pull/9249
-- Emit `cancelled-flow-run` event when worker cancels a flow run  - [#9255] (https://github.com/PrefectHQ/prefect/pull/9255)
+- Add `worker.executed-flow-run` event - [#9227](https://github.com/PrefectHQ/prefect/pull/9227)
+- Emit events for worker lifecycle - [#9249](https://github.com/PrefectHQ/prefect/pull/9249)
+- Emit `cancelled-flow-run` event when worker cancels a flow run - [#9255](https://github.com/PrefectHQ/prefect/pull/9255)
 
 ### Documentation
 - Fix broken link on docs landing page - [#9247](https://github.com/PrefectHQ/prefect/pull/9247)
