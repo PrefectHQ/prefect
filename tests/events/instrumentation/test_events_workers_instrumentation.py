@@ -43,8 +43,10 @@ async def test_worker_emits_submitted_event(
     flow = await orion_client.read_flow(flow_run.flow_id)
 
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
-        worker.run = AsyncMock()
+        worker.run = AsyncMock(
+            return_value=BaseWorkerResult(status_code=1, identifier="process123")
+        )
+        await worker.sync_with_backend()
         await worker.get_and_submit_flow_runs()
 
     asserting_events_worker.drain()
@@ -117,12 +119,11 @@ async def test_worker_emits_executed_event(
 
     flow = await orion_client.read_flow(flow_run.flow_id)
 
-    worker_result = BaseWorkerResult(status_code=1, identifier="process123")
-    run_flow_fn = AsyncMock(return_value=worker_result)
-
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
-        worker.run = run_flow_fn
+        worker.run = AsyncMock(
+            return_value=BaseWorkerResult(status_code=1, identifier="process123")
+        )
+        await worker.sync_with_backend()
         await worker.get_and_submit_flow_runs()
 
     asserting_events_worker.drain()
