@@ -7,6 +7,10 @@ from prefect.testing.utilities import AsyncMock
 from prefect.utilities.services import critical_service_loop
 
 
+class UncapturedException(BaseException):
+    pass
+
+
 async def test_critical_service_loop_operates_normally():
     workload = AsyncMock(
         side_effect=[
@@ -15,13 +19,23 @@ async def test_critical_service_loop_operates_normally():
             None,
             None,
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
 
-    await critical_service_loop(workload, 0.0)
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 6
+
+
+async def test_critical_service_loop_does_not_capture_keyboard_interrupt():
+    workload = AsyncMock(side_effect=KeyboardInterrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        await critical_service_loop(workload, 0.0)
+
+    assert workload.await_count == 1
 
 
 async def test_tolerates_single_intermittent_error():
@@ -32,11 +46,12 @@ async def test_tolerates_single_intermittent_error():
             None,
             None,
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
 
-    await critical_service_loop(workload, 0.0)
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 6
 
@@ -49,11 +64,12 @@ async def test_tolerates_two_consecutive_errors():
             httpx.TimeoutException("oofta"),
             None,
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
 
-    await critical_service_loop(workload, 0.0)
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 6
 
@@ -66,11 +82,12 @@ async def test_tolerates_majority_errors():
             httpx.TimeoutException("oofta"),
             httpx.TimeoutException("boo"),
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
 
-    await critical_service_loop(workload, 0.0)
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 6
 
@@ -84,11 +101,12 @@ async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
             httpx.TimeoutException("boo"),
             httpx.ConnectError("woops"),
             None,
-            KeyboardInterrupt,
+            None,
         ]
     )
 
-    await critical_service_loop(workload, 0.0, consecutive=3)
+    with pytest.raises(RuntimeError, match="Service exceeded error threshold"):
+        await critical_service_loop(workload, 0.0, consecutive=3)
 
     assert workload.await_count == 4
     result = capsys.readouterr()
@@ -106,13 +124,16 @@ async def test_consistent_sleeps_between_loops(monkeypatch):
             None,
             None,
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
     sleeper = AsyncMock()
 
     monkeypatch.setattr("prefect.utilities.services.anyio.sleep", sleeper)
-    await critical_service_loop(workload, 0.0)
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
+
     assert workload.await_count == 6
 
     sleep_times = [call.args[0] for call in sleeper.await_args_list]
@@ -133,13 +154,16 @@ async def test_jittered_sleeps_between_loops(monkeypatch):
             None,
             None,
             None,
-            KeyboardInterrupt,
+            UncapturedException,
         ]
     )
     sleeper = AsyncMock()
 
     monkeypatch.setattr("prefect.utilities.services.anyio.sleep", sleeper)
-    await critical_service_loop(workload, 42, jitter_range=0.3)
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 42, jitter_range=0.3)
+
     assert workload.await_count == 6
 
     sleep_times = [call.args[0] for call in sleeper.await_args_list]
