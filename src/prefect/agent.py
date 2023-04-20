@@ -188,7 +188,7 @@ class PrefectAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        submittable_runs: Set[FlowRun] = {}
+        submittable_runs: Set[FlowRun] = set()
 
         if self.work_pool_name:
             responses = await self.client.get_scheduled_flow_runs_for_work_pool(
