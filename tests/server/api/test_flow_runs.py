@@ -305,6 +305,39 @@ class TestReadFlowRuns:
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
 
+    @pytest.fixture
+    async def flow_runs_with_idempotency_key(
+        self, flow, work_queue_1, session
+    ) -> List[core.FlowRun]:
+        """
+        Return a list of two `core.FlowRun`'s with different idempotency keys.
+        """
+        flow_run_1_with_idempotency_key = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="fr1",
+                tags=["red"],
+                idempotency_key="my-idempotency-key",
+            ),
+        )
+        flow_run_2_with_a_different_idempotency_key = (
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=actions.FlowRunCreate(
+                    flow_id=flow.id,
+                    name="fr2",
+                    tags=["blue"],
+                    idempotency_key="a-different-idempotency-key",
+                ),
+            )
+        )
+        await session.commit()
+        return [
+            flow_run_1_with_idempotency_key,
+            flow_run_2_with_a_different_idempotency_key,
+        ]
+
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
@@ -355,6 +388,77 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
+
+    async def test_read_flow_runs_applies_flow_run_idempotency_key_filter(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests that when we pass a value for idempotency key to the flow run
+        filter, we get back the flow run with the matching idempotency key.
+        """
+        idempotency_key_of_flow_run_we_want_to_retrieve = (
+            flow_runs_with_idempotency_key[0].idempotency_key
+        )
+        flow_run_idempotency_key_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    any_=[idempotency_key_of_flow_run_we_want_to_retrieve]
+                )
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/flow_runs/filter", json=flow_run_idempotency_key_filter
+        )
+        flow_run_filter_results = response.json()
+        assert response.status_code == status.HTTP_200_OK
+        assert (
+            len(flow_run_filter_results) == 1
+            and len(flow_runs_with_idempotency_key) == 2
+        )
+        assert flow_run_filter_results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_we_want_to_retrieve
+        )
+
+    async def test_read_flow_runs_idempotency_key_filter_excludes_idempotency_key(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests to make sure that when you pass idempotency keys to the not_any_ argument
+        of the filter, the filter excludes flow runs having that value for idempotency key
+        """
+        idempotency_key_of_flow_run_to_exclude: str = flow_runs_with_idempotency_key[
+            0
+        ].idempotency_key
+        idempotency_key_of_flow_run_that_should_be_included: str = (
+            flow_runs_with_idempotency_key[1].idempotency_key
+        )
+        flow_run_idempotency_key_exclude_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    not_any_=[idempotency_key_of_flow_run_to_exclude]
+                )
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/flow_runs/filter", json=flow_run_idempotency_key_exclude_filter
+        )
+        flow_run_filter_results = response.json()
+        assert response.status_code == status.HTTP_200_OK
+
+        # assert we started with two flow runs from fixture
+        assert len(flow_runs_with_idempotency_key) == 2
+
+        # filtering the fixture should result in a single element
+        assert len(flow_run_filter_results) == 1
+
+        # make sure the idempotency key we're excluding is not included in the results
+        for result in flow_run_filter_results:
+            assert result["idempotency_key"] != idempotency_key_of_flow_run_to_exclude
+
+        # make sure the idempotency key we did not exclude is still in the results
+        assert flow_run_filter_results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_that_should_be_included
+        )
 
     async def test_read_flow_runs_applies_task_run_filter(
         self, flow, flow_runs, client, session

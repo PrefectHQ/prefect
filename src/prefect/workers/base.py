@@ -546,7 +546,9 @@ class BaseWorker(abc.ABC):
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            self._emit_flow_run_cancelled_event(flow_run)
+            self._emit_flow_run_cancelled_event(
+                flow_run=flow_run, configuration=configuration
+            )
             await self._mark_flow_run_as_cancelled(flow_run)
             self._logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
@@ -1016,19 +1018,19 @@ class BaseWorker(abc.ABC):
             follows=started_event,
         )
 
-    def _emit_flow_run_cancelled_event(self, flow_run: "FlowRun"):
-        related = self._event_related_resources()
+    def _emit_flow_run_cancelled_event(
+        self, flow_run: "FlowRun", configuration: BaseJobConfiguration
+    ):
+        related = self._event_related_resources(configuration=configuration)
 
-        related_flow_run = object_as_related_resource(
-            kind="flow-run", role="flow-run", object=flow_run
-        )
-        related_flow_run["prefect.infrastructure.identifier"] = str(
-            flow_run.infrastructure_pid
-        )
-        related.append(related_flow_run)
+        for resource in related:
+            if resource.role == "flow-run":
+                resource["prefect.infrastructure.identifier"] = str(
+                    flow_run.infrastructure_pid
+                )
 
         emit_event(
             event="prefect.worker.cancelled-flow-run",
             resource=self._event_resource(),
-            related=related + tags_as_related_resources(flow_run.tags),
+            related=related,
         )
