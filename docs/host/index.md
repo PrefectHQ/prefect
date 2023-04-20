@@ -35,7 +35,7 @@ Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
 
-## Differences between Prefect Server and Cloud
+### Differences between Prefect Server and Cloud
 
 Prefect Server and Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
 
@@ -51,7 +51,7 @@ Prefect Server and Cloud share a base of features. Prefect Cloud also includes t
     - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
 
-## Configuring Prefect Server
+### Configuring Prefect Server
 
 Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
 
@@ -69,7 +69,7 @@ $ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
     See [Profiles & Connfiguration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
 
-# Prefect Database
+## Prefect Database
 
 The Prefect database persists data to track the state of your flow runs and related Prefect concepts, including:
 
@@ -88,7 +88,7 @@ Currently Prefect supports the following databases:
 - SQLite: The default in Prefect, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
 - PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
 
-## Using the database
+### Using the database
 
 A local SQLite database is the default database and is configured upon Prefect installation. The database is located at `~/.prefect/prefect.db` by default.
 
@@ -102,7 +102,7 @@ prefect server database reset -y
 
 This command will clear all data and reapply the schema.
 
-## Database settings
+### Database settings
 
 Prefect provides several settings for configuring the database. Here are the default settings:
 
@@ -116,7 +116,7 @@ PREFECT_API_DATABASE_PASSWORD='None'
 You can save a setting to your active Prefect profile with `prefect config set`.
 
 
-## Configuring a PostgreSQL database
+### Configuring a PostgreSQL database
 
 To connect Prefect to a PostgreSQL database, you can set the following environment variable:
 
@@ -165,7 +165,7 @@ prefect server start
 ```
 </div>
 
-## In-memory database
+### In-memory database
 
 One of the benefits of SQLite is in-memory database support. 
 
@@ -180,7 +180,7 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file
 !!! warning "Use SQLite database for testing only"
     SQLite is only supported by Prefect for testing purposes and is not compatible with multiprocessing.  
 
-## Database versions
+### Database versions
 
 The following database versions are required for use with Prefect:
 
@@ -188,13 +188,12 @@ The following database versions are required for use with Prefect:
 - PostgreSQL 13.0 or newer
 
 
-## Migrations
+### Migrations
 
 Prefect uses [Alembic](https://alembic.sqlalchemy.org/en/latest/) to manage database migrations. Alembic is a 
 database migration tool for usage with the SQLAlchemy Database Toolkit for Python. Alembic provides a framework for 
 generating and applying schema changes to a database.
 
-### Running migrations
 To apply migrations to your database you can run the following commands:
 
 To upgrade:
@@ -224,11 +223,11 @@ prefect server database downgrade -y -r d20618ce678e
 ```
 </div>
 
-### Creating migrations
-See the [contributing docs](/contributing/overview/#adding-database-migrations) for more information on how to create new migrations
+
+See the [contributing docs](/contributing/overview/#adding-database-migrations) for information on how to create new database migrations.
 
 
-# Notifications
+## Notifications
 
 When you use [Prefect Cloud](/cloud/) you gain access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect Server.
 
@@ -246,7 +245,7 @@ Prefect supports sending notifications via:
 !!! cloud-ad "Notifications in Prefect Cloud"
     Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work queue health.
 
-## Configure notifications
+### Configure notifications
 
 To configure a notification in Prefect Server, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
