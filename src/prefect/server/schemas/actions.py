@@ -177,10 +177,12 @@ class DeploymentCreate(ActionBaseModel):
             # jsonschema considers required fields, even if that field has a default,
             # to still be required. To get around this we remove the fields from
             # required if there is a default present.
-            required = variables_schema["required"]
-            for k, v in variables_schema["properties"].items():
-                if "default" in v and k in required:
-                    required.remove(k)
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
 
             jsonschema.validate(self.infra_overrides, variables_schema)
 
@@ -258,10 +260,12 @@ class DeploymentUpdate(ActionBaseModel):
             # jsonschema considers required fields, even if that field has a default,
             # to still be required. To get around this we remove the fields from
             # required if there is a default present.
-            required = variables_schema["required"]
-            for k, v in variables_schema["properties"].items():
-                if "default" in v and k in required:
-                    required.remove(k)
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
 
         if variables_schema is not None:
             jsonschema.validate(self.infra_overrides, variables_schema)
