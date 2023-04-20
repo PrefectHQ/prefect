@@ -64,8 +64,6 @@ async def critical_service_loop(
                 failures.append((exc, sys.exc_info()[-1]))
             else:
                 raise
-        except KeyboardInterrupt:
-            return
 
         # Decide whether to exit now based on recent history.
         #
@@ -89,7 +87,7 @@ async def critical_service_loop(
             # We've failed enough times to be sure something is wrong, the writing is
             # on the wall.  Let's explain what we've seen and exit.
             printer(
-                f"\nFailed the last {consecutive} attempts.  "
+                f"\nFailed the last {consecutive} attempts. "
                 "Please check your environment and configuration."
             )
 
@@ -102,7 +100,8 @@ async def critical_service_loop(
             for exception, traceback in failures_by_type:
                 printer("".join(format_exception(None, exception, traceback)))
                 printer()
-            return
+
+            raise RuntimeError("Service exceeded error threshold.")
 
         if run_once:
             return
