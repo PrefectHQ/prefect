@@ -1,5 +1,45 @@
 # Prefect Release Notes
 
+## Release 2.10.5
+
+### Deploy a Prefect flow via Github Actions
+
+With the new [Deploy a Prefect flow](https://github.com/marketplace/actions/deploy-a-prefect-flow) GitHub Action, you can automate the build process for deployments orchestrated by Prefect Cloud. The action leverages the new [Projects](https://docs.prefect.io/latest/concepts/projects/) system. See the [action page](https://github.com/marketplace/actions/deploy-a-prefect-flow) for examples and configuration options.
+
+### Cloud Provider Workers
+
+Workers, Prefect's next-generation agents, have dedicated infrastructure types. This week, we are releasing typed workers for each major cloud provider: AWS, GCP, and Azure. You will be able to find them in the [prefect-aws](https://github.com/PrefectHQ/prefect-aws), [prefect-gcp](https://prefecthq.github.io/prefect-gcp/), and [prefect-azure](https://github.com/PrefectHQ/prefect-azure) collections, respectively. 
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-aws/pull/238
+- https://github.com/PrefectHQ/prefect-aws/pull/244
+- https://github.com/PrefectHQ/prefect-gcp/pull/172
+- https://github.com/PrefectHQ/prefect-azure/pull/87
+
+### Enhancements
+- Add `idempotency_key` to flow runs filter — [#8600](https://github.com/PrefectHQ/prefect/pull/8600)
+- Add `details` tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
+- Add status code to base client log on retry - [#9265] (https://github.com/PrefectHQ/prefect/pull/9265)
+
+### Fixes
+- Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046](https://github.com/PrefectHQ/prefect/pull/9046)
+- Add `configuration` to `Worker.kill_infrastructure` signature - [#9250](https://github.com/PrefectHQ/prefect/pull/9250)
+- Update `critical_service_loop` to throw a runtime error on failure - [#9267] https://github.com/PrefectHQ/prefect/pull/9267
+- Fix pip requirement inference compatibility with Python 3.11+ and pip 23.1+ - [#9278] (https://github.com/PrefectHQ/prefect/pull/9278)
+- Fix validation error occurring on default values in `variables` schema of `Workpool.base_job_template` [#9282] (https://github.com/PrefectHQ/prefect/pull/9282)
+### Experimental
+- Add `worker.executed-flow-run` event - [#9227](https://github.com/PrefectHQ/prefect/pull/9227)
+- Emit events for worker lifecycle - [#9249](https://github.com/PrefectHQ/prefect/pull/9249)
+- Emit `cancelled-flow-run` event when worker cancels a flow run - [#9255](https://github.com/PrefectHQ/prefect/pull/9255)
+
+### Documentation
+- Fix broken link on docs landing page - [#9247](https://github.com/PrefectHQ/prefect/pull/9247)
+- Remove outdated warning from task run concurrency UI docs - [#9256](https://github.com/PrefectHQ/prefect/pull/9256)
+- Add `edit` button to docs to improve ability to fix documentation - [#9259](https://github.com/PrefectHQ/prefect/pull/9259)
+- Remove UI documentation pages, reorganize content, and simplify side bar navigation structure - [#9039](https://github.com/PrefectHQ/prefect/pull/9039)
+- Add tutorial for creating a worker - [#9179](https://github.com/PrefectHQ/prefect/pull/9179)
+- Add GitHub Action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
+
 ## Release 2.10.4
 
 This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
