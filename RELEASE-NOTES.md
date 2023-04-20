@@ -4,7 +4,7 @@
 
 ### Deploy a Prefect flow via Github Actions
 
-With the new [Deploy a Prefect flow](https://github.com/marketplace/actions/deploy-a-prefect-flow) Github action, you can automate the build process for  deployments orchestrated by Prefect Cloud. The action leverages the new [Projects](https://docs.prefect.io/latest/concepts/projects/) system. See the [action page](https://github.com/marketplace/actions/deploy-a-prefect-flow) for examples and configuration options.
+With the new [Deploy a Prefect flow](https://github.com/marketplace/actions/deploy-a-prefect-flow) Github action, you can automate the build process for deployments orchestrated by Prefect Cloud. The action leverages the new [Projects](https://docs.prefect.io/latest/concepts/projects/) system. See the [action page](https://github.com/marketplace/actions/deploy-a-prefect-flow) for examples and configuration options.
 
 ### Cloud Provider Workers
 
