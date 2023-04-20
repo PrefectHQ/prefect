@@ -58,7 +58,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Fix apply artifact collection filter — https://github.com/PrefectHQ/prefect/pull/9153
 
 ### Documentation
-- Adds artifacts to API reference — https://github.com/PrefectHQ/prefect/pull/9143
+- Add artifacts to API reference — https://github.com/PrefectHQ/prefect/pull/9143
 - Expand upon Projects `steps` documentation — https://github.com/PrefectHQ/prefect/pull/9151
 
 ### Collections
