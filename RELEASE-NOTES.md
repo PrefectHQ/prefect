@@ -12,7 +12,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 
 ### Enhancements
 - Add `idempotency_key` to flow runs filter — [#8600](https://github.com/PrefectHQ/prefect/pull/8600)
-- Add details tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
+- Add `details` tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 - Add status code to base client log on retry - [#9265] (https://github.com/PrefectHQ/prefect/pull/9265)
 
 ### Fixes
