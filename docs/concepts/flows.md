@@ -768,3 +768,61 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
 ![Prefect UI](../img/ui/flow-run-cancellation-ui.png)
+
+
+<!--
+# content from old Flows UI page
+# Flows
+
+A [flow](/concepts/flows/) contains the instructions for workflow logic, including the `@flow` and `@task` functions that define the work of your workflow. 
+
+The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect server, or the Prefect ephemeral API in your local development environment.
+
+![View a list of flows observed by Prefect in the Prefect UI.](../img/ui/flows.png)
+
+For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
+
+You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](/ui/flow-runs/#inspect-a-flow-run).
+
+## Inspect a flow
+
+If you select the name of a flow on the **Flows** page, the UI displays details about the flow.
+
+![Details for a flow in the Prefect UI](../img/ui/flow-details.png)
+
+If deployments have been created for the flow, you'll see them here. Select the deployment name to see further details about the deployment.
+
+On this page you can also:
+
+- Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
+- Pause a schedule for a deployment by using the toggle control.
+- Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
+
+
+
+Additional info from the old ui/flow-runs page
+## Troubleshooting flows
+
+If you're having issues with a flow run, Prefect provides multiple tools to help you identify issues, re-run flows, and even delete a flow or flow run.
+
+Flows may end up in states other than Completed. This is where Prefect really helps you out. If a flow ends up in a state such as Pending, Failed, or Cancelled, you can:
+
+- Check the logs for the flow run for errors.
+- Check the task runs to see where the error occurred.
+- Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
+- Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
+
+If you need to delete a flow or flow run: 
+
+In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
+
+From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
+
+<div class="terminal">
+```bash
+$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
+--> 
