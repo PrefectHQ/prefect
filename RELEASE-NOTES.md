@@ -19,7 +19,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 
 ### Experimental
 - Add `worker.executed-flow-run` event - [#9227] (https://github.com/PrefectHQ/prefect/pull/9227)
-- Emit worker lifecycle events. by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9249
+- Emit events for worker lifecycle - [#9249] https://github.com/PrefectHQ/prefect/pull/9249
 - Emit cancelled-flow-run event when worker cancels a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9255
 
 ### Documentation
