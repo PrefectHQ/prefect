@@ -48,15 +48,11 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.8.6"
+pip install -U "prefect==2.10.4"
 ```
 </div>
 
-<<<<<<< HEAD
-Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
-=======
 Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
->>>>>>> origin/main
 
 ### Installing the bleeding edge
 
@@ -97,17 +93,14 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.8.6
+Version:             2.10.4
 API version:         0.8.4
-Python version:      3.11.0
-Git commit:          d0f14f17
-Built:               Tue, Jan 3, 2023 8:46 AM
+Python version:      3.9.16
+Git commit:          b6d0433a
+Built:               Thu, Apr 13, 2023 5:34 PM
 OS/Arch:             darwin/arm64
 Profile:             default
-Server type:         ephemeral
-Server:
-  Database:          sqlite
-  SQLite version:    3.40.0
+Server type:         cloud
 ```
 </div>
 
@@ -174,7 +167,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
@@ -190,17 +183,14 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.8.6
+Version:             2.10.4
 API version:         0.8.4
-Python version:      3.11.0
-Git commit:          d0f14f17
-Built:               Tue, Jan 3, 2023 8:46 AM
+Python version:      3.9.16
+Git commit:          b6d0433a
+Built:               Thu, Apr 13, 2023 5:34 PM
 OS/Arch:             darwin/arm64
-Profile:             default
-Server type:         ephemeral
-Server:
-  Database:          sqlite
-  SQLite version:    3.40.0
+Profile:              default
+Server type:         cloud
 ```
 </div>
 
