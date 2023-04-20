@@ -7,8 +7,10 @@ import shutil
 import sys
 
 if sys.version_info < (3, 10):
+    import importlib_metadata
     from importlib_metadata import EntryPoint, EntryPoints, entry_points
 else:
+    import importlib.metadata as importlib_metadata
     from importlib.metadata import EntryPoint, EntryPoints, entry_points
 
 if sys.version_info < (3, 9):
