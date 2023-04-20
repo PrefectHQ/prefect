@@ -18,16 +18,16 @@ tags:
     This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
 
 
-Prefect workers are responsible for creating execution environments and starting flow runs within those execution environments. 
+Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
-A list of available workers can be found in the [Work Pools, Workers & Agents documentation](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have a worker available? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
+A list of available workers can be found in the [Work Pools, Workers & Agents documentation](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
 
 ## Worker Configuration
 
 When setting up an execution environment for a flow run, a worker receives configuration for the infrastructure it is designed to work with. Examples of configuration values include memory allocation, CPU allocation, credentials, image name, etc. The worker then uses this configuration to create the execution environment and start the flow run.
 
 !!! tip "How are the configuration values populated?"
-    The work pool that a worker polls for flow runs has a [base job template](/concepts/work-pools/#base-job-template) associated with it which is the contract for how configuration values populate for each flow run.
+    The work pool that a worker polls for flow runs has a [base job template](/concepts/work-pools/#base-job-template) associated with it. The template is the contract for how configuration values populate for each flow run.
     
     The keys in the `job_configuration` section of this base job template match the worker's configuration class attributes. The values in the `job_configuration` section of the base job template are used to populate the attributes of the worker's configuration class.
 
@@ -126,7 +126,7 @@ variables:
 
 This base job template defines what values can be provided by deployment creators on a per-deployment basis and how those provided values will be translated into the configuration values that the worker will use to create the execution environment.
 
-Notice that each attribute for the class was added in the `job_configuration` section with placeholders whose name matches the attribute name. The `variables` section was also populated with the OpenAPI schema for each attribute. If a configuration class is used without explicitly declaring any template variables, then the template variables will be inferred from the configuration class attributes.
+Notice that each attribute for the class was added in the `job_configuration` section with placeholders whose name matches the attribute name. The `variables` section was also populated with the OpenAPI schema for each attribute. If a configuration class is used without explicitly declaring any template variables, the template variables will be inferred from the configuration class attributes.
 
 ### Customizing Configuration Attribute Templates
 
@@ -266,7 +266,7 @@ We don't recommend using template variable classes within your worker implementa
 
 ## Worker Implementation
 
-Workers handle creating execution environments using provided configuration. Workers also observe the execution environment as the flow run executes and report any crashes to the Prefect API.
+Workers set up execution environments using provided configuration. Workers also observe the execution environment as the flow run executes and report any crashes to the Prefect API.
 
 To implement a worker, you must implement the `BaseWorker` class and provide it with the following attributes:
 
