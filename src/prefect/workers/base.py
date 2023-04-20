@@ -159,7 +159,7 @@ class BaseJobConfiguration(BaseModel):
             deployment: The deployment that the flow run is associated with.
             flow: The flow that the flow run is associated with.
         """
-        
+
         self._related_objects = {
             "deployment": deployment,
             "flow": flow,
