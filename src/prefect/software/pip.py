@@ -1,17 +1,14 @@
+import site
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Type
+from pathlib import Path
+from typing import Dict, List, Type, Union
 
 import packaging.requirements
 import packaging.version
 from typing_extensions import Literal, Self
 
 from prefect.software.base import Requirement
-from prefect.utilities.importtools import lazy_import
-
-if TYPE_CHECKING:
-    import pkg_resources
-else:
-    pkg_resources = lazy_import("pkg_resources")
+from prefect.utilities.compat import importlib_metadata
 
 
 class PipRequirement(Requirement, packaging.requirements.Requirement):
@@ -22,31 +19,61 @@ class PipRequirement(Requirement, packaging.requirements.Requirement):
     """
 
     @classmethod
-    def from_distribution(cls: Type[Self], dist: "pkg_resources.Distribution") -> Self:
+    def from_distribution(
+        cls: Type[Self], dist: "importlib_metadata.Distribution"
+    ) -> Self:
         """
         Convert a Python distribution object into a requirement
         """
-        if not dist.location.endswith("site-packages"):
+        if _is_editable_install(dist):
             raise ValueError(
                 f"Distribution {dist!r} is an editable installation and cannot be "
                 "used as a requirement."
             )
-        return cls.validate(dist.as_requirement())
+
+        return cls.validate(
+            packaging.requirements.Requirement(
+                f"{dist.metadata['name']}=={dist.version}"
+            )
+        )
 
 
-def _get_installed_distributions() -> Dict[str, "pkg_resources.Distribution"]:
-    return {dist.project_name: dist for dist in pkg_resources.working_set}
+def _get_installed_distributions() -> Dict[str, "importlib_metadata.Distribution"]:
+    return {dist.name: dist for dist in importlib_metadata.distributions()}
+
+
+def _is_child_path(path: Union[Path, str], parent: Union[Path, str]) -> bool:
+    return Path(parent).resolve() in Path(path).resolve().parents
+
+
+def _is_same_path(path: Union[Path, str], other: Union[Path, str]) -> bool:
+    return Path(path).resolve() == Path(other).resolve()
+
+
+def _is_editable_install(dist: "importlib_metadata.Distribution") -> bool:
+    """
+    Determine if a distribution is an 'editable' install by scanning if it is present
+    in a site-packages directory or not; if not, we presume it is editable.
+    """
+    site_packages = site.getsitepackages() + [site.getusersitepackages()]
+
+    dist_location = dist.locate_file("")
+    for site_package_dir in site_packages:
+        if _is_same_path(dist_location, site_package_dir) or _is_child_path(
+            dist_location, site_package_dir
+        ):
+            return False
+
+    return True
 
 
 def _remove_distributions_required_by_others(
-    dists: Dict[str, "pkg_resources.Distribution"]
-) -> Dict[str, "pkg_resources.Distribution"]:
+    dists: Dict[str, "importlib_metadata.Distribution"]
+) -> Dict[str, "importlib_metadata.Distribution"]:
     # Collect all child requirements
     child_requirement_names = set()
     for dist in dists.values():
-        child_requirement_names.update(
-            {requirement.name for requirement in dist.requires()}
-        )
+        child_requirement_names.update(dist.requires or [])
 
     return {
         name: dist
@@ -66,10 +93,9 @@ def current_environment_requirements(
     requirements = []
     uninstallable_msgs = []
     for dist in dists.values():
-        if not dist.location.endswith("site-packages"):
+        if _is_editable_install(dist):
             uninstallable_msgs.append(
-                f"- {dist.project_name}: This distribution is located at "
-                f"{dist.location!r}, it looks like an editable installation."
+                f"- {dist.name}: This distribution is an editable installation."
             )
         else:
             requirements.append(PipRequirement.from_distribution(dist))
