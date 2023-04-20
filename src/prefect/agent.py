@@ -188,7 +188,7 @@ class PrefectAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        submittable_runs: List[FlowRun] = []
+        submittable_runs: Set[FlowRun] = {}
 
         if self.work_pool_name:
             responses = await self.client.get_scheduled_flow_runs_for_work_pool(
@@ -196,7 +196,7 @@ class PrefectAgent:
                 work_queue_names=[wq.name async for wq in self.get_work_queues()],
                 scheduled_before=before,
             )
-            submittable_runs.extend([response.flow_run for response in responses])
+            submittable_runs.update([response.flow_run for response in responses])
 
         else:
             # load runs from each work queue
@@ -212,7 +212,7 @@ class PrefectAgent:
                         queue_runs = await self.client.get_runs_in_work_queue(
                             id=work_queue.id, limit=10, scheduled_before=before
                         )
-                        submittable_runs.extend(queue_runs)
+                        submittable_runs.update(queue_runs)
                     except ObjectNotFound:
                         self.logger.error(
                             f"Work queue {work_queue.name!r} ({work_queue.id}) not"
@@ -221,9 +221,9 @@ class PrefectAgent:
                     except Exception as exc:
                         self.logger.exception(exc)
 
-            submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
-
-        for flow_run in submittable_runs:
+        for flow_run in sorted(
+            submittable_runs, key=lambda run: run.next_scheduled_start_time
+        ):
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
