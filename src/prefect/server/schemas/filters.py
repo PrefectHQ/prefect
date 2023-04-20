@@ -440,6 +440,25 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
+    """Filter by FlowRun.idempotency_key."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run idempotency keys to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run idempotency keys to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.FlowRun.idempotency_key.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.FlowRun.idempotency_key.not_in(self.not_any_))
+        return filters
+
+
 class FlowRunFilter(PrefectOperatorFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -477,6 +496,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
+    idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
+        default=None, description="Filter criteria for `FlowRun.idempotency_key`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -503,6 +525,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.next_scheduled_start_time.as_sql_filter(db))
         if self.parent_task_run_id is not None:
             filters.append(self.parent_task_run_id.as_sql_filter(db))
+        if self.idempotency_key is not None:
+            filters.append(self.idempotency_key.as_sql_filter(db))
 
         return filters
 
