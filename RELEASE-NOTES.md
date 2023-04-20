@@ -38,7 +38,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 ### Enhancements
 - Rename `prefect.__root_path__` to `prefect.__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
 - Include flow run and flow as related resources when emitting events via the events worker — https://github.com/PrefectHQ/prefect/pull/9129
-- Improve Cloud storage project recipes — https://github.com/PrefectHQ/prefect/pull/9145
+- Improve Cloud storage Projects recipes — https://github.com/PrefectHQ/prefect/pull/9145
 - Use new sessions and transactions for each query during `CancellationCleanup` — https://github.com/PrefectHQ/prefect/pull/9124
 - Stream `git` output during `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9149
 - Update deployment defaults with project init — https://github.com/PrefectHQ/prefect/pull/9146
