@@ -40,6 +40,8 @@ See the following pull requests for implementation details:
 - Add tutorial for creating a worker - [#9179](https://github.com/PrefectHQ/prefect/pull/9179)
 - Add GitHub Action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.4...2.10.5
+
 ## Release 2.10.4
 
 This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
@@ -67,6 +69,7 @@ Prior to this release, removing keys from a project's `deployment.yaml` caused a
 - Add polling interval information to worker and agent documentation — [#9209](https://github.com/PrefectHQ/prefect/pull/9209)
 - Update documentation badge styling to improve docs usability — [#9207](https://github.com/PrefectHQ/prefect/pull/9207)
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.3...2.10.4
 
 ## Release 2.10.3
 
@@ -500,6 +503,8 @@ We heard that people loved the simplicity and sleekness of the timeline on the f
 * @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
 * @mesejo made their first contribution in https://github.com/PrefectHQ/prefect/pull/8842
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.6...2.8.7
+
 ## Release 2.8.6
 
 ### `prefect.runtime` for context access
@@ -586,6 +591,7 @@ See https://github.com/PrefectHQ/prefect/pull/8790 for details.
 * @Zesky665 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8692
 * @predatorprasad made their first contribution in https://github.com/PrefectHQ/prefect/pull/8755
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.4...2.8.5
 
 ## Release 2.8.4
 
@@ -813,6 +819,8 @@ Note: Many settings have been renamed but your old settings will be respected. T
 - @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
 - @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.0...2.8.1
+
 ## Release 2.8.0
 
 ### Prioritize flow runs with work pools 🏊
@@ -884,6 +892,8 @@ To learn more about work pools, check out the [docs](https://docs.prefect.io/con
 
 ### Contributors
 - @carderne
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.12...2.8.0
 
 ## Release 2.7.12
 
