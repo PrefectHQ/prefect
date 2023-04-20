@@ -258,36 +258,6 @@ class TestBlockingPause:
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
-            await pause_flow_run(timeout=10, poll_interval=2)
-            await foo(wait_for=[x])
-            await foo(wait_for=[y])
-            await foo(wait_for=[x, y])
-
-        async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await orion_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
-
-        flow_run_state, the_answer = await asyncio.gather(
-            pausing_flow(return_state=True),
-            flow_resumer(),
-        )
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await orion_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 5, "all tasks should finish running"
-
-    async def test_paused_flows_can_be_resumed(self, orion_client):
-        @task
-        async def foo():
-            return 42
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def pausing_flow():
-            x = await foo.submit()
-            y = await foo.submit()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
             await foo(wait_for=[x])
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")

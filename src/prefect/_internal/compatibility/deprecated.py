@@ -181,7 +181,8 @@ def deprecated_field(
 
     when = when or (lambda _: True)
 
-    # Replaces the model's __init__ method with one that performs an additional warning check
+    # Replaces the model's __init__ method with one that performs an additional warning
+    # check
     def decorator(model_cls: Type[M]) -> Type[M]:
         message = generate_deprecation_message(
             name=f"The field {name!r} in {model_cls.__name__!r}",

@@ -410,7 +410,7 @@ def push_image(
     repository = f"{registry}/{name}"
 
     with docker_client() as client:
-        image: Image = client.images.get(image_id)
+        image: "docker.Image" = client.images.get(image_id)
         image.tag(repository, tag=tag)
         events = client.api.push(repository, tag=tag, stream=True, decode=True)
         try:
@@ -459,8 +459,8 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     """
     Parse Docker Image String
 
-    - If a tag exists, this function parses and returns the image registry and tag, separately
-      as a tuple.
+    - If a tag exists, this function parses and returns the image registry and tag,
+      separately as a tuple.
       - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
       - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
     - Supports parsing Docker Image strings that follow Docker Image Specification v1.1.0

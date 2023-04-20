@@ -184,15 +184,6 @@ class TestSettingsClass:
 
         assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
 
-    def test_settings_to_environment_respects_includes(self):
-        include = [PREFECT_SERVER_API_PORT]
-
-        assert Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables(
-            include=include
-        ) == {"PREFECT_SERVER_API_PORT": "3000"}
-
-        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
-
     def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
             monkeypatch.delenv(key, raising=False)

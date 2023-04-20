@@ -62,21 +62,21 @@ from typing import (
     Optional,
     Set,
     TypeVar,
+    Any,
 )
 from uuid import UUID
 
 import anyio
 
 from prefect.utilities.collections import AutoEnum
-
-if TYPE_CHECKING:
-    import anyio.abc
-
 from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
 from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
-from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    import anyio.abc
+
 
 T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")

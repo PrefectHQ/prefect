@@ -1018,7 +1018,7 @@ class TestPrefectConsoleHandler:
 
         try:
             raise ValueError("oh my")
-        except:
+        except Exception:
             logger.exception("Helpful context!")
 
         _, stderr = capsys.readouterr()

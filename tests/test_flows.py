@@ -1342,8 +1342,8 @@ class TestFlowRunLogs:
         def my_flow():
             logger = get_run_logger()
             try:
-                x + y
-            except:
+                x + y  # noqa: F821
+            except Exception:
                 logger.error("There was an issue", exc_info=True)
 
         my_flow()

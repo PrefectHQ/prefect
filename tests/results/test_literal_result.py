@@ -28,7 +28,7 @@ async def test_result_literal_json_roundtrip(value):
 
 
 @pytest.mark.parametrize("value", LITERAL_VALUES)
-async def test_result_literal_json_roundtrip(value):
+async def test_result_literal_json_roundtrip_base_result_parser(value):
     result = await LiteralResult.create(value)
     serialized = result.json()
     deserialized = BaseResult.parse_raw(serialized)

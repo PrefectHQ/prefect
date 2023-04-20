@@ -597,7 +597,7 @@ class TestCreateDeployment:
                 {
                     "job_configuration": {
                         "thing_one": "{{ var1 }}",
-                        "thing_one": "{{ var2 }}",
+                        "thing_two": "{{ var2 }}",
                     },
                     "variables": {
                         "properties": {

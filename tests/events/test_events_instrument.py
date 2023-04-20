@@ -94,12 +94,12 @@ async def test_handles_method_failure(
 
     try:
         instance.sync_fail()
-    except:
+    except Exception:
         pass
 
     try:
         await instance.async_fail()
-    except:
+    except Exception:
         pass
 
     await asserting_events_worker.drain()

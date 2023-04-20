@@ -563,18 +563,6 @@ class TestYAML:
         auth_info = new_d.infrastructure.credentials.auth_info
         assert auth_info.get_secret_value() == {"key": "val"}
 
-    def test_yaml_comment_for_work_queue(self, tmp_path):
-        d = Deployment(name="yaml", flow_name="test")
-        yaml_path = str(tmp_path / "dep.yaml")
-        d.to_yaml(yaml_path)
-        with open(yaml_path, "r") as f:
-            contents = f.readlines()
-
-        comment_index = contents.index(
-            "# The work queue that will handle this deployment's runs\n"
-        )
-        assert contents[comment_index + 1] == "work_queue_name: default\n"
-
 
 @flow
 def ad_hoc_flow():
