@@ -15,7 +15,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 
 ### Fixes
 - fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
-- Add `configuration` to `kill_infrastructure` signature by @desertaxle in https://github.com/PrefectHQ/prefect/pull/9250
+- Add `configuration` to `Worker.kill_infrastructure` signature - [#9250] (https://github.com/PrefectHQ/prefect/pull/9250)
 
 ### Experimental
 - Add worker.executed-flow-run event by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9227
