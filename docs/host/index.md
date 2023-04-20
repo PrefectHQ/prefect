@@ -1,11 +1,14 @@
 ---
-description: Prefect Sever
+description: Hosting Prefect Sever
 tags:
     - UI
     - dashboard
-    - Prefect Cloud
+    - Prefect Server
     - Observability
     - Events
+    - Serve
+    - Database
+    - SQLite
 ---
 
 # Hosting Prefect Server
