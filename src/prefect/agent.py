@@ -51,6 +51,7 @@ class PrefectAgent:
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
+        client: Optional[PrefectClient] = None,
     ) -> None:
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
@@ -69,7 +70,7 @@ class PrefectAgent:
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.limit: Optional[int] = limit
         self.limiter: Optional[anyio.CapacityLimiter] = None
-        self.client: Optional[PrefectClient] = None
+        self.client = client
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -630,7 +631,9 @@ class PrefectAgent:
         self.limiter = (
             anyio.CapacityLimiter(self.limit) if self.limit is not None else None
         )
-        self.client = get_client()
+        if not self.client:
+            self.client = get_client()
+
         await self.client.__aenter__()
         await self.task_group.__aenter__()
 

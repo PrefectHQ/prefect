@@ -68,7 +68,7 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
-def get_client(httpx_settings: dict = None) -> "PrefectClient":
+def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
