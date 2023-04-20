@@ -1,0 +1,10 @@
+[per-file-ignores]
+
+# Do not inforce usage and import order rules in init files
+"__init__.py" = ["E402", "F401", "I"]
+
+# Do not enforce line length limits in migrations
+"src/prefect/server/database/migrations/**/*" = ["E501"]
+
+# Do not enforce line length limits in tests
+"tests/**/*" = ["E501"]
