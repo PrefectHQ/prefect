@@ -10,6 +10,12 @@ With the new [Deploy a Prefect flow](https://github.com/marketplace/actions/depl
 
 Workers, Prefect's next-generation agents, have dedicated infrastructure types. This week, we are releasing typed workers for each major cloud provider: AWS, GCP, and Azure. You will be able to find them in the [prefect-aws](https://github.com/PrefectHQ/prefect-aws), [prefect-gcp](https://prefecthq.github.io/prefect-gcp/), and [prefect-azure](https://github.com/PrefectHQ/prefect-azure) collections, respectively. 
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-aws/pull/238
+- https://github.com/PrefectHQ/prefect-aws/pull/244
+- https://github.com/PrefectHQ/prefect-gcp/pull/172
+- https://github.com/PrefectHQ/prefect-azure/pull/87
+
 ### Enhancements
 - Add `idempotency_key` to flow runs filter — [#8600](https://github.com/PrefectHQ/prefect/pull/8600)
 - Add `details` tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
