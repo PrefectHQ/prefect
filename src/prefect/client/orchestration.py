@@ -358,7 +358,9 @@ class PrefectClient:
         body = {
             "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
             ),
             "task_runs": (
                 task_run_filter.dict(json_compatible=True) if task_run_filter else None
@@ -1544,7 +1546,9 @@ class PrefectClient:
         body = {
             "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
             ),
             "task_runs": (
                 task_run_filter.dict(json_compatible=True) if task_run_filter else None
@@ -1666,7 +1670,9 @@ class PrefectClient:
         body = {
             "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
             ),
             "task_runs": (
                 task_run_filter.dict(json_compatible=True) if task_run_filter else None
@@ -1858,7 +1864,9 @@ class PrefectClient:
         body = {
             "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
             ),
             "task_runs": (
                 task_run_filter.dict(json_compatible=True) if task_run_filter else None
