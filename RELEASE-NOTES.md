@@ -23,11 +23,9 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Emit cancelled-flow-run event when worker cancels a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9255
 
 ### Documentation
-- fix broken link by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/9247
-- Remove outdated warning from task run concurrency UI docs by @rpeden in https://github.com/PrefectHQ/prefect/pull/9256
-- Add documentation edit button by @jawnsy in https://github.com/PrefectHQ/prefect/pull/9259
-- Add GitHub action to trigger versioned builds in docs repository by @rpeden in https://github.com/PrefectHQ/prefect/pull/8984
-
+- Fix broken link on docs landing page - [#9247](https://github.com/PrefectHQ/prefect/pull/9247)
+- Remove outdated warning from task run concurrency UI docs - [#9256](https://github.com/PrefectHQ/prefect/pull/9256)
+- Add button to edit documentation to each page - [#9259](https://github.com/PrefectHQ/prefect/pull/9259)
 
 ## Release 2.10.4
 
