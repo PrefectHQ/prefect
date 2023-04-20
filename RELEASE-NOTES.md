@@ -36,19 +36,19 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 
 
 ### Enhancements
-- Rename `__root_path__` to `__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
+- Rename `prefect.__root_path__` to `prefect.__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
 - Include flow run and flow as related resources when emitting events via the events worker — https://github.com/PrefectHQ/prefect/pull/9129
-- Cloud storage recipe improvements — https://github.com/PrefectHQ/prefect/pull/9145
+- Improve Cloud storage Projects recipes — https://github.com/PrefectHQ/prefect/pull/9145
 - Use new sessions and transactions for each query during `CancellationCleanup` — https://github.com/PrefectHQ/prefect/pull/9124
 - Stream `git` output during `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9149
 - Update deployment defaults with project init — https://github.com/PrefectHQ/prefect/pull/9146
-- Mock runtime via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
-- Wire up scheduling kwargs to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
+- Add ability to mock `prefect.runtime` attributes via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
+- Add scheduling options to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
 - Add deployment and flow filters to `/artifacts/filter` and `/artifacts/latest/filter` routes — https://github.com/PrefectHQ/prefect/pull/9089
 - Add `/artifacts/latest/count` route — https://github.com/PrefectHQ/prefect/pull/9090
-- add flow run to task run logging — https://github.com/PrefectHQ/prefect/pull/9170
-- Add pragma statements automatically if sqlite — https://github.com/PrefectHQ/prefect/pull/9169
-- Improved recipe initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
+- Add flow run metadata to task run logger — https://github.com/PrefectHQ/prefect/pull/9170
+- Add pragma statements automatically if sqlite writing database migrations for SQLite — https://github.com/PrefectHQ/prefect/pull/9169
+- Improve Projects `recipe` initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
 
 ### Fixes
 - Update `prefect deploy` to pull `flow_name` and `entrypoint` from deployment.yaml if specified — https://github.com/PrefectHQ/prefect/pull/9157
@@ -58,12 +58,11 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Fix apply artifact collection filter — https://github.com/PrefectHQ/prefect/pull/9153
 
 ### Documentation
-- Adds artifacts to api-ref — https://github.com/PrefectHQ/prefect/pull/9143
-- Expands upon project step documentation — https://github.com/PrefectHQ/prefect/pull/9151
-- small project doc fixes — https://github.com/PrefectHQ/prefect/pull/9161
+- Add artifacts to API reference — https://github.com/PrefectHQ/prefect/pull/9143
+- Expand upon Projects `steps` documentation — https://github.com/PrefectHQ/prefect/pull/9151
 
 ### Collections
-- add prefect-spark-on-k8s-operator to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
+- Add `prefect-spark-on-k8s-operator` to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
 
 ### Contributors
 * @tardunge made their first contribution in https://github.com/PrefectHQ/prefect/pull/9029
