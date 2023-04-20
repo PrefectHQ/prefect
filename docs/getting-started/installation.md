@@ -48,7 +48,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.8.6"
+pip install -U "prefect==2.10.4"
 ```
 </div>
 
@@ -93,17 +93,14 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.8.6
+Version:             2.10.4
 API version:         0.8.4
-Python version:      3.11.0
-Git commit:          d0f14f17
-Built:               Tue, Jan 3, 2023 8:46 AM
+Python version:      3.9.16
+Git commit:          b6d0433a
+Built:               Thu, Apr 13, 2023 5:34 PM
 OS/Arch:             darwin/arm64
 Profile:             default
-Server type:         ephemeral
-Server:
-  Database:          sqlite
-  SQLite version:    3.40.0
+Server type:         cloud
 ```
 </div>
 
@@ -170,7 +167,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
@@ -181,21 +178,19 @@ $ sqlite3 --version
 </div>
 
 Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
+Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.8.6
+Version:             2.10.4
 API version:         0.8.4
-Python version:      3.11.0
-Git commit:          d0f14f17
-Built:               Tue, Jan 3, 2023 8:46 AM
+Python version:      3.9.16
+Git commit:          b6d0433a
+Built:               Thu, Apr 13, 2023 5:34 PM
 OS/Arch:             darwin/arm64
-Profile:             default
-Server type:         ephemeral
-Server:
-  Database:          sqlite
-  SQLite version:    3.40.0
+Profile:              default
+Server type:         cloud
 ```
 </div>
 
@@ -265,7 +260,7 @@ The following sections provide important notes for users upgrading from Prefect 
 
 ### Upgrading to 2.0b6
 
-In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
+In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/concepts/blocks/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
 
 After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2 API.
 

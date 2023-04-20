@@ -15,7 +15,7 @@ hide:
 
 Prefect enables you to build and observe resilient data workflows so that you can understand, react to, and recover from unexpected changes. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
-With Prefect you gain simple:
+With Prefect you gain:
 
 <ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
@@ -23,8 +23,8 @@ With Prefect you gain simple:
     <li> <a href="/concepts/logs/"> logging </a> </li>
     <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
     <li> <a href="/concepts/task-runners/#task-runners"> async</a> </li>
-    <li> <a href="/ui/notifications/"> notifications</a> </li>
-    <li> <a href="/ui/overview/"> observability</a> </li>
+    <li> <a href="/cloud/automations/"> notifications</a> </li>
+    <li> <a href="/cloud/overview/"> observability</a> </li>
 </ul>
 
 Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more!

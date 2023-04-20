@@ -7,11 +7,13 @@ tags:
   - configuration
   - infrastructure
   - integrations
+  - integrations
   - contributing
 ---
 
 # Contribute
 
+We welcome contributors! You can help contribute blocks and integrations by following these steps.
 We welcome contributors! You can help contribute blocks and integrations by following these steps.
 
 ## Contributing Blocks

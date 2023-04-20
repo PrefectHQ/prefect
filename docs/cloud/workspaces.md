@@ -1,6 +1,5 @@
 ---
 description: Workspaces are isolated environments for flows and deployments within Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - Prefect Cloud
@@ -38,7 +37,7 @@ Your list of available workspaces may include:
     - [Deployments](/concepts/deployments/)
     - [Work pools](/concepts/work-pools/)
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
-    - [Notifications](/ui/notifications/)
+    - [Automations](../automations/)
 
 Your user permissions within workspaces may vary. [Organizations](/ui/organizations/) can assign roles and permissions at the workspace level.
 

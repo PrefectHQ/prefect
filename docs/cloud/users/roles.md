@@ -1,6 +1,5 @@
 ---
 description: Configure user workspace roles in Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -15,7 +14,7 @@ tags:
 
 # User and Service Account Roles <span class="badge cloud"></span> <span class="badge orgs"></span>
 
-[Organizations](/ui/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
+[Organizations](/cloud/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
 
 Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.  
 
@@ -52,8 +51,6 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Owner | All Developer abilities, _plus_: <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
 
 
-
-
 ## Custom workspace roles
 
 The built-in roles will serve the needs of most users, but your team may need to configure custom roles, giving users access to specific permissions within a workspace.
@@ -74,7 +71,7 @@ Custom roles created using an inherited role will follow Prefect's default works
 
 To configure an inherited role when configuring a custom role, select the **Inherit permission from a default role** check box, then select the role from which the new role should inherit permissions.
 
-![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](../img/ui/org-inherited-role.png)
+![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](../../img/ui/org-inherited-role.png)
 
 ## Workspace role permissions
 

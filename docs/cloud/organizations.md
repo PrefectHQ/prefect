@@ -1,6 +1,5 @@
 ---
 description: Manage teams and organizations in Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard

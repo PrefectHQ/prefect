@@ -26,7 +26,7 @@ To run deployments, you must configure at least one agent or worker (and its ass
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
 
-Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
+Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
 
 It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 
@@ -115,9 +115,18 @@ In addition, users can control aspects of work pool behavior, like how many runs
 
 You can configure work pools by using:
 
-- Prefect UI [**Work Pools**](/ui/work-pools/) page
+ 
 - Prefect CLI commands
 - Prefect Python API
+- Prefect UI
+
+To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
+
+![The UI displays a list of configured work pools](../img/ui/work-pool-list.png)
+
+You can pause a work pool from this page by using the toggle.
+
+Select the **+** button to create a new work pool. You'll be able to specify the details for work served by this work pool.
 
 To configure a work pool via the Prefect CLI, use the `prefect work-pool create` command:
 
@@ -383,5 +392,5 @@ In some cases, infrastructure will take longer than 10 seconds to start the flow
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time.
 
 ### Polling for work
-Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](./settings/) with the
+Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.

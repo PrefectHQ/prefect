@@ -1,14 +1,22 @@
 ---
-description: An event is a notification of a change from a resource
+description: Prefect Cloud Event Feed
 tags:
-    - resources
-    - events
-    - observability
+    - UI
+    - dashboard
+    - Prefect Cloud
+    - Observability
+    - Events
 ---
 
 # Events <span class="badge cloud"></span>
 
-An event is a notification of a change. Together, events form a feed of activity recording what's happening across your stack. Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations. Events can represent API calls, state transitions, or changes in your execution environment or infrastructure. Events enable observability into your data stack via the [event feed](/ui/events/), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
+An event is a notification of a change. Together, events form a feed of activity recording what's happening across your stack. 
+
+Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations. 
+
+Events can represent API calls, state transitions, or changes in your execution environment or infrastructure. 
+
+Events enable observability into your data stack via the [event feed](/ui/events/), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
 
 ![Prefect UI](../img/ui/event-feed.png)
 
@@ -97,8 +105,27 @@ Events can optionally contain related resources, used to associate the event wit
 ]
 ```
 
+# Events in the Cloud UI
+
+Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the event feed page.
+
+![Event feed](../img/ui/event-feed.png)
+
+## Event feed <span class="badge beta"></span>
+
+The event feed is the primary place to view, search, and filter events to understand activity across your stack. Each entry displays data on the resource, related resource, and event that took place.
+
+## Event details
+
+You can view more information about an event by clicking into it, where you can view the full details of an event's resource, related resources, and its payload.
+
+![Event detail](../img/ui/event-detail.png)
 
 
+## Reacting to events
 
+From an event page, you can easily configure an automation to trigger on the observation of matching events or a lack of matching events by clicking the automate button in the overflow menu:
 
+![Automation from event](../img/ui/automation-from-event.png)
 
+The default trigger configuration will fire every time it sees an event with a matching resource identifier. Advanced configuration is possible via [custom triggers](/cloud/automations/). 

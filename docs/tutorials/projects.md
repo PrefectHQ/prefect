@@ -134,7 +134,7 @@ $ prefect deployment run 'Call API/my-first-deployment' \
 ```
 </div>
 
-You should now be able to monitor and confirm these runs were created and ran via your [server UI](/ui).
+You should now be able to monitor and confirm these runs were created and ran in the UI.
 
 !!! tip "Flow registration"
     `prefect deploy` will automatically register your flow with your local project; you can register flows yourself explicitly with the `prefect project register-flow` command:
