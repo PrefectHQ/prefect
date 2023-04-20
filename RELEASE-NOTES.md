@@ -42,7 +42,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Use new sessions and transactions for each query during `CancellationCleanup` — https://github.com/PrefectHQ/prefect/pull/9124
 - Stream `git` output during `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9149
 - Update deployment defaults with project init — https://github.com/PrefectHQ/prefect/pull/9146
-- ADd ability to mock `prefect.runtime` attributes via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
+- Add ability to mock `prefect.runtime` attributes via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
 - Add scheduling options to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
 - Add deployment and flow filters to `/artifacts/filter` and `/artifacts/latest/filter` routes — https://github.com/PrefectHQ/prefect/pull/9089
 - Add `/artifacts/latest/count` route — https://github.com/PrefectHQ/prefect/pull/9090
