@@ -14,11 +14,13 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Add `idempotency_key` to flow runs filter — [#8600](https://github.com/PrefectHQ/prefect/pull/8600)
 - Add details tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 - Add status code to base client log on retry - [#9265] (https://github.com/PrefectHQ/prefect/pull/9265)
+
 ### Fixes
 - Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046](https://github.com/PrefectHQ/prefect/pull/9046)
 - Add `configuration` to `Worker.kill_infrastructure` signature - [#9250](https://github.com/PrefectHQ/prefect/pull/9250)
 - Update `critical_service_loop` to throw a runtime error on failure — https://github.com/PrefectHQ/prefect/pull/9267
 - Fix pip requirement inference compatibility with Python 3.11+ and pip 23.1+ - [#9278] (https://github.com/PrefectHQ/prefect/pull/9278)
+
 ### Experimental
 - Add `worker.executed-flow-run` event - [#9227](https://github.com/PrefectHQ/prefect/pull/9227)
 - Emit events for worker lifecycle - [#9249](https://github.com/PrefectHQ/prefect/pull/9249)
@@ -31,6 +33,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Remove UI documentation pages, reorganize content, and simplify side bar navigation structure - [#9039](https://github.com/PrefectHQ/prefect/pull/9039)
 - Add tutorial for creating a worker - [#9179](https://github.com/PrefectHQ/prefect/pull/9179)
 - Add GitHub action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
+
 ## Release 2.10.4
 
 This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
