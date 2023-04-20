@@ -171,7 +171,7 @@ class DeploymentCreate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-        variables_schema = base_job_template.get("variables")
+        variables_schema = deepcopy(base_job_template.get("variables"))
 
         if variables_schema is not None:
             # jsonschema considers required fields, even if that field has a default,
