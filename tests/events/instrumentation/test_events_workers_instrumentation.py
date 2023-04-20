@@ -19,7 +19,10 @@ class WorkerEventsTestImpl(BaseWorker):
         pass
 
     async def kill_infrastructure(
-        self, infrastructure_pid: str, grace_seconds: int = 30
+        self,
+        infrastructure_pid: str,
+        configuration: BaseJobConfiguration,
+        grace_seconds: int = 30,
     ):
         pass
 
@@ -271,6 +274,7 @@ async def test_worker_emits_cancelled_event(
     flow = await orion_client.read_flow(flow_run.flow_id)
 
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
         await worker.check_for_cancelled_flow_runs()
 
     asserting_events_worker.drain()
@@ -293,6 +297,16 @@ async def test_worker_emits_cancelled_event(
 
     assert related == [
         {
+            "prefect.resource.id": f"prefect.deployment.{worker_deployment_wq1.id}",
+            "prefect.resource.role": "deployment",
+            "prefect.resource.name": worker_deployment_wq1.name,
+        },
+        {
+            "prefect.resource.id": f"prefect.flow.{flow.id}",
+            "prefect.resource.role": "flow",
+            "prefect.resource.name": flow.name,
+        },
+        {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.role": "flow-run",
             "prefect.resource.name": flow_run.name,
@@ -305,5 +319,10 @@ async def test_worker_emits_cancelled_event(
         {
             "prefect.resource.id": "prefect.tag.test",
             "prefect.resource.role": "tag",
+        },
+        {
+            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+            "prefect.resource.role": "work-pool",
+            "prefect.resource.name": work_pool.name,
         },
     ]
