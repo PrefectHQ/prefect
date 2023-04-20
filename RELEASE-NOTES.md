@@ -32,7 +32,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Add `edit` button to docs to improve ability to fix documentation - [#9259](https://github.com/PrefectHQ/prefect/pull/9259)
 - Remove UI documentation pages, reorganize content, and simplify side bar navigation structure - [#9039](https://github.com/PrefectHQ/prefect/pull/9039)
 - Add tutorial for creating a worker - [#9179](https://github.com/PrefectHQ/prefect/pull/9179)
-- Add GitHub action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
+- Add GitHub Action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
 
 ## Release 2.10.4
 
