@@ -12,7 +12,7 @@ tags:
     - recipes
 ---
 
-# Creating a Worker
+# Developing a New Worker Type
 
 !!! warning "Advanced Topic"
     This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
