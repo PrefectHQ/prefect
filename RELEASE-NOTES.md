@@ -1,5 +1,35 @@
 # Prefect Release Notes
 
+## Release 2.10.5
+
+### Deploy a Prefect flow via Github Actions
+
+With the new `Deploy a Prefect flow` Github action, you can deploy a flow to Prefect Cloud via the new [Projects](https://docs.prefect.io/latest/concepts/projects/) system.
+
+### Cloud Provider Workers
+
+Azure Container Instances
+
+### Enhancements
+* make flow run page full width by @brandonreid in https://github.com/PrefectHQ/prefect/pull/9258
+
+
+### Fixes
+* fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
+* Add `configuration` to `kill_infrastructure` signature by @desertaxle in https://github.com/PrefectHQ/prefect/pull/9250
+
+### Experimental
+* Add worker.executed-flow-run event by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9227
+* Emit worker lifecycle events. by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9249
+* Emit cancelled-flow-run event when worker cancels a flow run by @bunchesofdonald in https://github.com/PrefectHQ/prefect/pull/9255
+
+### Documentation
+* fix broken link by @zzstoatzz in https://github.com/PrefectHQ/prefect/pull/9247
+* Remove outdated warning from task run concurrency UI docs by @rpeden in https://github.com/PrefectHQ/prefect/pull/9256
+* Add documentation edit button by @jawnsy in https://github.com/PrefectHQ/prefect/pull/9259
+* Add GitHub action to trigger versioned builds in docs repository by @rpeden in https://github.com/PrefectHQ/prefect/pull/8984
+
+
 ## Release 2.10.4
 
 This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
