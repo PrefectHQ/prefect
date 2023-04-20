@@ -14,7 +14,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Add details tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 
 ### Fixes
-- fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
+- Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046] (https://github.com/PrefectHQ/prefect/pull/9046)
 - Add `configuration` to `Worker.kill_infrastructure` signature - [#9250] (https://github.com/PrefectHQ/prefect/pull/9250)
 
 ### Experimental
