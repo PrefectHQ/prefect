@@ -48,7 +48,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Add `/artifacts/latest/count` route — https://github.com/PrefectHQ/prefect/pull/9090
 - Add flow run metadata to task run logger — https://github.com/PrefectHQ/prefect/pull/9170
 - Add pragma statements automatically if sqlite writing database migrations for SQLite — https://github.com/PrefectHQ/prefect/pull/9169
-- Improved recipe initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
+- Improve Projects `recipe` initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
 
 ### Fixes
 - Update `prefect deploy` to pull `flow_name` and `entrypoint` from deployment.yaml if specified — https://github.com/PrefectHQ/prefect/pull/9157
