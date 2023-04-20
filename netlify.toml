@@ -63,7 +63,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/work-queues/"
-to = "/ui/work-pools/"
+to = "/cloud/work-pools/"
 status = 301
 
 [[redirects]]
@@ -73,16 +73,15 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
 status = 301
 
 # redirects added 2023-03-21
 
 [[redirects]]
 from = "/ui/overview/"
-to = "/ui/"
+to = "/cloud/"
 status = 301
-
 
 [[redirects]]
 from = "/api-ref/overview"
@@ -91,7 +90,7 @@ status = 301
 
 [[redirects]]
 from = "/concepts/overview/"
-to = "/concepts/concepts/"
+to = "/concepts/"
 status = 301
 
 [[redirects]]
@@ -156,19 +155,176 @@ status = 301
 
 [[redirects]]
 from = "/ui/flows-and-tasks/"
-to = "/ui/flows/"
+to = "/concepts/flows/"
 status = 301
 
 [[redirects]]
-from = "/getting-started/overview//"
+from = "/getting-started/overview/"
 to = "/"
 status = 301
 
+# add from these locations 
+# I think I can use * or splat - check netlifly docs
+# pages that don't carry over get added above explicitly
+# then splat the rest from ui/ to cloud/
+ 
 [[redirects]]
-from = "/cloud/"
-to = "/ui/cloud/"
+from = "/ui/index/"
+to = "/cloud/"
 status = 301
 
+[[redirects]]
+from = "/ui/index/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-quickstart/" 
+to = "/cloud/cloud-quickstart/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-api-keys/"
+to = "/cloud/users/api-keys/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-local-environment/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/cloud/cloud-local-environment/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/ui/organizations/"
+to = "/cloud/organizations/"
+status = 301
+
+[[redirects]]
+from = "/ui/workspaces/"
+to = "/cloud/workspaces/"
+status = 301
+
+[[redirects]]
+from = "/ui/service-accounts/"
+to = "/cloud/users/service-accounts/"
+status = 301
+
+[[redirects]]
+from = "/ui/roles/"
+to = "/cloud/users/roles/"
+status = 301
+
+[[redirects]]
+from = "/ui/sso/"
+to = "/cloud/users/sso/"
+status = 301
+
+[[redirects]]
+from = "/ui/audit-log/"
+to = "/cloud/users/audit-log/"
+status = 301
+
+[[redirects]]
+from = "/ui/automations/"
+to = "/cloud/automations/"
+status = 301
+
+[[redirects]]
+from = "/ui/events/"
+to = "/cloud/events/"
+status = 301
+
+[[redirects]]
+from = "/ui/troubleshooting/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/ui/rate-limits/"
+to = "/cloud/rate-limits/"
+status = 301
+
+
+[[redirects]]
+from = "/cloud/overview/"
+to = "/cloud/"
+status = 301
+
+
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/blocks/"
+to = "/concepts/blocks/"
+status = 301
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/server/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/database/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/notifications/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/task-concurrency"
+to = "/concepts/tasks/"
+status = 301
+
+[[redirects]]
+from = "/ui/flow-runs"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/ui/deployments"
+to = "/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
+status = 301
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
