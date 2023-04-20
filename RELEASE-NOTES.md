@@ -28,6 +28,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 - Fix broken link on docs landing page - [#9247](https://github.com/PrefectHQ/prefect/pull/9247)
 - Remove outdated warning from task run concurrency UI docs - [#9256](https://github.com/PrefectHQ/prefect/pull/9256)
 - Add `edit` button to docs to improve ability to fix documentation - [#9259](https://github.com/PrefectHQ/prefect/pull/9259)
+- Remove UI documentation pages, reorganize content, and simplify side bar navigation structure - [#9039](https://github.com/PrefectHQ/prefect/pull/9039)
 
 ## Release 2.10.4
 
