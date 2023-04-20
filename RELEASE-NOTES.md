@@ -8,11 +8,10 @@ With the new `Deploy a Prefect flow` Github action, you can deploy a flow to Pre
 
 ### Cloud Provider Workers
 
-Azure Container Instances
+Workers, Prefect's next-generation agents, have dedicated infrastructure types. This week, we are shipping types workers for each major cloud provider, AWS, GCP, and Azure. You will be able to find them in the [prefect-aws](https://github.com/PrefectHQ/prefect-aws), [prefect-gcp](https://prefecthq.github.io/prefect-gcp/), and [prefect-azure](https://github.com/PrefectHQ/prefect-azure) collections, respectively. 
 
 ### Enhancements
-* make flow run page full width by @brandonreid in https://github.com/PrefectHQ/prefect/pull/9258
-
+* In order to allow more space for the flow run graph, the metadata in right side bar of the flow run page has moved to the new "Details" tab - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
 
 ### Fixes
 * fix(deployments): remove erroneous creation of work queue by @joelluijmes in https://github.com/PrefectHQ/prefect/pull/9046
