@@ -1,5 +1,6 @@
 ---
 description: Hosting Prefect Sever
+icon: material/server
 tags:
     - UI
     - dashboard
@@ -8,7 +9,7 @@ tags:
     - Events
     - Serve
     - Database
-    - SQLite
+    - SQLite 
 ---
 
 # Hosting Prefect Server
