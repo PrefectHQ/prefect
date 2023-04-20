@@ -162,7 +162,7 @@ nav:
         - API Rate Limits: cloud/rate-limits.md
         - Connecting & Troubleshooting: cloud/connecting.md
     - Host: 
-        - index.md
+        - host/index.md
     - Guides: 
         - guides/index.md
         - Testing: guides/testing.md
