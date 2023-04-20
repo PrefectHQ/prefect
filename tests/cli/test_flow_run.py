@@ -582,7 +582,7 @@ class TestFlowRunLogs:
             ],
             expected_code=1,
             expected_output_contains=(
-                "Head and Tail option can't be used together. \nPlease chosse only one!"
+                "Please provide either a `head` or `tail` option but not both."
             ),
         )
 
@@ -598,7 +598,7 @@ class TestFlowRunLogs:
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
                 for i in range(
-                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 20, -1
+                    self.LOGS_DEFAULT_PAGE_SIZE - 9, self.LOGS_DEFAULT_PAGE_SIZE
                 )
             ],
             expected_line_count=20,

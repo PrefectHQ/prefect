@@ -160,7 +160,7 @@ async def logs(
         "--num-logs",
         "-n",
         help=(
-            "Number of logs to show when using the --head or tail flag. If None,"
+            "Number of logs to show when using the --head or --tail flag. If None,"
             f" defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
         ),
         min=1,
@@ -192,19 +192,18 @@ async def logs(
 
     # if head and tail flags are being used together
     if head and tail:
-        exit_with_error(
-            "Head and Tail option can't be used together. \nPlease chosse only one!"
-        )
+        exit_with_error("Please provide either a `head` or `tail` option but not both.")
 
+    user_specified_num_logs = (
+        num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+        if num_logs or tail or num_logs
+        else None
+    )
+
+    # if using tail update offset and tail_limit according to LOGS_DEFAULT_PAGE_SIZE
     if tail:
-        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
         offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
         tail_limit = min(user_specified_num_logs, LOGS_DEFAULT_PAGE_SIZE)
-    # If head is specified, we need to stop after we've retrieved enough logs
-    elif head or num_logs:
-        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-    else:
-        user_specified_num_logs = None
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
