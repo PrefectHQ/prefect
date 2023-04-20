@@ -62,7 +62,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Expands upon project step documentation — https://github.com/PrefectHQ/prefect/pull/9151
 
 ### Collections
-- Add `prefect-spark-on-k8s-operator` to integrations cataog list. — https://github.com/PrefectHQ/prefect/pull/9029
+- Add `prefect-spark-on-k8s-operator` to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
 
 ### Contributors
 * @tardunge made their first contribution in https://github.com/PrefectHQ/prefect/pull/9029
