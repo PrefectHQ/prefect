@@ -59,7 +59,7 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 
 ### Documentation
 - Adds artifacts to API reference — https://github.com/PrefectHQ/prefect/pull/9143
-- Expands upon project step documentation — https://github.com/PrefectHQ/prefect/pull/9151
+- Expand upon Projects `steps` documentation — https://github.com/PrefectHQ/prefect/pull/9151
 
 ### Collections
 - Add `prefect-spark-on-k8s-operator` to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
