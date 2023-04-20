@@ -139,7 +139,7 @@ nav:
         - Deploy: 
             - Deployments: concepts/deployments.md
             - Projects: concepts/projects.md
-            - Worker Pools, Workers & Agents: concepts/work-pools.md
+            - Work Pools, Workers & Agents: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
             - Infrastructure: concepts/infrastructure.md
