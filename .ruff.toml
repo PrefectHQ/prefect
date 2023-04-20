@@ -16,6 +16,3 @@ ignore = ["E501"]
 
 # Do not enforce line length limits in migrations
 "src/prefect/server/database/migrations/**/*" = ["E501"]
-
-# Do not enforce line length limits in tests
-"tests/**/*" = ["E501"]

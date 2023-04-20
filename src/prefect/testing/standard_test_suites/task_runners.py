@@ -20,13 +20,6 @@ from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, quote
 
 
-@pytest.fixture
-def tmp_file(tmp_path):
-    file_path = tmp_path / "canary.txt"
-    file_path.touch()
-    return file_path
-
-
 class TaskRunnerStandardTestSuite(ABC):
     """
     The standard test suite for task runners.
@@ -55,6 +48,12 @@ class TaskRunnerStandardTestSuite(ABC):
     @abstractmethod
     def task_runner(self) -> BaseTaskRunner:
         pass
+
+    @pytest.fixture
+    def tmp_file(self, tmp_path):
+        file_path = tmp_path / "canary.txt"
+        file_path.touch()
+        return file_path
 
     async def test_successful_flow_run(self, task_runner):
         @task
