@@ -17,6 +17,7 @@ Workers, Prefect's next-generation agents, have dedicated infrastructure types. 
 ### Fixes
 - Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046](https://github.com/PrefectHQ/prefect/pull/9046)
 - Add `configuration` to `Worker.kill_infrastructure` signature - [#9250](https://github.com/PrefectHQ/prefect/pull/9250)
+- Update `critical_service_loop` to throw a runtime error on failure — https://github.com/PrefectHQ/prefect/pull/9267
 
 ### Experimental
 - Add `worker.executed-flow-run` event - [#9227](https://github.com/PrefectHQ/prefect/pull/9227)
