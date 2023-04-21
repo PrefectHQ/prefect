@@ -52,8 +52,6 @@ theme:
         - search.highlight
         - navigation.path
         - navigation.indexes
-        - navigation.path
-        - navigation.indexes
     font:
         text: Inter
         code: Source Code Pro
