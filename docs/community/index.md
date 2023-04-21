@@ -6,7 +6,6 @@ tags:
     - Slack
     - Discourse
 ---
----
 
 # Community
 
@@ -16,10 +15,3 @@ There are lots of ways to get involved with the Prefect community
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
 - [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) 
 - [Contribute](/contributing/overview/) to Prefect's open source libraries
-
-
----
-icon: octicons/people-16
----
-
-Placeholder
