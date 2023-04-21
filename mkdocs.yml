@@ -129,6 +129,7 @@ nav:
             - Artifacts: concepts/artifacts.md
             - States: concepts/states.md
             - Blocks: concepts/blocks.md
+            - Variables: concepts/variables.md
             - Task Runners: concepts/task-runners.md 
             - Runtime Context: concepts/runtime-context.md
             - Profiles & Configuration: concepts/settings.md
