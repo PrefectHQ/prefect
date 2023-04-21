@@ -3,7 +3,7 @@ Reduced schemas for accepting API actions.
 """
 import re
 import warnings
-from copy import copy
+from copy import copy, deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -171,8 +171,19 @@ class DeploymentCreate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-        variables_schema = base_job_template.get("variables")
+        variables_schema = deepcopy(base_job_template.get("variables"))
+
         if variables_schema is not None:
+            # jsonschema considers required fields, even if that field has a default,
+            # to still be required. To get around this we remove the fields from
+            # required if there is a default present.
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
+
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
@@ -243,7 +254,19 @@ class DeploymentUpdate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-        variables_schema = base_job_template.get("variables")
+        variables_schema = deepcopy(base_job_template.get("variables"))
+
+        if variables_schema is not None:
+            # jsonschema considers required fields, even if that field has a default,
+            # to still be required. To get around this we remove the fields from
+            # required if there is a default present.
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
+
         if variables_schema is not None:
             jsonschema.validate(self.infra_overrides, variables_schema)
 

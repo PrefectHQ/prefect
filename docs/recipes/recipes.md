@@ -4,6 +4,8 @@ tags:
     - recipes
     - best practices
     - examples
+hide:
+  - toc
 ---
 
 # Prefect Recipes
