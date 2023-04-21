@@ -45,13 +45,9 @@ theme:
         - content.code.copy
         # - toc.integrate # have to make index pages for sections if want emoji for them
         # - navigation.tabs
-        # - toc.integrate # have to make index pages for sections if want emoji for them
-        # - navigation.tabs
         - navigation.tabs.sticky
         - search.suggest
         - search.highlight
-        - navigation.path
-        - navigation.indexes
         - navigation.path
         - navigation.indexes
     font:
@@ -133,6 +129,7 @@ nav:
             - Artifacts: concepts/artifacts.md
             - States: concepts/states.md
             - Blocks: concepts/blocks.md
+            - Variables: concepts/variables.md
             - Task Runners: concepts/task-runners.md 
             - Runtime Context: concepts/runtime-context.md
             - Profiles & Configuration: concepts/settings.md
