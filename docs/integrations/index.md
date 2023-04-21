@@ -1,6 +1,8 @@
 ---
 icon: octicons/plug-16
 description: Check out the pre-built tasks and flows in the Prefect Integrations library.
+hide:
+  - toc
 tags:
     - tasks
     - flows

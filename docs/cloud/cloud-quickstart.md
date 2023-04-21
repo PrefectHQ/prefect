@@ -1,6 +1,5 @@
 ---
 description: Start using Prefect Cloud and run a flow.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard
