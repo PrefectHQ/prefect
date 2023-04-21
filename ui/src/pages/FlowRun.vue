@@ -32,7 +32,7 @@
       </template>
 
       <template #parameters>
-        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+        <CopyableWrapper v-if="flowRun" :text-to-copy="parameters">
           <p-code-highlight lang="json" :text="parameters" class="flow-run__parameters" />
         </CopyableWrapper>
       </template>
