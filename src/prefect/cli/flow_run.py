@@ -260,7 +260,10 @@ async def logs(
                 else:
                     more_logs = False
             else:
-                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
+                if (
+                    num_logs_returned < user_specified_num_logs
+                    and len(page_logs) == LOGS_DEFAULT_PAGE_SIZE
+                ):
                     offset += LOGS_DEFAULT_PAGE_SIZE
                 else:
                     # No more logs to show, exit
