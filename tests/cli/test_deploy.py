@@ -605,7 +605,9 @@ class TestMultiDeploy:
         assert deployment2.work_pool_name == work_pool.name
         assert deployment2.schedule is None
 
-    async def test_deploy_with_invalid_name(self, project_dir, orion_client, work_pool):
+    async def test_deploy_with_cli_option_name(
+        self, project_dir, orion_client, work_pool
+    ):
         # Create a deployment
         deployment = {
             "deployments": [
@@ -624,19 +626,22 @@ class TestMultiDeploy:
         # Deploy the deployment with an invalid name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy --name invalid-name",
-            expected_code=1,
+            command="deploy --name from-cli-name",
+            expected_code=0,
             expected_output_contains=[
-                "Deployment 'invalid-name' not found in deployment.yaml"
+                "Deployment 'An important name/from-cli-name' successfully created"
+                " with id"
             ],
         )
 
-        # Check if no deployments were created
+        # Check name from deployment.yaml was not used
         with pytest.raises(ObjectNotFound):
             await orion_client.read_deployment_by_name("An important name/test-name-1")
 
-        with pytest.raises(ObjectNotFound):
-            await orion_client.read_deployment_by_name("An important name/invalid-name")
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/from-cli-name"
+        )
+        deployment.name = "from-cli-name"
 
     async def test_deploy_without_name_in_deployment_yaml(
         self, project_dir, orion_client, work_pool
@@ -718,3 +723,202 @@ class TestMultiDeploy:
 
         with pytest.raises(ObjectNotFound):
             await orion_client.read_deployment_by_name("An important name/test-name-3")
+
+    async def test_deploy_with_single_deployment_with_name_in_file(
+        self, project_dir, orion_client, work_pool
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "name": "test-name-1",
+                    "work_pool": {"name": work_pool.name},
+                }
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-name-1",
+            ],
+        )
+
+        # Check if the deployment was created correctly
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment.name == "test-name-1"
+        assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_errors_with_empty_deployments_list_and_no_cli_options(
+        self, project_dir
+    ):
+        # Create a deployment
+        deployment = {"deployments": []}
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=1,
+            expected_output_contains=[
+                "An entrypoint or flow name must be provided.",
+            ],
+        )
+
+    async def test_deploy_single_allows_options_override(
+        self, project_dir, orion_client, work_pool
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "name": "test-name-1",
+                }
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Deployment 'An important name/test-name' successfully created with id"
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
+
+    async def test_deploy_single_deployment_with_name_in_cli(
+        self, project_dir, orion_client, work_pool
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "name": "test-name-1",
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                },
+                {
+                    "name": "test-name-2",
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                },
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name-1",
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-name-1",
+            ],
+        )
+
+        # Check if the deployment was created correctly
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment.name == "test-name-1"
+        assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_exits_with_multiple_deployments_with_no_name(
+        self, project_dir
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "name": "test-name-1",
+                    "entrypoint": "./flows/hello.py:my_flow",
+                },
+                {
+                    "name": "test-name-2",
+                    "entrypoint": "./flows/hello.py:my_flow",
+                },
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=1,
+            expected_output_contains=[
+                (
+                    "Discovered multiple deployments declared in deployment.yaml, but"
+                    " no name was given. Please specify the name of at least one"
+                    " deployment to create or update."
+                ),
+            ],
+        )
+
+    async def test_deploy_exits_with_single_deployment_and_multiple_names(
+        self, project_dir
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "name": "test-name-1",
+                    "entrypoint": "./flows/hello.py:my_flow",
+                }
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name-1 -n test-name-2",
+            expected_code=1,
+            expected_output_contains=[
+                (
+                    "Multiple deployment names were provided, but only one deployment"
+                    " was found in deployment.yaml. Please provide a single deployment"
+                    " name."
+                ),
+            ],
+        )

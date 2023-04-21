@@ -185,12 +185,51 @@ async def deploy(
         project = yaml.safe_load(f)
 
     try:
-        if "deployments" in base_deploy:
-            await _run_multi_deploy(
-                base_deploys=base_deploy["deployments"],
-                project=project,
-                options=options,
-            )
+        deployments = base_deploy.get("deployments", [])
+        if len(deployments) > 1:
+            if deploy_all or len(names) > 1:
+                if any(options.values()):
+                    app.console.print(
+                        (
+                            "You have passed options to the deploy command, but you are"
+                            " creating or updating multiple deployments. These options"
+                            " will be ignored."
+                        ),
+                        style="yellow",
+                    )
+                await _run_multi_deploy(
+                    base_deploys=deployments,
+                    project=project,
+                    names=names,
+                    deploy_all=deploy_all,
+                )
+            elif len(names) == 1:
+                deployment = next((d for d in deployments if d["name"] == names[0]), {})
+                await _run_single_deploy(
+                    base_deploy=deployment,
+                    project=project,
+                    options=options,
+                )
+            else:
+                exit_with_error(
+                    "Discovered multiple deployments declared in deployment.yaml, "
+                    "but no name was given. Please specify the name of at least one "
+                    "deployment to create or update."
+                )
+        elif len(deployments) == 1:
+            if len(names) > 1:
+                exit_with_error(
+                    "Multiple deployment names were provided, but only one deployment"
+                    " was found in deployment.yaml. Please provide a single deployment"
+                    " name."
+                )
+            else:
+                options["name"] = names[0] if names else None
+                await _run_single_deploy(
+                    base_deploy=deployments[0],
+                    project=project,
+                    options=options,
+                )
         else:
             if len(names) > 1:
                 exit_with_error(
@@ -465,46 +504,13 @@ async def _run_single_deploy(
             )
 
 
-async def _run_multi_deploy(base_deploys, project, options):
+async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False):
     base_deploys = deepcopy(base_deploys) if base_deploys else []
     project = deepcopy(project) if project else {}
-    options = deepcopy(options) if options else {}
+    names = names or []
 
-    deploy_all = options.pop("deploy_all", False)
-
-    names = options.pop("names", [])
-
-    has_passed_options = any(options.values())
-
-    if not names and not deploy_all:
-        raise ValueError(
-            "There are multiple deployments declared in deployment.yaml. Please specify"
-            " at least one deployment name."
-        )
-    if len(names) == 1:
-        try:
-            base_deploy = next(
-                base_deploy
-                for base_deploy in base_deploys
-                if base_deploy.get("name") == names[0]
-            )
-        except StopIteration:
-            raise ValueError(
-                f"Deployment {names[0]!r} not found in deployment.yaml. Please specify"
-                " a valid deployment name."
-            )
-        await _run_single_deploy(base_deploy, project, options)
-    elif deploy_all:
+    if deploy_all:
         app.console.print("Deploying all deployments for current project...")
-        if has_passed_options:
-            app.console.print(
-                (
-                    "You have passed options to the deploy command, but you are"
-                    " creating or updating multiple deployments. These options will be"
-                    " ignored."
-                ),
-                style="yellow",
-            )
         for base_deploy in base_deploys:
             if base_deploy.get("name") is None:
                 app.console.print(
@@ -529,15 +535,6 @@ async def _run_multi_deploy(base_deploys, project, options):
                 style="yellow",
             )
         app.console.print("Deploying selected deployments for current project...")
-        if has_passed_options:
-            app.console.print(
-                (
-                    "You have passed options to the deploy command, but you are"
-                    " creating or updating multiple deployments. These options will be"
-                    " ignored."
-                ),
-                style="yellow",
-            )
         for base_deploy in picked_base_deploys:
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
             await _run_single_deploy(base_deploy, project)
