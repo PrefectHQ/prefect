@@ -104,7 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
-| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables. |
+| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; this name can also be provided as a function that returns a string. |
 | `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
@@ -145,6 +145,48 @@ def my_flow(name: str, date: datetime.datetime):
 
 # creates a flow run called 'marvin-on-Thursday'
 my_flow(name="marvin", date=datetime.datetime.utcnow())
+```
+
+Additionally this setting also accepts a function that returns a string for the flow run name:
+
+```python
+import datetime
+from prefect import flow
+
+def generate_flow_run_name():
+    date = datetime.datetime.utcnow()
+
+    return f"{date:%A}-is-a-nice-day"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str):
+    pass
+
+# creates a flow run called 'Thursday-is-a-nice-day'
+my_flow(name="marvin")
+```
+
+If you need access to information about the flow, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run
+
+def generate_flow_run_name():
+    flow_name = flow_run.flow_name
+
+    parameters = flow_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-with-{name}-and-{limit}"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str, limit: int = 100):
+    pass
+
+# creates a flow run called 'my-flow-with-marvin-and-100'
+my_flow(name="marvin")
 ```
 
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
