@@ -1,12 +1,4 @@
 INHERIT: mkdocs.yml
 plugins:
     meta:
-    social: 
-        cards: !ENV [DOC_PROD, True]
-        cards_color:
-            fill: "#115AF4"
     typeset:
-theme:
-    features:
-        - content.code.copy
-        - navigation.indexes
