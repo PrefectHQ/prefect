@@ -87,7 +87,7 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
 
             self._stopped = True
-            call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+            call_soon_in_loop(self._loop, self._queue.put_nowait, None).result()
 
     def send(self, item: T):
         """
@@ -104,7 +104,7 @@ class QueueService(abc.ABC, Generic[T]):
             else:
                 call_soon_in_loop(
                     self._loop, self._queue.put_nowait, self._prepare_item(item)
-                )
+                ).result()
 
     def _prepare_item(self, item: T) -> T:
         """
