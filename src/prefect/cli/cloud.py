@@ -22,7 +22,6 @@ from typing_extensions import Literal
 
 import prefect.context
 import prefect.settings
-from prefect.cli import app
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
@@ -272,7 +271,7 @@ async def login_with_browser() -> str:
         if timeout_scope and timeout_scope.cancel_called:
             exit_with_error("Timed out while waiting for authorization.")
         else:
-            exit_with_error(f"Aborted.")
+            exit_with_error("Aborted.")
 
     if result.type == "success":
         return result.content.api_key

@@ -268,7 +268,7 @@ class TestReadFlowRun:
                 state=states.State(id=state_id, type="RUNNING"),
             )
         ).state
-        response = await client.get(f"/flow_runs/{flow_run.id}")
+        await client.get(f"/flow_runs/{flow_run.id}")
         assert flow_run.state.type.value == "RUNNING"
         assert flow_run.state.id == state_id
 
@@ -648,13 +648,14 @@ class TestReadFlowRuns:
 class TestReadFlowRunGraph:
     @pytest.fixture
     async def graph_data(self, session):
-        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
-        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
-        create_task_run = lambda task_run: models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+        def create_flow(flow):
+            return models.flows.create_flow(session=session, flow=flow)
+
+        def create_flow_run(flow_run):
+            return models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+
+        def create_task_run(task_run):
+            return models.task_runs.create_task_run(session=session, task_run=task_run)
 
         flow = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
 
@@ -697,7 +698,8 @@ class TestReadFlowRunGraph:
     async def test_read_flow_run_graph_returns_upstream_dependencies(
         self, graph_data, client
     ):
-        filter_graph = lambda task_run: len(task_run["upstream_dependencies"]) > 0
+        def filter_graph(task_run):
+            return len(task_run["upstream_dependencies"]) > 0
 
         response = await client.get(f"/flow_runs/{graph_data.id}/graph")
 
@@ -747,7 +749,7 @@ class TestResumeFlowrun:
         self, blocking_paused_flow_run, client, session
     ):
         flow_run_id = blocking_paused_flow_run.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -761,7 +763,7 @@ class TestResumeFlowrun:
         self, nonblocking_paused_flow_run, client, session
     ):
         flow_run_id = nonblocking_paused_flow_run.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -775,7 +777,7 @@ class TestResumeFlowrun:
         self, nonblockingpaused_flow_run_without_deployment, client, session
     ):
         flow_run_id = nonblockingpaused_flow_run_without_deployment.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -975,7 +977,7 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
         )
@@ -998,7 +1000,7 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment_with_no_more_retries.deployment_id
         flow_run_id = failed_flow_run_with_deployment_with_no_more_retries.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
         )
@@ -1017,7 +1019,7 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=dict(type="SCHEDULED", name="NotAwaitingRetry")),
         )
@@ -1035,7 +1037,7 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
         )
@@ -1053,7 +1055,7 @@ class TestManuallyRetryingFlowRuns:
         assert not failed_flow_run_without_deployment.deployment_id
         flow_run_id = failed_flow_run_without_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
         )

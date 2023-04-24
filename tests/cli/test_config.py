@@ -450,13 +450,13 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
         ), f"Source included in line: {line}"
 
     # Ensure that the settings that we know are set are still included
-    assert f"PREFECT_API_DATABASE_TIMEOUT='2.0'" in lines
-    assert f"PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001'" in lines
-    assert f"PREFECT_API_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
+    assert "PREFECT_API_DATABASE_TIMEOUT='2.0'" in lines
+    assert "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001'" in lines
+    assert "PREFECT_API_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
 
     if "--show-defaults" in command:
         # Check that defaults are included correctly by checking an unset setting
-        assert f"PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
+        assert "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
 
 
 @pytest.mark.parametrize(

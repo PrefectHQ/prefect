@@ -290,7 +290,7 @@ def test_ls_respects_current_from_context():
 def test_create_profile():
     invoke_and_assert(
         ["profile", "create", "foo"],
-        expected_output=f"""
+        expected_output="""
             Created profile with properties:
                 name - 'foo'
                 from name - None
@@ -321,7 +321,7 @@ def test_create_profile_from_existing():
 
     invoke_and_assert(
         ["profile", "create", "bar", "--from", "foo"],
-        expected_output=f"""
+        expected_output="""
             Created profile with properties:
                 name - 'bar'
                 from name - foo

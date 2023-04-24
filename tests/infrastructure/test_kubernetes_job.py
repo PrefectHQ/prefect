@@ -169,7 +169,7 @@ def test_task_status_receives_job_pid(
     monkeypatch,
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-    result = KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
+    KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
     expected_value = f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job"
     fake_status.started.assert_called_once_with(expected_value)
 
@@ -308,8 +308,8 @@ class TestKill:
         with pytest.raises(
             InfrastructureNotAvailable,
             match=(
-                f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
-                f"cluster."
+                "Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                "cluster."
             ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
@@ -1354,8 +1354,8 @@ class TestCustomizingJob:
         with pytest.raises(
             ValueError,
             match=(
-                f"Unable to parse customizations as JSON: .* Please make sure that the"
-                f" provided value is a valid JSON string."
+                "Unable to parse customizations as JSON: .* Please make sure that the"
+                " provided value is a valid JSON string."
             ),
         ):
             KubernetesJob(

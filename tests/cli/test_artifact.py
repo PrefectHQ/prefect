@@ -68,7 +68,7 @@ async def artifacts(session):
 def test_listing_artifacts_when_none_exist():
     invoke_and_assert(
         ["artifact", "ls"],
-        expected_output_contains=f"""
+        expected_output_contains="""
             ┏━━━━┳━━━━━┳━━━━━━┳━━━━━━━━━┓
             ┃ ID ┃ Key ┃ Type ┃ Updated ┃
             ┡━━━━╇━━━━━╇━━━━━━╇━━━━━━━━━┩
@@ -209,7 +209,7 @@ def test_deleting_artifact_by_key_succeeds(artifacts):
     invoke_and_assert(
         ["artifact", "delete", str(artifacts[0].key)],
         user_input="y",
-        expected_output_contains=f"Deleted 2 artifact(s) with key 'voltaic'.",
+        expected_output_contains="Deleted 2 artifact(s) with key 'voltaic'.",
         expected_code=0,
     )
 

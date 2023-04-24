@@ -181,7 +181,8 @@ def deprecated_field(
 
     when = when or (lambda _: True)
 
-    # Replaces the model's __init__ method with one that performs an additional warning check
+    # Replaces the model's __init__ method with one that performs an additional warning
+    # check
     def decorator(model_cls: Type[M]) -> Type[M]:
         message = generate_deprecation_message(
             name=f"The field {name!r} in {model_cls.__name__!r}",
@@ -235,7 +236,8 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     )
 
     # Executed on module load
-    callback = lambda _: warnings.warn(message, DeprecationWarning, stacklevel=3)
+    def callback(_):
+        return warnings.warn(message, DeprecationWarning, stacklevel=3)
 
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)

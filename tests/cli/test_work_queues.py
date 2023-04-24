@@ -48,7 +48,7 @@ class TestCreateWorkQueue:
         work_pool,
     ):
         queue_name = "q-name"
-        res = invoke_and_assert(
+        invoke_and_assert(
             command=f"work-queue create {queue_name} -p {work_pool.name}",
             expected_code=0,
         )
@@ -76,7 +76,7 @@ class TestCreateWorkQueue:
 
     def test_create_work_queue_without_pool_uses_default_pool(self, orion_client):
         queue_name = "q-name"
-        res = invoke_and_assert(
+        invoke_and_assert(
             command=f"work-queue create {queue_name}",
             expected_code=0,
         )
@@ -93,11 +93,11 @@ class TestCreateWorkQueue:
         orion_client,
     ):
         queue_name = "q-name"
-        res = invoke_and_assert(
+        invoke_and_assert(
             command=f"work-queue create {queue_name} -p bad-pool",
             expected_code=1,
         )
-        assert f"Work pool with name: 'bad-pool' not found."
+        assert "Work pool with name: 'bad-pool' not found."
 
 
 class TestSetConcurrencyLimit:
@@ -141,15 +141,15 @@ class TestSetConcurrencyLimit:
     # Tests for all of the above, but with bad inputs
     def test_set_concurrency_limit_bad_queue_name(self):
         invoke_and_assert(
-            command=f"work-queue set-concurrency-limit bad-name 5",
+            command="work-queue set-concurrency-limit bad-name 5",
             expected_code=1,
         )
 
     def test_set_concurrency_limit_bad_queue_id(self):
         invoke_and_assert(
             command=(
-                f"work-queue set-concurrency-limit"
-                f" 00000000-0000-0000-0000-000000000000 5"
+                "work-queue set-concurrency-limit"
+                " 00000000-0000-0000-0000-000000000000 5"
             ),
             expected_code=1,
         )
@@ -207,7 +207,7 @@ class TestClearConcurrencyLimit:
         cmd = (
             f"work-queue clear-concurrency-limit {work_pool_queue.name} -p {pool_name}"
         )
-        res = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
             expected_code=0,
@@ -218,15 +218,15 @@ class TestClearConcurrencyLimit:
     # Tests for all of the above, but with bad inputs
     def test_clear_concurrency_limit_bad_queue_name(self):
         invoke_and_assert(
-            command=f"work-queue clear-concurrency-limit bad-name",
+            command="work-queue clear-concurrency-limit bad-name",
             expected_code=1,
         )
 
     def test_clear_concurrency_limit_bad_queue_id(self):
         invoke_and_assert(
             command=(
-                f"work-queue clear-concurrency-limit"
-                f" 00000000-0000-0000-0000-000000000000"
+                "work-queue clear-concurrency-limit"
+                " 00000000-0000-0000-0000-000000000000"
             ),
             expected_code=1,
         )
@@ -281,13 +281,13 @@ class TestPauseWorkQueue:
     # Tests for all of the above, but with bad inputs
     def test_pause_bad_queue_name(self):
         invoke_and_assert(
-            command=f"work-queue pause bad-name",
+            command="work-queue pause bad-name",
             expected_code=1,
         )
 
     def test_pause_bad_queue_id(self):
         invoke_and_assert(
-            command=f"work-queue pause 00000000-0000-0000-0000-000000000000",
+            command="work-queue pause 00000000-0000-0000-0000-000000000000",
             expected_code=1,
         )
 
@@ -339,7 +339,7 @@ class TestResumeWorkQueue:
         assert work_pool_queue.is_paused
 
         cmd = f"work-queue resume {work_queue_1.name} -p {pool_name}"
-        res = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
             expected_code=0,
@@ -350,13 +350,13 @@ class TestResumeWorkQueue:
     # Tests for all of the above, but with bad inputs
     def test_resume_bad_queue_name(self):
         invoke_and_assert(
-            command=f"work-queue resume bad-name",
+            command="work-queue resume bad-name",
             expected_code=1,
         )
 
     def test_resume_bad_queue_id(self):
         invoke_and_assert(
-            command=f"work-queue resume 00000000-0000-0000-0000-000000000000",
+            command="work-queue resume 00000000-0000-0000-0000-000000000000",
             expected_code=1,
         )
 

@@ -87,7 +87,7 @@ async def many_task_run_states(flow_run, session, db):
 class TestBase:
     async def test_repr(self, db, session, flow):
         assert repr(flow) == f"Flow(id={flow.id})"
-        assert repr(db.Flow()) == f"Flow(id=None)"
+        assert repr(db.Flow()) == "Flow(id=None)"
         flow_id = uuid4()
         assert repr(db.Flow(id=flow_id)) == f"Flow(id={flow_id})"
 
@@ -119,7 +119,7 @@ class TestFlowRun:
                 ),
                 isouter=True,
             )
-            .where(frs_alias.id == None)
+            .where(frs_alias.id is None)
         )
         result = await session.execute(query)
         objs = result.all()
@@ -266,7 +266,7 @@ class TestTaskRun:
                 ),
                 isouter=True,
             )
-            .where(frs_alias.id == None)
+            .where(frs_alias.id is None)
         )
         result = await session.execute(query)
         objs = result.all()

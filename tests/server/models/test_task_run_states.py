@@ -34,7 +34,7 @@ class TestCreateTaskRunState:
         assert task_run_state.state_details.task_run_id == task_run.id
 
     async def test_run_details_are_updated_entering_running(self, task_run, session):
-        trs = await models.task_runs.set_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Scheduled(),
@@ -46,7 +46,7 @@ class TestCreateTaskRunState:
         assert task_run.run_count == 0
 
         dt = pendulum.now("UTC")
-        trs2 = await models.task_runs.set_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Running(timestamp=dt),
@@ -57,7 +57,7 @@ class TestCreateTaskRunState:
         assert task_run.total_run_time == datetime.timedelta(0)
 
         dt2 = pendulum.now("UTC")
-        trs3 = await models.task_runs.set_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Running(timestamp=dt2),

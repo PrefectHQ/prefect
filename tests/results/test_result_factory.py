@@ -16,7 +16,10 @@ from prefect.settings import (
 from prefect.testing.utilities import assert_blocks_equal
 
 DEFAULT_SERIALIZER = PickleSerializer
-DEFAULT_STORAGE = lambda: LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+
+
+def DEFAULT_STORAGE():
+    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
 
 
 @pytest.fixture

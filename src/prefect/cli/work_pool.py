@@ -111,7 +111,8 @@ async def ls(
     async with get_client() as client:
         pools = await client.read_work_pools()
 
-    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+    def sort_by_created_key(q):
+        return pendulum.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -349,10 +350,13 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = pendulum.now("utc").add(hours=hours or 1)
+    pendulum.now("utc").add(hours=hours or 1)
 
     now = pendulum.now("utc")
-    sort_by_created_key = lambda r: now - r.created
+
+    def sort_by_created_key(r):
+        return now - r.created
+
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
             (
@@ -395,7 +399,7 @@ async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str
             for worker in collection.values():
                 if worker.get("type") == type:
                     return worker.get("default_base_job_configuration")
-    except Exception as exc:
+    except Exception:
         return None
 
 

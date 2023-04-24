@@ -16,10 +16,9 @@ if Version(prefect.__version__) < PAUSE_VERSION or (
     SERVER_VERSION and Version(SERVER_VERSION) < PAUSE_VERSION
 ):
     sys.exit(0)
-
-
-from prefect import flow, pause_flow_run, resume_flow_run, task
-from prefect.context import get_run_context
+else:
+    from prefect import flow, pause_flow_run, resume_flow_run, task
+    from prefect.context import get_run_context
 
 flow_run_id_future = Future()
 

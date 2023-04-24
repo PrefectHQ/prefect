@@ -21,17 +21,19 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas.core import FlowRunPolicy
 
-COMMON_GLOBAL_TRANSFORMS = lambda: [
-    SetRunStateType,
-    SetRunStateName,
-    SetRunStateTimestamp,
-    SetStartTime,
-    SetEndTime,
-    IncrementRunTime,
-    SetExpectedStartTime,
-    SetNextScheduledStartTime,
-    UpdateStateDetails,
-]
+
+def COMMON_GLOBAL_TRANSFORMS():
+    return [
+        SetRunStateType,
+        SetRunStateName,
+        SetRunStateTimestamp,
+        SetStartTime,
+        SetEndTime,
+        IncrementRunTime,
+        SetExpectedStartTime,
+        SetNextScheduledStartTime,
+        UpdateStateDetails,
+    ]
 
 
 class GlobalFlowPolicy(BaseOrchestrationPolicy):

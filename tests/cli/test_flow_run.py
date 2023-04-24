@@ -306,7 +306,7 @@ class TestCancelFlowRun:
 
     def test_wrong_id_exits_with_error(self):
         bad_id = str(uuid4())
-        res = invoke_and_assert(
+        invoke_and_assert(
             ["flow-run", "cancel", bad_id],
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",

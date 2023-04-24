@@ -54,7 +54,7 @@ class CancellationCleanup(LoopService):
                 sa.select(db.FlowRun)
                 .where(
                     db.FlowRun.state_type == states.StateType.CANCELLED,
-                    db.FlowRun.end_time != None,
+                    db.FlowRun.end_time.is_not(None),
                     db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
@@ -83,7 +83,7 @@ class CancellationCleanup(LoopService):
                         db.FlowRun.state_type == states.StateType.PAUSED,
                         db.FlowRun.state_type == states.StateType.CANCELLING,
                     ),
-                    db.FlowRun.parent_task_run_id != None,
+                    db.FlowRun.parent_task_run_id.is_not(None),
                 )
                 .limit(self.batch_size)
             )

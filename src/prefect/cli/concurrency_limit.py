@@ -41,7 +41,7 @@ async def create(tag: str, concurrency_limit: int):
         await client.create_concurrency_limit(
             tag=tag, concurrency_limit=concurrency_limit
         )
-        result = await client.read_concurrency_limit_by_tag(tag)
+        await client.read_concurrency_limit_by_tag(tag)
 
     app.console.print(
         textwrap.dedent(

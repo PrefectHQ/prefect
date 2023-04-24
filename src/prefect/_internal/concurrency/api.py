@@ -81,7 +81,8 @@ class _base(abc.ABC):
         call: Call[T], timeout: Optional[float] = None
     ) -> Call[T]:
         """
-        Schedule a call for execution in the thread that is waiting for the current call.
+        Schedule a call for execution in the thread that is waiting for the current
+        call.
 
         Returns the submitted call.
         """

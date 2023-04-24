@@ -219,7 +219,8 @@ def experimental_field(
     def experimental_check():
         """Utility function for performing a warning check for the specified group"""
 
-    # Replaces the model's __init__ method with one that performs an additional warning check
+    # Replaces the model's __init__ method with one that performs an additional warning
+    # check
     def decorator(model_cls: Type[M]) -> Type[M]:
         cls_init = model_cls.__init__
 

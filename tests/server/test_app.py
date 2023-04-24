@@ -4,11 +4,10 @@ from fastapi.testclient import TestClient
 from prefect.server.api.server import create_app
 from prefect.settings import PREFECT_UI_API_URL
 
+# Steal some fixtures from the experimental test suite
 from .._internal.compatibility.test_experimental import (
-    enable_prefect_experimental_test_opt_in_setting,  # pylint: disable=unused-import
-)
-from .._internal.compatibility.test_experimental import (
-    prefect_experimental_test_opt_in_setting,  # pylint: disable=unused-import
+    prefect_experimental_test_opt_in_setting,  # noqa: F401
+    enable_prefect_experimental_test_opt_in_setting,  # noqa: F401
 )
 
 

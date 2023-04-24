@@ -362,8 +362,8 @@ class TestPrefectHttpxClient:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        for call in mock_anyio_sleep.mock_calls:
-            sleep_time = call.args[0]
+        for mock_call in mock_anyio_sleep.mock_calls:
+            sleep_time = mock_call.args[0]
             assert sleep_time > 5 and sleep_time < (5 * 1.2)
 
     @pytest.mark.parametrize(

@@ -25,7 +25,7 @@ from prefect.settings import (
 from prefect.testing.utilities import AsyncMock
 
 
-async def test_validation_error_handler(client):
+async def test_validation_error_handler_422(client):
     bad_flow_data = {"name": "my-flow", "tags": "this should be a list not a string"}
     response = await client.post("/flows/", json=bad_flow_data)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -40,7 +40,7 @@ async def test_validation_error_handler(client):
     assert response.json()["request_body"] == bad_flow_data
 
 
-async def test_validation_error_handler(client):
+async def test_validation_error_handler_409(client):
     # generate deployment with invalid foreign key
     bad_deployment_data = {
         "name": "my-deployment",
@@ -143,7 +143,7 @@ class TestCreateOrionAPI:
         with pytest.raises(
             ValueError,
             match="Router override for '/logs' defines a different prefix '/foo'",
-        ) as exc:
+        ):
             create_orion_api(router_overrides={"/logs": router})
 
     def test_checks_for_new_prefix_during_override(self):
@@ -152,7 +152,7 @@ class TestCreateOrionAPI:
         with pytest.raises(
             KeyError,
             match="Router override provided for prefix that does not exist: '/foo'",
-        ) as exc:
+        ):
             create_orion_api(router_overrides={"/foo": router})
 
     def test_only_includes_missing_paths_in_override_error(self):
@@ -185,27 +185,6 @@ class TestCreateOrionAPI:
         client.post("/logs")
         logs.assert_called_once()
         client.post("/logs/filter")
-        logs.assert_called_once()
-
-    def test_override_uses_new_router(self):
-        router = APIRouter(prefix="/logs")
-
-        logs = MagicMock(return_value=1)
-        logs_filter = MagicMock(return_value=1)
-
-        @router.post("/")
-        def foo():
-            return logs()
-
-        @router.post("/filter")
-        def bar():
-            return logs_filter()
-
-        app = create_orion_api(router_overrides={"/logs": router})
-        client = testclient.TestClient(app)
-        client.post("/logs/").raise_for_status()
-        logs.assert_called_once()
-        client.post("/logs/filter/").raise_for_status()
         logs.assert_called_once()
 
     def test_override_may_include_new_routes(self):

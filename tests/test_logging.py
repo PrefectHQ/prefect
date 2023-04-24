@@ -116,8 +116,8 @@ def test_setup_logging_sets_incremental_on_repeated_calls(dictConfigMock):
     assert dictConfigMock.call_count == 1
     setup_logging()
     assert dictConfigMock.call_count == 2
-    assert dictConfigMock.mock_calls[0][1][0]["incremental"] == False
-    assert dictConfigMock.mock_calls[1][1][0]["incremental"] == True
+    assert dictConfigMock.mock_calls[0][1][0]["incremental"] is False
+    assert dictConfigMock.mock_calls[1][1][0]["incremental"] is True
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
@@ -1018,7 +1018,7 @@ class TestPrefectConsoleHandler:
 
         try:
             raise ValueError("oh my")
-        except:
+        except Exception:
             logger.exception("Helpful context!")
 
         _, stderr = capsys.readouterr()

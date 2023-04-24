@@ -135,7 +135,7 @@ async def use(name: str):
         ),
         ConnectionStatus.INVALID_API: (
             exit_with_error,
-            f"Error connecting to Prefect API URL",
+            "Error connecting to Prefect API URL",
         ),
     }
 
@@ -206,7 +206,7 @@ def rename(name: str, new_name: str):
     profiles.remove_profile(name)
 
     # If the active profile was renamed switch the active profile to the new name.
-    context_profile = prefect.context.get_settings_context().profile
+    prefect.context.get_settings_context().profile
     if profiles.active_name == name:
         profiles.set_active(new_name)
     if os.environ.get("PREFECT_PROFILE") == name:
@@ -271,7 +271,8 @@ async def check_orion_connection():
         return ConnectionStatus.CLOUD_UNAUTHORIZED
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-            # if the route does not exist, attmpt to connect as a hosted Prefect instance
+            # if the route does not exist, attmpt to connect as a hosted Prefect
+            # instance
             try:
                 # inform the user if Prefect API endpoints exist, but there are
                 # connection issues
@@ -301,9 +302,7 @@ async def check_orion_connection():
                 return ConnectionStatus.EPHEMERAL
             else:
                 return ConnectionStatus.ORION_CONNECTED
-        except Exception as exc:
+        except Exception:
             return ConnectionStatus.ORION_ERROR
-    except (httpx.ConnectError, httpx.UnsupportedProtocol) as exc:
+    except (httpx.ConnectError, httpx.UnsupportedProtocol):
         return ConnectionStatus.INVALID_API
-
-    return exit_method, msg

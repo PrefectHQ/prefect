@@ -104,4 +104,4 @@ def test_does_not_set_follows_not_tight_timing(
     )
 
     asserting_events_worker.drain()
-    assert read_event.follows == None
+    assert read_event.follows is None

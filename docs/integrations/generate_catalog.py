@@ -34,7 +34,8 @@ with mkdocs_gen_files.open("integrations/index.md", "w") as markdown_file:
     )
     template = env.get_template("index.md")
 
-    # Render jinja2 template and write to catalog.md - now index.md - maybe rendering specially
+    # Render jinja2 template and write to catalog.md - now index.md - maybe rendering
+    # specially
     markdown_file.write(
         template.render(collections=sorted_collection_configs, tags=tags)
     )

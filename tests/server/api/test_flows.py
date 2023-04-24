@@ -134,7 +134,7 @@ class TestReadFlow:
         flow_id = response.json()["id"]
 
         # make sure we we can read the flow correctly
-        response = await client.get(f"/flows/name/my-flow")
+        response = await client.get("/flows/name/my-flow")
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == flow_id
         assert response.json()["name"] == "my-flow"
@@ -181,8 +181,8 @@ class TestReadFlow:
 class TestReadFlows:
     @pytest.fixture
     async def flows(self, client):
-        await client.post("/flows/", json={"name": f"my-flow-1"})
-        await client.post("/flows/", json={"name": f"my-flow-2"})
+        await client.post("/flows/", json={"name": "my-flow-1"})
+        await client.post("/flows/", json={"name": "my-flow-2"})
 
     @pytest.mark.usefixtures("flows")
     async def test_read_flows(self, client):

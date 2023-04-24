@@ -34,7 +34,6 @@ from prefect.exceptions import (
     exception_traceback,
 )
 from prefect.flows import load_flow_from_entrypoint
-from prefect.infrastructure.base import Block
 from prefect.server.schemas.filters import FlowFilter
 from prefect.server.schemas.schedules import (
     CronSchedule,
@@ -150,14 +149,14 @@ async def create_work_queue_and_set_concurrency_limit(
                         ),
                         style="green",
                     )
-            except Exception as exc:
+            except Exception:
                 exit_with_error(
                     "Failed to set concurrency limit on work queue"
                     f" {work_queue_name!r} in work pool {work_pool_name!r}."
                 )
         elif work_queue_concurrency:
             app.console.print(
-                f"No work queue set! The concurrency limit cannot be updated."
+                "No work queue set! The concurrency limit cannot be updated."
             )
 
 
@@ -440,8 +439,11 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
             )
         }
 
-    sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
-    sort_by_created_key = lambda d: pendulum.now("utc") - d.created
+    def sort_by_name_keys(d):
+        return flows[d.flow_id].name, d.name
+
+    def sort_by_created_key(d):
+        return pendulum.now("utc") - d.created
 
     table = Table(
         title="Deployments",

@@ -41,7 +41,7 @@ async def variables(
 def test_list_variables_none_exist():
     invoke_and_assert(
         ["variable", "ls"],
-        expected_output_contains=f"""
+        expected_output_contains="""
             ┏━━━━━━┳━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
             ┃ Name ┃ Value ┃ Created ┃ Updated ┃
             ┡━━━━━━╇━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
