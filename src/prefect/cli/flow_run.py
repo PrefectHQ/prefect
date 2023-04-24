@@ -199,7 +199,9 @@ async def logs(
             num_logs_to_return_from_page = (
                 LOGS_DEFAULT_PAGE_SIZE
                 if user_specified_num_logs is None
-                else min(LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs)
+                else min(
+                    LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
+                )
             )
 
             # Get the next page of logs
