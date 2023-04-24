@@ -7,7 +7,7 @@ import concurrent.futures
 import itertools
 import queue
 import threading
-from typing import Optional
+from typing import List, Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.primitives import Event
@@ -131,6 +131,7 @@ class EventLoopThread(Portal):
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
         self._submitted_count: int = 0
+        self._on_shutdown: List[Call] = []
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -203,10 +204,16 @@ class EventLoopThread(Portal):
 
         await self._shutdown_event.wait()
 
+        for call in self._on_shutdown:
+            await self._run_call(call)
+
     async def _run_call(self, call: Call) -> None:
         task = call.run()
         if task is not None:
             await task
+
+    def add_shutdown_call(self, call: Call) -> None:
+        self._on_shutdown.append(call)
 
     def __enter__(self):
         self.start()
