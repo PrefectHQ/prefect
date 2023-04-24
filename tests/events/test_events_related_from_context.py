@@ -71,7 +71,7 @@ async def test_gets_related_from_run_context(orion_client):
         ),
         RelatedResource(
             __root__={
-                "prefect.resource.id": f"prefect.tag.testing",
+                "prefect.resource.id": "prefect.tag.testing",
                 "prefect.resource.role": "tag",
             }
         ),

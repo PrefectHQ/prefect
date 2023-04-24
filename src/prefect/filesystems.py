@@ -113,7 +113,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents and (basepath != path):
+            if basepath not in path.parents and (basepath != path):
                 raise ValueError(
                     f"Provided path {path} is outside of the base path {basepath}."
                 )

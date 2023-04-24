@@ -59,7 +59,7 @@ class TestCreateVariable:
             name="my_variable", value="my-value", tags=["123", "456"]
         )
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json=variable.dict(json_compatible=True),
         )
         assert res
@@ -83,7 +83,7 @@ class TestCreateVariable:
         variable_name: str,
     ):
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json={"name": variable_name, "value": "my-value"},
         )
         assert res
@@ -100,7 +100,7 @@ class TestCreateVariable:
     ):
         same_name_variable = VariableCreate(name=variable.name, value="other-value")
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json=same_name_variable.dict(json_compatible=True),
         )
         assert res
@@ -113,7 +113,7 @@ class TestCreateVariable:
         max_length = 255
 
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json={"name": "v" * max_length, "value": "value"},
         )
         assert res
@@ -122,7 +122,7 @@ class TestCreateVariable:
         max_length_plus1 = max_length + 1
 
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json={"name": "v" * max_length_plus1, "value": "value"},
         )
         assert res
@@ -138,7 +138,7 @@ class TestCreateVariable:
         max_length = 5000
 
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json={"name": "name", "value": "v" * max_length},
         )
         assert res
@@ -147,7 +147,7 @@ class TestCreateVariable:
         max_length_plus1 = max_length + 1
 
         res = await client.post(
-            f"/variables/",
+            "/variables/",
             json={"name": "name", "value": "v" * max_length_plus1},
         )
         assert res
@@ -202,7 +202,7 @@ class TestReadVariableByName:
         client: AsyncClient,
     ):
         res = await client.get(
-            f"/variables/name/doesntexist",
+            "/variables/name/doesntexist",
         )
         assert res.status_code == 404
 
@@ -213,7 +213,7 @@ class TestReadVariables:
         client: AsyncClient,
     ):
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
         )
         assert res.status_code == 200
         assert len(res.json()) == 0
@@ -224,7 +224,7 @@ class TestReadVariables:
         variables,
     ):
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
         )
         assert res.status_code == 200
         res = pydantic.parse_obj_as(List[core.Variable], res.json())
@@ -238,7 +238,7 @@ class TestReadVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(any_=["variable1"])
@@ -252,7 +252,7 @@ class TestReadVariables:
 
         # like filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(like_="variable1%")
@@ -271,7 +271,7 @@ class TestReadVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(any_=["value1"])
@@ -285,7 +285,7 @@ class TestReadVariables:
 
         # like filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(like_="value1%")
@@ -305,7 +305,7 @@ class TestReadVariables:
         variable = variables[0]
         # any filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(id=VariableFilterId(any_=[variable.id])).dict(
                     json_compatible=True
@@ -324,7 +324,7 @@ class TestReadVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json=dict(
                 variables=VariableFilter(tags=VariableFilterTags(all_=["tag1"])).dict(
                     json_compatible=True
@@ -343,7 +343,7 @@ class TestReadVariables:
     ):
         # name sorted forwards
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json={"sort": sorting.VariableSort.NAME_ASC},
         )
         assert res.status_code == 200
@@ -358,7 +358,7 @@ class TestReadVariables:
     ):
         # name sorted backwards
         res = await client.post(
-            f"/variables/filter",
+            "/variables/filter",
             json={"sort": sorting.VariableSort.NAME_DESC},
         )
         assert res.status_code == 200
@@ -375,7 +375,7 @@ class TestCountVariables:
         client: AsyncClient,
     ):
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
         )
         assert res.status_code == 200
         assert res.json() == 0
@@ -386,7 +386,7 @@ class TestCountVariables:
         variables,
     ):
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
         )
         assert res.status_code == 200
         assert res.json() == 4
@@ -398,7 +398,7 @@ class TestCountVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(any_=["variable1"])
@@ -410,7 +410,7 @@ class TestCountVariables:
 
         # like filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(like_="variable1%")
@@ -427,7 +427,7 @@ class TestCountVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(any_=["value1"])
@@ -439,7 +439,7 @@ class TestCountVariables:
 
         # like filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(like_="value1%")
@@ -457,7 +457,7 @@ class TestCountVariables:
         variable = variables[0]
         # any filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(id=VariableFilterId(any_=[variable.id])).dict(
                     json_compatible=True
@@ -473,7 +473,7 @@ class TestCountVariables:
     ):
         # any filter
         res = await client.post(
-            f"/variables/count",
+            "/variables/count",
             json=dict(
                 variables=VariableFilter(tags=VariableFilterTags(all_=["tag1"])).dict(
                     json_compatible=True
@@ -567,7 +567,7 @@ class TestUpdateVariableByName:
             name="updated_variable", value="updated-value", tags=["updated-tag"]
         )
         res = await client.patch(
-            f"/variables/name/doesnotexist",
+            "/variables/name/doesnotexist",
             json=update.dict(json_compatible=True),
         )
         assert res.status_code == 404
@@ -630,6 +630,6 @@ class TestDeleteVariableByName:
         client: AsyncClient,
     ):
         res = await client.delete(
-            f"/variables/name/doesntexist",
+            "/variables/name/doesntexist",
         )
         assert res.status_code == 404

@@ -376,7 +376,7 @@ class TestGetRunsInWorkQueue:
         bad_deployment_work_queue = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.actions.WorkQueueCreate(
-                name=f"Work Queue for Deployment that doesnt exist",
+                name="Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(deployment_ids=[uuid4()]),
             ),
         )
@@ -393,7 +393,7 @@ class TestGetRunsInWorkQueue:
         conflicting_filter_work_queue = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.actions.WorkQueueCreate(
-                name=f"Work Queue for Deployment that doesnt exist",
+                name="Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(
                     deployment_ids=[uuid4()], tags=["tb12"]
                 ),

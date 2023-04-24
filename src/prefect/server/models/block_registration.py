@@ -32,7 +32,7 @@ async def _install_protected_system_blocks(session):
             block_type = await models.block_types.create_block_type(
                 session=session, block_type=block_type, override=True
             )
-            block_schema = await models.block_schemas.create_block_schema(
+            await models.block_schemas.create_block_schema(
                 session=session,
                 block_schema=block._to_block_schema(block_type_id=block_type.id),
                 override=True,
