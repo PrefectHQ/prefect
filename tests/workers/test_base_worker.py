@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
@@ -352,6 +352,50 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     flow_run = await orion_client.read_flow_run(flow_run.id)
     assert flow_run.state_name == "Scheduled"
+
+
+async def test_worker_creates_only_one_client_context(
+    orion_client, worker_deployment_wq1, work_pool, monkeypatch, caplog
+):
+    tracking_mock = MagicMock()
+    orig_get_client = get_client
+
+    def get_client_spy(*args, **kwargs):
+        tracking_mock(*args, **kwargs)
+        return orig_get_client(*args, **kwargs)
+
+    monkeypatch.setattr("prefect.workers.base.get_client", get_client_spy)
+
+    run_mock = AsyncMock()
+
+    @flow
+    def test_flow():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+    )
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        worker.run = run_mock  # don't run anything
+        await worker.get_and_submit_flow_runs()
+
+    assert tracking_mock.call_count == 1
+
+    # Multiple hits if worker's client is not being reused
+    assert caplog.text.count("Using ephemeral application") == 1
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
