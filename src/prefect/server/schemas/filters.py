@@ -252,9 +252,9 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.deployment_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.deployment_id is None
+                db.FlowRun.deployment_id.is_(None)
                 if self.is_null_
-                else db.FlowRun.deployment_id is not None
+                else db.FlowRun.deployment_id.is_not(None)
             )
         return filters
 
@@ -278,9 +278,9 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.work_queue_name.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.work_queue_name is None
+                db.FlowRun.work_queue_name.is_(None)
                 if self.is_null_
-                else db.FlowRun.work_queue_name is not None
+                else db.FlowRun.work_queue_name.is_not(None)
             )
         return filters
 
@@ -361,9 +361,9 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
             filters.append(db.FlowRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.start_time is None
+                db.FlowRun.start_time.is_(None)
                 if self.is_null_
-                else db.FlowRun.start_time is not None
+                else db.FlowRun.start_time.is_not(None)
             )
         return filters
 
@@ -433,9 +433,9 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.parent_task_run_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.parent_task_run_id is None
+                db.FlowRun.parent_task_run_id.is_(None)
                 if self.is_null_
-                else db.FlowRun.parent_task_run_id is not None
+                else db.FlowRun.parent_task_run_id.is_not(None)
             )
         return filters
 
@@ -683,9 +683,9 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
             filters.append(db.TaskRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
-                db.TaskRun.start_time is None
+                db.TaskRun.start_time.is_(None)
                 if self.is_null_
-                else db.TaskRun.start_time is not None
+                else db.TaskRun.start_time.is_not(None)
             )
         return filters
 
