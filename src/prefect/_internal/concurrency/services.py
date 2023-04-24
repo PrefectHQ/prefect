@@ -38,12 +38,19 @@ class QueueService(abc.ABC, Generic[T]):
 
     def start(self):
         logger.debug("Starting service %r", self)
+        loop_thread = get_global_loop()
+
+        if not asyncio.get_running_loop() == loop_thread._loop:
+            raise RuntimeError("Services must run on the global loop thread.")
 
         self._queue = asyncio.Queue()
-        self._loop = asyncio.get_running_loop()
+        self._loop = loop_thread._loop
         self._done_event = asyncio.Event()
         self._task = self._loop.create_task(self._run())
         self._started = True
+
+        # Ensure that we wait for worker completion before loop thread shutdown
+        loop_thread.add_shutdown_call(create_call(self.drain))
 
         # Put all early submissions in the queue
         while self._early_items:
