@@ -191,7 +191,7 @@ class TestReadTaskRuns:
         assert len(result) == 0
 
     async def test_read_task_runs_filters_by_task_run_names(self, flow_run, session):
-        task_run_1 = await models.task_runs.create_task_run(
+        await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
@@ -303,7 +303,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
             ),
         )
-        task_run_state_1 = await models.task_runs.set_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_1.id,
             state=Scheduled(),
@@ -314,7 +314,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
             ),
         )
-        task_run_state_2 = await models.task_runs.set_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_2.id,
             state=schemas.states.Completed(),
@@ -590,13 +590,13 @@ class TestReadTaskRuns:
         assert len(result) == 0
 
     async def test_read_task_runs_applies_limit(self, flow_run, session):
-        task_run_1 = await models.task_runs.create_task_run(
+        await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
             ),
         )
-        task_run_2 = await models.task_runs.create_task_run(
+        await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
@@ -629,7 +629,7 @@ class TestReadTaskRuns:
 
     async def test_read_task_runs_applies_sort(self, flow_run, session):
         now = pendulum.now()
-        task_run_1 = await models.task_runs.create_task_run(
+        await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,

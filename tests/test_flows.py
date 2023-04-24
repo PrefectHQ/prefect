@@ -147,9 +147,7 @@ class TestFlow:
         with pytest.raises(
             ReservedArgumentError, match="'return_state' is a reserved argument name"
         ):
-            f = Flow(
-                name="test", fn=lambda return_state: 42, version="A", description="B"
-            )
+            Flow(name="test", fn=lambda return_state: 42, version="A", description="B")
 
     def test_param_description_from_docstring(self):
         def my_fn(x):
@@ -228,8 +226,11 @@ class TestFlowWithOptions:
         def initial_flow():
             pass
 
-        failure_hook = lambda task, task_run, state: print("Woof!")
-        success_hook = lambda task, task_run, state: print("Meow!")
+        def failure_hook(task, task_run, state):
+            return print("Woof!")
+
+        def success_hook(task, task_run, state):
+            return print("Meow!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
@@ -1388,8 +1389,8 @@ class TestFlowRunLogs:
         def my_flow():
             logger = get_run_logger()
             try:
-                x + y
-            except:
+                x + y  # noqa: F821
+            except Exception:
                 logger.error("There was an issue", exc_info=True)
 
         my_flow()

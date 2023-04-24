@@ -398,7 +398,8 @@ async def ls(
             else:
                 queues = await client.read_work_queues()
 
-            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+            def sort_by_created_key(q):
+                return pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -436,7 +437,9 @@ async def ls(
             wp_filter = WorkPoolFilter(id=WorkPoolFilterId(any_=pool_ids))
             pools = await client.read_work_pools(work_pool_filter=wp_filter)
             pool_id_name_map = {p.id: p.name for p in pools}
-            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+
+            def sort_by_created_key(q):
+                return pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -471,7 +474,8 @@ async def ls(
             except ObjectNotFound:
                 exit_with_error(f"No work pool found: {pool!r}")
 
-            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+            def sort_by_created_key(q):
+                return pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -550,7 +554,9 @@ async def preview(
             except ObjectNotFound:
                 exit_with_error(f"No work queue found: {name!r}")
     now = pendulum.now("utc")
-    sort_by_created_key = lambda r: now - r.created
+
+    def sort_by_created_key(r):
+        return now - r.created
 
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(

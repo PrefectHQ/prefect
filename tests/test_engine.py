@@ -145,9 +145,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=0.1)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(FailedRun):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -168,9 +168,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=20, poll_interval=100)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -194,9 +194,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=4, poll_interval=5)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -217,9 +217,9 @@ class TestBlockingPause:
             x = foo.submit()
             y = foo.submit()
             pause_flow_run(timeout=0.1)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+            foo(wait_for=[x])
+            foo(wait_for=[y])
+            foo(wait_for=[x, y])
 
         flow_run_state = pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
@@ -238,9 +238,9 @@ class TestBlockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=0.1)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         flow_run_state = await pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
@@ -258,41 +258,11 @@ class TestBlockingPause:
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
-            await pause_flow_run(timeout=10, poll_interval=2)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
-
-        async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await orion_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
-
-        flow_run_state, the_answer = await asyncio.gather(
-            pausing_flow(return_state=True),
-            flow_resumer(),
-        )
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await orion_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 5, "all tasks should finish running"
-
-    async def test_paused_flows_can_be_resumed(self, orion_client):
-        @task
-        async def foo():
-            return 42
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def pausing_flow():
-            x = await foo.submit()
-            y = await foo.submit()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
-            z = await foo(wait_for=[x])
+            await foo(wait_for=[x])
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         async def flow_resumer():
             await anyio.sleep(3)
@@ -332,9 +302,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
         with pytest.raises(Pause):
@@ -364,9 +334,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(Pause):
             await pausing_flow_without_blocking()
@@ -391,9 +361,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(Pause):
             await pausing_flow_without_blocking()
@@ -422,16 +392,16 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         @flow(task_runner=SequentialTaskRunner())
         async def wrapper_flow():
             return await pausing_flow_without_blocking()
 
         with pytest.raises(RuntimeError, match="Cannot pause subflows"):
-            flow_run_state = await wrapper_flow()
+            await wrapper_flow()
 
     async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
         self, orion_client
@@ -445,14 +415,14 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(
             RuntimeError, match="Cannot pause flows without a deployment"
         ):
-            flow_run_state = await pausing_flow_without_blocking()
+            await pausing_flow_without_blocking()
 
 
 class TestOutOfProcessPause:
@@ -478,9 +448,9 @@ class TestOutOfProcessPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         flow_run_state = await pausing_flow_without_blocking(return_state=True)
         assert flow_run_state.is_paused()
@@ -516,12 +486,12 @@ class TestOutOfProcessPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(PausedRun):
-            flow_run_state = await pausing_flow_without_blocking()
+            await pausing_flow_without_blocking()
 
 
 class TestOrchestrateTaskRun:
@@ -1472,8 +1442,8 @@ class TestDeploymentFlowRun:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment_id, parameters={"x": 1}
         )
-        assert flow_run.empirical_policy.retries == None
-        assert flow_run.empirical_policy.retry_delay == None
+        assert flow_run.empirical_policy.retries is None
+        assert flow_run.empirical_policy.retry_delay is None
 
         with mock_anyio_sleep.assert_sleeps_for(
             my_flow.retries * my_flow.retry_delay_seconds,
@@ -1789,7 +1759,7 @@ class TestCreateAndBeginSubflowRun:
         parameterized_flow,
         get_flow_run_context,
     ):
-        with await get_flow_run_context() as ctx:
+        with await get_flow_run_context():
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"dog": [1, 2], "cat": "not an int"},

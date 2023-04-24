@@ -4,7 +4,7 @@ import traceback
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
+from typing import Any, Dict, Iterable, Optional, Type
 
 import anyio
 import httpx
@@ -30,12 +30,6 @@ from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
-
-if TYPE_CHECKING:
-    from prefect.deprecated.data_documents import DataDocument
-    from prefect.results import BaseResult
-
-R = TypeVar("R")
 
 
 def get_state_result(
@@ -189,7 +183,7 @@ async def exception_to_failed_state(
                 "Exception was not passed and no active exception could be found."
             )
     else:
-        exc_tb = exc.__traceback__
+        pass
 
     if result_factory:
         data = await result_factory.create_result(exc)

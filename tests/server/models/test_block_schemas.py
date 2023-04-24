@@ -79,210 +79,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session, block_schema=X._to_block_schema()
-        )
-
-        nested_block_schema = await read_block_schema_by_checksum(
-            session=session,
-            checksum=Y._calculate_schema_checksum(),
-        )
-        assert nested_block_schema is not None
-        assert nested_block_schema.fields == {
-            "block_schema_references": {},
-            "block_type_slug": "y",
-            "properties": {
-                "a": {"title": "A", "type": "string"},
-                "b": {"title": "B", "type": "string"},
-            },
-            "required": ["a", "b"],
-            "title": "Y",
-            "type": "object",
-        }
-        assert nested_block_schema.fields == Y.schema()
-
-    async def test_create_multiply_nested_block_schema(self, session, block_type_x):
-        class A(Block):
-            d: str
-            e: str
-
-        class Z(Block):
-            a: A
-            c: int
-
-        class Y(Block):
-            b: str
-            c: int
-
-        class X(Block):
-            _block_type_id = block_type_x.id
-            _block_type_name = block_type_x.name
-
-            y: Y
-            z: Z
-
-        await models.block_types.create_block_type(
-            session=session, block_type=A._to_block_type()
-        )
-        await models.block_types.create_block_type(
-            session=session, block_type=Z._to_block_type()
-        )
-        await models.block_types.create_block_type(
-            session=session, block_type=Y._to_block_type()
-        )
-
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session, block_schema=X._to_block_schema()
-        )
-
-        block_schemas = await models.block_schemas.read_block_schemas(session=session)
-        assert len(block_schemas) == 4
-
-        nested_block_schema = await read_block_schema_by_checksum(
-            session=session,
-            checksum=A._calculate_schema_checksum(),
-        )
-        assert nested_block_schema is not None
-        assert nested_block_schema.fields == {
-            "block_schema_references": {},
-            "block_type_slug": "a",
-            "properties": {
-                "d": {"title": "D", "type": "string"},
-                "e": {"title": "E", "type": "string"},
-            },
-            "required": ["d", "e"],
-            "title": "A",
-            "type": "object",
-        }
-        assert nested_block_schema.fields == A.schema()
-
-    async def test_create_nested_block_schema_with_multiply_used_blocks(self, session):
-        class A(Block):
-            d: str
-            e: str
-
-        class Z(Block):
-            a: A
-            c: int
-
-        class Y(Block):
-            a: A
-            b: str
-            c: int
-
-        class X(Block):
-            y: Y
-            z: Z
-
-        await models.block_types.create_block_type(
-            session=session, block_type=A._to_block_type()
-        )
-        await models.block_types.create_block_type(
-            session=session, block_type=Z._to_block_type()
-        )
-        await models.block_types.create_block_type(
-            session=session, block_type=Y._to_block_type()
-        )
-        block_type_x = await models.block_types.create_block_type(
-            session=session, block_type=X._to_block_type()
-        )
-
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=X._to_block_schema(block_type_id=block_type_x.id),
-        )
-
-        block_schemas = await models.block_schemas.read_block_schemas(session=session)
-        assert len(block_schemas) == 4
-
-        nested_block_schema_a = await read_block_schema_by_checksum(
-            session=session,
-            checksum=A._calculate_schema_checksum(),
-        )
-        assert nested_block_schema_a is not None
-        assert nested_block_schema_a.fields == {
-            "block_schema_references": {},
-            "block_type_slug": "a",
-            "properties": {
-                "d": {"title": "D", "type": "string"},
-                "e": {"title": "E", "type": "string"},
-            },
-            "required": ["d", "e"],
-            "title": "A",
-            "type": "object",
-        }
-        assert nested_block_schema_a.fields == A.schema()
-
-        nested_block_schema_z = (
-            await models.block_schemas.read_block_schema_by_checksum(
-                session=session, checksum=Z._calculate_schema_checksum()
-            )
-        )
-        assert nested_block_schema_z is not None
-        assert nested_block_schema_z.fields == Z.schema()
-        assert (
-            Z.schema()["block_schema_references"]["a"]["block_schema_checksum"]
-            == A._calculate_schema_checksum()
-        )
-
-        nested_block_schema_y = (
-            await models.block_schemas.read_block_schema_by_checksum(
-                session=session, checksum=Y._calculate_schema_checksum()
-            )
-        )
-        assert nested_block_schema_y is not None
-        assert nested_block_schema_y.fields == Y.schema()
-        assert (
-            Y.schema()["block_schema_references"]["a"]["block_schema_checksum"]
-            == A._calculate_schema_checksum()
-        )
-
-    async def test_create_block_schema_with_union(
-        self, session, block_type_x, block_type_y, block_type_z
-    ):
-        class Z(Block):
-            _block_type_id = block_type_z.id
-            _block_type_name = block_type_z.name
-
-            b: str
-
-        class Y(Block):
-            _block_type_id = block_type_y.id
-            _block_type_name = block_type_y.name
-
-            a: str
-
-        class X(Block):
-            _block_type_id = block_type_x.id
-            _block_type_name = block_type_x.name
-
-            y_or_z: Union[Y, Z]
-
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=X._to_block_schema(),
-        )
-
-        assert block_schema.checksum == X._calculate_schema_checksum()
-        assert block_schema.fields == X.schema()
-
-    async def test_create_nested_block_schema(self, session, block_type_x):
-        class Y(Block):
-            a: str
-            b: str
-
-        class X(Block):
-            _block_type_id = block_type_x.id
-            _block_type_name = block_type_x.name
-
-            y: Y
-            z: str
-
-        await models.block_types.create_block_type(
-            session=session, block_type=Y._to_block_type()
-        )
-
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -335,7 +132,7 @@ class TestCreateBlockSchema:
             session=session, block_type=Y._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session, block_schema=X._to_block_schema()
         )
 
@@ -394,7 +191,7 @@ class TestCreateBlockSchema:
             session=session, block_type=X._to_block_type()
         )
 
-        block_schema = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=X._to_block_schema(block_type_id=block_type_x.id),
         )
@@ -696,7 +493,7 @@ class TestReadBlockSchemas:
             )
         ).scalar()
         assert before_read.fields.get("block_schema_references") is None
-        read_result = await models.block_schemas.read_block_schema(
+        await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
         await session.commit()
@@ -1181,21 +978,21 @@ async def block_schemas_with_capabilities(session):
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=Duck._to_block_type()
     )
-    block_schema_a = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Duck._to_block_schema(block_type_id=block_type_a.id),
     )
     block_type_b = await models.block_types.create_block_type(
         session=session, block_type=Bird._to_block_type()
     )
-    block_schema_b = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Bird._to_block_schema(block_type_id=block_type_b.id),
     )
     block_type_c = await models.block_types.create_block_type(
         session=session, block_type=Cat._to_block_type()
     )
-    block_schema_c = await models.block_schemas.create_block_schema(
+    await models.block_schemas.create_block_schema(
         session=session,
         block_schema=Cat._to_block_schema(block_type_id=block_type_c.id),
     )

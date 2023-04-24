@@ -306,7 +306,7 @@ class TestCancelFlowRun:
 
     def test_wrong_id_exits_with_error(self):
         bad_id = str(uuid4())
-        res = invoke_and_assert(
+        invoke_and_assert(
             ["flow-run", "cancel", bad_id],
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
@@ -446,6 +446,30 @@ class TestFlowRunLogs:
                 for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 1)
             ],
             expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 1,
+        )
+
+    async def test_when_num_logs_greater_than_page_size_with_head_outputs_correct_num_logs(
+        self, flow_run_factory
+    ):
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 50)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "--num-logs",
+                self.LOGS_DEFAULT_PAGE_SIZE + 50,
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 50)
+            ],
+            expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 50,
         )
 
     async def test_default_head_returns_default_num_logs(self, flow_run_factory):
