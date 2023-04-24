@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +14,7 @@ from prefect._internal.concurrency.services import (
     drain_on_exit,
     drain_on_exit_async,
 )
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 
 
 class MockService(QueueService[int]):
@@ -25,6 +27,8 @@ class MockService(QueueService[int]):
             super().__init__()
 
     async def _handle(self, item: int):
+        # Checkpoint to catch errors where async cancellation has occurred
+        await asyncio.sleep(0)
         self.mock(self, item)
         print(f"Handled item {item} for {self}")
 
@@ -40,6 +44,8 @@ class MockBatchedService(BatchedQueueService[int]):
             super().__init__()
 
     async def _handle_batch(self, items: List[int]):
+        # Checkpoint to catch errors where async cancellation has occurred
+        await asyncio.sleep(0)
         self.mock(self, items)
         print(f"Handled batch for {self}")
 
@@ -213,6 +219,16 @@ def test_drain_many_instances_many_threads():
         [call(ANY, i) for i in range(10)],
         any_order=True,
     )
+
+
+def test_drain_on_global_loop_shutdown():
+    # Regression test https://github.com/PrefectHQ/prefect/issues/9275#issuecomment-1520468276
+    for i in range(10):
+        MockService.instance().send(i)
+
+    wait_for_global_loop_exit()
+
+    MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)])
 
 
 def test_drain_on_exit():
