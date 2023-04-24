@@ -124,7 +124,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
 
 
 async def test_create_schedules_from_multiple_deployments_in_batches(flow, session):
-    flow_2 = await models.flows.create_flow(
+    await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name="flow-2")
     )
 
@@ -161,7 +161,7 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
 
 
 async def test_scheduler_respects_schedule_is_active(flow, session):
-    deployment = await models.deployments.create_deployment(
+    await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
@@ -335,7 +335,7 @@ class TestScheduleRulesWaterfall:
     async def test_create_schedule_respects_max_future_time(
         self, flow, session, interval, n
     ):
-        deployment = await models.deployments.create_deployment(
+        await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="test",

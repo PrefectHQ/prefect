@@ -58,7 +58,7 @@ def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
             print(
                 (
                     f"Warning! Failed to parse extra entrypoint {value!r}:"
-                    f" {type(result).__name__}: {result}"
+                    f" {type(exc).__name__}: {exc}"
                 ),
                 file=sys.stderr,
             )

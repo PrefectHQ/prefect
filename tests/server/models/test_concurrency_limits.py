@@ -60,7 +60,7 @@ class TestResettingConcurrencyLimits:
         await models.concurrency_limits.reset_concurrency_limit_by_tag(
             session, "this bad boy"
         )
-        limit_after_reset = (
+        (
             await models.concurrency_limits.read_concurrency_limit_by_tag(
                 session, "this bad boy"
             )
@@ -85,7 +85,7 @@ class TestResettingConcurrencyLimits:
         await models.concurrency_limits.reset_concurrency_limit_by_tag(
             session, "this bad boy", slot_override=[uuid4() for _ in range(42)]
         )
-        limit_after_reset = (
+        (
             await models.concurrency_limits.read_concurrency_limit_by_tag(
                 session, "this bad boy"
             )
@@ -93,7 +93,7 @@ class TestResettingConcurrencyLimits:
         assert len(limit_before_reset.active_slots) == 42
 
     async def test_resetting_limit_returns_limit(self, session):
-        concurrency_limit = await models.concurrency_limits.create_concurrency_limit(
+        await models.concurrency_limits.create_concurrency_limit(
             session=session,
             concurrency_limit=schemas.core.ConcurrencyLimit(
                 tag="this bad boy", concurrency_limit=100
@@ -138,7 +138,7 @@ class TestReadingSingleConcurrencyLimits:
         assert fetched_limit is None
 
     async def test_reading_concurrency_limits_by_tag(self, session):
-        concurrency_limit = await models.concurrency_limits.create_concurrency_limit(
+        await models.concurrency_limits.create_concurrency_limit(
             session=session,
             concurrency_limit=schemas.core.ConcurrencyLimit(
                 tag="a searchable tag", concurrency_limit=424242

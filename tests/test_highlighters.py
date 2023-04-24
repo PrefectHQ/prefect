@@ -57,13 +57,13 @@ def test_highlight_state(state):
 
 def test_highlight_console():
     text = Text(
-        f"10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state"
-        f" Completed()"
+        "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state"
+        " Completed()"
     )
     highlighter = PrefectConsoleHighlighter()
     highlighter.highlight(text)
     assert text.spans == [
-        Span(15, 19, f"log.info_level"),
-        Span(33, 49, f"log.flow_run_name"),
-        Span(70, 79, f"log.completed_state"),
+        Span(15, 19, "log.info_level"),
+        Span(33, 49, "log.flow_run_name"),
+        Span(70, 79, "log.completed_state"),
     ]

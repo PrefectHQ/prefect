@@ -204,9 +204,9 @@ class Call(Generic[T]):
             # Prevent reference cycle in `exc`
             del self
         else:
-            self.cancel_context.mark_completed()
-            self.future.set_result(result)
-            logger.debug("Finished call %r", self)
+            self.cancel_context.mark_completed()  # noqa: F821
+            self.future.set_result(result)  # noqa: F821
+            logger.debug("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
         try:
@@ -222,8 +222,8 @@ class Call(Generic[T]):
             # Prevent reference cycle in `exc`
             del self
         else:
-            self.future.set_result(result)
-            logger.debug("Finished async call %r", self)
+            self.future.set_result(result)  # noqa: F821
+            logger.debug("Finished async call %r", self)  # noqa: F821
 
     def __call__(self) -> T:
         """

@@ -258,28 +258,3 @@ async def test_service_uses_message_template(
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out
     assert f"Also the url works: {expected_url}" in captured.out
-
-
-async def test_service_sends_multiple_notifications(
-    session, db, flow, flow_run, completed_policy, failed_policy, capsys
-):
-    # set a completed state
-    await models.flow_runs.set_flow_run_state(
-        session=session, flow_run_id=flow_run.id, state=schemas.states.Completed()
-    )
-    # set a failed state
-    await models.flow_runs.set_flow_run_state(
-        session=session, flow_run_id=flow_run.id, state=schemas.states.Failed()
-    )
-    await session.commit()
-
-    await FlowRunNotifications(handle_signals=False).start(loops=1)
-
-    captured = capsys.readouterr()
-    assert (
-        f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
-        in captured.out
-    )
-    assert (
-        f"Flow run {flow.name}/{flow_run.name} entered state `Failed`" in captured.out
-    )

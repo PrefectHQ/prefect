@@ -694,7 +694,7 @@ class TestGetRunsFromWorkQueueQuery:
         if db.database_config.connection_url.startswith("sqlite"):
             pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
 
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
+        db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:
@@ -717,7 +717,7 @@ class TestGetRunsFromWorkQueueQuery:
         if db.database_config.connection_url.startswith("sqlite"):
             pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
 
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
+        db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:

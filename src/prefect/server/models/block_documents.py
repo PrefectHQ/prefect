@@ -173,7 +173,7 @@ async def _construct_full_block_document(
         name,
         parent_block_document_id,
     ) in block_documents_with_references:
-        if parent_block_document_id == parent_block_document.id and name != None:
+        if parent_block_document_id == parent_block_document.id and name is not None:
             block_document = await BlockDocument.from_orm_model(
                 session, orm_block_document, include_secrets=include_secrets
             )

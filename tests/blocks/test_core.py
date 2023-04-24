@@ -1910,7 +1910,7 @@ class TestGetDescription:
         class A(Block):
             message: str
 
-        assert A.get_description() == None
+        assert A.get_description() is None
 
     def test_description_from_docstring(self, caplog):
         class A(Block):
@@ -2378,7 +2378,7 @@ class TestBlockSchemaMigration:
             a = A_Alias.load("test", validate=False)
 
         assert a.x == 1
-        assert a.y == None
+        assert a.y is None
 
     def test_rm_field_from_schema_loads_with_validation(self):
         class Foo(Block):

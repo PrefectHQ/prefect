@@ -216,7 +216,7 @@ def test_lifecycle_events(
     assert started_event.event == "prefect.worker.started"
 
     assert dict(started_event.resource.items()) == {
-        "prefect.resource.id": f"prefect.worker.process.test-worker",
+        "prefect.resource.id": "prefect.worker.process.test-worker",
         "prefect.resource.name": "test-worker",
         "prefect.version": str(__version__),
         "prefect.worker-type": "process",
@@ -239,7 +239,7 @@ def test_lifecycle_events(
     assert stopped_event.event == "prefect.worker.stopped"
 
     assert dict(stopped_event.resource.items()) == {
-        "prefect.resource.id": f"prefect.worker.process.test-worker",
+        "prefect.resource.id": "prefect.worker.process.test-worker",
         "prefect.resource.name": "test-worker",
         "prefect.version": str(__version__),
         "prefect.worker-type": "process",

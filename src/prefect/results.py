@@ -40,7 +40,11 @@ if TYPE_CHECKING:
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
 LITERAL_TYPES = {type(None), bool}
-DEFAULT_STORAGE_KEY_FN = lambda: uuid.uuid4().hex
+
+
+def DEFAULT_STORAGE_KEY_FN():
+    return uuid.uuid4().hex
+
 
 logger = get_logger("results")
 

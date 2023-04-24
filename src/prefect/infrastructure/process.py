@@ -156,8 +156,8 @@ class Process(Infrastructure):
                 sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
             ):
                 help_message = (
-                    f"Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                    f"Typically, this is caused by manual cancellation."
+                    "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                    "Typically, this is caused by manual cancellation."
                 )
 
             self.logger.error(

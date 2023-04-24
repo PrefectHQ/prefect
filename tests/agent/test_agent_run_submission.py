@@ -59,11 +59,8 @@ async def test_agent_with_work_queue(orion_client, deployment):
     def foo():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
-        )
-    )
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(deployment.id, state=state)
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -111,11 +108,8 @@ async def test_agent_with_work_queue_and_limit(orion_client, deployment):
     def foo():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
-        )
-    )
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(deployment.id, state=state)
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -932,11 +926,10 @@ async def test_agent_with_work_queue_and_work_pool(
     def foo():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
-    )
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -994,11 +987,10 @@ async def test_agent_with_work_pool(
     def foo():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
-    )
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -1059,11 +1051,10 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     def foo():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
-    )
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -1171,17 +1162,15 @@ async def test_agent_runs_high_priority_flow_runs_first(
     def foo():
         pass
 
-    create_high_priority_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_high_priority_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             deployment_on_default_queue.id, state=state
         )
-    )
 
-    create_low_priority_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_low_priority_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
-    )
 
     flow_runs = [
         await create_low_priority_run_with_deployment(Pending()),

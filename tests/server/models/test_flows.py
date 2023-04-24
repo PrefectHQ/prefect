@@ -228,7 +228,7 @@ class TestReadFlows:
         flow_2 = await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
-        flow_3 = await models.flows.create_flow(
+        await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-3")
         )
 

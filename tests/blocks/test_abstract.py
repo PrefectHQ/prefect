@@ -303,7 +303,7 @@ class TestObjectStorageBlock:
         )
         caplog.records[
             1
-        ].message == f"downloaded from uploaded_from_folder to downloaded_to_folder"
+        ].message == "downloaded from uploaded_from_folder to downloaded_to_folder"
 
 
 class TestSecretBlock:

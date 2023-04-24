@@ -460,7 +460,7 @@ async def work_queue_check_for_deployment(
             work_queues = await models.deployments.check_work_queues_for_deployment(
                 session=session, deployment_id=deployment_id
             )
-    except ObjectNotFoundError as exc:
+    except ObjectNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )

@@ -44,7 +44,7 @@ class TestCreateFlowRunState:
         assert flow_run_state.state_details.flow_run_id == flow_run.id
 
     async def test_run_details_are_updated_entering_running(self, flow_run, session):
-        frs = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Scheduled(),
@@ -57,7 +57,7 @@ class TestCreateFlowRunState:
         assert flow_run.total_run_time == datetime.timedelta(0)
 
         dt = pendulum.now("UTC")
-        frs2 = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Running(timestamp=dt),
@@ -70,7 +70,7 @@ class TestCreateFlowRunState:
         assert flow_run.estimated_run_time > datetime.timedelta(0)
 
         dt2 = pendulum.now("utc")
-        frs3 = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Running(timestamp=dt2),

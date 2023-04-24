@@ -1,6 +1,5 @@
-autoflake8
+ruff
 cairosvg
-flake8
 flaky
 ipython
 jinja2

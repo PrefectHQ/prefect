@@ -187,5 +187,5 @@ class TestRepresentation:
         data = DataDocument(encoding="text", blob=b"abc")
         assert (
             repr(Completed(message="I'm done", data=data))
-            == f"""Completed(message="I'm done", type=COMPLETED, result='abc')"""
+            == """Completed(message="I'm done", type=COMPLETED, result='abc')"""
         )

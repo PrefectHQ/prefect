@@ -327,7 +327,7 @@ class TestReadDeployment:
                 infrastructure_document_id=infrastructure_document_id,
             ),
         )
-        deployment_2 = await models.deployments.create_deployment(
+        await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",

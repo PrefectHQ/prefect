@@ -49,8 +49,8 @@ def upgrade():
     if not default_queue:
         connection.execute(
             sa.text(
-                f"INSERT INTO work_queue (name, work_pool_id) VALUES ('default',"
-                f" :default_pool_id)"
+                "INSERT INTO work_queue (name, work_pool_id) VALUES ('default',"
+                " :default_pool_id)"
             ).params({"default_pool_id": default_pool_id}),
         )
 

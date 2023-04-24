@@ -1877,9 +1877,7 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
-        task_run = await orion_client.read_task_run(
-            downstream_state.state_details.task_run_id
-        )
+        await orion_client.read_task_run(downstream_state.state_details.task_run_id)
 
     async def test_task_inputs_populated_with_state_upstream(self, orion_client):
         @task
@@ -2200,7 +2198,7 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            f = await waiter_task.submit(e, 1)
+            await waiter_task.submit(e, 1)
             b = await setter_flow(e)
             return b
 
@@ -2378,8 +2376,8 @@ class TestTaskRunLogs:
         def my_task():
             logger = get_run_logger()
             try:
-                x + y
-            except:
+                x + y  # noqa: F821
+            except Exception:
                 logger.error("There was an issue", exc_info=True)
 
         @flow
@@ -2486,7 +2484,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
-        assert task_with_options.refresh_cache == True
+        assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "bar"
 
     def test_with_options_uses_existing_settings_when_no_override(self):
@@ -2530,7 +2528,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
-        assert task_with_options.refresh_cache == True
+        assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self):

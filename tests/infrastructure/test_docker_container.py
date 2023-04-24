@@ -162,7 +162,7 @@ def test_container_name_includes_index_on_conflict(mock_docker_client, collision
 
     if collision_count:
         # Add the basic name first
-        existing_names = [f"test-name"]
+        existing_names = ["test-name"]
         for i in range(1, collision_count):
             existing_names.append(f"test-name-{i}")
     else:
@@ -673,8 +673,8 @@ def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     with pytest.warns(
         UserWarning,
         match=(
-            f"`host.docker.internal` could not be automatically resolved.*"
-            f"feature is not supported on Docker Engine v19.1.1"
+            "`host.docker.internal` could not be automatically resolved.*"
+            "feature is not supported on Docker Engine v19.1.1"
         ),
     ):
         DockerContainer(

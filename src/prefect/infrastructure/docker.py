@@ -92,7 +92,7 @@ class BaseDockerLogin(Block, ABC):
                 docker_client = docker.from_env()
 
         except docker.errors.DockerException as exc:
-            raise RuntimeError(f"Could not connect to Docker.") from exc
+            raise RuntimeError("Could not connect to Docker.") from exc
 
         return docker_client
 
@@ -301,7 +301,7 @@ class DockerContainer(Infrastructure):
     @validator("volumes")
     def check_volume_format(cls, volumes):
         for volume in volumes:
-            if not ":" in volume:
+            if ":" not in volume:
                 raise ValueError(
                     "Invalid volume specification. "
                     f"Expected format 'path:container_path', but got {volume!r}"
@@ -650,7 +650,7 @@ class DockerContainer(Infrastructure):
                 docker_client = docker.from_env()
 
         except docker.errors.DockerException as exc:
-            raise RuntimeError(f"Could not connect to Docker.") from exc
+            raise RuntimeError("Could not connect to Docker.") from exc
 
         return docker_client
 

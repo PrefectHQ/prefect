@@ -230,14 +230,14 @@ class TestLS:
     async def test_ls(self, orion_client, work_pool):
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool ls",
+            "work-pool ls",
         )
         assert res.exit_code == 0
 
     async def test_verbose(self, orion_client, work_pool):
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool ls --verbose",
+            "work-pool ls --verbose",
         )
         assert res.exit_code == 0
 

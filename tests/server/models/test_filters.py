@@ -50,16 +50,20 @@ async def data(flow_function, db):
     # auto-generated names never conflict.
 
     async with db.session_context(begin_transaction=True) as session:
-        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
-        create_deployment = lambda deployment: models.deployments.create_deployment(
-            session=session, deployment=deployment
-        )
-        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
-        create_task_run = lambda task_run: models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+
+        def create_flow(flow):
+            return models.flows.create_flow(session=session, flow=flow)
+
+        def create_deployment(deployment):
+            return models.deployments.create_deployment(
+                session=session, deployment=deployment
+            )
+
+        def create_flow_run(flow_run):
+            return models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+
+        def create_task_run(task_run):
+            return models.task_runs.create_task_run(session=session, task_run=task_run)
 
         wp = await models.workers.create_work_pool(
             session=session, work_pool=actions.WorkPoolCreate(name="Test Pool")
@@ -114,7 +118,7 @@ async def data(flow_function, db):
             )
         )
 
-        fr_1_2 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
                 name="sad-duck",
@@ -122,7 +126,7 @@ async def data(flow_function, db):
                 state=states.Completed(),
             )
         )
-        fr_1_3 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
                 name="test-happy-mallard",
@@ -131,14 +135,14 @@ async def data(flow_function, db):
                 deployment_id=d_1_1.id,
             )
         )
-        fr_1_4 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
                 tags=["red"],
                 state=states.Running(),
             )
         )
-        fr_1_5 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
                 state=states.Running(),
@@ -148,7 +152,7 @@ async def data(flow_function, db):
 
         # ---- flow 2
 
-        fr_2_1 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_2.id,
                 name="another-test-happy-duck",
@@ -165,7 +169,7 @@ async def data(flow_function, db):
                 state=states.Running(),
             )
         )
-        fr_2_3 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_2.id,
                 tags=["db", "red"],
@@ -185,7 +189,7 @@ async def data(flow_function, db):
             )
         )
 
-        fr_3_2 = await create_flow_run(
+        await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_3.id,
                 tags=["db", "red"],
@@ -264,7 +268,7 @@ async def data(flow_function, db):
         fr1 = await create_flow_run(
             flow_run=core.FlowRun(flow_id=f_4.id),
         )
-        tr1 = await create_task_run(
+        await create_task_run(
             task_run=core.TaskRun(flow_run_id=fr1.id, task_key="a", dynamic_key="0")
         )
         tr2 = await create_task_run(
@@ -275,7 +279,7 @@ async def data(flow_function, db):
         fr2 = await create_flow_run(
             flow_run=core.FlowRun(flow_id=f_4.id, parent_task_run_id=tr2.id),
         )
-        tr3 = await create_task_run(
+        await create_task_run(
             task_run=core.TaskRun(flow_run_id=fr2.id, task_key="a", dynamic_key="0")
         )
 

@@ -263,7 +263,9 @@ async def run_process(
     ) as process:
         if task_status is not None:
             if not task_status_handler:
-                task_status_handler = lambda process: process.pid
+
+                def task_status_handler(process):
+                    return process.pid
 
             task_status.started(task_status_handler(process))
 

@@ -140,7 +140,7 @@ class TestReadTaskRun:
                 state=states.State(id=state_id, type="RUNNING"),
             )
         ).state
-        response = await client.get(f"/task_runs/{task_run.id}")
+        await client.get(f"/task_runs/{task_run.id}")
         assert task_run.state.type.value == "RUNNING"
         assert task_run.state.id == state_id
 

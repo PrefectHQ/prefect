@@ -464,8 +464,6 @@ class RRuleSchedule(PrefectBaseModel):
                 )
             return rrule.replace(**kwargs)
         elif isinstance(rrule, dateutil.rrule.rruleset):
-            tz = self.timezone
-
             # update rrules
             localized_rrules = []
             for rr in rrule._rrule:
