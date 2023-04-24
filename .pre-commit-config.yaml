@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: ruff
         language_version: python3
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
