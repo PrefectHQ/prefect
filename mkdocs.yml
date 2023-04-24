@@ -121,7 +121,7 @@ nav:
         - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
-        - Creating a Worker: tutorials/creating-a-worker.md
+        - Developing a New Worker Type: tutorials/developing-a-new-worker-type.md
     - Concepts: 
         - concepts/index.md
         - Flows: concepts/flows.md

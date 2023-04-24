@@ -165,6 +165,40 @@ job_configuration:
 
 Note that to use custom templates, you will need to declare the template variables used in the template because the names of those variables can no longer be inferred from the configuration class attributes. We will cover how to declare the default variable schema in the [Worker Template Variables](#worker-template-variables) section.
 
+### Rules for Template Variable Interpolation
+
+When defining a job configuration model, it's useful to understand how template variables are interpolated into the job configuration. The templating engine follows a few simple rules:
+
+1. If a template variable is the only value for a key in the `job_configuration` section, the key will be replaced with the value template variable.
+2. If a template variable is part of a string (i.e., there is text before or after the template variable), the value of the template variable will be interpolated into the string.
+3. If a template variable is the only value for a key in the `job_configuration` section and no value is provided for the template variable, the key will be removed from the `job_configuration` section.
+
+These rules allow worker developers and work pool maintainers to define template variables that can be complex types like dictionaries and lists. These rules also mean that worker developers should give reasonable default values to job configuration fields whenever possible because values are not guaranteed to be provided if template variables are unset.
+
+### Template Variable Usage Strategies
+
+Template variables define the interface that deployment creators interact with to configure the execution environments of their deployments. The complexity of this interface can be controlled via the template variables that are defined for a base job template. This control allows work pool maintainers to find a point along the spectrum of flexibility and simplicity appropriate for their organization.
+
+There are two patterns that are represented in current worker implementations:
+
+#### Pass-Through
+
+In the pass-through pattern, template variables are passed through to the job configuration with little change. This pattern exposes complete control to deployment creators but also requires them to understand the details of the execution environment. 
+
+This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge. 
+
+The [Docker worker](https://prefecthq.github.io/prefect-docker/worker/) is an example of a worker that uses this pattern.
+
+#### Infrastructure as Code Templating
+
+Depending on the infrastructure they interact with, workers can sometimes employ a declarative infrastructure syntax (i.e., infrastructure as code) to create execution environments (e.g., a Kubernetes manifest or an ECS task definition). 
+
+In the IaC pattern, it's often useful to use template variables to template portions of the declarative syntax which then can be used to generate the declarative syntax into a final form. 
+
+This approach allows work pool creators to provide a simpler interface to deployment creators while also controlling which portions of infrastructure are configurable by deployment creators.
+
+The [Kubernetes worker](https://prefecthq.github.io/prefect-kubernetes/worker/) is an example of a worker that uses this pattern.
+
 ### Configuring Credentials
 
 When executing flow runs within cloud services, workers will often need credentials to authenticate with those services. For example, a worker that executes flow runs in AWS Fargate will need AWS credentials. As a worker developer, you can use blocks to accept credentials configuration from the user.
@@ -268,6 +302,8 @@ We don't recommend using template variable classes within your worker implementa
 
 Workers set up execution environments using provided configuration. Workers also observe the execution environment as the flow run executes and report any crashes to the Prefect API.
 
+### Attributes
+
 To implement a worker, you must implement the `BaseWorker` class and provide it with the following attributes:
 
 | Attribute | Description | Required |
@@ -278,6 +314,10 @@ To implement a worker, you must implement the `BaseWorker` class and provide it 
 | `_documentation_url` | Link to documentation for the worker. | No |
 | `_logo_url` | Link to a logo for the worker. | No |
 | `_description` | A description of the worker. | No |
+
+### Methods
+
+#### `run`
 
 In addition to the attributes above, you must also implement a `run` method. The `run` method is called for each flow run the worker receives for execution from the work pool.
 
@@ -302,6 +342,17 @@ class MyWorkerResult(BaseWorkerResult):
 ```
 
 If you would like to return more information about a flow run, then additional attributes can be added to the `BaseWorkerResult` class.
+
+
+#### `kill_infrastructure`
+
+Workers must implement a `kill_infrastructure` method to support flow run cancellation. The `kill_infrastructure` method is called when a flow run is canceled and is passed an identifier for the infrastructure to tear down and the execution environment configuration for the flow run.
+
+The `infrastructure_pid` passed to the `kill_infrastructure` method is the same identifier used to mark a flow run execution as started in the `run` method. The `infrastructure_pid` must be a string, but it can take on any format you choose. 
+
+The `infrastructure_pid` should contain enough information to uniquely identify the infrastructure created for a flow run when used with the `job_configuration` passed to the `kill_infrastructure` method. Examples of useful information include: the cluster name, the hostname, the process ID, the container ID, etc.
+
+If a worker cannot tear down infrastructure created for a flow run, the `kill_infrastructure` command should raise an `InfrastructureNotFound` or `InfrastructureNotAvailable` exception.
 
 ### Worker Implementation Example
 
@@ -350,7 +401,9 @@ class MyWorker(BaseWorker):
         job = await self._create_and_start_job(configuration)
 
         if task_status:
-            task_status.started(job.id) # Use a unique ID to mark the run as started
+            # Use a unique ID to mark the run as started. This ID is later used to tear down infrastructure
+            # if the flow run is cancelled.
+            task_status.started(job.id) 
 
         # Monitor the execution
         job_status = await self._watch_job(job, configuration)
@@ -360,6 +413,10 @@ class MyWorker(BaseWorker):
             status_code=exit_code,
             identifier=job.id,
         )
+
+    async def kill_infrastructure(self, infrastructure_pid: str, configuration: BaseJobConfiguration) -> None:
+        # Tear down the execution environment
+        await self._kill_job(infrastructure_pid, configuration)
 ```
 
 Most of the execution logic is omitted from the example above, but it shows that the typical order of operations in the `run` method is:
