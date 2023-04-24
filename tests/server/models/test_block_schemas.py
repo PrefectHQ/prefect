@@ -98,6 +98,7 @@ class TestCreateBlockSchema:
             "required": ["a", "b"],
             "title": "Y",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema.fields == Y.schema()
 
@@ -153,10 +154,13 @@ class TestCreateBlockSchema:
             "required": ["d", "e"],
             "title": "A",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema.fields == A.schema()
 
     async def test_create_nested_block_schema_with_multiply_used_blocks(self, session):
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class A(Block):
             d: str
             e: str
@@ -210,6 +214,7 @@ class TestCreateBlockSchema:
             "required": ["d", "e"],
             "title": "A",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema_a.fields == A.schema()
 
