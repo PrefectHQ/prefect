@@ -79,7 +79,7 @@
     return flowRun.value?.stateType ? isPendingStateType(flowRun.value.stateType) : true
   })
   const computedTabs = computed(() => [
-    { label: 'Logs', hidden: isPending.value },
+    { label: 'Logs' },
     { label: 'Task Runs', hidden: isPending.value },
     { label: 'Subflow Runs', hidden: isPending.value },
     { label: 'Results', hidden: isPending.value },
