@@ -369,11 +369,11 @@ async def test_worker_creates_only_one_client_context(
     def test_flow():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
-    )
+
     await create_run_with_deployment(
         Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
     )
