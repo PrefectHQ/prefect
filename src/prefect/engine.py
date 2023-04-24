@@ -612,14 +612,10 @@ async def orchestrate_flow_run(
             force=flow_run.state.is_pending(),
         )
 
-    if flow.flow_run_name:
-        flow_run_name = flow.flow_run_name.format(**parameters)
-        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
-        logger.extra["flow_run_name"] = flow_run_name
-        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
-        flow_run.name = flow_run_name
-
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+
+    # flag to ensure we only update the flow run name once
+    run_name_set = False
 
     while state.is_running():
         waited_for_task_runs = False
@@ -633,6 +629,22 @@ async def orchestrate_flow_run(
                 client=client,
                 parameters=parameters,
             ) as flow_run_context:
+                # update flow run name
+                if not run_name_set and flow.flow_run_name:
+                    flow_run_name = _resolve_custom_flow_run_name(
+                        flow=flow, parameters=parameters
+                    )
+
+                    await client.update_flow_run(
+                        flow_run_id=flow_run.id, name=flow_run_name
+                    )
+                    logger.extra["flow_run_name"] = flow_run_name
+                    logger.debug(
+                        f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}"
+                    )
+                    flow_run.name = flow_run_name
+                    run_name_set = True
+
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -1522,10 +1534,11 @@ async def orchestrate_task_run(
                     args, kwargs = parameters_to_args_kwargs(
                         task.fn, resolved_parameters
                     )
-
                     # update task run name
                     if not run_name_set and task.task_run_name:
-                        task_run_name = task.task_run_name.format(**resolved_parameters)
+                        task_run_name = _resolve_custom_task_run_name(
+                            task=task, parameters=resolved_parameters
+                        )
                         await client.set_task_run_name(
                             task_run_id=task_run.id, name=task_run_name
                         )
@@ -2052,6 +2065,44 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
             return PREFECT_LOGGING_LOG_PRINTS.value()
 
     return flow_or_task.log_prints
+
+
+def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+    if callable(flow.flow_run_name):
+        flow_run_name = flow.flow_run_name()
+        if not isinstance(flow_run_name, str):
+            raise TypeError(
+                f"Callable {flow.flow_run_name} for 'flow_run_name' returned type"
+                f" {type(flow_run_name).__name__} but a string is required."
+            )
+    elif isinstance(flow.flow_run_name, str):
+        flow_run_name = flow.flow_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'flow_run_name'; got"
+            f" {type(flow.flow_run_name).__name__} instead."
+        )
+
+    return flow_run_name
+
+
+def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+    if callable(task.task_run_name):
+        task_run_name = task.task_run_name()
+        if not isinstance(task_run_name, str):
+            raise TypeError(
+                f"Callable {task.task_run_name} for 'task_run_name' returned type"
+                f" {type(task_run_name).__name__} but a string is required."
+            )
+    elif isinstance(task.task_run_name, str):
+        task_run_name = task.task_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'task_run_name'; got"
+            f" {type(task.task_run_name).__name__} instead."
+        )
+
+    return task_run_name
 
 
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:

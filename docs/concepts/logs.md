@@ -54,9 +54,13 @@ Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNIN
 
 ## Logging Configuration
 
+### Logging settings
+
+Prefect provides several settings for configuring [logging level and loggers](/concepts/logs/).
+
 By default, Prefect displays `INFO`-level and above logging records. You may change this level to `DEBUG` and `DEBUG`-level logs created by Prefect will be shown as well. You may need to change the log level used by loggers from other libraries to see their log records.
 
-You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting. 
+You can override any logging configuration by setting an environment variable or [Prefect Profile](/concepts/settings/) setting using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting. 
 
 For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_LEVEL="DEBUG"`.
 
@@ -377,3 +381,6 @@ Logged events are also persisted to the Prefect database. A log record includes 
 | timestamp | The client-side timestamp of this logged statement. |
 
 For more information, see [Log schema](/api-ref/server/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.
+
+## Extra loggers
+You also have the ability to add custom loggers with `PREFECT_LOGGING_EXTRA_LOGGERS`.

@@ -89,7 +89,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | `tags` | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
 | `cache_key_fn` | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
 | `cache_expiration` | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
-| `task_run_name` | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables. |
+| `task_run_name` | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables; this name can also be provided via a function that returns a string. |
 | `retries` | An optional number of times to retry on task run failure. |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
 | `version` | An optional string specifying the version of this task definition. |
@@ -119,6 +119,56 @@ def my_task(name, date):
 def my_flow():
     # creates a run with a name like "hello-marvin-on-Thursday"
     my_task(name="marvin", date=datetime.datetime.utcnow())
+```
+
+Additionally this setting also accepts a function that returns a string to be used for the task run name:
+
+```python
+import datetime
+from prefect import flow, task
+
+def generate_task_name():
+    date = datetime.datetime.utcnow()
+    return f"{date:%A}-is-a-lovely-day"
+
+@task(name="My Example Task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "Thursday-is-a-lovely-day"
+    my_task(name="marvin")
+```
+
+If you need access to information about the task, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run, task_run
+
+def generate_task_name():
+    flow_name = flow_run.flow_name
+    task_name = task_run.task_name
+
+    parameters = task_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-{task_name}-with-{name}-and-{limit}"
+
+@task(name="my-example-task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name: str, limit: int = 100):
+    pass
+
+@flow
+def my_flow(name: str):
+    # creates a run with a name like "my-flow-my-example-task-with-marvin-and-100"
+    my_task(name="marvin")
 ```
 
 ## Tags
@@ -491,7 +541,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 
 - Prefect [CLI](#cli)
 - Prefect API by using `PrefectClient` [Python client](#python-client)
-- [Prefect server UI](/ui/task-concurrency/) or Prefect Cloud
+- Prefect server UI or Prefect Cloud
 
 #### CLI
 
@@ -528,7 +578,7 @@ $ prefect concurrency-limit inspect small_instance
 
 #### Python client
 
-To update your tag concurrency limits programmatically, use [`PrefectClient.create_concurrency_limit`](/api-ref/prefect/client/#prefect.client.PrefectClient.create_concurrency_limit). 
+To update your tag concurrency limits programmatically, use [`PrefectClient.orchestration.create_concurrency_limit`](../../api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit). 
 
 `create_concurrency_limit` takes two arguments:
 
@@ -548,7 +598,7 @@ async with get_client() as client:
         )
 ```
 
-To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.PrefectClient.delete_concurrency_limit_by_tag), passing the tag:
+To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
 
 ```python
 async with get_client() as client:
