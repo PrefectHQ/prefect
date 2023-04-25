@@ -273,6 +273,49 @@ class TestReadFlows:
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
 
+    async def test_read_flows_applies_work_pool(self, client, session, work_pool):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        response = await client.post("/flows/filter")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+
+        # work queue
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-queue"),  # type: ignore
+        )
+        # deployment
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment X",
+                manifest_path="file.json",
+                flow_id=flow_1.id,
+                is_schedule_active=True,
+                work_queue_id=work_queue.id,
+            ),
+        )
+        await session.commit()
+
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                id=schemas.filters.WorkPoolFilterId(any_=[work_pool.id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flows/filter", json=work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
+
     async def test_read_flows_offset(self, flows, client):
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
