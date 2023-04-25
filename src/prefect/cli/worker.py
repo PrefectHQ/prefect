@@ -139,4 +139,7 @@ async def start(
                 )
             )
 
+            started_event = await worker._emit_worker_started_event()
+
+    await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")

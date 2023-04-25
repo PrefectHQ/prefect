@@ -1,0 +1,18 @@
+# Do not enforce line length; black does this for code and we do not care about comments / docs
+ignore = ["E501"]
+
+[per-file-ignores]
+# Do not inforce usage and import order rules in init files
+"__init__.py" = ["E402", "F401", "I"]
+
+# Do not fix import in compatibility module
+"src/prefect/utilities/compat.py" = ["F401", "I"]
+
+# Allow wild imports in conftest
+"tests/conftest.py" = ["F405", "E402", "F403"]
+
+# Allow fake items in __all__ for runtime
+"src/prefect/runtime/*" = ["F822"]
+
+# Do not enforce line length limits in migrations
+"src/prefect/server/database/migrations/**/*" = ["E501"]

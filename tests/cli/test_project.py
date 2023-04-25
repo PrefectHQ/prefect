@@ -42,7 +42,7 @@ class TestProjectInit:
     @pytest.mark.usefixtures("interactive_console")
     def test_project_init_with_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 "project init --name test_project --recipe docker",
                 expected_code=0,
                 temp_dir=str(tempdir),
@@ -75,7 +75,7 @@ class TestProjectInit:
     @pytest.mark.usefixtures("interactive_console")
     def test_project_init_with_partial_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 "project init --name test_project --recipe docker --field tag=my-tag",
                 expected_code=0,
                 temp_dir=str(tempdir),
@@ -103,7 +103,7 @@ class TestProjectInit:
 
     def test_project_init_with_no_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
+            invoke_and_assert(
                 (
                     "project init --name test_project --recipe docker --field"
                     " tag=my-tag --field image_name=my-image/foo"

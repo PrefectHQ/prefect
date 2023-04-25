@@ -1,5 +1,47 @@
 # Prefect Release Notes
 
+## Release 2.10.5
+
+### Deploy a Prefect flow via Github Actions
+
+With the new [Deploy a Prefect flow](https://github.com/marketplace/actions/deploy-a-prefect-flow) GitHub Action, you can automate the build process for deployments orchestrated by Prefect Cloud. The action leverages the new [Projects](https://docs.prefect.io/latest/concepts/projects/) system. See the [action page](https://github.com/marketplace/actions/deploy-a-prefect-flow) for examples and configuration options.
+
+### Cloud Provider Workers
+
+Workers, Prefect's next-generation agents, have dedicated infrastructure types. This week, we are releasing typed workers for each major cloud provider: AWS, GCP, and Azure. You will be able to find them in the [prefect-aws](https://github.com/PrefectHQ/prefect-aws), [prefect-gcp](https://prefecthq.github.io/prefect-gcp/), and [prefect-azure](https://github.com/PrefectHQ/prefect-azure) collections, respectively. 
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-aws/pull/238
+- https://github.com/PrefectHQ/prefect-aws/pull/244
+- https://github.com/PrefectHQ/prefect-gcp/pull/172
+- https://github.com/PrefectHQ/prefect-azure/pull/87
+
+### Enhancements
+- Add `idempotency_key` to flow runs filter — [#8600](https://github.com/PrefectHQ/prefect/pull/8600)
+- Add `details` tab to flow run page and increase flow run graph width - [#9258](https://github.com/PrefectHQ/prefect/pull/9258)
+- Add status code to base client log on retry - [#9265] (https://github.com/PrefectHQ/prefect/pull/9265)
+
+### Fixes
+- Fix issue in which work queues were duplicated in the `default-agent-pool` when creating a deployment - [#9046](https://github.com/PrefectHQ/prefect/pull/9046)
+- Add `configuration` to `Worker.kill_infrastructure` signature - [#9250](https://github.com/PrefectHQ/prefect/pull/9250)
+- Update `critical_service_loop` to throw a runtime error on failure - [#9267] https://github.com/PrefectHQ/prefect/pull/9267
+- Fix pip requirement inference compatibility with Python 3.11+ and pip 23.1+ - [#9278] (https://github.com/PrefectHQ/prefect/pull/9278)
+- Fix validation error occurring on default values in `variables` schema of `Workpool.base_job_template` [#9282] (https://github.com/PrefectHQ/prefect/pull/9282)
+### Experimental
+- Add `worker.executed-flow-run` event - [#9227](https://github.com/PrefectHQ/prefect/pull/9227)
+- Emit events for worker lifecycle - [#9249](https://github.com/PrefectHQ/prefect/pull/9249)
+- Emit `cancelled-flow-run` event when worker cancels a flow run - [#9255](https://github.com/PrefectHQ/prefect/pull/9255)
+
+### Documentation
+- Fix broken link on docs landing page - [#9247](https://github.com/PrefectHQ/prefect/pull/9247)
+- Remove outdated warning from task run concurrency UI docs - [#9256](https://github.com/PrefectHQ/prefect/pull/9256)
+- Add `edit` button to docs to improve ability to fix documentation - [#9259](https://github.com/PrefectHQ/prefect/pull/9259)
+- Remove UI documentation pages, reorganize content, and simplify side bar navigation structure - [#9039](https://github.com/PrefectHQ/prefect/pull/9039)
+- Add tutorial for creating a worker - [#9179](https://github.com/PrefectHQ/prefect/pull/9179)
+- Add GitHub Action to trigger versioned builds in docs repository — [#8984](https://github.com/PrefectHQ/prefect/pull/8984)
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.4...2.10.5
+
 ## Release 2.10.4
 
 This release further refines Prefect 2.10 with enhancements for [project deployments](https://docs.prefect.io/latest/concepts/projects/#the-deployment-yaml-file) and
@@ -27,6 +69,7 @@ Prior to this release, removing keys from a project's `deployment.yaml` caused a
 - Add polling interval information to worker and agent documentation — [#9209](https://github.com/PrefectHQ/prefect/pull/9209)
 - Update documentation badge styling to improve docs usability — [#9207](https://github.com/PrefectHQ/prefect/pull/9207)
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.3...2.10.4
 
 ## Release 2.10.3
 
@@ -36,19 +79,19 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 
 
 ### Enhancements
-- Rename `__root_path__` to `__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
+- Rename `prefect.__root_path__` to `prefect.__development_base_path__` — https://github.com/PrefectHQ/prefect/pull/9136
 - Include flow run and flow as related resources when emitting events via the events worker — https://github.com/PrefectHQ/prefect/pull/9129
-- Cloud storage recipe improvements — https://github.com/PrefectHQ/prefect/pull/9145
+- Improve Cloud storage Projects recipes — https://github.com/PrefectHQ/prefect/pull/9145
 - Use new sessions and transactions for each query during `CancellationCleanup` — https://github.com/PrefectHQ/prefect/pull/9124
 - Stream `git` output during `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9149
 - Update deployment defaults with project init — https://github.com/PrefectHQ/prefect/pull/9146
-- Mock runtime via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
-- Wire up scheduling kwargs to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
+- Add ability to mock `prefect.runtime` attributes via environment variable — https://github.com/PrefectHQ/prefect/pull/9156
+- Add scheduling options to deploy CLI — https://github.com/PrefectHQ/prefect/pull/9176
 - Add deployment and flow filters to `/artifacts/filter` and `/artifacts/latest/filter` routes — https://github.com/PrefectHQ/prefect/pull/9089
 - Add `/artifacts/latest/count` route — https://github.com/PrefectHQ/prefect/pull/9090
-- add flow run to task run logging — https://github.com/PrefectHQ/prefect/pull/9170
-- Add pragma statements automatically if sqlite — https://github.com/PrefectHQ/prefect/pull/9169
-- Improved recipe initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
+- Add flow run metadata to task run logger — https://github.com/PrefectHQ/prefect/pull/9170
+- Add pragma statements automatically if sqlite writing database migrations for SQLite — https://github.com/PrefectHQ/prefect/pull/9169
+- Improve Projects `recipe` initialization UX — https://github.com/PrefectHQ/prefect/pull/9158
 
 ### Fixes
 - Update `prefect deploy` to pull `flow_name` and `entrypoint` from deployment.yaml if specified — https://github.com/PrefectHQ/prefect/pull/9157
@@ -58,12 +101,11 @@ This release also includes [a critical fix](https://github.com/PrefectHQ/prefect
 - Fix apply artifact collection filter — https://github.com/PrefectHQ/prefect/pull/9153
 
 ### Documentation
-- Adds artifacts to api-ref — https://github.com/PrefectHQ/prefect/pull/9143
-- Expands upon project step documentation — https://github.com/PrefectHQ/prefect/pull/9151
-- small project doc fixes — https://github.com/PrefectHQ/prefect/pull/9161
+- Add artifacts to API reference — https://github.com/PrefectHQ/prefect/pull/9143
+- Expand upon Projects `steps` documentation — https://github.com/PrefectHQ/prefect/pull/9151
 
 ### Collections
-- add prefect-spark-on-k8s-operator to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
+- Add `prefect-spark-on-k8s-operator` to integrations catalog list. — https://github.com/PrefectHQ/prefect/pull/9029
 
 ### Contributors
 * @tardunge made their first contribution in https://github.com/PrefectHQ/prefect/pull/9029
@@ -461,6 +503,8 @@ We heard that people loved the simplicity and sleekness of the timeline on the f
 * @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
 * @mesejo made their first contribution in https://github.com/PrefectHQ/prefect/pull/8842
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.6...2.8.7
+
 ## Release 2.8.6
 
 ### `prefect.runtime` for context access
@@ -547,6 +591,7 @@ See https://github.com/PrefectHQ/prefect/pull/8790 for details.
 * @Zesky665 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8692
 * @predatorprasad made their first contribution in https://github.com/PrefectHQ/prefect/pull/8755
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.4...2.8.5
 
 ## Release 2.8.4
 
@@ -774,6 +819,8 @@ Note: Many settings have been renamed but your old settings will be respected. T
 - @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
 - @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.0...2.8.1
+
 ## Release 2.8.0
 
 ### Prioritize flow runs with work pools 🏊
@@ -845,6 +892,8 @@ To learn more about work pools, check out the [docs](https://docs.prefect.io/con
 
 ### Contributors
 - @carderne
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.12...2.8.0
 
 ## Release 2.7.12
 

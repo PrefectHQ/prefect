@@ -506,8 +506,8 @@ async def test_adding_default_agent_pool_with_existing_default_queue_migration(
             deployment = (
                 await session.execute(
                     sa.text(
-                        f"SELECT work_queue_id FROM deployment WHERE name ="
-                        f" 'my-deployment';"
+                        "SELECT work_queue_id FROM deployment WHERE name ="
+                        " 'my-deployment';"
                     )
                 )
             ).fetchone()

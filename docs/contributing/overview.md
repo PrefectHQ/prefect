@@ -42,7 +42,7 @@ pip install $(./scripts/precommit-versions.py)
 ```
 </div>
 
-You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
+You'll need to run `black` and  `ruff` before a contribution can be accepted.
 
 After installation, you can run the test suite with `pytest`:
 
@@ -51,7 +51,6 @@ After installation, you can run the test suite with `pytest`:
 ```bash
 # Run all the tests
 pytest tests
-
 
 # Run a subset of tests
 pytest tests/test_flows.py

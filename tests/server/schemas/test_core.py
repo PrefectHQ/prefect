@@ -344,7 +344,7 @@ class TestWorkPool:
                 r" expected_variable"
             ),
         ):
-            wp = schemas.core.WorkPool(
+            schemas.core.WorkPool(
                 name="test", default_queue_id=qid, base_job_template=template
             )
 

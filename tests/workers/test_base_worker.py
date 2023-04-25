@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
@@ -37,7 +37,10 @@ class WorkerTestImpl(BaseWorker):
         pass
 
     async def kill_infrastructure(
-        self, infrastructure_pid: str, grace_seconds: int = 30
+        self,
+        infrastructure_pid: str,
+        grace_seconds: int = 30,
+        configuration: Optional[BaseJobConfiguration] = None,
     ):
         pass
 
@@ -139,11 +142,11 @@ async def test_worker_with_work_pool(
     def test_flow():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
-    )
+
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
@@ -183,16 +186,16 @@ async def test_worker_with_work_pool_and_work_queue(
     def test_flow():
         pass
 
-    create_run_with_deployment_1 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment_1(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
-    )
-    create_run_with_deployment_2 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+
+    def create_run_with_deployment_2(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq_2.id, state=state
         )
-    )
+
     flow_runs = [
         await create_run_with_deployment_1(Pending()),
         await create_run_with_deployment_1(
@@ -228,11 +231,11 @@ async def test_worker_with_work_pool_and_limit(
     def test_flow():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
-    )
+
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
@@ -283,11 +286,11 @@ async def test_worker_calls_run_with_expected_arguments(
     def test_flow():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
-    )
+
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
@@ -325,11 +328,8 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
     def test_flow():
         pass
 
-    create_run_with_deployment = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
-        )
-    )
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(deployment.id, state=state)
 
     flow_run = await create_run_with_deployment(
         Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
@@ -349,6 +349,50 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     flow_run = await orion_client.read_flow_run(flow_run.id)
     assert flow_run.state_name == "Scheduled"
+
+
+async def test_worker_creates_only_one_client_context(
+    orion_client, worker_deployment_wq1, work_pool, monkeypatch, caplog
+):
+    tracking_mock = MagicMock()
+    orig_get_client = get_client
+
+    def get_client_spy(*args, **kwargs):
+        tracking_mock(*args, **kwargs)
+        return orig_get_client(*args, **kwargs)
+
+    monkeypatch.setattr("prefect.workers.base.get_client", get_client_spy)
+
+    run_mock = AsyncMock()
+
+    @flow
+    def test_flow():
+        pass
+
+    def create_run_with_deployment(state):
+        return orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        worker.run = run_mock  # don't run anything
+        await worker.get_and_submit_flow_runs()
+
+    assert tracking_mock.call_count == 1
+
+    # Multiple hits if worker's client is not being reused
+    assert caplog.text.count("Using ephemeral application") == 1
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
@@ -452,52 +496,6 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     # if not found on the worker pool)
     WorkerTestImpl.job_configuration = WorkerJobConfig
     WorkerTestImpl.job_configuration_variables = WorkerVariables
-
-    worker_job_template = {
-        "job_configuration": {
-            "command": "{{ command }}",
-            "env": "{{ env }}",
-            "labels": "{{ labels }}",
-            "name": "{{ name }}",
-            "other": "{{ other }}",
-        },
-        "variables": {
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "title": "Command",
-                    "description": (
-                        "The command to use when starting a flow run. "
-                        "In most cases, this should be left blank and the command "
-                        "will be automatically generated by the worker."
-                    ),
-                },
-                "env": {
-                    "title": "Environment Variables",
-                    "type": "object",
-                    "additionalProperties": {"type": "string"},
-                    "description": (
-                        "Environment variables to set when starting a flow run."
-                    ),
-                },
-                "labels": {
-                    "title": "Labels",
-                    "type": "object",
-                    "additionalProperties": {"type": "string"},
-                    "description": (
-                        "Labels applied to infrastructure created by a worker."
-                    ),
-                },
-                "name": {
-                    "type": "string",
-                    "title": "Name",
-                    "description": "Name given to infrastructure created by a worker.",
-                },
-                "other": {"type": "string", "title": "Other", "default": "woof"},
-            },
-            "type": "object",
-        },
-    }
 
     pool_name = "test-pool"
 
@@ -1265,16 +1263,17 @@ class TestCancellation:
     async def test_worker_cancel_run_called_for_cancelling_run(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         cancelling_constructor,
         work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
             worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1294,14 +1293,15 @@ class TestCancellation:
         ],
     )
     async def test_worker_cancel_run_not_called_for_other_states(
-        self, orion_client: PrefectClient, deployment, state, work_pool
+        self, orion_client: PrefectClient, worker_deployment_wq1, state, work_pool
     ):
         await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=state,
         )
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.sync_with_backend()
             worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1313,18 +1313,14 @@ class TestCancellation:
     async def test_worker_cancel_run_called_for_cancelling_run_with_multiple_work_queues(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         cancelling_constructor,
         work_pool,
         work_queue_1,
         work_queue_2,
     ):
-        deployment.work_pool_name = work_pool.name
-        deployment.work_queue_name = work_queue_1.name
-        await orion_client.update_deployment(deployment)
-
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
@@ -1332,6 +1328,7 @@ class TestCancellation:
             work_pool_name=work_pool.name,
             work_queues=[work_queue_1.name, work_queue_2.name],
         ) as worker:
+            await worker.sync_with_backend()
             worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1353,7 +1350,7 @@ class TestCancellation:
         deployment.work_queue_name = work_queue_1.name
         await orion_client.update_deployment(deployment)
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=cancelling_constructor(),
         )
@@ -1362,6 +1359,7 @@ class TestCancellation:
             work_pool_name=work_pool.name,
             work_queues=[work_queue_1.name],
         ) as worker:
+            await worker.sync_with_backend()
             worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1371,18 +1369,23 @@ class TestCancellation:
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
     async def test_worker_cancel_run_not_called_for_other_work_queues(
-        self, orion_client: PrefectClient, deployment, cancelling_constructor, work_pool
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
     ):
         await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
         async with WorkerTestImpl(
             work_pool_name=work_pool.name,
-            work_queues=[f"not-{deployment.work_queue_name}"],
+            work_queues=[f"not-{worker_deployment_wq1.work_queue_name}"],
             prefetch_seconds=10,
         ) as worker:
+            await worker.sync_with_backend()
             worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1394,10 +1397,14 @@ class TestCancellation:
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
     async def test_worker_cancel_run_kills_run_with_infrastructure_pid(
-        self, orion_client: PrefectClient, deployment, cancelling_constructor, work_pool
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
@@ -1406,10 +1413,14 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
+            configuration = await worker._get_configuration(flow_run)
 
-        worker.kill_infrastructure.assert_awaited_once_with("test")
+        worker.kill_infrastructure.assert_awaited_once_with(
+            infrastructure_pid="test", configuration=configuration
+        )
 
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
@@ -1417,19 +1428,20 @@ class TestCancellation:
     async def test_worker_cancel_run_with_missing_infrastructure_pid(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         caplog,
         cancelling_constructor,
         work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
@@ -1453,10 +1465,14 @@ class TestCancellation:
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
     async def test_worker_cancel_run_updates_state_type(
-        self, orion_client: PrefectClient, deployment, cancelling_constructor, work_pool
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
@@ -1465,6 +1481,7 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             await worker.check_for_cancelled_flow_runs()
 
         post_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -1474,12 +1491,16 @@ class TestCancellation:
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
     async def test_worker_cancel_run_preserves_other_state_properties(
-        self, orion_client: PrefectClient, deployment, cancelling_constructor, work_pool
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
     ):
         expected_changed_fields = {"type", "name", "timestamp", "id"}
 
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(message="test"),
         )
 
@@ -1488,6 +1509,7 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             await worker.check_for_cancelled_flow_runs()
 
         post_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -1501,13 +1523,13 @@ class TestCancellation:
     async def test_worker_cancel_run_with_infrastructure_not_available_during_kill(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         caplog,
         cancelling_constructor,
         work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
@@ -1516,15 +1538,19 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             worker.kill_infrastructure.side_effect = InfrastructureNotAvailable("Test!")
             await worker.check_for_cancelled_flow_runs()
             # Perform a second call to check that it is tracked locally that this worker
             # should not try again
             await worker.check_for_cancelled_flow_runs()
+            configuration = await worker._get_configuration(flow_run)
 
         # Only awaited once
-        worker.kill_infrastructure.assert_awaited_once_with("test")
+        worker.kill_infrastructure.assert_awaited_once_with(
+            infrastructure_pid="test", configuration=configuration
+        )
 
         # State name not updated; other workers may attempt the kill
         post_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -1542,13 +1568,13 @@ class TestCancellation:
     async def test_worker_cancel_run_with_infrastructure_not_found_during_kill(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         caplog,
         cancelling_constructor,
         work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
 
@@ -1557,14 +1583,18 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             worker.kill_infrastructure.side_effect = InfrastructureNotFound("Test!")
             await worker.check_for_cancelled_flow_runs()
             # Perform a second call to check that another cancellation attempt is not made
             await worker.check_for_cancelled_flow_runs()
+            configuration = await worker._get_configuration(flow_run)
 
         # Only awaited once
-        worker.kill_infrastructure.assert_awaited_once_with("test")
+        worker.kill_infrastructure.assert_awaited_once_with(
+            infrastructure_pid="test", configuration=configuration
+        )
 
         # State name updated to prevent further attempts
         post_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -1582,13 +1612,13 @@ class TestCancellation:
     async def test_worker_cancel_run_with_unknown_error_during_kill(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         caplog,
         cancelling_constructor,
         work_pool,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
         await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
@@ -1596,14 +1626,21 @@ class TestCancellation:
         async with WorkerTestImpl(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             worker.kill_infrastructure.side_effect = ValueError("Oh no!")
             await worker.check_for_cancelled_flow_runs()
             await anyio.sleep(0.5)
             await worker.check_for_cancelled_flow_runs()
+            configuration = await worker._get_configuration(flow_run)
 
         # Multiple attempts should be made
-        worker.kill_infrastructure.assert_has_awaits([call("test"), call("test")])
+        worker.kill_infrastructure.assert_has_awaits(
+            [
+                call(infrastructure_pid="test", configuration=configuration),
+                call(infrastructure_pid="test", configuration=configuration),
+            ]
+        )
 
         # State name not updated
         post_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -1622,7 +1659,7 @@ class TestCancellation:
     async def test_worker_cancel_run_without_infrastructure_support_for_kill(
         self,
         orion_client: PrefectClient,
-        deployment,
+        worker_deployment_wq1,
         caplog,
         cancelling_constructor,
         work_pool,
@@ -1636,7 +1673,7 @@ class TestCancellation:
                 pass
 
         flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
+            worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
         await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
@@ -1644,6 +1681,7 @@ class TestCancellation:
         async with WorkerNoKill(
             work_pool_name=work_pool.name, prefetch_seconds=10
         ) as worker:
+            await worker.sync_with_backend()
             await worker.check_for_cancelled_flow_runs()
 
         # State name not updated; another worker may have a code version that supports

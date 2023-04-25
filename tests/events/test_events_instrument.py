@@ -29,11 +29,11 @@ class InstrumentedClass:
     def _event_method_called_resources(self) -> ResourceTuple:
         return (
             {
-                "prefect.resource.id": f"prefect.instrumented-class",
+                "prefect.resource.id": "prefect.instrumented-class",
             },
             [
                 {
-                    "prefect.resource.id": f"prefect.class.InstrumentedClass",
+                    "prefect.resource.id": "prefect.class.InstrumentedClass",
                     "prefect.resource.role": "class",
                 }
             ],
@@ -94,12 +94,12 @@ async def test_handles_method_failure(
 
     try:
         instance.sync_fail()
-    except:
+    except Exception:
         pass
 
     try:
         await instance.async_fail()
-    except:
+    except Exception:
         pass
 
     await asserting_events_worker.drain()

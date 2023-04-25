@@ -15,7 +15,7 @@ hide:
 
 Prefect enables you to build and observe resilient data workflows so that you can understand, react to, and recover from unexpected changes. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
-With Prefect you gain simple:
+With Prefect you gain:
 
 <ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
@@ -23,8 +23,8 @@ With Prefect you gain simple:
     <li> <a href="/concepts/logs/"> logging </a> </li>
     <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
     <li> <a href="/concepts/task-runners/#task-runners"> async</a> </li>
-    <li> <a href="/ui/notifications/"> notifications</a> </li>
-    <li> <a href="/ui/overview/"> observability</a> </li>
+    <li> <a href="/cloud/automations/"> notifications</a> </li>
+    <li> <a href="/cloud/overview/"> observability</a> </li>
 </ul>
 
 Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more!
@@ -35,9 +35,11 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 </figure>
 
 #### New to Prefect?
-If you're ready to dive in and learn Prefect, try the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
+If you're ready to dive in and learn Prefect, check out the Prefect [concepts](/concepts/index/) and try some [tutorials](/tutorials/) to see how they work in action.
 
-[Tutorials](/tutorials/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts){ .md-button .main-button--secondary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
+For deeper dives on specific topics, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
+
+[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorials](/tutorials/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
 <p>Or, read on for a quick sample of Prefect.</p>

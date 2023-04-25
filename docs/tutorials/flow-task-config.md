@@ -94,6 +94,49 @@ def my_flow(name: str, date: datetime.datetime):
 my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
+Additionally this setting also accepts a function that returns a string for the flow run name:
+
+```python
+import datetime
+from prefect import flow
+
+def generate_flow_run_name():
+    date = datetime.datetime.utcnow()
+
+    return f"{date:%A}-is-a-nice-day"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str):
+    pass
+
+# creates a flow run called 'Thursday-is-a-nice-day'
+my_flow(name="marvin")
+```
+
+If you need access to information about the flow, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run
+
+def generate_flow_run_name():
+    flow_name = flow_run.flow_name
+
+    parameters = flow_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-with-{name}-and-{limit}"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str, limit: int = 100):
+    pass
+
+# creates a flow run called 'my-flow-with-marvin-and-100'
+my_flow(name="marvin")
+```
+
+
 ## Basic task configuration
 
 By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.
@@ -146,6 +189,57 @@ def my_flow():
     # creates a run with a name like "hello-marvin-on-Thursday"
     my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
+
+Additionally this setting also accepts a function that returns a string to be used for the task run name:
+
+```python
+import datetime
+from prefect import flow, task
+
+def generate_task_name():
+    date = datetime.datetime.utcnow()
+    return f"{date:%A}-is-a-lovely-day"
+
+@task(name="My Example Task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "Thursday-is-a-lovely-day"
+    my_task(name="marvin")
+```
+
+If you need access to information about the task, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run, task_run
+
+def generate_task_name():
+    flow_name = flow_run.flow_name
+    task_name = task_run.task_name
+
+    parameters = task_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-{task_name}-with-{name}-and-{limit}"
+
+@task(name="my-example-task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name: str, limit: int = 100):
+    pass
+
+@flow
+def my_flow(name: str):
+    # creates a run with a name like "my-flow-my-example-task-with-marvin-and-100"
+    my_task(name="marvin")
+```
+
 
 ## Flow and task retries
 

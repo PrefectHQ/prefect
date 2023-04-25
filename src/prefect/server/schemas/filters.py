@@ -252,9 +252,9 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.deployment_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.deployment_id == None
+                db.FlowRun.deployment_id.is_(None)
                 if self.is_null_
-                else db.FlowRun.deployment_id != None
+                else db.FlowRun.deployment_id.is_not(None)
             )
         return filters
 
@@ -278,9 +278,9 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.work_queue_name.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.work_queue_name == None
+                db.FlowRun.work_queue_name.is_(None)
                 if self.is_null_
-                else db.FlowRun.work_queue_name != None
+                else db.FlowRun.work_queue_name.is_not(None)
             )
         return filters
 
@@ -361,9 +361,9 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
             filters.append(db.FlowRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.start_time == None
+                db.FlowRun.start_time.is_(None)
                 if self.is_null_
-                else db.FlowRun.start_time != None
+                else db.FlowRun.start_time.is_not(None)
             )
         return filters
 
@@ -433,10 +433,29 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
             filters.append(db.FlowRun.parent_task_run_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.parent_task_run_id == None
+                db.FlowRun.parent_task_run_id.is_(None)
                 if self.is_null_
-                else db.FlowRun.parent_task_run_id != None
+                else db.FlowRun.parent_task_run_id.is_not(None)
             )
+        return filters
+
+
+class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
+    """Filter by FlowRun.idempotency_key."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run idempotency keys to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run idempotency keys to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.FlowRun.idempotency_key.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.FlowRun.idempotency_key.not_in(self.not_any_))
         return filters
 
 
@@ -477,6 +496,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
+    idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
+        default=None, description="Filter criteria for `FlowRun.idempotency_key`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -503,6 +525,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.next_scheduled_start_time.as_sql_filter(db))
         if self.parent_task_run_id is not None:
             filters.append(self.parent_task_run_id.as_sql_filter(db))
+        if self.idempotency_key is not None:
+            filters.append(self.idempotency_key.as_sql_filter(db))
 
         return filters
 
@@ -659,9 +683,9 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
             filters.append(db.TaskRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
-                db.TaskRun.start_time == None
+                db.TaskRun.start_time.is_(None)
                 if self.is_null_
-                else db.TaskRun.start_time != None
+                else db.TaskRun.start_time.is_not(None)
             )
         return filters
 
