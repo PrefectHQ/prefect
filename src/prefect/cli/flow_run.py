@@ -188,7 +188,6 @@ async def logs(
     offset = 0
     more_logs = True
     num_logs_returned = 0
-    tail_limit = 0
 
     # if head and tail flags are being used together
     if head and tail:
@@ -203,7 +202,6 @@ async def logs(
     # if using tail update offset and tail_limit according to LOGS_DEFAULT_PAGE_SIZE
     if tail:
         offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
-        tail_limit = min(user_specified_num_logs, LOGS_DEFAULT_PAGE_SIZE)
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
@@ -222,8 +220,6 @@ async def logs(
                     LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
                 )
             )
-            if tail and offset == 0:
-                num_logs_to_return_from_page = tail_limit
 
             # Get the next page of logs
             page_logs = await client.read_logs(
@@ -253,12 +249,11 @@ async def logs(
 
             if tail:
                 if offset != 0:
-                    # remaining logs are less than LOGS_DEFAULT_PAGE_SIZE
-                    if offset < LOGS_DEFAULT_PAGE_SIZE:
-                        tail_limit = offset
-                        offset = 0
-                    else:
-                        offset = offset - LOGS_DEFAULT_PAGE_SIZE
+                    offset = (
+                        0
+                        if offset < LOGS_DEFAULT_PAGE_SIZE
+                        else offset - LOGS_DEFAULT_PAGE_SIZE
+                    )
                 else:
                     more_logs = False
             else:
