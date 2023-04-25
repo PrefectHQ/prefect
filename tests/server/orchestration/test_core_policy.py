@@ -431,7 +431,7 @@ class TestFlowRetryingRule:
 
 
 class TestManualFlowRetries:
-    async def test_cannot_manual_retry_without_awaitingretry_state_name(
+    async def test_can_manual_retry_with_arbitrary_state_name(
         self,
         session,
         initialize_orchestration,
@@ -445,7 +445,7 @@ class TestManualFlowRetries:
             "flow",
             *intended_transition,
         )
-        ctx.proposed_state.name = "NotAwaitingRetry"
+        ctx.proposed_state.name = "FooBar"
         ctx.run.run_count = 2
         ctx.run.deployment_id = uuid4()
         ctx.run_settings.retries = 1
@@ -454,7 +454,7 @@ class TestManualFlowRetries:
             for rule in manual_retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 2
 
     async def test_cannot_manual_retry_without_deployment(
@@ -612,6 +612,12 @@ class TestUpdatingFlowRunTrackerOnTasks:
 
 
 class TestPermitRerunningFailedTaskRuns:
+    """
+    Following https://github.com/PrefectHQ/prefect/pull/9152 some of these test names
+    may be stale however they are retained to simplify understanding of changed
+    behavior. Generally, failed task runs can just retry whenever they want now.
+    """
+
     async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
         self,
         session,
@@ -646,7 +652,7 @@ class TestPermitRerunningFailedTaskRuns:
             ctx.run.flow_run_run_count == 4
         ), "Orchestration should update the flow run run count tracker"
 
-    async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
+    async def test_can_run_again_even_if_exceeding_flow_runs_count(
         self,
         session,
         initialize_orchestration,
@@ -662,6 +668,7 @@ class TestPermitRerunningFailedTaskRuns:
             session,
             "task",
             *intended_transition,
+            initial_state_data="test",
             flow_retries=10,
         )
         flow_run = await ctx.flow_run()
@@ -673,9 +680,9 @@ class TestPermitRerunningFailedTaskRuns:
             for rule in rerun_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert ctx.run.run_count == 2
-        assert ctx.proposed_state is None
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 0
+        assert ctx.proposed_state.type == StateType.RUNNING
         assert ctx.run.flow_run_run_count == 3
 
     async def test_bypasses_terminal_state_rule_if_configured_automatic_retries_is_exceeded(
