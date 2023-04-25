@@ -274,7 +274,7 @@ async def retrieve_flow_then_begin_flow_run(
     flow_run = await client.read_flow_run(flow_run_id)
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
-    except Exception as exc:
+    except Exception:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
@@ -612,14 +612,10 @@ async def orchestrate_flow_run(
             force=flow_run.state.is_pending(),
         )
 
-    if flow.flow_run_name:
-        flow_run_name = flow.flow_run_name.format(**parameters)
-        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
-        logger.extra["flow_run_name"] = flow_run_name
-        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
-        flow_run.name = flow_run_name
-
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+
+    # flag to ensure we only update the flow run name once
+    run_name_set = False
 
     while state.is_running():
         waited_for_task_runs = False
@@ -633,6 +629,22 @@ async def orchestrate_flow_run(
                 client=client,
                 parameters=parameters,
             ) as flow_run_context:
+                # update flow run name
+                if not run_name_set and flow.flow_run_name:
+                    flow_run_name = _resolve_custom_flow_run_name(
+                        flow=flow, parameters=parameters
+                    )
+
+                    await client.update_flow_run(
+                        flow_run_id=flow_run.id, name=flow_run_name
+                    )
+                    logger.extra["flow_run_name"] = flow_run_name
+                    logger.debug(
+                        f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}"
+                    )
+                    flow_run.name = flow_run_name
+                    run_name_set = True
+
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -642,7 +654,7 @@ async def orchestrate_flow_run(
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+                        "Beginning execution...", extra={"state_message": True}
                     )
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
@@ -1347,14 +1359,11 @@ async def begin_task_run(
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
-            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
-            background_tasks = await stack.enter_async_context(
-                anyio.create_task_group()
-            )
+            await stack.enter_async_context(anyio.create_task_group())
 
         await stack.enter_async_context(report_task_run_crashes(task_run, client))
 
@@ -1525,10 +1534,11 @@ async def orchestrate_task_run(
                     args, kwargs = parameters_to_args_kwargs(
                         task.fn, resolved_parameters
                     )
-
                     # update task run name
                     if not run_name_set and task.task_run_name:
-                        task_run_name = task.task_run_name.format(**resolved_parameters)
+                        task_run_name = _resolve_custom_task_run_name(
+                            task=task, parameters=resolved_parameters
+                        )
                         await client.set_task_run_name(
                             task_run_id=task_run.id, name=task_run_name
                         )
@@ -1543,7 +1553,7 @@ async def orchestrate_task_run(
                         logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                     else:
                         logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
+                            "Beginning execution...", extra={"state_message": True}
                         )
 
                         call = from_async.call_soon_in_new_thread(
@@ -2057,6 +2067,44 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
+def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+    if callable(flow.flow_run_name):
+        flow_run_name = flow.flow_run_name()
+        if not isinstance(flow_run_name, str):
+            raise TypeError(
+                f"Callable {flow.flow_run_name} for 'flow_run_name' returned type"
+                f" {type(flow_run_name).__name__} but a string is required."
+            )
+    elif isinstance(flow.flow_run_name, str):
+        flow_run_name = flow.flow_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'flow_run_name'; got"
+            f" {type(flow.flow_run_name).__name__} instead."
+        )
+
+    return flow_run_name
+
+
+def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+    if callable(task.task_run_name):
+        task_run_name = task.task_run_name()
+        if not isinstance(task_run_name, str):
+            raise TypeError(
+                f"Callable {task.task_run_name} for 'task_run_name' returned type"
+                f" {type(task_run_name).__name__} but a string is required."
+            )
+    elif isinstance(task.task_run_name, str):
+        task_run_name = task.task_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'task_run_name'; got"
+            f" {type(task.task_run_name).__name__} instead."
+        )
+
+    return task_run_name
+
+
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a task, making sure to
     catch and log any errors that occur.
@@ -2081,7 +2129,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, task=task, task_run=task_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
@@ -2114,7 +2162,7 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, flow=flow, flow_run=flow_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
@@ -2142,9 +2190,6 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
 
 
 if __name__ == "__main__":
-    import os
-    import sys
-
     try:
         flow_run_id = UUID(
             sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")

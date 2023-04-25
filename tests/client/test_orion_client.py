@@ -1,4 +1,3 @@
-import datetime
 import os
 import random
 import threading
@@ -748,7 +747,7 @@ async def test_read_nonexistent_concurrency_limit_by_tag(orion_client):
 
 
 async def test_resetting_concurrency_limits(orion_client):
-    cl = await orion_client.create_concurrency_limit(
+    await orion_client.create_concurrency_limit(
         tag="an-unimportant-limit", concurrency_limit=100
     )
 
@@ -768,7 +767,7 @@ async def test_resetting_concurrency_limits(orion_client):
 
 
 async def test_deleting_concurrency_limits(orion_client):
-    cl = await orion_client.create_concurrency_limit(
+    await orion_client.create_concurrency_limit(
         tag="dead-limit-walking", concurrency_limit=10
     )
 
@@ -848,7 +847,7 @@ async def test_set_flow_run_state_404_is_object_not_found(orion_client):
 
     await orion_client.create_flow_run(foo)
     with pytest.raises(prefect.exceptions.ObjectNotFound):
-        response = await orion_client.set_flow_run_state(
+        await orion_client.set_flow_run_state(
             uuid4(),
             state=Completed(message="Test!"),
         )
@@ -877,9 +876,9 @@ async def test_read_flow_runs_with_filtering(orion_client):
     def bar():
         pass
 
-    fr_id_1 = (await orion_client.create_flow_run(foo, state=Pending())).id
-    fr_id_2 = (await orion_client.create_flow_run(foo, state=Scheduled())).id
-    fr_id_3 = (await orion_client.create_flow_run(bar, state=Pending())).id
+    (await orion_client.create_flow_run(foo, state=Pending())).id
+    (await orion_client.create_flow_run(foo, state=Scheduled())).id
+    (await orion_client.create_flow_run(bar, state=Pending())).id
     # Only below should match the filter
     fr_id_4 = (await orion_client.create_flow_run(bar, state=Scheduled())).id
     fr_id_5 = (await orion_client.create_flow_run(bar, state=Running())).id
@@ -935,7 +934,7 @@ async def test_read_flows_with_filter(orion_client):
 
     flow_id_1 = await orion_client.create_flow(foo)
     flow_id_2 = await orion_client.create_flow(bar)
-    flow_id_3 = await orion_client.create_flow(foobar)
+    await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
         flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
@@ -1389,7 +1388,7 @@ class TestClientAPIKey:
         async with PrefectClient(test_app) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
-            ) as e:
+            ):
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
@@ -1589,7 +1588,6 @@ class TestWorkPools:
         pools = await orion_client.read_work_pools()
         existing_name = set([p.name for p in pools])
         existing_ids = set([p.id for p in pools])
-        default_agent_pool_name = "default-agent-pool"
         work_pool_1 = await orion_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")
         )

@@ -62,21 +62,21 @@ from typing import (
     Optional,
     Set,
     TypeVar,
+    Any,
 )
 from uuid import UUID
 
 import anyio
 
 from prefect.utilities.collections import AutoEnum
-
-if TYPE_CHECKING:
-    import anyio.abc
-
 from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
 from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
-from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    import anyio.abc
+
 
 T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
@@ -158,13 +158,13 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
             raise RuntimeError("The task runner is already started!")
 
         async with AsyncExitStack() as exit_stack:
-            self.logger.debug(f"Starting task runner...")
+            self.logger.debug("Starting task runner...")
             try:
                 await self._start(exit_stack)
                 self._started = True
                 yield self
             finally:
-                self.logger.debug(f"Shutting down task runner...")
+                self.logger.debug("Shutting down task runner...")
                 self._started = False
 
     async def _start(self, exit_stack: AsyncExitStack) -> None:

@@ -32,7 +32,7 @@
       </template>
 
       <template #parameters>
-        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+        <CopyableWrapper v-if="flowRun" :text-to-copy="parameters">
           <p-code-highlight lang="json" :text="parameters" class="flow-run__parameters" />
         </CopyableWrapper>
       </template>
@@ -79,7 +79,7 @@
     return flowRun.value?.stateType ? isPendingStateType(flowRun.value.stateType) : true
   })
   const computedTabs = computed(() => [
-    { label: 'Logs', hidden: isPending.value },
+    { label: 'Logs' },
     { label: 'Task Runs', hidden: isPending.value },
     { label: 'Subflow Runs', hidden: isPending.value },
     { label: 'Results', hidden: isPending.value },

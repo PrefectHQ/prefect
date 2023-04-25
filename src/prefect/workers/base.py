@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
 from prefect.events import Event, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
@@ -100,7 +101,10 @@ class BaseJobConfiguration(BaseModel):
         return defaults
 
     @classmethod
-    async def from_template_and_values(cls, base_job_template: dict, values: dict):
+    @inject_client
+    async def from_template_and_values(
+        cls, base_job_template: dict, values: dict, client: "PrefectClient" = None
+    ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
 
@@ -113,9 +117,11 @@ class BaseJobConfiguration(BaseModel):
             variables_schema.get("properties", {})
         )
         variables.update(values)
-        variables = await resolve_block_document_references(variables)
+        variables = await resolve_block_document_references(
+            template=variables, client=client
+        )
 
-        populated_configuration = apply_values(job_config, variables)
+        populated_configuration = apply_values(template=job_config, values=variables)
         return cls(**populated_configuration)
 
     @classmethod
@@ -810,6 +816,7 @@ class BaseWorker(abc.ABC):
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
             values=deployment.infra_overrides or {},
+            client=self._client,
         )
         configuration.prepare_for_flow_run(
             flow_run=flow_run, deployment=deployment, flow=flow
