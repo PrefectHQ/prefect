@@ -5,8 +5,7 @@ tags:
     - settings
     - environment variables
     - profiles
-title: 
-    - Profiles & Configuration
+title: Profiles and Configuration
 ---
 
 # Profiles & Configuration
