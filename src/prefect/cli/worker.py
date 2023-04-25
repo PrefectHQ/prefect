@@ -9,6 +9,7 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
+from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -90,10 +91,18 @@ async def start(
             "Please ensure that you have installed this worker type on this machine."
         )
     except ObjectNotFound:
-        exit_with_error(
-            f"Work pool {work_pool_name!r} does not exist. To create a new work pool "
-            "on worker startup, include a worker type with the --type option."
+        app.console.print(
+            f"Work pool {work_pool_name!r} does not exist. A process type worker will"
+            " be created."
         )
+        worker_type = "process"
+        async with get_client() as client:
+            wp = WorkPoolCreate(
+                name=work_pool_name,
+                type=worker_type,
+            )
+            work_pool = await client.create_work_pool(work_pool=wp)
+        worker_cls = lookup_type(BaseWorker, worker_type)
 
     async with worker_cls(
         name=worker_name,
