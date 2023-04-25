@@ -11,6 +11,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.schemas.states import StateType
 
 
 class TestCreateFlowRun:
@@ -540,7 +541,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 name="Flow Run 1",
                 state=schemas.states.State(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     timestamp=now.subtract(minutes=1),
                 ),
             ),
@@ -551,7 +552,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 name="Flow Run 2",
                 state=schemas.states.State(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     timestamp=now.add(minutes=1),
                 ),
                 start_time=now.subtract(minutes=2),
@@ -771,7 +772,7 @@ class TestResumeFlowrun:
         resumed_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert resumed_run.state.type == "SCHEDULED"
+        assert resumed_run.state.type == StateType.SCHEDULED
 
     async def test_cannot_resume_nonblocking_pauses_without_deployment(
         self, nonblockingpaused_flow_run_without_deployment, client, session
@@ -881,7 +882,7 @@ class TestSetFlowRunState:
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
                 state=dict(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     name="Scheduled",
                     state_details=dict(
                         scheduled_time=str(pendulum.now().add(months=1))
@@ -979,7 +980,7 @@ class TestManuallyRetryingFlowRuns:
 
         await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()
@@ -987,7 +988,7 @@ class TestManuallyRetryingFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert restarted_run.run_count == 1, "manual retries preserve the run count"
-        assert restarted_run.state.type == "SCHEDULED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
     async def test_manual_flow_run_retries_succeed_even_if_exceeding_retries_setting(
         self, failed_flow_run_with_deployment_with_no_more_retries, client, session
@@ -1002,7 +1003,7 @@ class TestManuallyRetryingFlowRuns:
 
         await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()
@@ -1010,9 +1011,9 @@ class TestManuallyRetryingFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert restarted_run.run_count == 3, "manual retries preserve the run count"
-        assert restarted_run.state.type == "SCHEDULED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
-    async def test_manual_flow_run_retries_require_an_awaitingretry_state_name(
+    async def test_manual_flow_run_retries_allow_arbitrary_state_name(
         self, failed_flow_run_with_deployment, client, session
     ):
         assert failed_flow_run_with_deployment.run_count == 1
@@ -1021,14 +1022,14 @@ class TestManuallyRetryingFlowRuns:
 
         await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="NotAwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="FooBar")),
         )
 
         session.expire_all()
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.state.type == "FAILED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
     async def test_only_proposing_scheduled_states_manually_retries(
         self, failed_flow_run_with_deployment, client, session
@@ -1057,7 +1058,7 @@ class TestManuallyRetryingFlowRuns:
 
         await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()
