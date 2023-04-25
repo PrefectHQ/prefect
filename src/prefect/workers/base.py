@@ -153,12 +153,24 @@ class BaseJobConfiguration(BaseModel):
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
     ):
+        """
+        Prepare the job configuration for a flow run.
+
+        This method is called by the worker before starting a flow run. It
+        should be used to set any configuration values that are dependent on
+        the flow run.
+
+        Args:
+            flow_run: The flow run to be executed.
+            deployment: The deployment that the flow run is associated with.
+            flow: The flow that the flow run is associated with.
+        """
+
         self._related_objects = {
             "deployment": deployment,
             "flow": flow,
             "flow-run": flow_run,
         }
-
         if deployment is not None:
             deployment_labels = self._base_deployment_labels(deployment)
         else:
