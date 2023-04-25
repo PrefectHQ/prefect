@@ -637,7 +637,7 @@ class TestSchedules:
         assert deployment.schedule.timezone == "America/New_York"
 
     async def test_passing_anchor_without_interval_exits(self, project_dir):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name --anchor-date 2040-02-02"
@@ -651,7 +651,7 @@ class TestSchedules:
     async def test_parsing_rrule_schedule_string_literal(
         self, project_dir, orion_client
     ):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name "
@@ -681,7 +681,7 @@ class TestSchedules:
     async def test_providing_multiple_schedules_exits_with_error(
         self, project_dir, schedules
     ):
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name "
             + " ".join(schedules),
