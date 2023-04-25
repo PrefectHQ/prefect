@@ -70,4 +70,5 @@ def git_clone_project(
         ) from exc_chain
 
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
+    print(f"Cloned repo {repository_url} to directory {directory}")
     return {"directory": directory}
