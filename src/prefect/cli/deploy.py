@@ -174,18 +174,21 @@ async def deploy(
     try:
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
+            if base_deploy.get("deployments"):
+                deployments = base_deploy["deployments"]
+            else:
+                deployments = [base_deploy]
     except FileNotFoundError:
         app.console.print(
             "No deployment.yaml file found, only provided CLI options will be used.",
             style="yellow",
         )
-        base_deploy = {}
+        deployments = [{}]
 
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
 
     try:
-        deployments = base_deploy.get("deployments", [])
         if len(deployments) > 1:
             if deploy_all or len(names) > 1:
                 if any(options.values()):
@@ -216,7 +219,7 @@ async def deploy(
                     "but no name was given. Please specify the name of at least one "
                     "deployment to create or update."
                 )
-        elif len(deployments) == 1:
+        elif len(deployments) <= 1:
             if len(names) > 1:
                 exit_with_error(
                     "Multiple deployment names were provided, but only one deployment"
@@ -230,19 +233,6 @@ async def deploy(
                     project=project,
                     options=options,
                 )
-        else:
-            if len(names) > 1:
-                exit_with_error(
-                    "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
-                    " name."
-                )
-            options["name"] = names[0] if names else None
-            await _run_single_deploy(
-                base_deploy=base_deploy,
-                project=project,
-                options=options,
-            )
     except Exception as exc:
         exit_with_error(str(exc))
 
@@ -567,7 +557,8 @@ def _merge_with_default_deployment(base_deploy: Dict):
 
         # load default file
         with open(default_file, "r") as df:
-            DEFAULT_DEPLOYMENT = yaml.safe_load(df)
+            contents = yaml.safe_load(df)
+            DEFAULT_DEPLOYMENT = contents["deployments"][0]
 
     # merge default and base deployment
     # this allows for missing keys in a user's deployment file
