@@ -205,6 +205,61 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "1"
 
+    async def test_project_deploy_with_default_parameters(
+        self, project_dir_with_single_deployment_format, orion_client, work_pool
+    ):
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["parameters"] = {"number": 1, "message": "hello"}
+        deploy_config["name"] = "test-name"
+        deploy_config["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            expected_output_contains="An important name/test-name",
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.parameters == {"number": 1, "message": "hello"}
+
+    @pytest.mark.parametrize(
+        "option", ["--param number=2", "--params '{\"number\": 2}'"]
+    )
+    async def test_project_deploy_with_default_parameters_from_cli(
+        self, project_dir_with_single_deployment_format, orion_client, work_pool, option
+    ):
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["parameters"] = {"number": 1, "message": "hello"}
+        deploy_config["name"] = "test-name"
+        deploy_config["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy {option}",
+            expected_code=0,
+            expected_output_contains="An important name/test-name",
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.parameters == {"number": 2, "message": "hello"}
+
     async def test_project_deploy_templates_pull_step_safely(
         self, project_dir_with_single_deployment_format, orion_client
     ):
@@ -462,6 +517,67 @@ class TestProjectDeploy:
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "1"
+
+    async def test_project_deploy_with_default_parameters(
+        self, project_dir, orion_client, work_pool
+    ):
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["parameters"] = {
+            "number": 1,
+            "message": "hello",
+        }
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            expected_output_contains="An important name/test-name",
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.parameters == {"number": 1, "message": "hello"}
+
+    @pytest.mark.parametrize(
+        "option", ["--param number=2", "--params '{\"number\": 2}'"]
+    )
+    async def test_project_deploy_with_default_parameters_from_cli(
+        self, project_dir, orion_client, work_pool, option
+    ):
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["parameters"] = {
+            "number": 1,
+            "message": "hello",
+        }
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy {option}",
+            expected_code=0,
+            expected_output_contains="An important name/test-name",
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.parameters == {"number": 2, "message": "hello"}
 
     async def test_project_deploy_templates_pull_step_safely(
         self, project_dir, orion_client

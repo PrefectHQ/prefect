@@ -345,7 +345,7 @@ async def _run_single_deploy(
     if params is not None:
         parameters = json.loads(params)
 
-    base_deploy["parameters"] = parameters
+    base_deploy["parameters"].update(parameters)
 
     # update schedule
     schedule = None
