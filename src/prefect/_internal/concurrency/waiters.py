@@ -176,8 +176,8 @@ class AsyncWaiter(Waiter[T]):
                     break
 
                 # We could set the deadline for the callback to match the call we are
-                # waiting for, but callbacks can have their own timeout and we don't want to
-                # override it
+                # waiting for, but callbacks can have their own timeout and we don't
+                # want to override it
                 cancel_context.chain(callback.cancel_context)
                 retval = callback.run()
                 if inspect.isawaitable(retval):
@@ -185,8 +185,8 @@ class AsyncWaiter(Waiter[T]):
 
                 del callback
 
-            # Tasks are collected and awaited as a group; if each task was awaited in the
-            # above loop, async work would not be executed concurrently
+            # Tasks are collected and awaited as a group; if each task was awaited in
+            # the above loop, async work would not be executed concurrently
             await asyncio.gather(*tasks)
         finally:
             self._done_waiting = True

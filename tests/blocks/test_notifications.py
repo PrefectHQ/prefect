@@ -24,7 +24,7 @@ def reload_modules():
     """
     try:
         reload(prefect.blocks.notifications)
-    except UserWarning as ex:
+    except UserWarning:
         # ignore the warning Prefect gives when reloading the notifications module
         # because we reload prefect itself immediately afterward.
         pass

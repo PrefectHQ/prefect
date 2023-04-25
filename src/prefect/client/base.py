@@ -21,10 +21,12 @@ from prefect.settings import (
 )
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
-# Datastores for lifespan management, keys should be a tuple of thread and app identities.
+# Datastores for lifespan management, keys should be a tuple of thread and app
+# identities.
 APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
 APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
-# Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
+# Blocks concurrent access to the above dicts per thread. The index should be the thread
+# identity.
 APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
@@ -190,7 +192,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
             try:
                 response = await request()
-            except retry_exceptions:
+            except retry_exceptions:  # type: ignore
                 if try_count > self.RETRY_MAX:
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging

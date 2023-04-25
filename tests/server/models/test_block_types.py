@@ -104,21 +104,21 @@ class TestReadBlockTypes:
         block_type_duck = await models.block_types.create_block_type(
             session=session, block_type=Duck._to_block_type()
         )
-        block_schema_duck = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Duck._to_block_schema(block_type_id=block_type_duck.id),
         )
         block_type_bird = await models.block_types.create_block_type(
             session=session, block_type=Bird._to_block_type()
         )
-        block_schema_bird = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Bird._to_block_schema(block_type_id=block_type_bird.id),
         )
         block_type_cat = await models.block_types.create_block_type(
             session=session, block_type=Cat._to_block_type()
         )
-        block_schema_cat = await models.block_schemas.create_block_schema(
+        await models.block_schemas.create_block_schema(
             session=session,
             block_schema=Cat._to_block_schema(block_type_id=block_type_cat.id),
         )

@@ -317,7 +317,7 @@ class TestUpdateWorkPool:
     ):
         name = "Pool 1"
 
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -356,7 +356,7 @@ class TestUpdateWorkPool:
                 "required": [],
             },
         }
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -400,7 +400,7 @@ class TestUpdateWorkPool:
             },
         }
 
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -553,7 +553,7 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_upserts_for_same_name(self, client, work_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
-            response = await client.post(
+            await client.post(
                 f"/work_pools/{work_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )
@@ -566,7 +566,7 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_limit(self, client, work_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
-            response = await client.post(
+            await client.post(
                 f"/work_pools/{work_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )

@@ -127,8 +127,8 @@ def test_register_blocks_from_txt_file(tmp_path):
         ["block", "register", "-f", "test.txt"],
         expected_code=1,
         expected_output_contains=(
-            f"test.txt is not a .py file. Please specify a "
-            f".py that contains blocks to be registered."
+            "test.txt is not a .py file. Please specify a "
+            ".py that contains blocks to be registered."
         ),
     )
 
@@ -175,7 +175,7 @@ def test_register_fails_on_multiple_options():
 def test_listing_blocks_when_none_are_registered():
     invoke_and_assert(
         ["block", "ls"],
-        expected_output_contains=f"""                           
+        expected_output_contains="""                           
            ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
            ┃ ID ┃ Type ┃ Name ┃ Slug ┃
            ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
@@ -304,9 +304,7 @@ def test_deleting_a_block_type(tmp_path, orion_client):
     )
 
     with pytest.raises(ObjectNotFound):
-        block_type = asyncio.run(
-            orion_client.read_block_type_by_slug(slug="testforfileregister")
-        )
+        asyncio.run(orion_client.read_block_type_by_slug(slug="testforfileregister"))
 
 
 def test_deleting_a_protected_block_type(

@@ -88,16 +88,18 @@ async def work_queue(db, work_pool):
 async def data(db, work_queue):
     session = await db.session()
     async with session:
-        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
-        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
-        create_task_run = lambda task_run: models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+
+        def create_flow(flow):
+            return models.flows.create_flow(session=session, flow=flow)
+
+        def create_flow_run(flow_run):
+            return models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+
+        def create_task_run(task_run):
+            return models.task_runs.create_task_run(session=session, task_run=task_run)
 
         f_1 = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
-        f_2 = await create_flow(flow=core.Flow(name="f-2", tags=["db"]))
+        await create_flow(flow=core.Flow(name="f-2", tags=["db"]))
 
         # have a completed flow every 12 hours except weekends
         for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 12):
@@ -823,14 +825,14 @@ async def test_flow_run_lateness(client, session):
     )
 
     # never started
-    fr3 = await models.flow_runs.create_flow_run(
+    await models.flow_runs.create_flow_run(
         session=session,
         flow_run=core.FlowRun(
             flow_id=f.id,
             state=states.Scheduled(scheduled_time=dt.subtract(minutes=1)),
         ),
     )
-    fr4 = await models.flow_runs.create_flow_run(
+    await models.flow_runs.create_flow_run(
         session=session,
         flow_run=core.FlowRun(
             flow_id=f.id,

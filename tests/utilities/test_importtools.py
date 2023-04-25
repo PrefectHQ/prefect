@@ -114,7 +114,7 @@ def test_lazy_import_fails_for_missing_modules():
 def test_lazy_import_allows_deferred_failure_for_missing_module():
     module = lazy_import("flibbidy", error_on_import=False)
     assert isinstance(module, ModuleType)
-    with pytest.raises(ModuleNotFoundError, match=f"No module named 'flibbidy'") as exc:
+    with pytest.raises(ModuleNotFoundError, match="No module named 'flibbidy'") as exc:
         module.foo
     assert (
         "module = lazy_import" in exc.exconly()

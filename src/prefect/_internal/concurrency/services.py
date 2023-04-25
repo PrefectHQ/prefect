@@ -12,7 +12,7 @@ import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.event_loop import call_in_loop, get_running_loop
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.logging import get_logger
 
@@ -87,7 +87,7 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
 
             self._stopped = True
-            call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+            call_in_loop(self._loop, self._queue.put_nowait, None)
 
     def send(self, item: T):
         """
@@ -102,7 +102,7 @@ class QueueService(abc.ABC, Generic[T]):
             if not self._started:
                 self._early_items.append(item)
             else:
-                call_soon_in_loop(
+                call_in_loop(
                     self._loop, self._queue.put_nowait, self._prepare_item(item)
                 )
 
@@ -123,7 +123,11 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
             # The logging call yields to another thread, so we must remove the instance
             # before reporting the failure to prevent retrieval of a dead instance
-            logger.exception("Service %r failed.", type(self).__name__)
+            logger.exception(
+                "Service %r failed with %s pending items.",
+                type(self).__name__,
+                self._queue.qsize(),
+            )
         finally:
             self._remove_instance()
             self._stopped = True

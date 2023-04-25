@@ -1597,6 +1597,7 @@ class TestNullRejection:
     ):
         side_effects = 0
         minimal_before_hook = MagicMock()
+        first_after_hook = MagicMock()
         null_rejection_before_hook = MagicMock()
         minimal_after_hook = MagicMock()
         null_rejection_after_hook = MagicMock()
@@ -1685,6 +1686,7 @@ class TestNullRejection:
         minimal_before_hook = MagicMock()
         null_rejection_before_hook = MagicMock()
         minimal_after_hook = MagicMock()
+        first_after_hook = MagicMock()
         null_rejection_after_hook = MagicMock()
         minimal_cleanup_hook = MagicMock()
         null_rejection_cleanup = MagicMock()
