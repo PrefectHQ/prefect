@@ -135,8 +135,7 @@ async def _apply_flow_filters(
         )
 
         if deployment_filter:
-            exists_clause = select(db.orm.Deployment).where(
-                db.orm.Deployment.flow_id == db.orm.Flow.id,
+            exists_clause = exists_clause.where(
                 deployment_filter.as_sql_filter(db),
             )
 
