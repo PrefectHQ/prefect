@@ -2212,7 +2212,13 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
 
-    if not flow_run_context and not task_run_context:
+    if task_run_context:
+        flow_run_id = task_run_context.task_run.flow_run_id
+        task_run_id = task_run_context.task_run.id
+    elif flow_run_context:
+        flow_run_id = flow_run_context.flow_run.id
+        task_run_id = None
+    else:
         if raise_on_failure:
             raise RuntimeError(
                 "`check_if_running` must be called from within a flow or task."
@@ -2220,19 +2226,17 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
         else:
             return None
 
-    if flow_run_context:
-        flow_run_id = flow_run_context.flow_run.id
-        task_run_id = None
-    if task_run_context:
-        flow_run_id = task_run_context.task_run.flow_run_id
-        task_run_id = task_run_context.task_run.id
-
-    if flow_run_id:
+    if flow_run_id:  # Check the state of the flow run first
         flow_run = await flow_run_context.client.read_flow_run(flow_run_id)
 
         if not flow_run.state.is_running():
             if raise_on_failure:
                 await raise_state_exception(flow_run.state)
+                # If there's no exception for the state type; raise a generic one
+                raise RuntimeError(
+                    "Flow run should not be running; server reported a"
+                    f" {flow_run.state.type.name} state."
+                )
 
     if task_run_id:
         task_run = await task_run_context.client.read_task_run(task_run_id)
@@ -2240,6 +2244,11 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
         if not task_run.state.is_running():
             if raise_on_failure:
                 await raise_state_exception(task_run.state)
+                # If there's no exception for the state type; raise a generic one
+                raise RuntimeError(
+                    "Task run should not be running; server reported a"
+                    f" {task_run.state.type.name} state."
+                )
 
     return task_run.state if task_run_context else flow_run.state
 
