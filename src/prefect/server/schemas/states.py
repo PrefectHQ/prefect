@@ -168,7 +168,7 @@ class State(StateBaseModel, Generic[R]):
         return self.type == StateType.CRASHED
 
     def is_cancelled(self) -> bool:
-        return self.type == StateType.CANCELLED
+        return self.type == StateType.CANCELLED or self.type == StateType.CANCELLING
 
     def is_final(self) -> bool:
         return self.type in TERMINAL_STATES

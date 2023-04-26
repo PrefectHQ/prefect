@@ -3,10 +3,22 @@ import pytest
 
 from prefect.utilities.annotations import quote
 import prefect.states
-import prefect.context
 import prefect.runtime
 from prefect.exceptions import FailedRun, CancelledRun
 from prefect.states import StateType
+
+
+class Bypass(BaseException):
+    pass
+
+
+def test_check_if_running_not_allowed_outside_flow_or_task():
+    with pytest.raises(RuntimeError, match="must be called from within a flow or task"):
+        prefect.check_if_running()
+
+
+def test_check_if_running_allowed_outside_flow_or_task_with_raise_disabled():
+    assert prefect.check_if_running(raise_on_failure=False) is None
 
 
 def test_check_if_running_does_not_raise_in_normal_operation_sync():
@@ -52,14 +64,15 @@ async def test_check_if_running_raises_on_cancelled_flow_state_from_task(state_t
                 prefect.runtime.flow_run.id, prefect.states.State(type=state_type)
             )
 
-        with pytest.raises(FailedRun):
-            await prefect.check_if_running()
+            with pytest.raises(CancelledRun):
+                await prefect.check_if_running()
 
     @prefect.flow
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    with pytest.raises(CancelledRun):
+        await acheck_flow()
 
 
 @pytest.mark.parametrize("state_type", [StateType.CANCELLED, StateType.CANCELLING])
@@ -77,7 +90,7 @@ async def test_check_if_running_raises_on_cancelled_task_state_from_task(state_t
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 @pytest.mark.parametrize("state_type", [StateType.CANCELLED, StateType.CANCELLING])
@@ -92,7 +105,8 @@ async def test_check_if_running_raises_on_cancelled_flow_state_from_flow(state_t
         with pytest.raises(CancelledRun):
             await prefect.check_if_running()
 
-    await acheck_flow(return_state=True)
+    with pytest.raises(CancelledRun):
+        await acheck_flow()
 
 
 async def test_check_if_running_raises_on_failed_flow_state_from_task():
@@ -110,7 +124,7 @@ async def test_check_if_running_raises_on_failed_flow_state_from_task():
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 async def test_check_if_running_raises_on_failed_task_state_from_task():
@@ -127,7 +141,7 @@ async def test_check_if_running_raises_on_failed_task_state_from_task():
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 async def test_check_if_running_raises_on_failed_flow_state_from_flow():
@@ -141,7 +155,7 @@ async def test_check_if_running_raises_on_failed_flow_state_from_flow():
         with pytest.raises(FailedRun):
             await prefect.check_if_running()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 async def test_check_if_running_raises_on_pending_flow_state_from_task():
@@ -152,14 +166,20 @@ async def test_check_if_running_raises_on_pending_flow_state_from_task():
                 prefect.runtime.flow_run.id, prefect.states.Pending(), force=True
             )
 
-        with pytest.raises(RuntimeError, match="foo"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Task run should not be running; server reported a PENDING flow run"
+                " state"
+            ),
+        ):
             await prefect.check_if_running()
 
     @prefect.flow
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 async def test_check_if_running_raises_on_pending_task_state_from_task():
@@ -169,14 +189,20 @@ async def test_check_if_running_raises_on_pending_task_state_from_task():
             await client.set_task_run_state(
                 prefect.runtime.task_run.id, prefect.states.Pending(), force=True
             )
-        with pytest.raises(RuntimeError, match="foo"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Task run should not be running; server reported a PENDING task run"
+                " state"
+            ),
+        ):
             await prefect.check_if_running()
 
     @prefect.flow
     async def acheck_flow():
         await acheck_task()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
 
 
 async def test_check_if_running_raises_on_pending_flow_state_from_flow():
@@ -187,7 +213,66 @@ async def test_check_if_running_raises_on_pending_flow_state_from_flow():
                 prefect.runtime.flow_run.id, prefect.states.Pending(), force=True
             )
 
-        with pytest.raises(RuntimeError, match="foo"):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Flow run should not be running; server reported a PENDING flow run"
+                " state"
+            ),
+        ):
             await prefect.check_if_running()
 
-    await acheck_flow(return_state=True)
+    await acheck_flow()
+
+
+async def test_check_if_running_returns_failed_flow_state_from_task():
+    @prefect.task
+    async def acheck_task():
+        async with prefect.get_client() as client:
+            await client.set_flow_run_state(
+                prefect.runtime.flow_run.id, prefect.states.Failed()
+            )
+
+        retval = await prefect.check_if_running(raise_on_failure=False)
+        assert isinstance(retval, prefect.State)
+        assert retval.is_failed()
+
+    @prefect.flow
+    async def acheck_flow():
+        await acheck_task()
+
+    await acheck_flow()
+
+
+async def test_check_if_running_returns_failed_task_state_from_task():
+    @prefect.task
+    async def acheck_task():
+        async with prefect.get_client() as client:
+            await client.set_task_run_state(
+                prefect.runtime.task_run.id, prefect.states.Failed()
+            )
+
+        retval = await prefect.check_if_running(raise_on_failure=False)
+        assert isinstance(retval, prefect.State)
+        assert retval.is_failed()
+
+    @prefect.flow
+    async def acheck_flow():
+        await acheck_task()
+
+    await acheck_flow()
+
+
+async def test_check_if_running_returns_failed_flow_state_from_flow():
+    @prefect.flow
+    async def acheck_flow():
+        async with prefect.get_client() as client:
+            await client.set_flow_run_state(
+                prefect.runtime.flow_run.id, prefect.states.Failed()
+            )
+
+        retval = await prefect.check_if_running(raise_on_failure=False)
+        assert isinstance(retval, prefect.State)
+        assert retval.is_failed()
+
+    await acheck_flow()

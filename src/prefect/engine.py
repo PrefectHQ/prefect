@@ -2211,13 +2211,16 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
     """
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
+    from_run: str
 
     if task_run_context:
         flow_run_id = task_run_context.task_run.flow_run_id
         task_run_id = task_run_context.task_run.id
+        from_run = "Task run"
     elif flow_run_context:
         flow_run_id = flow_run_context.flow_run.id
         task_run_id = None
+        from_run = "Flow run"
     else:
         if raise_on_failure:
             raise RuntimeError(
@@ -2236,9 +2239,11 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
                 await raise_state_exception(flow_run.state)
                 # If there's no exception for the state type; raise a generic one
                 raise RuntimeError(
-                    "Flow run should not be running; server reported a"
-                    f" {flow_run.state.type.name} state."
+                    f"{from_run} should not be running; server reported a"
+                    f" {flow_run.state.type.name} flow run state."
                 )
+            else:
+                return flow_run.state
 
     if task_run_id:
         task_run = await from_async.call_soon_in_loop_thread(
@@ -2250,9 +2255,11 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
                 await raise_state_exception(task_run.state)
                 # If there's no exception for the state type; raise a generic one
                 raise RuntimeError(
-                    "Task run should not be running; server reported a"
-                    f" {task_run.state.type.name} state."
+                    f"{from_run} should not be running; server reported a"
+                    f" {task_run.state.type.name} task run state."
                 )
+            else:
+                return task_run.state
 
     return task_run.state if task_run_context else flow_run.state
 

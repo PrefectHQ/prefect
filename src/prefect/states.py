@@ -319,7 +319,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif state.is_crashed():
         wrapper = CrashedRun
         default_message = "Run crashed."
-    elif state.is_cancelled() or state.is_cancelled():
+    elif state.is_cancelled():
         wrapper = CancelledRun
         default_message = "Run cancelled."
     else:
@@ -368,7 +368,7 @@ async def get_state_exception(state: State) -> BaseException:
 @sync_compatible
 async def raise_state_exception(state: State) -> None:
     """
-    Given a FAILED or CRASHED state, raise the contained exception.
+    Given a FAILED / CRASHED / CANCELLED state, raise the contained exception.
     """
     if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
