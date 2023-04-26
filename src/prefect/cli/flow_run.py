@@ -199,7 +199,7 @@ async def logs(
         else None
     )
 
-    # if using tail update offset and tail_limit according to LOGS_DEFAULT_PAGE_SIZE
+    # if using tail update offset according to LOGS_DEFAULT_PAGE_SIZE
     if tail:
         offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
 
