@@ -195,7 +195,7 @@ async def logs(
 
     user_specified_num_logs = (
         num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-        if num_logs or tail or num_logs
+        if head or tail or num_logs
         else None
     )
 
@@ -248,19 +248,18 @@ async def logs(
             num_logs_returned += num_logs_to_return_from_page
 
             if tail:
+                #  If the current offset is not 0, update the offset for the next page
                 if offset != 0:
                     offset = (
                         0
+                        # Reset the offset to 0 if there are less logs than the LOGS_DEFAULT_PAGE_SIZE to get the remaining log
                         if offset < LOGS_DEFAULT_PAGE_SIZE
                         else offset - LOGS_DEFAULT_PAGE_SIZE
                     )
                 else:
                     more_logs = False
             else:
-                if (
-                    num_logs_returned < user_specified_num_logs
-                    and len(page_logs) == LOGS_DEFAULT_PAGE_SIZE
-                ):
+                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
                     offset += LOGS_DEFAULT_PAGE_SIZE
                 else:
                     # No more logs to show, exit
