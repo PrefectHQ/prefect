@@ -261,6 +261,8 @@ Below are fields that can be added to a deployment declaration's `schedule` sect
 | `day_or` | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`. |
 | `rrule` | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
 
+For more information about schedules, see the [Schedules](/concepts/schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section) concept doc.
+
 #### Work Pool Fields
 
 Below are fields that can be added to a deployment declaration's `work_pool` section.
