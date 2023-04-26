@@ -154,7 +154,6 @@ async def deploy(
     options = {
         "entrypoint": entrypoint,
         "flow_name": flow_name,
-        "names": names,
         "description": description,
         "version": version,
         "tags": tags,
@@ -168,7 +167,6 @@ async def deploy(
         "timezone": timezone,
         "param": param,
         "params": params,
-        "deploy_all": deploy_all,
     }
 
     try:
@@ -207,7 +205,19 @@ async def deploy(
                     deploy_all=deploy_all,
                 )
             elif len(names) == 1:
-                deployment = next((d for d in deployments if d["name"] == names[0]), {})
+                deployment = next(
+                    (d for d in deployments if d.get("name") == names[0]), {}
+                )
+                if not deployment:
+                    app.console.print(
+                        (
+                            "Could not find deployment declaration with name "
+                            f"{names[0]} in deployment.yaml. Only CLI options "
+                            "will be used for this deployment."
+                        ),
+                        style="yellow",
+                    )
+                    options["name"] = None
                 await _run_single_deploy(
                     base_deploy=deployment,
                     project=project,

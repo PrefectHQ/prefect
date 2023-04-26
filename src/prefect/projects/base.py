@@ -64,7 +64,7 @@ def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bo
             default["deployments"][0][field] = default_value
 
     with open(path / "deployment.yaml", "w") as f:
-        yaml.dump(default, f)
+        yaml.dump(default, f, sort_keys=False)
 
     return True
 

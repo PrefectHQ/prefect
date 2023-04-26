@@ -837,6 +837,11 @@ class TestMultiDeploy:
                 "An important name/test-name-1",
                 "An important name/test-name-2",
             ],
+            expected_output_does_not_contain=[
+                "You have passed options to the deploy command, but you are"
+                " creating or updating multiple deployments. These options"
+                " will be ignored."
+            ],
         )
 
         # Check if deployments were created correctly
@@ -896,10 +901,17 @@ class TestMultiDeploy:
                     " with id"
                 ),
             ],
-            expected_output_does_not_contain=(
-                "Deployment 'An important name/test-name-3' successfully created"
-                " with id"
-            ),
+            expected_output_does_not_contain=[
+                (
+                    "Deployment 'An important name/test-name-3' successfully created"
+                    " with id"
+                ),
+                (
+                    "You have passed options to the deploy command, but you are"
+                    " creating or updating multiple deployments. These options"
+                    " will be ignored."
+                ),
+            ],
         )
 
         # Check if the two deployments were created correctly
@@ -1310,6 +1322,41 @@ class TestMultiDeploy:
                     "Discovered multiple deployments declared in deployment.yaml, but"
                     " no name was given. Please specify the name of at least one"
                     " deployment to create or update."
+                ),
+            ],
+        )
+
+    async def test_deploy_with_single_deployment_with_no_name(
+        self, project_dir, work_pool
+    ):
+        # Create a deployment
+        deployment = {
+            "deployments": [
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                },
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "work_pool": {"name": work_pool.name},
+                },
+            ]
+        }
+
+        # Save the deployment to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployment, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name-1",
+            expected_code=1,
+            expected_output_contains=[
+                (
+                    "Could not find deployment declaration with name "
+                    "test-name-1 in deployment.yaml. Only CLI options "
+                    "will be used for this deployment."
                 ),
             ],
         )
