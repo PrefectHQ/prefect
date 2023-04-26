@@ -250,7 +250,16 @@ class FlowOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            state_data = None
+            # We cannot access `self.run.state.data` directly for unknown reasons
+            state_data = (
+                (
+                    await artifacts.read_artifact(
+                        self.session, self.run.state.result_artifact_id
+                    )
+                ).data
+                if self.run.state.result_artifact_id
+                else None
+            )
         else:
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
@@ -384,7 +393,16 @@ class TaskOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            state_data = None
+            # We cannot access `self.run.state.data` directly for unknown reasons
+            state_data = (
+                (
+                    await artifacts.read_artifact(
+                        self.session, self.run.state.result_artifact_id
+                    )
+                ).data
+                if self.run.state.result_artifact_id
+                else None
+            )
         else:
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
