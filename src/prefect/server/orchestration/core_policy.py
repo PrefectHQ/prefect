@@ -610,17 +610,12 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
 
 class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     """
-    Prevents transitions from terminal states.
+    We do not allow tasks to leave terminal states if:
+    - The task is completed and has a persisted result
+    - The task is going to CANCELLING / PAUSED / CRASHED
 
-    Orchestration logic in Prefect REST API assumes that once runs enter a terminal state, no
-    further action will be taken on them. This rule prevents unintended transitions out
-    of terminal states and sents an instruction to the client to abort any execution.
-
-    While rerunning a flow, the client will attempt to re-orchestrate tasks that may
-    have previously failed. This rule will permit transitions back into a running state
-    if the parent flow run is either currently restarting or retrying. The task run's
-    run count will also be reset so task-level retries can still fire and tracking
-    metadata is updated.
+    We reset the run count when a task leaves a terminal state for a non-terminal state
+    which resets task run retries; this is particularly relevant for flow run retries.
     """
 
     FROM_STATES = TERMINAL_STATES
@@ -632,24 +627,36 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        # permit rerunning a task if the flow is retrying
-        if proposed_state.is_running() and (
-            initial_state.is_failed()
-            or initial_state.is_crashed()
-            or initial_state.is_cancelled()
-        ):
-            self.original_run_count = context.run.run_count
-            self.original_retry_attempt = context.run.flow_run_run_count
+        self.original_run_count = context.run.run_count
 
+        # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
+        if proposed_state.type in {
+            StateType.CANCELLING,
+            StateType.PAUSED,
+            StateType.CRASHED,
+        }:
+            await self.abort_transition(f"Run is already {initial_state.type.value}.")
+            return
+
+        # Only allow departure from a happily completed state if the result is not persisted
+        if (
+            initial_state.is_completed()
+            and initial_state.data
+            and initial_state.data.get("type") != "unpersisted"
+        ):
+            await self.reject_transition(None, "This run is already completed.")
+            return
+
+        if not proposed_state.is_final():
+            # Reset run count to reset retries
+            context.run.run_count = 0
+
+        # Change the name of the state to retrying if its a flow run retry
+        if proposed_state.is_running():
             self.flow_run = await context.flow_run()
             flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
-
             if flow_retrying:
-                context.run.run_count = 0  # reset run count to preserve retry behavior
                 await self.rename_state("Retrying")
-                return
-
-        await self.abort_transition(reason="This run has already terminated.")
 
     async def cleanup(
         self,
@@ -663,16 +670,13 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
 
 class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     """
-    Prevents transitions from terminal states.
+    We do not allow flows to leave terminal states if:
+    - The flow is completed and has a persisted result
+    - The flow is going to CANCELLING / PAUSED / CRASHED
+    - The flow is going to scheduled and has no deployment
 
-    Orchestration logic in Prefect REST API assumes that once runs enter a terminal state, no
-    further action will be taken on them. This rule prevents unintended transitions out
-    of terminal states and sents an instruction to the client to abort any execution.
-
-    If the orchestrated flow run has an associated deployment, this rule will permit a
-    transition back into a scheduled state as well as performing all necessary
-    bookkeeping such as: tracking the number of times a flow run has been restarted and
-    resetting the run count so flow-level retries can still fire.
+    We reset the pause metadata when a flow leaves a terminal state for a non-terminal
+    state. This resets pause behavior during manual flow run retries.
     """
 
     FROM_STATES = TERMINAL_STATES
@@ -686,22 +690,43 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     ) -> None:
         self.original_flow_policy = context.run.empirical_policy.dict()
 
-        # permit transitions into back into a scheduled state for manual retries
-        if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
-            # Reset pause metadata on manual retry
+        # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
+        if proposed_state.type in {
+            StateType.CANCELLING,
+            StateType.PAUSED,
+            StateType.CRASHED,
+        }:
+            await self.abort_transition(
+                f"Run is already in terminal state {initial_state.type.value}."
+            )
+            return
+
+        # Only allow departure from a happily completed state if the result is not
+        # persisted and the a rerun is being proposed
+        if (
+            initial_state.is_completed()
+            and not proposed_state.is_final()
+            and initial_state.data
+            and initial_state.data.get("type") != "unpersisted"
+        ):
+            await self.reject_transition(None, "Run is already COMPLETED.")
+            return
+
+        # Do not allows runs to be rescheduled without a deployment
+        if proposed_state.is_scheduled() and not context.run.deployment_id:
+            await self.abort_transition(
+                "Cannot reschedule a run without an associated deployment."
+            )
+            return
+
+        if not proposed_state.is_final():
+            # Reset pause metadata when leaving a terminal state
             api_version = context.parameters.get("api-version", None)
             if api_version is None or api_version >= Version("0.8.4"):
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
-
-            if not context.run.deployment_id:
-                await self.abort_transition(
-                    "Cannot restart a run without an associated deployment."
-                )
-        else:
-            await self.abort_transition(reason="This run has already terminated.")
 
     async def cleanup(
         self,

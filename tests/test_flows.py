@@ -1539,12 +1539,12 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            fut = my_task()
+            state = my_task(return_state=True)
 
             if flow_run_count == 1:
                 raise ValueError()
 
-            return fut
+            return state.result()
 
         assert foo() == "hello"
         assert flow_run_count == 2
