@@ -25,7 +25,11 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
+from prefect.settings import (
+    PREFECT_TASKS_REFRESH_CACHE,
+    temporary_settings,
+    PREFECT_DEBUG_MODE,
+)
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
@@ -208,6 +212,18 @@ class TestTaskCall:
             return foo(1)
 
         assert bar() == 1
+
+    def test_task_call_with_debug_mode(self):
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1)
+
+        with temporary_settings({PREFECT_DEBUG_MODE: True}):
+            assert bar() == 1
 
     def test_task_called_with_task_dependency(self):
         @task
