@@ -1556,10 +1556,10 @@ async def orchestrate_task_run(
                             "Beginning execution...", extra={"state_message": True}
                         )
 
-                        call = from_async.call_soon_in_new_thread(
-                            create_call(task.fn, *args, **kwargs)
-                        )
-                        result = await call.aresult()
+                    call = from_async.call_soon_in_new_thread(
+                        create_call(task.fn, *args, **kwargs)
+                    )
+                    result = await call.aresult()
 
             except Exception as exc:
                 name = message = None
