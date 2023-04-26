@@ -8,6 +8,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 
+from prefect.results import LiteralResult, PersistedResult, UnpersistedResult
 from prefect.server import schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits
@@ -38,6 +39,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
+from prefect.server.schemas.states import StateType
 from prefect.testing.utilities import AsyncMock
 
 # Convert constants from sets to lists for deterministic ordering of tests
@@ -429,7 +431,7 @@ class TestFlowRetryingRule:
 
 
 class TestManualFlowRetries:
-    async def test_cannot_manual_retry_without_awaitingretry_state_name(
+    async def test_can_manual_retry_with_arbitrary_state_name(
         self,
         session,
         initialize_orchestration,
@@ -443,7 +445,7 @@ class TestManualFlowRetries:
             "flow",
             *intended_transition,
         )
-        ctx.proposed_state.name = "NotAwaitingRetry"
+        ctx.proposed_state.name = "FooBar"
         ctx.run.run_count = 2
         ctx.run.deployment_id = uuid4()
         ctx.run_settings.retries = 1
@@ -452,7 +454,7 @@ class TestManualFlowRetries:
             for rule in manual_retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 2
 
     async def test_cannot_manual_retry_without_deployment(
@@ -610,6 +612,12 @@ class TestUpdatingFlowRunTrackerOnTasks:
 
 
 class TestPermitRerunningFailedTaskRuns:
+    """
+    Following https://github.com/PrefectHQ/prefect/pull/9152 some of these test names
+    may be stale however they are retained to simplify understanding of changed
+    behavior. Generally, failed task runs can just retry whenever they want now.
+    """
+
     async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
         self,
         session,
@@ -644,7 +652,7 @@ class TestPermitRerunningFailedTaskRuns:
             ctx.run.flow_run_run_count == 4
         ), "Orchestration should update the flow run run count tracker"
 
-    async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
+    async def test_can_run_again_even_if_exceeding_flow_runs_count(
         self,
         session,
         initialize_orchestration,
@@ -660,6 +668,7 @@ class TestPermitRerunningFailedTaskRuns:
             session,
             "task",
             *intended_transition,
+            initial_state_data="test",
             flow_retries=10,
         )
         flow_run = await ctx.flow_run()
@@ -671,9 +680,9 @@ class TestPermitRerunningFailedTaskRuns:
             for rule in rerun_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert ctx.run.run_count == 2
-        assert ctx.proposed_state is None
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 0
+        assert ctx.proposed_state.type == StateType.RUNNING
         assert ctx.run.flow_run_run_count == 3
 
     async def test_bypasses_terminal_state_rule_if_configured_automatic_retries_is_exceeded(
@@ -1065,9 +1074,11 @@ class TestTransitionsFromTerminalStatesRule:
     )
 
     @pytest.mark.parametrize(
-        "intended_transition", terminal_transitions, ids=transition_names
+        "intended_transition",
+        [(terminal_state, StateType.CRASHED) for terminal_state in TERMINAL_STATES],
+        ids=transition_names,
     )
-    async def test_transitions_from_terminal_states_are_aborted(
+    async def test_transitions_from_terminal_states_to_crashed_are_aborted(
         self,
         session,
         run_type,
@@ -1093,9 +1104,131 @@ class TestTransitionsFromTerminalStatesRule:
         assert ctx.response_status == SetStateStatus.ABORT
 
     @pytest.mark.parametrize(
+        "intended_transition",
+        [(terminal_state, StateType.CANCELLING) for terminal_state in TERMINAL_STATES],
+        ids=transition_names,
+    )
+    async def test_transitions_from_terminal_states_to_cancelling_are_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        if run_type == "task":
+            protection_rule = HandleTaskTerminalStateTransitions
+        elif run_type == "flow":
+            protection_rule = HandleFlowTerminalStateTransitions
+
+        state_protection = protection_rule(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        [
+            (StateType.COMPLETED, state)
+            for state in ALL_ORCHESTRATION_STATES
+            if state
+            and state not in TERMINAL_STATES
+            and state
+            not in {
+                StateType.CANCELLING,
+                StateType.PAUSED,
+            }
+        ],
+        ids=transition_names,
+    )
+    @pytest.mark.parametrize("result_type", [None, UnpersistedResult])
+    async def test_transitions_from_completed_to_non_final_states_allowed_without_persisted_result(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+        result_type,
+    ):
+        if run_type == "flow" and intended_transition[1] == StateType.SCHEDULED:
+            pytest.skip(
+                "Flow runs cannot transition back to a SCHEDULED state without a"
+                " deployment"
+            )
+
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        if run_type == "task":
+            protection_rule = HandleTaskTerminalStateTransitions
+        elif run_type == "flow":
+            protection_rule = HandleFlowTerminalStateTransitions
+
+        state_protection = protection_rule(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        [
+            (StateType.COMPLETED, state)
+            for state in ALL_ORCHESTRATION_STATES
+            if state
+            and state not in TERMINAL_STATES
+            and state
+            not in {
+                StateType.CANCELLING,
+                StateType.PAUSED,
+            }
+        ],
+        ids=transition_names,
+    )
+    @pytest.mark.parametrize("result_type", [PersistedResult, LiteralResult])
+    async def test_transitions_from_completed_to_non_final_states_rejected_with_persisted_result(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+        result_type,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=result_type.construct().dict() if result_type else None,
+        )
+
+        if run_type == "task":
+            protection_rule = HandleTaskTerminalStateTransitions
+        elif run_type == "flow":
+            protection_rule = HandleFlowTerminalStateTransitions
+
+        state_protection = protection_rule(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT, ctx.response_details
+
+    @pytest.mark.parametrize(
         "intended_transition", active_transitions, ids=transition_names
     )
-    async def test_all_other_transitions_are_accepted(
+    async def test_does_not_block_transitions_from_non_terminal_states(
         self,
         session,
         run_type,
