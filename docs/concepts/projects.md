@@ -48,9 +48,9 @@ deployments:
 
     # infra-specific fields
     work_pool:
-    name: null
-    work_queue_name: null
-    job_variables: {}
+      name: null
+      work_queue_name: null
+      job_variables: {}
 ```
 
 You can create deployments via the CLI command `prefect deploy` without ever needing to alter this file in any way - its sole purpose is for version control and providing base settings in the situation where you are creating many deployments from your project.  [As described below](#deployment-mechanics), when creating a deployment these settings are first loaded from this base file, and then any additional flags provided via `prefect deploy` are layered on top before registering the deployment with the Prefect API.
@@ -255,7 +255,7 @@ Below are fields that can be added to a deployment declaration's `schedule` sect
 | Property | Description |
 | --- | --- |
 | `interval` | Number of seconds indicating the time between flow runs. Cannot be used in conjunction with `cron` or `rrule`. |
-| <span class="no-wrap">`anchor_date`</sapn> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`. |
+| <span class="no-wrap">`anchor_date`</span> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`. |
 | `timezone` | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones. |
 | `cron` | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`. |
 | `day_or` | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`. |
