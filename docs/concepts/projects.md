@@ -99,9 +99,9 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 
 ### Working With Multiple Deployments
 
-Projects can support multiple deployments declarations with a project's `deployment.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments with a project to be version controlled and deployed with a single command.
+Projects can support multiple deployment declarations within a project's `deployment.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments within a project to be version controlled and deployed with a single command.
 
-New deployment declarations can be added to a project's `deployment.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field. The `name` field is used to identify the deployment when managing deployments and needs to be used when deploying specific deployments.
+New deployment declarations can be added to a project's `deployment.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to identify and manage deployments.
 
 For example, consider the following `deployment.yaml` file:
 
@@ -167,7 +167,7 @@ Because a project's `deployment.yaml` file is a standard YAML file, you can use 
 
 This functionality is useful when multiple deployments need to share the work pool configuration, deployment actions, or other configurations.
 
-You can declare a YAML alias by using the `&{alias_name}` syntax and insert those alias elsewhere in the file with the `*{alias_name}` syntax. 
+You can declare a YAML alias by using the `&{alias_name}` syntax and insert that alias elsewhere in the file with the `*{alias_name}` syntax. 
 
 We recommend adding a `definitions` section to your `deployment.yaml` file at the same level as the `deployments` section to store your aliases.
 
@@ -217,9 +217,9 @@ deployments:
 
 In the above example, we are using YAML aliases to reuse work pool, schedule, and build configuration across multiple deployments:
 
-- deployment-1 and deployment-2 are using the same work pool configuration
-- deployment-1 and deployment-3 are using the same schedule 
-- deployment-1 and deployment-2 are using the same build deployment action
+- `deployment-1` and `deployment-2` are using the same work pool configuration
+- `deployment-1` and `deployment-3` are using the same schedule 
+- `deployment-1` and `deployment-2` are using the same build deployment action
 
 ### Deployment Declaration Reference
 
@@ -227,49 +227,49 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 
 Below are fields that can be added at the root level of the `deployment.yaml` file.
 
-| Attribute | Description |
-| ---- | ---- |
-| `deployments` | A list of deployment declarations for the current project. Fields for this sections are documented in the [Deployment Fields](#deployment-fields) section. |
+| Property | Description |
+| --- | --- |
+| <span class="no-wrap">`deployments`</span> | A list of deployment declarations for the current project. Fields for this section are documented in the [Deployment Fields](#deployment-fields) section. |
 | `definitions` | Definitions for configuration that is shared across deployment declarations (e.g., schedules, deployment actions, etc.). |
 
 #### Deployment Fields
 
 Below are fields that can be added to each deployment declaration.
 
-| Attribute | Description |
-| ---- | ---- |
+| Property | Description |
+| --- | --- |
 | `name` | A list of deployment declarations for the current project. |
 | `version` | An optional version for the deployment. |
-| `tags`    | A list of strings to assign to the deployment as tags. |
-| `description` | An optional description for the deployment |
-| `schedule`    | An optional [schedule](/concepts/schedule) to assign to the deployment. Fields for this sections are documented in the [Schedule Fields](#schedule-fields) section. |
+| `tags` | A list of strings to assign to the deployment as tags. |
+| <span class="no-wrap">`description`</span> | An optional description for the deployment. |
+| `schedule` | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this sections are documented in the [Schedule Fields](#schedule-fields) section. |
 | `flow_name`   | The name of a flow that has been registered in the current project's [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required. |
-| `entrypoint`  | The path relative to the project root to the file containing the flow to be deployed combined with the name of the flow function. Should be in the format `path/to.file:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
-| `parameters`  | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs. |
-| `work_pool`   | Information where to schedule flow runs for the deployment. Fields for this sections are documented in the [Work Pool Fields](#work-pool-fields) section. |
+| `entrypoint` | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your project) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
+| `parameters` | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs. |
+| `work_pool` | Information on where to schedule flow runs for the deployment. Fields for this sections are documented in the [Work Pool Fields](#work-pool-fields) section. |
 
 #### Schedule Fields
 
-Below are fields that can be added to a deployment declaration's `schedule` field.
+Below are fields that can be added to a deployment declaration's `schedule` section.
 
-| Attribute | Description |
-| ---- | ---- |
+| Property | Description |
+| --- | --- |
 | `interval` | Number of seconds indicating the time between flow runs. Cannot be used in conjunction with `cron` or `rrule`. |
-| `anchor_date` | Datetime string indicating the starting or "anchor" date to begin the schedule. If no anchor_date is supplied, the current UTC time is used. Can only be used with `interval`. |
-| `timezone`    | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones. |
-| `cron`    | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`. |
-| `day_or`  | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`. |
-| `rrule`   | tring representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
+| <span class="no-wrap">`anchor_date`</sapn> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`. |
+| `timezone` | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones. |
+| `cron` | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`. |
+| `day_or` | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`. |
+| `rrule` | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
 
 #### Work Pool Fields
 
-Below are fields that can be added to a deployment declaration's `work_pool` field.
+Below are fields that can be added to a deployment declaration's `work_pool` section.
 
-| Attribute | Description |
-| ---- | ---- |
+| Property | Description |
+| --- | --- |
 | `name` | The name of the work pool to schedule flow runs in for the deployment. |
-| `work_queue_name` | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.  |
-| `job_variables`   | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.  |
+| `job_variables` | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 ## The Prefect YAML file
 
