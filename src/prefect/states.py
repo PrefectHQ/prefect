@@ -310,7 +310,7 @@ async def get_state_exception(state: State) -> BaseException:
     When a wrapper exception is returned, the type will be:
         - `FailedRun` if the state type is FAILED.
         - `CrashedRun` if the state type is CRASHED.
-        - `CancelledRun` if the state type is CANCELLED.
+        - `CancelledRun` if the state type is CANCELLED or CANCELLING.
     """
 
     if state.is_failed():
@@ -319,7 +319,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif state.is_crashed():
         wrapper = CrashedRun
         default_message = "Run crashed."
-    elif state.is_cancelled():
+    elif state.is_cancelled() or state.is_cancelled():
         wrapper = CancelledRun
         default_message = "Run cancelled."
     else:

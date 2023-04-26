@@ -2214,7 +2214,9 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
 
     if not flow_run_context and not task_run_context:
         if raise_on_failure:
-            raise RuntimeError("checkpoint must be called from within a flow or task.")
+            raise RuntimeError(
+                "`check_if_running` must be called from within a flow or task."
+            )
         else:
             return None
 
