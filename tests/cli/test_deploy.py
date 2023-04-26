@@ -733,6 +733,57 @@ class TestSchedules:
         assert deployment.schedule.cron == "0 4 * * *"
         assert deployment.schedule.timezone == "Europe/Berlin"
 
+    async def test_deployment_yaml_cron_schedule(self, project_dir, orion_client):
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
+        deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name",
+        )
+        assert result.exit_code == 0
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.cron == "0 4 * * *"
+        assert deployment.schedule.timezone == "America/Chicago"
+
+    async def test_deployment_yaml_cron_schedule_timezone_cli(
+        self, project_dir, orion_client
+    ):
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
+        deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name "
+                "--timezone 'Europe/Berlin'"
+            ),
+        )
+        assert result.exit_code == 0
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.cron == "0 4 * * *"
+        assert deployment.schedule.timezone == "Europe/Berlin"
+
     async def test_passing_interval_schedules_to_deploy(
         self, project_dir, orion_client
     ):
@@ -752,6 +803,31 @@ class TestSchedules:
         assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/New_York"
 
+    async def test_interval_schedule_deployment_yaml(self, project_dir, orion_client):
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["schedule"]["interval"] = 42
+        deploy_config["deployments"][0]["schedule"]["anchor_date"] = "2040-02-02"
+        deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name",
+        )
+        assert result.exit_code == 0
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.interval == timedelta(seconds=42)
+        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert deployment.schedule.timezone == "America/Chicago"
+
     async def test_passing_anchor_without_interval_exits(self, project_dir):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -767,6 +843,36 @@ class TestSchedules:
     async def test_parsing_rrule_schedule_string_literal(
         self, project_dir, orion_client
     ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name "
+                "--rrule"
+                " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
+            ),
+            expected_code=0,
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert (
+            deployment.schedule.rrule
+            == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+        )
+
+    async def test_rrule_deployment_yaml(self, project_dir, orion_client):
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["schedule"][
+            "rrule"
+        ] = "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(

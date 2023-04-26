@@ -4,7 +4,7 @@ deployments:
     version: null
     tags: []
     description: null
-    schedule: null
+    schedule: {}
 
     # flow-specific fields
     flow_name: null

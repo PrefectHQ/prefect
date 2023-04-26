@@ -256,6 +256,8 @@ async def _run_single_deploy(
 
     base_deploy = _merge_with_default_deployment(base_deploy)
 
+    base_deploy_schedule = base_deploy.get("schedule", {})
+
     name = options.get("name") or base_deploy.get("name")
     flow_name = options.get("flow_name") or base_deploy.get("flow_name")
     entrypoint = options.get("entrypoint") or base_deploy.get("entrypoint")
@@ -267,11 +269,13 @@ async def _run_single_deploy(
     description = options.get("description")
     work_pool_name = options.get("work_pool_name")
     work_queue_name = options.get("work_queue_name")
-    cron = options.get("cron")
-    rrule = options.get("rrule")
-    interval = options.get("interval")
-    interval_anchor = options.get("interval_anchor")
-    timezone = options.get("timezone")
+    cron = options.get("cron") or base_deploy_schedule.get("cron")
+    rrule = options.get("rrule") or base_deploy_schedule.get("rrule")
+    interval = options.get("interval") or base_deploy_schedule.get("interval")
+    interval_anchor = options.get("interval_anchor") or base_deploy_schedule.get(
+        "anchor_date"
+    )
+    timezone = options.get("timezone") or base_deploy_schedule.get("timezone")
 
     build_steps = base_deploy.get("build", project.get("build", [])) or []
     pull_steps = base_deploy.get("pull", project.get("pull", [])) or []
@@ -420,8 +424,7 @@ async def _run_single_deploy(
     base_deploy["parameter_openapi_schema"] = _parameter_schema
 
     # set schedule afterwards to avoid templating errors
-    if schedule:
-        base_deploy["schedule"] = schedule
+    base_deploy["schedule"] = schedule
 
     # prepare the pull step
     pull_steps = apply_values(pull_steps, step_outputs)
