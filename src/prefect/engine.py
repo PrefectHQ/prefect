@@ -1868,7 +1868,7 @@ async def resolve_inputs(
     for parameter, value in parameters.items():
         try:
             resolved_parameters[parameter] = visit_collection(
-                parameters,
+                value,
                 visit_fn=resolve_input,
                 return_data=return_data,
                 max_depth=max_depth,
