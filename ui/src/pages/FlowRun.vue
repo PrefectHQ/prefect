@@ -4,7 +4,7 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
-    <FlowRunTimeline v-if="flowRun" :flow-run="flowRun" />
+    <FlowRunGraphs v-if="flowRun && !isPending" :flow-run="flowRun" />
 
     <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
@@ -41,14 +41,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { media } from '@prefecthq/prefect-design'
   import {
     PageHeadingFlowRun,
     FlowRunArtifacts,
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
-    FlowRunTimeline,
     FlowRunResults,
     FlowRunSubFlows,
     useFavicon,
@@ -62,6 +60,7 @@
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
