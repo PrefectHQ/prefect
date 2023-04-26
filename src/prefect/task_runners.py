@@ -115,6 +115,15 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         return type(self)()
 
+    def __eq__(self, __value: object) -> bool:
+        """
+        Returns true if the task runners use the same options.
+        """
+        if type(__value) == type(self):
+            return True
+        else:
+            return NotImplemented
+
     @abc.abstractmethod
     async def submit(
         self,
