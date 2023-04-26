@@ -125,7 +125,7 @@
   h-auto
 }
 
-@media (min-width: 640px) {
+@screen sm {
   .flow-run-graphs__graphs--panel-open {
     width: calc(100% - var(--flow-run-graphs-panel-width));
     @apply
