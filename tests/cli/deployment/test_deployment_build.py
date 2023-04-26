@@ -41,7 +41,7 @@ def built_deployment_with_queue_and_limit_overrides(patch_import, tmp_path):
         name="TEST",
         flow_name="fn",
     )
-    deployment_id = d.apply()
+    d.apply()
 
     invoke_and_assert(
         [
@@ -68,7 +68,7 @@ def applied_deployment_with_queue_and_limit_overrides(patch_import, tmp_path):
         name="TEST",
         flow_name="fn",
     )
-    deployment_id = d.apply()
+    d.apply()
 
     invoke_and_assert(
         [
@@ -332,7 +332,7 @@ class TestSchedules:
         ]
         cmd += schedules
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
             expected_output="Only one schedule type can be provided.",
@@ -345,7 +345,7 @@ class TestParameterOverrides:
             name="TEST",
             flow_name="fn",
         )
-        deployment_id = d.apply()
+        d.apply()
 
         invoke_and_assert(
             [
@@ -374,7 +374,7 @@ class TestParameterOverrides:
             name="TEST",
             flow_name="fn",
         )
-        deployment_id = d.apply()
+        d.apply()
 
         invoke_and_assert(
             [
@@ -400,7 +400,7 @@ class TestParameterOverrides:
             name="TEST",
             flow_name="fn",
         )
-        deployment_id = d.apply()
+        d.apply()
 
         invoke_and_assert(
             [
@@ -458,7 +458,7 @@ class TestFlowName:
             output_path,
         ]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
             expected_output=(
@@ -527,7 +527,7 @@ class TestEntrypoint:
     ):
         name = "TEST"
         file_name = "test_no_suffix"
-        output_path = str(tmp_path / file_name)
+        str(tmp_path / file_name)
         entrypoint = "fake-path.py"
         cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
@@ -554,12 +554,12 @@ class TestEntrypoint:
         cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
             expected_output_contains=(
-                f"Function with name 'fn' is not a flow. Make sure that it is decorated"
-                f" with '@flow'"
+                "Function with name 'fn' is not a flow. Make sure that it is decorated"
+                " with '@flow'"
             ),
         )
 
@@ -579,7 +579,7 @@ class TestEntrypoint:
         cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
             expected_output_contains=(
@@ -600,10 +600,10 @@ class TestEntrypoint:
         cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"No module named ",
+            expected_output_contains="No module named ",
         )
 
     def test_entrypoint_works_with_flow_with_custom_name(self):
@@ -615,7 +615,7 @@ class TestEntrypoint:
             pass
         """
         file_name = "f.py"
-        with TemporaryDirectory() as tmp_dir:
+        with TemporaryDirectory():
             Path(file_name).write_text(dedent(flow_code))
 
             dep_name = "TEST"
@@ -623,7 +623,7 @@ class TestEntrypoint:
             cmd = ["deployment", "build", "-n", dep_name]
             cmd += [entrypoint]
 
-            res = invoke_and_assert(
+            invoke_and_assert(
                 cmd,
                 expected_code=0,
             )
@@ -637,7 +637,7 @@ class TestEntrypoint:
             pass
         """
         file_name = "f.py"
-        with TemporaryDirectory() as tmp_dir:
+        with TemporaryDirectory():
             Path(file_name).write_text(dedent(flow_code))
 
             dep_name = "TEST"
@@ -645,7 +645,7 @@ class TestEntrypoint:
             cmd = ["deployment", "build", "-n", dep_name]
             cmd += [entrypoint]
 
-            res = invoke_and_assert(
+            invoke_and_assert(
                 cmd,
                 expected_code=0,
             )
@@ -848,7 +848,7 @@ class TestAutoApply:
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool
+        self, patch_import, tmp_path, process_work_pool, disable_workers
     ):
         invoke_and_assert(
             [
@@ -989,9 +989,9 @@ class TestSkipUpload:
         build_kwargs = mock_build_from_flow.call_args.kwargs
 
         if skip_upload:
-            assert build_kwargs["skip_upload"] == True
+            assert build_kwargs["skip_upload"] is True
         else:
-            assert build_kwargs["skip_upload"] == False
+            assert build_kwargs["skip_upload"] is False
 
 
 class TestInfraAndInfraBlock:
@@ -1012,7 +1012,7 @@ class TestInfraAndInfraBlock:
         ]
         cmd += ["-i", "process", "-ib", "my-block"]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=1,
             expected_output=(
@@ -1039,7 +1039,7 @@ class TestInfraAndInfraBlock:
         ]
         cmd += ["-ib", "process/test-infra-block"]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=0,
         )
@@ -1065,7 +1065,7 @@ class TestInfraAndInfraBlock:
         ]
         cmd += ["-i", "docker-container"]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=0,
         )
@@ -1095,7 +1095,7 @@ class TestInfraOverrides:
         ]
         for override in overrides:
             cmd += ["--override", override]
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=0,
         )
@@ -1119,7 +1119,7 @@ class TestInfraOverrides:
             "-o",
             output_path,
         ]
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=0,
         )
@@ -1147,7 +1147,7 @@ class TestStorageBlock:
         ]
         cmd += ["-sb", "local-file-system/test-storage-block"]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd,
             expected_code=0,
         )
@@ -1173,7 +1173,7 @@ class TestOutputFlag:
         ]
         cmd += ["-o", output_path]
 
-        res = invoke_and_assert(
+        invoke_and_assert(
             cmd, expected_code=1, expected_output="Output file must be a '.yaml' file."
         )
 

@@ -130,7 +130,8 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -148,6 +149,8 @@ class Task(Generic[P, R]):
             the features being used.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
+        result_storage_key: An optional key to store the result in storage at when persisted.
+            Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
@@ -176,7 +179,7 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
-        task_run_name: str = None,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: int = 0,
         retry_delay_seconds: Union[
             float,
@@ -188,6 +191,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        result_storage_key: Optional[str] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
@@ -211,7 +215,14 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
+        if task_run_name is not None:
+            if not isinstance(task_run_name, str) and not callable(task_run_name):
+                raise TypeError(
+                    "Expected string or callable for 'task_run_name'; got"
+                    f" {type(task_run_name).__name__} instead."
+                )
         self.task_run_name = task_run_name
+
         self.version = version
         self.log_prints = log_prints
 
@@ -251,6 +262,7 @@ class Task(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
@@ -290,7 +302,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
-        task_run_name: str = None,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[
@@ -303,6 +315,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        result_storage_key: Optional[str] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
@@ -321,7 +334,8 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             task_run_name: An optional name to distinguish runs of this task; this name can be provided
-                as a string template with the task's keyword arguments as variables.
+                as a string template with the task's keyword arguments as variables,
+                or a function that returns a string.
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -336,6 +350,7 @@ class Task(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            result_storage_key: A new key for the persisted result to be stored at.
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
@@ -403,6 +418,11 @@ class Task(Generic[P, R]):
             ),
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
+            ),
+            result_storage_key=(
+                result_storage_key
+                if result_storage_key is not NotSet
+                else self.result_storage_key
             ),
             result_serializer=(
                 result_serializer
@@ -834,8 +854,9 @@ class Task(Generic[P, R]):
 
         from prefect.engine import enter_task_run_engine
 
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
+        # Convert the call args/kwargs to a parameter dict; do not apply defaults
+        # since they should not be mapped over
+        parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
 
         return enter_task_run_engine(
@@ -862,7 +883,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -873,6 +894,7 @@ def task(
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
+    result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
@@ -893,7 +915,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -904,6 +926,7 @@ def task(
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
+    result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
@@ -932,7 +955,8 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -950,6 +974,8 @@ def task(
             the features being used.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
+        result_storage_key: An optional key to store the result in storage at when persisted.
+            Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
@@ -1029,6 +1055,7 @@ def task(
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,
+                result_storage_key=result_storage_key,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
@@ -1055,6 +1082,7 @@ def task(
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,
+                result_storage_key=result_storage_key,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,

@@ -37,11 +37,7 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="deploymentFilter">
-          <template #empty-message>
-            No runs found
-          </template>
-        </FlowRunFilteredList>
+        <FlowRunFilteredList :flow-run-filter="deploymentFilter" />
       </template>
     </p-tabs>
 

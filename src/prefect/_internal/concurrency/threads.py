@@ -4,9 +4,10 @@ Utilities for managing worker threads.
 import asyncio
 import atexit
 import concurrent.futures
+import itertools
 import queue
 import threading
-from typing import Optional
+from typing import List, Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.primitives import Event
@@ -20,9 +21,14 @@ class WorkerThread(Portal):
     A portal to a worker running on a thread.
     """
 
+    # Used for unique thread names by default
+    _counter = itertools.count().__next__
+
     def __init__(
-        self, name: str = "WorkerThread", daemon: bool = False, run_once: bool = False
+        self, name: Optional[str] = None, daemon: bool = False, run_once: bool = False
     ):
+        name = name or f"WorkerThread-{self._counter()}"
+
         self.thread = threading.Thread(
             name=name, daemon=daemon, target=self._entrypoint
         )
@@ -41,6 +47,7 @@ class WorkerThread(Portal):
         """
         with self._lock:
             if not self._started:
+                self._started = True
                 self.thread.start()
 
     def submit(self, call: Call) -> Call:
@@ -87,7 +94,6 @@ class WorkerThread(Portal):
             raise
 
     def _run_until_shutdown(self):
-        self._started = True
         while True:
             call = self._queue.get()
             if call is None:
@@ -125,6 +131,7 @@ class EventLoopThread(Portal):
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
         self._submitted_count: int = 0
+        self._on_shutdown: List[Call] = []
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -197,10 +204,16 @@ class EventLoopThread(Portal):
 
         await self._shutdown_event.wait()
 
+        for call in self._on_shutdown:
+            await self._run_call(call)
+
     async def _run_call(self, call: Call) -> None:
         task = call.run()
         if task is not None:
             await task
+
+    def add_shutdown_call(self, call: Call) -> None:
+        self._on_shutdown.append(call)
 
     def __enter__(self):
         self.start()

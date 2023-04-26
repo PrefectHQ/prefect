@@ -61,7 +61,7 @@ class TestUpdateWorkQueue:
         session,
         client,
     ):
-        now = pendulum.now(tz="UTC")
+        pendulum.now(tz="UTC")
         data = WorkQueueCreate(name="wq-1").dict(
             json_compatible=True, exclude_unset=True
         )
@@ -108,7 +108,7 @@ class TestReadWorkQueueByName:
         assert response.json()["name"] == work_queue.name
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
-        response = await client.get(f"/work_queues/name/some-made-up-work-queue")
+        response = await client.get("/work_queues/name/some-made-up-work-queue")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(

@@ -34,9 +34,31 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo", "bar"]
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
-    async def test_creating_a_deployment_creates_associated_work_queue(
+    async def test_creating_a_deployment_with_existing_work_queue_is_ok(
+        self, session, flow, work_queue
+    ):
+        # work_queue fixture creates a work queue with name "wq-1"
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name=work_queue.name
+        )
+        assert wq == work_queue
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1",
+                work_queue_name=work_queue.name,
+                flow_id=flow.id,
+                manifest_path="",
+            ),
+        )
+        await session.commit()
+
+    async def test_creating_a_deployment_does_not_create_work_queue(
         self, session, flow
     ):
+        # There was an issue where create_deployment always created a work queue when its name was provided.
+        # This test ensures that this no longer happens. See: https://github.com/PrefectHQ/prefect/pull/9046
         wq = await models.work_queues.read_work_queue_by_name(
             session=session, name="wq-1"
         )
@@ -53,26 +75,7 @@ class TestCreateDeployment:
         wq = await models.work_queues.read_work_queue_by_name(
             session=session, name="wq-1"
         )
-        assert wq is not None
-
-    async def test_creating_a_deployment_with_existing_work_queue_is_ok(
-        self, session, flow
-    ):
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
-            ),
-        )
-        await session.commit()
-
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="d2", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
-            ),
-        )
-        await session.commit()
+        assert wq is None
 
     async def test_create_deployment_with_work_pool(self, session, flow, work_queue):
         deployment = await models.deployments.create_deployment(
@@ -324,7 +327,7 @@ class TestReadDeployment:
                 infrastructure_document_id=infrastructure_document_id,
             ),
         )
-        deployment_2 = await models.deployments.create_deployment(
+        await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
@@ -1038,3 +1041,58 @@ class TestUpdateDeployment:
             session=session, work_queue_id=updated_deployment.work_queue_id
         )
         assert work_queue.name == "new-work-pool-queue"
+
+    async def test_updating_deployment_does_not_duplicate_work_queue(
+        self,
+        session,
+        deployment,
+        work_pool,
+    ):
+        # There was an issue where update_deployment would always create a work_queue in the default pool when
+        # a work_queue_name was provided. This also happened when the work_pool_name was provided. In case of
+        # the latter, the work_queue should only have been created in the specified pool, not duplicated in
+        # the default pool.
+        # This test ensures that this no longer happens. See: https://github.com/PrefectHQ/prefect/pull/9046
+
+        new_queue_name = "new-work-queue-name"
+
+        # Assert queue does not exist before update_deployment
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_queue_name=new_queue_name,
+                work_pool_name=work_pool.name,
+            ),
+        )
+        await session.commit()
+
+        # Assert it only exists in the custom work pool, not also in the default pool
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is None
+
+        wq = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name=new_queue_name,
+        )
+        assert wq is not None
+        assert wq.work_pool == work_pool

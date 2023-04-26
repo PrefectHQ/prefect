@@ -104,7 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
-| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables. |
+| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; this name can also be provided as a function that returns a string. |
 | `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
@@ -145,6 +145,48 @@ def my_flow(name: str, date: datetime.datetime):
 
 # creates a flow run called 'marvin-on-Thursday'
 my_flow(name="marvin", date=datetime.datetime.utcnow())
+```
+
+Additionally this setting also accepts a function that returns a string for the flow run name:
+
+```python
+import datetime
+from prefect import flow
+
+def generate_flow_run_name():
+    date = datetime.datetime.utcnow()
+
+    return f"{date:%A}-is-a-nice-day"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str):
+    pass
+
+# creates a flow run called 'Thursday-is-a-nice-day'
+my_flow(name="marvin")
+```
+
+If you need access to information about the flow, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run
+
+def generate_flow_run_name():
+    flow_name = flow_run.flow_name
+
+    parameters = flow_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-with-{name}-and-{limit}"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str, limit: int = 100):
+    pass
+
+# creates a flow run called 'my-flow-with-marvin-and-100'
+my_flow(name="marvin")
 ```
 
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
@@ -292,7 +334,7 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-    In Prefect 2 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
+    In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
 
     "When should I use a subflow instead of a task?"
 
@@ -768,3 +810,61 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
 ![Prefect UI](../img/ui/flow-run-cancellation-ui.png)
+
+
+<!--
+# content from old Flows UI page
+# Flows
+
+A [flow](/concepts/flows/) contains the instructions for workflow logic, including the `@flow` and `@task` functions that define the work of your workflow. 
+
+The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect server, or the Prefect ephemeral API in your local development environment.
+
+![View a list of flows observed by Prefect in the Prefect UI.](../img/ui/flows.png)
+
+For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
+
+You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](/ui/flow-runs/#inspect-a-flow-run).
+
+## Inspect a flow
+
+If you select the name of a flow on the **Flows** page, the UI displays details about the flow.
+
+![Details for a flow in the Prefect UI](../img/ui/flow-details.png)
+
+If deployments have been created for the flow, you'll see them here. Select the deployment name to see further details about the deployment.
+
+On this page you can also:
+
+- Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
+- Pause a schedule for a deployment by using the toggle control.
+- Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
+
+
+
+Additional info from the old ui/flow-runs page
+## Troubleshooting flows
+
+If you're having issues with a flow run, Prefect provides multiple tools to help you identify issues, re-run flows, and even delete a flow or flow run.
+
+Flows may end up in states other than Completed. This is where Prefect really helps you out. If a flow ends up in a state such as Pending, Failed, or Cancelled, you can:
+
+- Check the logs for the flow run for errors.
+- Check the task runs to see where the error occurred.
+- Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
+- Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
+
+If you need to delete a flow or flow run: 
+
+In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
+
+From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
+
+<div class="terminal">
+```bash
+$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
+--> 

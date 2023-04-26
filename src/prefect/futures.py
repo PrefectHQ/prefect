@@ -22,7 +22,8 @@ from uuid import UUID
 
 import anyio
 
-from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
@@ -153,11 +154,12 @@ class PrefectFuture(Generic[R, A]):
         If the timeout is reached before the run reaches a final state,
         `None` is returned.
         """
+        wait = create_call(self._wait, timeout=timeout)
         if self.asynchronous:
-            return self._wait(timeout=timeout)
+            return from_async.call_soon_in_loop_thread(wait).aresult()
         else:
             # type checking cannot handle the overloaded timeout passing
-            return from_sync.call_soon_in_loop_thread(create_call(self._wait, timeout=timeout)).result()  # type: ignore
+            return from_sync.call_soon_in_loop_thread(wait).result()  # type: ignore
 
     @overload
     async def _wait(self, timeout: None = None) -> State[R]:
@@ -221,14 +223,13 @@ class PrefectFuture(Generic[R, A]):
         If `raise_on_failure` is `True` and the task run failed, the task run's
         exception will be raised.
         """
+        result = create_call(
+            self._result, timeout=timeout, raise_on_failure=raise_on_failure
+        )
         if self.asynchronous:
-            return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
+            return from_async.call_soon_in_loop_thread(result).aresult()
         else:
-            return from_sync.call_soon_in_loop_thread(
-                create_call(
-                    self._result, timeout=timeout, raise_on_failure=raise_on_failure
-                )
-            ).result()
+            return from_sync.call_soon_in_loop_thread(result).result()
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
@@ -277,16 +278,7 @@ class PrefectFuture(Generic[R, A]):
         return task_run.state
 
     async def _wait_for_submission(self):
-        import asyncio
-
-        # TODO: This spin lock is not performant but is necessary for cases where a
-        #       future is created in a separate event loop i.e. when a sync task is
-        #       called in an async flow
-        if not asyncio.get_running_loop() == self._loop:
-            while not self.task_run:
-                await anyio.sleep(0)
-        else:
-            await self._submitted.wait()
+        await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
 
     def __hash__(self) -> int:
         return hash(self.key)

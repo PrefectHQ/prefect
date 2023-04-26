@@ -2,6 +2,8 @@ import asyncio
 import os
 import signal
 import statistics
+import sys
+import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
@@ -15,15 +17,20 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect.client.orchestration import get_client
+from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
+    API_HEALTHCHECKS,
     begin_flow_run,
+    check_api_reachable,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    propose_state,
     report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
@@ -42,6 +49,11 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.actions import FlowRunCreate
 from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.responses import (
+    SetStateStatus,
+    StateAcceptDetails,
+    StateWaitDetails,
+)
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
@@ -103,6 +115,7 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
                 client=orion_client,
                 task_runner=test_task_runner,
                 result_factory=result_factory,
+                parameters={},
             )
 
     return _get_flow_run_context
@@ -132,9 +145,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=0.1)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(FailedRun):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -155,9 +168,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=20, poll_interval=100)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -181,9 +194,9 @@ class TestBlockingPause:
             x = await doesnt_pause.submit()
             await pause_flow_run(timeout=4, poll_interval=5)
             y = await doesnt_pause.submit()
-            z = await doesnt_pause(wait_for=[x])
-            alpha = await doesnt_pause(wait_for=[y])
-            omega = await doesnt_pause(wait_for=[x, y])
+            await doesnt_pause(wait_for=[x])
+            await doesnt_pause(wait_for=[y])
+            await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
@@ -204,9 +217,9 @@ class TestBlockingPause:
             x = foo.submit()
             y = foo.submit()
             pause_flow_run(timeout=0.1)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+            foo(wait_for=[x])
+            foo(wait_for=[y])
+            foo(wait_for=[x, y])
 
         flow_run_state = pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
@@ -225,9 +238,9 @@ class TestBlockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=0.1)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         flow_run_state = await pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
@@ -245,41 +258,11 @@ class TestBlockingPause:
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
-            await pause_flow_run(timeout=10, poll_interval=2)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
-
-        async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await orion_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
-
-        flow_run_state, the_answer = await asyncio.gather(
-            pausing_flow(return_state=True),
-            flow_resumer(),
-        )
-        flow_run_id = flow_run_state.state_details.flow_run_id
-        task_runs = await orion_client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
-        )
-        assert len(task_runs) == 5, "all tasks should finish running"
-
-    async def test_paused_flows_can_be_resumed(self, orion_client):
-        @task
-        async def foo():
-            return 42
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def pausing_flow():
-            x = await foo.submit()
-            y = await foo.submit()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
-            z = await foo(wait_for=[x])
+            await foo(wait_for=[x])
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         async def flow_resumer():
             await anyio.sleep(3)
@@ -319,9 +302,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
             assert False, "This line should not be reached"
 
         with pytest.raises(Pause):
@@ -351,9 +334,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(Pause):
             await pausing_flow_without_blocking()
@@ -378,9 +361,9 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(Pause):
             await pausing_flow_without_blocking()
@@ -409,16 +392,16 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         @flow(task_runner=SequentialTaskRunner())
         async def wrapper_flow():
             return await pausing_flow_without_blocking()
 
         with pytest.raises(RuntimeError, match="Cannot pause subflows"):
-            flow_run_state = await wrapper_flow()
+            await wrapper_flow()
 
     async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
         self, orion_client
@@ -432,14 +415,14 @@ class TestNonblockingPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(
             RuntimeError, match="Cannot pause flows without a deployment"
         ):
-            flow_run_state = await pausing_flow_without_blocking()
+            await pausing_flow_without_blocking()
 
 
 class TestOutOfProcessPause:
@@ -465,9 +448,9 @@ class TestOutOfProcessPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         flow_run_state = await pausing_flow_without_blocking(return_state=True)
         assert flow_run_state.is_paused()
@@ -503,15 +486,68 @@ class TestOutOfProcessPause:
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
-            z = await foo(wait_for=[x])
-            alpha = await foo(wait_for=[y])
-            omega = await foo(wait_for=[x, y])
+            await foo(wait_for=[x])
+            await foo(wait_for=[y])
+            await foo(wait_for=[x, y])
 
         with pytest.raises(PausedRun):
-            flow_run_state = await pausing_flow_without_blocking()
+            await pausing_flow_without_blocking()
 
 
 class TestOrchestrateTaskRun:
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep, flow_run
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), task_run_id=task_run.id
+            )
+
     async def test_waits_until_scheduled_start_time(
         self,
         orion_client,
@@ -982,6 +1018,52 @@ class TestOrchestrateFlowRun:
             result_factory=result_factory,
         )
 
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+
+        @flow
+        def foo():
+            return 1
+
+        flow_run = await orion_client.create_flow_run(
+            flow=foo,
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_flow_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), flow_run_id=flow_run.id
+            )
+
     async def test_waits_until_scheduled_start_time(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
@@ -1360,8 +1442,8 @@ class TestDeploymentFlowRun:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment_id, parameters={"x": 1}
         )
-        assert flow_run.empirical_policy.retries == None
-        assert flow_run.empirical_policy.retry_delay == None
+        assert flow_run.empirical_policy.retries is None
+        assert flow_run.empirical_policy.retry_delay is None
 
         with mock_anyio_sleep.assert_sleeps_for(
             my_flow.retries * my_flow.retry_delay_seconds,
@@ -1677,7 +1759,7 @@ class TestCreateAndBeginSubflowRun:
         parameterized_flow,
         get_flow_run_context,
     ):
-        with await get_flow_run_context() as ctx:
+        with await get_flow_run_context():
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"dog": [1, 2], "cat": "not an int"},
@@ -1893,3 +1975,69 @@ class TestLinkStateToResult:
         with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status
+
+
+class TestAPIHealthcheck:
+    @pytest.fixture(autouse=True)
+    def reset_cache(self):
+        API_HEALTHCHECKS.clear()
+        yield
+
+    async def test_healthcheck_for_ephemeral_client(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+
+        # Check caching
+        assert "http://ephemeral-prefect/api/" in API_HEALTHCHECKS
+        assert isinstance(API_HEALTHCHECKS["http://ephemeral-prefect/api/"], float)
+
+        assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == pytest.approx(
+            time.monotonic() + 60 * 10, abs=5
+        )
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_healthcheck_for_remote_client(self, hosted_api_server):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+
+        expected_url = hosted_api_server + "/"  # httpx client appends trailing /
+
+        assert expected_url in API_HEALTHCHECKS
+        assert isinstance(API_HEALTHCHECKS[expected_url], float)
+
+        assert API_HEALTHCHECKS[expected_url] == pytest.approx(
+            time.monotonic() + 60 * 10, abs=10
+        )
+
+    async def test_healthcheck_not_reset_within_expiration(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+            value = API_HEALTHCHECKS["http://ephemeral-prefect/api/"]
+            for _ in range(2):
+                await check_api_reachable(client, fail_message="test")
+                assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == value
+
+    async def test_healthcheck_reset_after_expiration(self):
+        async with get_client() as client:
+            await check_api_reachable(client, fail_message="test")
+            value = API_HEALTHCHECKS[
+                "http://ephemeral-prefect/api/"
+            ] = time.monotonic()  # set it to expire now
+            await check_api_reachable(client, fail_message="test")
+            assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] != value
+            assert API_HEALTHCHECKS["http://ephemeral-prefect/api/"] == pytest.approx(
+                time.monotonic() + 60 * 10, abs=5
+            )
+
+    async def test_failed_healthcheck(self):
+        async with get_client() as client:
+            client.api_healthcheck = AsyncMock(return_value=ValueError("test"))
+            with pytest.raises(
+                RuntimeError,
+                match="test. Failed to reach API at http://ephemeral-prefect/api/.",
+            ):
+                await check_api_reachable(client, fail_message="test")
+
+            # Not cached
+            assert "http://ephemeral-prefect/api/" not in API_HEALTHCHECKS
+            assert len(API_HEALTHCHECKS.keys()) == 0

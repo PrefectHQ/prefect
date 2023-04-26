@@ -1,4 +1,5 @@
 import hashlib
+import html
 import inspect
 import sys
 import warnings
@@ -35,6 +36,7 @@ from prefect.events.instrument import (
     instrument_method_calls_on_class_instances,
 )
 from prefect.logging.loggers import disable_logger
+from prefect.server.schemas.actions import BlockTypeUpdate
 from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -137,6 +139,40 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
         secrets.append(f"{name}.*")
     elif Block.is_block_class(type_):
         secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
+def _should_update_block_type(
+    local_block_type: BlockType, server_block_type: BlockType
+) -> bool:
+    """
+    Compares the fields of `local_block_type` and `server_block_type`.
+    Only compare the possible updatable fields as defined by `BlockTypeUpdate.updatable_fields`
+    Returns True if they are different, otherwise False.
+    """
+    fields = BlockTypeUpdate.updatable_fields()
+
+    local_block_fields = local_block_type.dict(include=fields, exclude_unset=True)
+    server_block_fields = server_block_type.dict(include=fields, exclude_unset=True)
+
+    if local_block_fields.get("description") is not None:
+        local_block_fields["description"] = html.unescape(
+            local_block_fields["description"]
+        )
+    if local_block_fields.get("code_example") is not None:
+        local_block_fields["code_example"] = html.unescape(
+            local_block_fields["code_example"]
+        )
+
+    if server_block_fields.get("description") is not None:
+        server_block_fields["description"] = html.unescape(
+            server_block_fields["description"]
+        )
+    if server_block_fields.get("code_example") is not None:
+        server_block_fields["code_example"] = html.unescape(
+            server_block_fields["code_example"]
+        )
+
+    return server_block_fields != local_block_fields
 
 
 @register_base_type
@@ -616,7 +652,7 @@ class Block(BaseModel, ABC):
                 "prefect.resource.id": (
                     f"prefect.block-document.{self._block_document_id}"
                 ),
-                "prefect.name": self._block_document_name,
+                "prefect.resource.name": self._block_document_name,
             },
             [
                 {
@@ -825,9 +861,13 @@ class Block(BaseModel, ABC):
                 slug=cls.get_block_type_slug()
             )
             cls._block_type_id = block_type.id
-            await client.update_block_type(
-                block_type_id=block_type.id, block_type=cls._to_block_type()
-            )
+            local_block_type = cls._to_block_type()
+            if _should_update_block_type(
+                local_block_type=local_block_type, server_block_type=block_type
+            ):
+                await client.update_block_type(
+                    block_type_id=block_type.id, block_type=local_block_type
+                )
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
             cls._block_type_id = block_type.id

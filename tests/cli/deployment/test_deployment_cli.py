@@ -80,7 +80,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool(
-        self, patch_import, tmp_path, process_work_pool, enable_workers
+        self, patch_import, tmp_path, process_work_pool
     ):
         Deployment.build_from_flow(
             flow=my_flow,
@@ -105,7 +105,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool
+        self, patch_import, tmp_path, process_work_pool, disable_workers
     ):
         Deployment.build_from_flow(
             flow=my_flow,
@@ -140,7 +140,7 @@ class TestOutputMessages:
         monkeypatch,
     ):
         with temporary_settings({PREFECT_UI_URL: "http://foo/bar"}):
-            d = Deployment.build_from_flow(
+            Deployment.build_from_flow(
                 flow=my_flow,
                 name="TEST",
                 flow_name="my_flow",
@@ -159,7 +159,7 @@ class TestOutputMessages:
     def test_updating_work_queue_concurrency_from_python_build(
         self, patch_import, tmp_path
     ):
-        d = Deployment.build_from_flow(
+        Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",
             flow_name="my_flow",
@@ -180,7 +180,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_missing_work_queue_name(self, patch_import, tmp_path):
-        d = Deployment.build_from_flow(
+        Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",
             flow_name="my_flow",
@@ -621,7 +621,7 @@ class TestDeploymentRun:
         invoke_and_assert(
             ["deployment", "run", deployment_name, "--param", 'x="foo"1'],
             expected_code=1,
-            expected_output_contains=f"Failed to parse JSON for parameter 'x'",
+            expected_output_contains="Failed to parse JSON for parameter 'x'",
         )
 
     def test_validates_parameters_are_in_deployment_schema(
@@ -629,7 +629,7 @@ class TestDeploymentRun:
         deployment_name,
     ):
         invoke_and_assert(
-            ["deployment", "run", deployment_name, "--param", f"x=test"],
+            ["deployment", "run", deployment_name, "--param", "x=test"],
             expected_code=1,
             expected_output_contains=[
                 "parameters were specified but not found on the deployment: 'x'",

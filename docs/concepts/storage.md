@@ -18,7 +18,7 @@ Storage lets you configure how flow code for deployments is persisted and retrie
 
 If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherent lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
 
-Prefect 2 supports creating multiple storage configurations and switching between storage as needed.
+Prefect supports creating multiple storage configurations and switching between storage as needed.
 
 !!! tip "Storage uses blocks"
     [Blocks](/concepts/blocks/) is the Prefect technology underlying storage, and enables you to do so much more. 
@@ -51,7 +51,8 @@ Current options for deployment storage blocks include:
 | [GitHub Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GitHub) | Store code in a GitHub repository. | |
 | [Google Cloud Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GCS) | Store code in a Google Cloud Platform (GCP) Cloud Storage bucket. | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
 | [SMB](/api-ref/prefect/filesystems/#prefect.filesystems.SMB) | Store code in SMB shared network storage. | [`smbprotocol`](https://github.com/jborean93/smbprotocol) |
-| [GitLab Repository](https://github.com/PrefectHQ/prefect-gitlab) | Store code in a GitLab repository. | [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab) |
+| [GitLab Repository](https://prefecthq.github.io/prefect-gitlab/) | Store code in a GitLab repository. | [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab) |
+| [Bitbucket Repository](https://prefecthq.github.io/prefect-bitbucket/) | Store code in a Bitbucket repository. | [`prefect-bitbucket`](https://github.com/PrefectHQ/prefect-bitbucket) |
 
 !!! note "Accessing files may require storage filesystem libraries"
     Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block or accessing the storage location from flow scripts. 

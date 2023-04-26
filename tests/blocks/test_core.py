@@ -18,6 +18,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
@@ -1243,6 +1244,45 @@ class TestRegisterBlockTypeAndSchema:
         block_type = await orion_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "After"
 
+    async def test_register_wont_update_same_block_type_values(
+        self, orion_client: PrefectClient
+    ):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class Before(Block):
+            _block_type_name = "Test Block"
+            _description = "Before"
+            message: str
+
+        class After(Block):
+            _block_type_name = "Test Block"
+            _description = "After"
+            message: str
+
+        await Before.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        assert block_type.description == "Before"
+
+        mock = AsyncMock()
+        orion_client.update_block_type = mock
+
+        await After.register_type_and_schema(client=orion_client)
+
+        # change to description means we should try and update the block type
+        assert mock.call_count == 1
+
+        # confirm the call was mocked, description is the same
+        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        assert block_type.description == "Before"
+
+        # if the description is the same as what matches the server, don't update
+        await Before.register_type_and_schema(client=orion_client)
+
+        # call count should not have increased
+        assert mock.call_count == 1
+
     async def test_register_fails_on_abc(self, orion_client):
         class Interface(Block, abc.ABC):
             _block_schema_capabilities = ["do-stuff"]
@@ -1870,7 +1910,7 @@ class TestGetDescription:
         class A(Block):
             message: str
 
-        assert A.get_description() == None
+        assert A.get_description() is None
 
     def test_description_from_docstring(self, caplog):
         class A(Block):
@@ -2338,7 +2378,7 @@ class TestBlockSchemaMigration:
             a = A_Alias.load("test", validate=False)
 
         assert a.x == 1
-        assert a.y == None
+        assert a.y is None
 
     def test_rm_field_from_schema_loads_with_validation(self):
         class Foo(Block):

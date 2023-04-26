@@ -109,7 +109,7 @@ class TestCreateDeployment:
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["work_queue_name"] == None
+        assert response.json()["work_queue_name"] is None
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self,
@@ -232,7 +232,7 @@ class TestCreateDeployment:
         self, client, deployment, session
     ):
         # schedule runs
-        response = await models.deployments.schedule_runs(
+        await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -252,7 +252,7 @@ class TestCreateDeployment:
         await session.commit()
 
         # upsert the deployment with schedule inactive
-        response = await client.post(
+        await client.post(
             "/deployments/",
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
@@ -273,7 +273,7 @@ class TestCreateDeployment:
         db,
     ):
         # schedule runs
-        response = await models.deployments.schedule_runs(
+        await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -540,7 +540,7 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_queue(
+        await models.workers.read_work_queue(
             session=session, work_queue_id=work_pool.default_queue_id
         )
 
@@ -597,7 +597,7 @@ class TestCreateDeployment:
                 {
                     "job_configuration": {
                         "thing_one": "{{ var1 }}",
-                        "thing_one": "{{ var2 }}",
+                        "thing_two": "{{ var2 }}",
                     },
                     "variables": {
                         "properties": {
@@ -630,7 +630,7 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_queue(
+        await models.workers.read_work_queue(
             session=session, work_queue_id=work_pool.default_queue_id
         )
 
@@ -1051,9 +1051,7 @@ class TestSetScheduleActive:
         deployment.is_schedule_active = False
         await session.commit()
 
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
@@ -1070,9 +1068,7 @@ class TestSetScheduleActive:
         deployment.is_schedule_active = False
         await session.commit()
 
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
-        )
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -1082,7 +1078,7 @@ class TestSetScheduleActive:
         self, client, deployment, session
     ):
         # schedule runs
-        response = await models.deployments.schedule_runs(
+        await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -1101,9 +1097,7 @@ class TestSetScheduleActive:
         )
         await session.commit()
 
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_inactive"
-        )
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
 
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 1
@@ -1226,6 +1220,7 @@ class TestCreateFlowRunFromDeployment:
             deployment.infrastructure_document_id
         )
         assert response.json()["work_queue_name"] == deployment.work_queue_name
+        assert response.json()["state_type"] == schemas.states.StateType.SCHEDULED
 
     async def test_create_flow_run_from_deployment_uses_work_queue_name(
         self, deployment, client, session
@@ -1275,14 +1270,14 @@ class TestGetDeploymentWorkQueueCheck:
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.actions.WorkQueueCreate(
-                name=f"First",
+                name="First",
                 filter=schemas.core.QueueFilter(tags=["a"]),
             ),
         )
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.actions.WorkQueueCreate(
-                name=f"Second",
+                name="Second",
                 filter=schemas.core.QueueFilter(tags=["b"]),
             ),
         )
@@ -1310,7 +1305,7 @@ class TestGetDeploymentWorkQueueCheck:
             assert {q1["name"], q2["name"]} == {"First", "Second"}
             assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
             assert (
-                q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+                q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] is None
             )
 
         else:
@@ -1325,5 +1320,5 @@ class TestGetDeploymentWorkQueueCheck:
             }
             assert set(q2["filter"]["tags"] + q3["filter"]["tags"]) == {"a", "b"}
             assert (
-                q2["filter"]["deployment_ids"] == q3["filter"]["deployment_ids"] == None
+                q2["filter"]["deployment_ids"] == q3["filter"]["deployment_ids"] is None
             )

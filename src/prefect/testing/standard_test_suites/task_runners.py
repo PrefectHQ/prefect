@@ -12,7 +12,6 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
-from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_run_logger
 from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
@@ -49,6 +48,12 @@ class TaskRunnerStandardTestSuite(ABC):
     @abstractmethod
     def task_runner(self) -> BaseTaskRunner:
         pass
+
+    @pytest.fixture
+    def tmp_file(self, tmp_path):
+        file_path = tmp_path / "canary.txt"
+        file_path.touch()
+        return file_path
 
     async def test_successful_flow_run(self, task_runner):
         @task
@@ -122,12 +127,6 @@ class TaskRunnerStandardTestSuite(ABC):
             " 'COMPLETED' state"
             in d.message
         )
-
-    @pytest.fixture
-    def tmp_file(self, tmp_path):
-        tmp_file = tmp_path / "canary.txt"
-        tmp_file.touch()
-        return tmp_file
 
     def test_sync_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
@@ -341,7 +340,7 @@ class TaskRunnerStandardTestSuite(ABC):
         async def fake_orchestrate_task_run(example_kwarg):
             return State(
                 type=StateType.COMPLETED,
-                data=DataDocument.encode("json", example_kwarg),
+                data=example_kwarg,
             )
 
         async with task_runner.start():
@@ -465,12 +464,6 @@ class TaskRunnerStandardTestSuite(ABC):
             sleep_time += 0.5
 
         return sleep_time
-
-    @pytest.fixture
-    def tmp_file(self, tmp_path):
-        tmp_file = tmp_path / "canary.txt"
-        tmp_file.touch()
-        return tmp_file
 
     def test_sync_tasks_run_sequentially_with_sequential_task_runners(
         self, task_runner, tmp_file

@@ -277,6 +277,26 @@ def default_ui_api_url(settings, value):
     )(settings, value)
 
 
+def status_codes_as_integers_in_range(_, value):
+    """
+    `value_callback` for `PREFECT_CLIENT_RETRY_EXTRA_CODES` that ensures status codes
+    are integers in the range 100-599.
+    """
+    if value == "":
+        return set()
+
+    values = {v.strip() for v in value.split(",")}
+
+    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
+        raise ValueError(
+            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
+            "integers between 100 and 599."
+        )
+
+    values = {int(v) for v in values}
+    return values
+
+
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `value_callback` that will template the given settings into the runtime
@@ -525,6 +545,15 @@ Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the ho
 can affect retry lengths.
 """
 
+PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
+    str, default="", value_callback=status_codes_as_integers_in_range
+)
+"""
+A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
+429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+may result in unexpected behavior.
+"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
@@ -760,23 +789,23 @@ interpreted and lead to incomplete output, e.g.
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
-    default=10,
+    default=15,
 )
 """
 The agent loop interval, in seconds. Agents will check for new runs this often. 
-Defaults to `10`.
+Defaults to `15`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     int,
-    default=10,
+    default=15,
 )
 """
 Agents will look for scheduled runs this many seconds in
 the future and attempt to run them. This accounts for any additional
 infrastructure spin-up time or latency in preparing a flow run. Note
 flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `10`.
+prefetched. Defaults to `15`.
 """
 
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
@@ -1088,7 +1117,7 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
 """
@@ -1108,12 +1137,12 @@ PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect work pools are used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect workers.
 """
 
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect workers are used.
 """
@@ -1134,9 +1163,14 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
+"""
+Whether or not to warn when experimental Prefect artifacts are used.
 """
 
 

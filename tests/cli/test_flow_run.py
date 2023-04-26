@@ -221,15 +221,15 @@ class TestCancelFlowRun:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled,
             Running,
-            Late,
             Pending,
-            AwaitingRetry,
             Retrying,
         ],
     )
-    async def test_non_terminal_states_set_to_cancelled(self, orion_client, state):
+    async def test_non_terminal_states_set_to_cancelling(self, orion_client, state):
+        """Should set the state of the flow to Cancelling. Does not include Scheduled
+        states, because they should be set to Cancelled instead.
+        """
         before = await orion_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
@@ -249,6 +249,36 @@ class TestCancelFlowRun:
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
         assert after.state.type == StateType.CANCELLING
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled,
+            AwaitingRetry,
+            Late,
+        ],
+    )
+    async def test_scheduled_states_set_to_cancelled(self, orion_client, state):
+        """Should set the state of the flow run to Cancelled."""
+        before = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(before.id),
+            ],
+            expected_code=0,
+            expected_output_contains=(
+                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+            ),
+        )
+        after = await orion_client.read_flow_run(before.id)
+        assert before.state.name != after.state.name
+        assert before.state.type != after.state.type
+        assert after.state.type == StateType.CANCELLED
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(
@@ -276,7 +306,7 @@ class TestCancelFlowRun:
 
     def test_wrong_id_exits_with_error(self):
         bad_id = str(uuid4())
-        res = invoke_and_assert(
+        invoke_and_assert(
             ["flow-run", "cancel", bad_id],
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
@@ -418,6 +448,30 @@ class TestFlowRunLogs:
             expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 1,
         )
 
+    async def test_when_num_logs_greater_than_page_size_with_head_outputs_correct_num_logs(
+        self, flow_run_factory
+    ):
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 50)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "--num-logs",
+                self.LOGS_DEFAULT_PAGE_SIZE + 50,
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 50)
+            ],
+            expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 50,
+        )
+
     async def test_default_head_returns_default_num_logs(self, flow_run_factory):
         # Given
         flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
@@ -532,4 +586,120 @@ class TestFlowRunLogs:
                 )
             ],
             expected_line_count=10,
+        )
+
+    async def test_passing_head_and_tail_raises(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--tail",
+                "--num-logs",
+                "10",
+                "--head",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Please provide either a `head` or `tail` option but not both."
+            ),
+        )
+
+    async def test_default_tail_returns_default_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "logs", str(flow_run.id), "-t"],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(
+                    self.LOGS_DEFAULT_PAGE_SIZE - 9, self.LOGS_DEFAULT_PAGE_SIZE
+                )
+            ],
+            expected_line_count=20,
+        )
+
+    async def test_reverse_tail_with_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--tail",
+                "--num-logs",
+                "10",
+                "--reverse",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(
+                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 10, -1
+                )
+            ],
+            expected_line_count=10,
+        )
+
+    async def test_reverse_tail_returns_default_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--tail",
+                "--reverse",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(
+                    self.LOGS_DEFAULT_PAGE_SIZE, self.LOGS_DEFAULT_PAGE_SIZE - 20, -1
+                )
+            ],
+            expected_line_count=20,
+        )
+
+    async def test_when_num_logs_greater_than_page_size_with_tail_outputs_correct_num_logs(
+        self, flow_run_factory
+    ):
+        # Given
+        num_logs = 300
+        flow_run = await flow_run_factory(num_logs=num_logs)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--tail",
+                "--num-logs",
+                "251",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(num_logs - 250, num_logs)
+            ],
+            expected_line_count=251,
         )

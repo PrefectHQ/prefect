@@ -13,18 +13,10 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
-
-
-def error_404_if_artifacts_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
-        raise HTTPException(status_code=404, detail="Artifacts are not enabled")
-
 
 router = PrefectRouter(
-    prefix="/experimental/artifacts",
+    prefix="/artifacts",
     tags=["Artifacts"],
-    dependencies=[Depends(error_404_if_artifacts_not_enabled)],
 )
 
 
@@ -69,6 +61,25 @@ async def read_artifact(
     return artifact
 
 
+@router.get("/{key}/latest")
+async def read_latest_artifact(
+    key: str = Path(
+        ...,
+        description="The key of the artifact to retrieve.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> core.Artifact:
+    """
+    Retrieve the latest artifact from the artifact table.
+    """
+    async with db.session_context() as session:
+        artifact = await models.artifacts.read_latest_artifact(session=session, key=key)
+
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    return artifact
+
+
 @router.post("/filter")
 async def read_artifacts(
     sort: sorting.ArtifactSort = Body(sorting.ArtifactSort.ID_DESC),
@@ -77,6 +88,8 @@ async def read_artifacts(
     artifacts: filters.ArtifactFilter = None,
     flow_runs: filters.FlowRunFilter = None,
     task_runs: filters.TaskRunFilter = None,
+    flows: filters.FlowFilter = None,
+    deployments: filters.DeploymentFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[core.Artifact]:
     """
@@ -88,9 +101,86 @@ async def read_artifacts(
             artifact_filter=artifacts,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
+            flow_filter=flows,
+            deployment_filter=deployments,
             offset=offset,
             limit=limit,
             sort=sort,
+        )
+
+
+@router.post("/latest/filter")
+async def read_latest_artifacts(
+    sort: sorting.ArtifactCollectionSort = Body(sorting.ArtifactCollectionSort.ID_DESC),
+    limit: int = dependencies.LimitBody(),
+    offset: int = Body(0, ge=0),
+    artifacts: filters.ArtifactCollectionFilter = None,
+    flow_runs: filters.FlowRunFilter = None,
+    task_runs: filters.TaskRunFilter = None,
+    flows: filters.FlowFilter = None,
+    deployments: filters.DeploymentFilter = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[core.ArtifactCollection]:
+    """
+    Retrieve artifacts from the database.
+    """
+    async with db.session_context() as session:
+        return await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=artifacts,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            flow_filter=flows,
+            deployment_filter=deployments,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
+
+
+@router.post("/count")
+async def count_artifacts(
+    artifacts: filters.ArtifactFilter = None,
+    flow_runs: filters.FlowRunFilter = None,
+    task_runs: filters.TaskRunFilter = None,
+    flows: filters.FlowFilter = None,
+    deployments: filters.DeploymentFilter = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count artifacts from the database.
+    """
+    async with db.session_context() as session:
+        return await models.artifacts.count_artifacts(
+            session=session,
+            artifact_filter=artifacts,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            flow_filter=flows,
+            deployment_filter=deployments,
+        )
+
+
+@router.post("/latest/count")
+async def count_latest_artifacts(
+    artifacts: filters.ArtifactCollectionFilter = None,
+    flow_runs: filters.FlowRunFilter = None,
+    task_runs: filters.TaskRunFilter = None,
+    flows: filters.FlowFilter = None,
+    deployments: filters.DeploymentFilter = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count artifacts from the database.
+    """
+    async with db.session_context() as session:
+        return await models.artifacts.count_latest_artifacts(
+            session=session,
+            artifact_filter=artifacts,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            flow_filter=flows,
+            deployment_filter=deployments,
         )
 
 

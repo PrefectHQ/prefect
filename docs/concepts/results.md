@@ -399,6 +399,81 @@ You can configure this to use a specific storage using one of the following:
 - A storage instance, e.g. `LocalFileSystem(basepath=".my-results")`
 - A storage slug, e.g. `'s3/dev-s3-block'`
 
+#### Result storage key
+
+The path of the result file in the result storage can be configured with the `result_storage_key`. The `result_storage_key` option defaults to a null value, which generates a unique identifier for each result.
+
+
+```python
+from prefect import flow, task
+from prefect.filesystems import LocalFileSystem, S3
+
+@flow()
+def my_flow(result_storage=S3(bucket_path="my-bucket")):
+    my_task()
+
+@task(persist_result=True, result_storage_key="my_task.json")
+def my_task():
+    ...
+
+my_flow()  # The task's result will be persisted to 's3://my-bucket/my_task.json'
+```
+
+Result storage keys are formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. In the following example, we will run a flow with three runs of the same task. Each task run will write its result to a unique file based on the `name` parameter.
+
+```python
+from prefect import flow, task
+
+@flow()
+def my_flow():
+    hello_world()
+    hello_world(name="foo")
+    hello_world(name="bar")
+
+@task(persist_result=True, result_storage_key="hello-{parameters[name]}.json")
+def hello_world(name: str = "world"):
+    return f"hello {name}"
+
+my_flow()
+```
+
+After running the flow, we can see three persisted result files in our storage directory:
+
+```shell
+$ ls ~/.prefect/storage | grep "hello-"
+hello-bar.json
+hello-foo.json
+hello-world.json
+```
+
+In the next example, we include metadata about the flow run from the `prefect.runtime.flow_run` module:
+
+```python
+from prefect import flow, task
+
+@flow
+def my_flow():
+    hello_world()
+
+@task(persist_result=True, result_storage_key="{flow_run.flow_name}_{flow_run.name}_hello.json")
+def hello_world(name: str = "world"):
+    return f"hello {name}"
+
+my_flow()
+```
+
+After running this flow, we can see a result file templated with the name of the flow and the flow run:
+
+```
+❯ ls ~/.prefect/storage | grep "my-flow"    
+my-flow_industrious-trout_hello.json
+```
+
+
+If a result exists at a given storage key in the storage location, it will be overwritten.
+
+Result storage keys can only be configured on tasks at this time.
+
 #### Result serializer
 
 [The result serializer](#result-serializer-types) can be configured with the `result_serializer` option. The `result_serializer` option defaults to a null value, which infers the serializer from the context.
@@ -440,6 +515,14 @@ The following data types will be stored by the API without persistence to storag
 
 If `persist_result` is set to `False`, these values will never be stored.
 
+
+## Tracking results
+
+The Prefect API tracks metadata about your results. The value of your result is only stored in [specific cases](#storage-of-results-in-prefect). Result metadata can be seen in the UI on the "Results" page for flows. 
+
+Prefect tracks the following result metadata:
+- Data type
+- Storage location (if persisted)
 
 ## Caching of results in memory
 
@@ -565,10 +648,16 @@ Drawbacks of the JSON serializer:
 
 Prefect uses internal result types to capture information about the result attached to a state. The following types are used:
 
+- `UnpersistedResult`: Stores result metadata but the value is only available when created.
 - `LiteralResult`: Stores simple values inline.
 - `PersistedResult`: Stores a reference to a result persisted to storage.
 
 All result types include a `get()` method that can be called to return the value of the result. This is done behind the scenes when the `result()` method is used on states or futures.
+
+### Unpersisted results
+
+Unpersisted results are used to represent results that have not been and will not be persisted beyond the current flow run. The value associated with the result is stored in memory, but will not be available later. Result metadata is attached to this object for storage in the API and representation in the UI.
+
 
 ### Literal results
 

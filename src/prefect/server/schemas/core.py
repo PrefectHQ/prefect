@@ -37,6 +37,9 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
+
 
 def raise_on_invalid_name(name: str) -> None:
     """
@@ -549,6 +552,10 @@ class Deployment(ORMBaseModel):
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    pull_steps: Optional[List[dict]] = Field(
+        default=None,
+        description="Pull steps for cloning and running this deployment.",
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -1203,3 +1210,60 @@ class Artifact(ORMBaseModel):
             if len(str(v[key])) > max_metadata_length:
                 v[key] = str(v[key])[:max_metadata_length] + "..."
         return v
+
+
+class ArtifactCollection(ORMBaseModel):
+    key: str = Field(description="An optional unique reference key for this artifact.")
+    latest_id: UUID = Field(
+        description="The latest artifact ID associated with the key."
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description=(
+            "An identifier that describes the shape of the data field. e.g. 'result',"
+            " 'table', 'markdown'"
+        ),
+    )
+    description: Optional[str] = Field(
+        default=None, description="A markdown-enabled description of the artifact."
+    )
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
+        default=None,
+        description=(
+            "Data associated with the artifact, e.g. a result.; structure depends on"
+            " the artifact type."
+        ),
+    )
+    metadata_: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "User-defined artifact metadata. Content must be string key and value"
+            " pairs."
+        ),
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )
+
+
+class Variable(ORMBaseModel):
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )

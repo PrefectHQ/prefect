@@ -1,4 +1,4 @@
-"""
+r"""
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
@@ -224,6 +224,7 @@ class FlowRunContext(RunContext):
     flow_run: FlowRun
     task_runner: BaseTaskRunner
     log_prints: bool = False
+    parameters: Dict[str, Any]
 
     # Result handling
     result_factory: ResultFactory
@@ -262,13 +263,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
     log_prints: bool = False
+    parameters: Dict[str, Any]
 
     # Result handling
     result_factory: ResultFactory

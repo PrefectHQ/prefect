@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
-from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
@@ -17,6 +16,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
+from prefect.workers.process import ProcessWorker
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -582,7 +582,11 @@ async def block_document(session, block_schema, block_type_x):
 
 
 async def commit_task_run_state(
-    session, task_run, state_type: states.StateType, state_details=None
+    session,
+    task_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -592,6 +596,7 @@ async def commit_task_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -606,7 +611,11 @@ async def commit_task_run_state(
 
 
 async def commit_flow_run_state(
-    session, flow_run, state_type: states.StateType, state_details=None
+    session,
+    flow_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -616,6 +625,7 @@ async def commit_flow_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -640,6 +650,7 @@ def initialize_orchestration(flow):
         run_override=None,
         run_tags=None,
         initial_details=None,
+        initial_state_data=None,
         proposed_details=None,
         flow_retries: int = None,
         flow_run_count: int = None,
@@ -703,6 +714,7 @@ def initialize_orchestration(flow):
             run,
             initial_state_type,
             initial_details,
+            state_data=initial_state_data,
         )
 
         proposed_details = proposed_details if proposed_details else dict()
@@ -744,3 +756,63 @@ async def notifier_block(orion_client):
     block = DebugPrintNotification()
     await block.save("debug-print-notification")
     return block
+
+
+@pytest.fixture
+async def worker_deployment_wq1(
+    session,
+    flow,
+    flow_function,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 1",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def worker_deployment_wq_2(
+    session,
+    flow,
+    flow_function,
+    work_queue_2,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 2",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_2.id,
+        ),
+    )
+    await session.commit()
+    return deployment

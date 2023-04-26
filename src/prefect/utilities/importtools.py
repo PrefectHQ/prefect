@@ -28,6 +28,10 @@ def to_qualified_name(obj: Any) -> str:
     Returns:
         str: the qualified name
     """
+    if sys.version_info < (3, 10):
+        # These attributes are only available in Python 3.10+
+        if isinstance(obj, (classmethod, staticmethod)):
+            obj = obj.__func__
     return obj.__module__ + "." + obj.__qualname__
 
 
@@ -223,8 +227,7 @@ class DelayedImportErrorModule(ModuleType):
     def __init__(self, frame_data, help_message, *args, **kwargs):
         self.__frame_data = frame_data
         self.__help_message = (
-            help_message
-            or f"Import errors for this module are only reported when used."
+            help_message or "Import errors for this module are only reported when used."
         )
         super().__init__(*args, **kwargs)
 

@@ -5,16 +5,19 @@ Utilities for Python version compatibility
 
 import shutil
 import sys
+import os
+import asyncio
 
 if sys.version_info < (3, 10):
+    import importlib_metadata
     from importlib_metadata import EntryPoint, EntryPoints, entry_points
 else:
+    import importlib.metadata as importlib_metadata
     from importlib.metadata import EntryPoint, EntryPoints, entry_points
 
 if sys.version_info < (3, 9):
     # https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread
 
-    import asyncio
     import functools
 
     async def asyncio_to_thread(fn, *args, **kwargs):
@@ -25,10 +28,12 @@ else:
     from asyncio import to_thread as asyncio_to_thread
 
 if sys.version_info < (3, 8):
+    import stat
 
     def copytree(src, dst, symlinks=False, ignore=None, *args, **kwargs):
         """
-        Replicates the behavior of `shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)`
+        Replicates the behavior of
+            `shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)`
         in a python 3.7 compatible manner.
 
         Source for the logic: Cyrille Pontvieux at https://stackoverflow.com/a/22331852
@@ -53,7 +58,7 @@ if sys.version_info < (3, 8):
                     st = os.lstat(source_path)
                     mode = stat.S_IMODE(st.st_mode)
                     os.lchmod(destination_path, mode)
-                except:
+                except Exception:
                     pass  # lchmod not available
             elif os.path.isdir(source_path):
                 copytree(source_path, destination_path, symlinks, ignore)
@@ -76,11 +81,8 @@ if sys.version_info < (3, 8) and sys.platform != "win32":
     # `ThreadedChildWatcher` is the default child process watcher for Python 3.8+ but it
     # does not exist in Python 3.7. This backport allows us to ensure consistent
     # behavior when spawning async child processes without dropping support for 3.7.
-
-    import asyncio
     import itertools
     import logging
-    import os
     import threading
     import time
     import warnings

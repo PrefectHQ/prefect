@@ -159,7 +159,7 @@ jobs:
 
       - name: Install packages
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install -U pip
           # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
@@ -194,7 +194,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term ${{ matrix.pytest-options }}
+          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail

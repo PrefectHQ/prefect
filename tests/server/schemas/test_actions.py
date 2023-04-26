@@ -1,9 +1,11 @@
 from uuid import uuid4
 
+import jsonschema
 import numpy as np
 import pytest
 
 from prefect.server.schemas.actions import (
+    BlockTypeUpdate,
     DeploymentCreate,
     DeploymentUpdate,
     FlowRunCreate,
@@ -77,6 +79,67 @@ class TestDeploymentCreate:
         for key in kwargs.keys():
             assert getattr(deployment_create, key, 0) == 0
 
+    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
+        # This should fail because my-field is required but has no default
+        deployment_create = DeploymentCreate(
+            name="test-deployment",
+            infra_overrides={},
+        )
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                    },
+                },
+            }
+        }
+        with pytest.raises(jsonschema.ValidationError) as excinfo:
+            deployment_create.check_valid_configuration(base_job_template)
+        assert excinfo.value.message == "'my-field' is a required property"
+
+        # This should pass because the value has a default
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                        "default": "my-default-for-my-field",
+                    },
+                },
+            }
+        }
+        deployment_create.check_valid_configuration(base_job_template)
+
+        # make sure the required fields are still there
+        assert "my-field" in base_job_template["variables"]["required"]
+
+        # This should also pass
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                        "default": "my-default-for-my-field",
+                    },
+                },
+            }
+        }
+        deployment_create = DeploymentUpdate(
+            infra_overrides={"my_field": "my_value"},
+        )
+        deployment_create.check_valid_configuration(base_job_template)
+
 
 class TestDeploymentUpdate:
     def test_update_with_worker_pool_queue_id_warns(self):
@@ -115,3 +178,74 @@ class TestDeploymentUpdate:
 
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
+
+    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
+        # This should fail because my-field is required but has no default
+        deployment_update = DeploymentUpdate(
+            infra_overrides={},
+        )
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                    },
+                },
+            }
+        }
+        with pytest.raises(jsonschema.ValidationError) as excinfo:
+            deployment_update.check_valid_configuration(base_job_template)
+        assert excinfo.value.message == "'my-field' is a required property"
+
+        # This should pass because the value has a default
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                        "default": "my-default-for-my-field",
+                    },
+                },
+            }
+        }
+        deployment_update.check_valid_configuration(base_job_template)
+
+        # make sure the required fields are still there
+        assert "my-field" in base_job_template["variables"]["required"]
+
+        # This should also pass
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "required": ["my-field"],
+                "properties": {
+                    "my-field": {
+                        "type": "string",
+                        "title": "My Field",
+                        "default": "my-default-for-my-field",
+                    },
+                },
+            }
+        }
+        deployment_update = DeploymentUpdate(
+            infra_overrides={"my_field": "my_value"},
+        )
+        deployment_update.check_valid_configuration(base_job_template)
+
+
+class TestBlockTypeUpdate:
+    def test_updatable_fields(self):
+        fields = BlockTypeUpdate.updatable_fields()
+        assert fields == {
+            "logo_url",
+            "documentation_url",
+            "description",
+            "code_example",
+        }

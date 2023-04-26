@@ -391,7 +391,7 @@ async def create_flow_run_from_deployment(
     Any parameters not provided will be inferred from the deployment's parameters.
     If tags are not provided, the deployment's tags will be used.
 
-    If no state is provided, the flow run will be created in a PENDING state.
+    If no state is provided, the flow run will be created in a SCHEDULED state.
     """
     async with db.session_context(begin_transaction=True) as session:
         # get relevant info from the deployment
@@ -429,7 +429,7 @@ async def create_flow_run_from_deployment(
         )
 
         if not flow_run.state:
-            flow_run.state = schemas.states.Pending()
+            flow_run.state = schemas.states.Scheduled()
 
         now = pendulum.now("UTC")
         model = await models.flow_runs.create_flow_run(
@@ -460,7 +460,7 @@ async def work_queue_check_for_deployment(
             work_queues = await models.deployments.check_work_queues_for_deployment(
                 session=session, deployment_id=deployment_id
             )
-    except ObjectNotFoundError as exc:
+    except ObjectNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )

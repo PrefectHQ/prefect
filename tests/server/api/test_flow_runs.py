@@ -11,6 +11,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.schemas.states import StateType
 
 
 class TestCreateFlowRun:
@@ -268,7 +269,7 @@ class TestReadFlowRun:
                 state=states.State(id=state_id, type="RUNNING"),
             )
         ).state
-        response = await client.get(f"/flow_runs/{flow_run.id}")
+        await client.get(f"/flow_runs/{flow_run.id}")
         assert flow_run.state.type.value == "RUNNING"
         assert flow_run.state.id == state_id
 
@@ -304,6 +305,39 @@ class TestReadFlowRuns:
         )
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
+
+    @pytest.fixture
+    async def flow_runs_with_idempotency_key(
+        self, flow, work_queue_1, session
+    ) -> List[core.FlowRun]:
+        """
+        Return a list of two `core.FlowRun`'s with different idempotency keys.
+        """
+        flow_run_1_with_idempotency_key = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="fr1",
+                tags=["red"],
+                idempotency_key="my-idempotency-key",
+            ),
+        )
+        flow_run_2_with_a_different_idempotency_key = (
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=actions.FlowRunCreate(
+                    flow_id=flow.id,
+                    name="fr2",
+                    tags=["blue"],
+                    idempotency_key="a-different-idempotency-key",
+                ),
+            )
+        )
+        await session.commit()
+        return [
+            flow_run_1_with_idempotency_key,
+            flow_run_2_with_a_different_idempotency_key,
+        ]
 
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.post("/flow_runs/filter")
@@ -355,6 +389,77 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
+
+    async def test_read_flow_runs_applies_flow_run_idempotency_key_filter(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests that when we pass a value for idempotency key to the flow run
+        filter, we get back the flow run with the matching idempotency key.
+        """
+        idempotency_key_of_flow_run_we_want_to_retrieve = (
+            flow_runs_with_idempotency_key[0].idempotency_key
+        )
+        flow_run_idempotency_key_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    any_=[idempotency_key_of_flow_run_we_want_to_retrieve]
+                )
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/flow_runs/filter", json=flow_run_idempotency_key_filter
+        )
+        flow_run_filter_results = response.json()
+        assert response.status_code == status.HTTP_200_OK
+        assert (
+            len(flow_run_filter_results) == 1
+            and len(flow_runs_with_idempotency_key) == 2
+        )
+        assert flow_run_filter_results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_we_want_to_retrieve
+        )
+
+    async def test_read_flow_runs_idempotency_key_filter_excludes_idempotency_key(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests to make sure that when you pass idempotency keys to the not_any_ argument
+        of the filter, the filter excludes flow runs having that value for idempotency key
+        """
+        idempotency_key_of_flow_run_to_exclude: str = flow_runs_with_idempotency_key[
+            0
+        ].idempotency_key
+        idempotency_key_of_flow_run_that_should_be_included: str = (
+            flow_runs_with_idempotency_key[1].idempotency_key
+        )
+        flow_run_idempotency_key_exclude_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    not_any_=[idempotency_key_of_flow_run_to_exclude]
+                )
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/flow_runs/filter", json=flow_run_idempotency_key_exclude_filter
+        )
+        flow_run_filter_results = response.json()
+        assert response.status_code == status.HTTP_200_OK
+
+        # assert we started with two flow runs from fixture
+        assert len(flow_runs_with_idempotency_key) == 2
+
+        # filtering the fixture should result in a single element
+        assert len(flow_run_filter_results) == 1
+
+        # make sure the idempotency key we're excluding is not included in the results
+        for result in flow_run_filter_results:
+            assert result["idempotency_key"] != idempotency_key_of_flow_run_to_exclude
+
+        # make sure the idempotency key we did not exclude is still in the results
+        assert flow_run_filter_results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_that_should_be_included
+        )
 
     async def test_read_flow_runs_applies_task_run_filter(
         self, flow, flow_runs, client, session
@@ -436,7 +541,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 name="Flow Run 1",
                 state=schemas.states.State(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     timestamp=now.subtract(minutes=1),
                 ),
             ),
@@ -447,7 +552,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 name="Flow Run 2",
                 state=schemas.states.State(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     timestamp=now.add(minutes=1),
                 ),
                 start_time=now.subtract(minutes=2),
@@ -544,13 +649,14 @@ class TestReadFlowRuns:
 class TestReadFlowRunGraph:
     @pytest.fixture
     async def graph_data(self, session):
-        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
-        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
-        create_task_run = lambda task_run: models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+        def create_flow(flow):
+            return models.flows.create_flow(session=session, flow=flow)
+
+        def create_flow_run(flow_run):
+            return models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+
+        def create_task_run(task_run):
+            return models.task_runs.create_task_run(session=session, task_run=task_run)
 
         flow = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
 
@@ -593,7 +699,8 @@ class TestReadFlowRunGraph:
     async def test_read_flow_run_graph_returns_upstream_dependencies(
         self, graph_data, client
     ):
-        filter_graph = lambda task_run: len(task_run["upstream_dependencies"]) > 0
+        def filter_graph(task_run):
+            return len(task_run["upstream_dependencies"]) > 0
 
         response = await client.get(f"/flow_runs/{graph_data.id}/graph")
 
@@ -643,7 +750,7 @@ class TestResumeFlowrun:
         self, blocking_paused_flow_run, client, session
     ):
         flow_run_id = blocking_paused_flow_run.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -657,7 +764,7 @@ class TestResumeFlowrun:
         self, nonblocking_paused_flow_run, client, session
     ):
         flow_run_id = nonblocking_paused_flow_run.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -665,13 +772,13 @@ class TestResumeFlowrun:
         resumed_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert resumed_run.state.type == "SCHEDULED"
+        assert resumed_run.state.type == StateType.SCHEDULED
 
     async def test_cannot_resume_nonblocking_pauses_without_deployment(
         self, nonblockingpaused_flow_run_without_deployment, client, session
     ):
         flow_run_id = nonblockingpaused_flow_run_without_deployment.id
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/resume",
         )
 
@@ -775,7 +882,7 @@ class TestSetFlowRunState:
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
                 state=dict(
-                    type="SCHEDULED",
+                    type=StateType.SCHEDULED,
                     name="Scheduled",
                     state_details=dict(
                         scheduled_time=str(pendulum.now().add(months=1))
@@ -871,9 +978,9 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()
@@ -881,7 +988,7 @@ class TestManuallyRetryingFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert restarted_run.run_count == 1, "manual retries preserve the run count"
-        assert restarted_run.state.type == "SCHEDULED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
     async def test_manual_flow_run_retries_succeed_even_if_exceeding_retries_setting(
         self, failed_flow_run_with_deployment_with_no_more_retries, client, session
@@ -894,9 +1001,9 @@ class TestManuallyRetryingFlowRuns:
         assert failed_flow_run_with_deployment_with_no_more_retries.deployment_id
         flow_run_id = failed_flow_run_with_deployment_with_no_more_retries.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()
@@ -904,43 +1011,25 @@ class TestManuallyRetryingFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert restarted_run.run_count == 3, "manual retries preserve the run count"
-        assert restarted_run.state.type == "SCHEDULED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
-    async def test_manual_flow_run_retries_require_an_awaitingretry_state_name(
+    async def test_manual_flow_run_retries_allow_arbitrary_state_name(
         self, failed_flow_run_with_deployment, client, session
     ):
         assert failed_flow_run_with_deployment.run_count == 1
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="NotAwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="FooBar")),
         )
 
         session.expire_all()
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.state.type == "FAILED"
-
-    async def test_only_proposing_scheduled_states_manually_retries(
-        self, failed_flow_run_with_deployment, client, session
-    ):
-        assert failed_flow_run_with_deployment.run_count == 1
-        assert failed_flow_run_with_deployment.deployment_id
-        flow_run_id = failed_flow_run_with_deployment.id
-
-        response = await client.post(
-            f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
-        )
-
-        session.expire_all()
-        restarted_run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=flow_run_id
-        )
-        assert restarted_run.state.type == "FAILED"
+        assert restarted_run.state.type == StateType.SCHEDULED
 
     async def test_cannot_restart_flow_run_without_deployment(
         self, failed_flow_run_without_deployment, client, session
@@ -949,9 +1038,9 @@ class TestManuallyRetryingFlowRuns:
         assert not failed_flow_run_without_deployment.deployment_id
         flow_run_id = failed_flow_run_without_deployment.id
 
-        response = await client.post(
+        await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
         )
 
         session.expire_all()

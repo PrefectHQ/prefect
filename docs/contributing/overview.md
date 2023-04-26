@@ -1,10 +1,11 @@
 ---
-description: Learn about contributing to Prefect 2.
+description: Learn about contributing to Prefect.
 tags:
     - open source
     - contributing
     - development
     - standards
+    - migrations
 ---
 
 # Contributing
@@ -41,7 +42,7 @@ pip install $(./scripts/precommit-versions.py)
 ```
 </div>
 
-You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
+You'll need to run `black` and  `ruff` before a contribution can be accepted.
 
 After installation, you can run the test suite with `pytest`:
 
@@ -50,7 +51,6 @@ After installation, you can run the test suite with `pytest`:
 ```bash
 # Run all the tests
 pytest tests
-
 
 # Run a subset of tests
 pytest tests/test_flows.py
@@ -224,3 +224,74 @@ export PREFECT_API_URL=http://localhost:4200/api
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 
+### Adding Database Migrations
+To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example,
+if you wanted to add a new column to the `flow_run` table, you would add a new column to the `FlowRun` model:
+
+```python
+# src/prefect/server/database/orm_models.py
+
+@declarative_mixin
+class ORMFlowRun(ORMRun):
+    """SQLAlchemy model of a flow run."""
+    ...
+    new_column = Column(String, nullable=True) # <-- add this line
+```
+
+Next, you will need to generate new migration files. You must generate a new migration file for each database type. 
+Migrations will be generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to. See [here](/concepts/database/#configuring-the-database)
+for how to set the database connection URL for each database type.
+
+To generate a new migration file, run the following command:
+
+<div class="terminal">
+```bash
+prefect server database revision --autogenerate -m "<migration name>"
+```
+</div>
+
+Try to make your migration name brief but descriptive. For example:
+
+- `add_flow_run_new_column`
+- `add_flow_run_new_column_idx`
+- `rename_flow_run_old_column_to_new_column`
+
+The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. 
+!!! warning "Always inspect the output of `--autogenerate`" 
+    `--autogenerate` will generate a migration file based on the changes to the models. However, it is not perfect.
+    Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
+    remove extra statements that were included and not related to your change.
+
+When adding a migration for SQLite, it's important to include the following `PRAGMA` statements for both upgrade and downgrade:
+
+```python
+def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
+    
+    # migration code here
+    
+    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
+
+
+def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
+
+    # migration code here
+    
+    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
+
+```
+
+The new migration can be found in the `src/prefect/server/database/migrations/versions/` directory. Each database type
+has its own subdirectory. For example, the SQLite migrations are stored in `src/prefect/server/database/migrations/versions/sqlite/`.
+
+After you have inspected the migration file, you can apply the migration to your database by running the following command:
+
+<div class="terminal">
+```bash
+prefect server database upgrade -y
+```
+</div>
+
+Once you have successfully created and applied migrations for all database types, make sure to update `MIGRATION-NOTES.md`
+to document your additions.
