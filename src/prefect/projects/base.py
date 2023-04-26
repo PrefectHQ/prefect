@@ -59,9 +59,9 @@ def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bo
     # apply field defaults
     for field, default_value in field_defaults.items():
         if isinstance(default.get(field), dict):
-            default[field].update(default_value)
+            default["deployments"][0][field].update(default_value)
         else:
-            default[field] = default_value
+            default["deployments"][0][field] = default_value
 
     with open(path / "deployment.yaml", "w") as f:
         yaml.dump(default, f)
