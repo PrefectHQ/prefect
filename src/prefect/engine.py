@@ -375,7 +375,7 @@ async def begin_flow_run(
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
         flow_run_context.task_runner = await stack.enter_async_context(
-            flow.task_runner.start()
+            flow.task_runner.duplicate().start()
         )
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
@@ -526,7 +526,9 @@ async def create_and_begin_subflow_run(
             await stack.enter_async_context(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
-            task_runner = await stack.enter_async_context(flow.task_runner.start())
+            task_runner = await stack.enter_async_context(
+                flow.task_runner.duplicate().start()
+            )
 
             if log_prints:
                 stack.enter_context(patch_print())
