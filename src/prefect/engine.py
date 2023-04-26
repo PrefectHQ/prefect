@@ -2227,7 +2227,9 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
             return None
 
     if flow_run_id:  # Check the state of the flow run first
-        flow_run = await flow_run_context.client.read_flow_run(flow_run_id)
+        flow_run = await from_async.call_soon_in_loop_thread(
+            create_call(flow_run_context.client.read_flow_run, flow_run_id)
+        ).aresult()
 
         if not flow_run.state.is_running():
             if raise_on_failure:
@@ -2239,7 +2241,9 @@ async def check_if_running(raise_on_failure: bool = True) -> Optional[State]:
                 )
 
     if task_run_id:
-        task_run = await task_run_context.client.read_task_run(task_run_id)
+        task_run = await from_async.call_soon_in_loop_thread(
+            create_call(task_run_context.client.read_task_run, task_run_id)
+        ).aresult()
 
         if not task_run.state.is_running():
             if raise_on_failure:
