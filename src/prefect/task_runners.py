@@ -109,6 +109,12 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     def name(self):
         return type(self).__name__.lower().replace("taskrunner", "")
 
+    def duplicate(self):
+        """
+        Return a new task runner instance with the same options.
+        """
+        return type(self)()
+
     @abc.abstractmethod
     async def submit(
         self,
