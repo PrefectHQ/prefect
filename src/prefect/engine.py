@@ -602,7 +602,7 @@ async def orchestrate_flow_run(
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:
-            await resolve_inputs(wait_for, return_data=False)
+            await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1470,7 +1470,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_inputs(wait_for, return_data=False)
+        await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1861,34 +1861,25 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    if isinstance(parameters, dict):
-        resolved_parameters = {}
-        if parameters:
-            for parameter, value in parameters.items():
-                try:
-                    resolved_parameters[parameter] = visit_collection(
-                        value,
-                        visit_fn=resolve_input,
-                        return_data=return_data,
-                        max_depth=max_depth,
-                        remove_annotations=True,
-                        context={},
-                    )
-                except Exception as exc:
-                    raise PrefectException(
-                        f"Failed to resolve inputs in parameter {parameter!r}. If your"
-                        " parameter type is not supported, consider using the `quote`"
-                        " annotation to skip resolution of inputs."
-                    ) from exc
-    else:
-        resolved_parameters = visit_collection(
-            parameters,
-            visit_fn=resolve_input,
-            return_data=return_data,
-            max_depth=max_depth,
-            remove_annotations=True,
-            context={},
-        )
+    resolved_parameters = {}
+    if parameters:
+        for parameter, value in parameters.items():
+            try:
+                resolved_parameters[parameter] = visit_collection(
+                    value,
+                    visit_fn=resolve_input,
+                    return_data=return_data,
+                    max_depth=max_depth,
+                    remove_annotations=True,
+                    context={},
+                )
+            except Exception as exc:
+                raise PrefectException(
+                    f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                    " parameter type is not supported, consider using the `quote`"
+                    " annotation to skip resolution of inputs."
+                ) from exc
+
     return resolved_parameters
 
 
