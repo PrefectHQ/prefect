@@ -16,10 +16,10 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    Set,
     overload,
 )
 from uuid import UUID
-
 import anyio
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -27,15 +27,15 @@ from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
+from functools import partial
+from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import (
     A,
     Async,
     Sync,
-    run_async_from_worker_thread,
-    run_sync_in_worker_thread,
     sync,
 )
-from prefect.utilities.collections import visit_collection
+from prefect.utilities.collections import visit_collection, StopVisiting
 
 if TYPE_CHECKING:
     from prefect.task_runners import BaseTaskRunner
@@ -298,6 +298,17 @@ class PrefectFuture(Generic[R, A]):
         return True
 
 
+def _collect_futures(futures, expr, context):
+    # Expressions inside quotes should not be traversed
+    if isinstance(context.get("annotation"), quote):
+        raise StopVisiting()
+
+    if isinstance(expr, PrefectFuture):
+        futures.add(expr)
+
+    return expr
+
+
 async def resolve_futures_to_data(
     expr: Union[PrefectFuture[R, Any], Any]
 ) -> Union[R, Any]:
@@ -309,15 +320,45 @@ async def resolve_futures_to_data(
 
     Unsupported object types will be returned without modification.
     """
+    futures: Set[PrefectFuture] = set()
 
-    def resolve_future(expr):
+    maybe_expr = visit_collection(
+        expr,
+        visit_fn=partial(_collect_futures, futures),
+        return_data=False,
+        context={},
+    )
+    if maybe_expr is not None:
+        expr = maybe_expr
+
+    # Get results
+    results = await asyncio.gather(
+        *[
+            # We must wait for the future in the thread it was created in
+            from_async.call_soon_in_loop_thread(
+                create_call(future._result, raise_on_failure=False)
+            ).aresult()
+            for future in futures
+        ]
+    )
+
+    results_by_future = dict(zip(futures, results))
+
+    def replace_futures_with_results(expr, context):
+        # Expressions inside quotes should not be modified
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
         if isinstance(expr, PrefectFuture):
-            return run_async_from_worker_thread(expr._result)
+            return results_by_future[expr]
         else:
             return expr
 
-    return await run_sync_in_worker_thread(
-        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    return visit_collection(
+        expr,
+        visit_fn=replace_futures_with_results,
+        return_data=True,
+        context={},
     )
 
 
@@ -331,15 +372,41 @@ async def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
+    futures: Set[PrefectFuture] = set()
 
-    def resolve_future(expr):
+    visit_collection(
+        expr,
+        visit_fn=partial(_collect_futures, futures),
+        return_data=False,
+        context={},
+    )
+
+    # Get final states for each future
+    states = await asyncio.gather(
+        *[
+            # We must wait for the future in the thread it was created in
+            from_async.call_soon_in_loop_thread(create_call(future._wait)).aresult()
+            for future in futures
+        ]
+    )
+
+    states_by_future = dict(zip(futures, states))
+
+    def replace_futures_with_states(expr, context):
+        # Expressions inside quotes should not be modified
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
         if isinstance(expr, PrefectFuture):
-            return run_async_from_worker_thread(expr._wait)
+            return states_by_future[expr]
         else:
             return expr
 
-    return await run_sync_in_worker_thread(
-        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    return visit_collection(
+        expr,
+        visit_fn=replace_futures_with_states,
+        return_data=True,
+        context={},
     )
 
 
