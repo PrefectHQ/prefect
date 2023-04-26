@@ -1788,9 +1788,6 @@ async def resolve_inputs(
     Raises:
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
-    if not parameters:
-        return {}
-
     futures = set()
     states = set()
     result_by_state = {}
@@ -1864,24 +1861,34 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    resolved_parameters = {}
-    for parameter, value in parameters.items():
-        try:
-            resolved_parameters[parameter] = visit_collection(
-                value,
-                visit_fn=resolve_input,
-                return_data=return_data,
-                max_depth=max_depth,
-                remove_annotations=True,
-                context={},
-            )
-        except Exception as exc:
-            raise PrefectException(
-                f"Failed to resolve inputs in parameter {parameter!r}. "
-                "If your parameter type is not supported, consider using the `quote` "
-                "annotation to skip resolution of inputs."
-            ) from exc
-
+    if isinstance(parameters, dict):
+        resolved_parameters = {}
+        if parameters:
+            for parameter, value in parameters.items():
+                try:
+                    resolved_parameters[parameter] = visit_collection(
+                        value,
+                        visit_fn=resolve_input,
+                        return_data=return_data,
+                        max_depth=max_depth,
+                        remove_annotations=True,
+                        context={},
+                    )
+                except Exception as exc:
+                    raise PrefectException(
+                        f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                        " parameter type is not supported, consider using the `quote`"
+                        " annotation to skip resolution of inputs."
+                    ) from exc
+    else:
+        resolved_parameters = visit_collection(
+            parameters,
+            visit_fn=resolve_input,
+            return_data=return_data,
+            max_depth=max_depth,
+            remove_annotations=True,
+            context={},
+        )
     return resolved_parameters
 
 
