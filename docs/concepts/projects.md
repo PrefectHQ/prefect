@@ -101,7 +101,7 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 
 Projects can support multiple deployment declarations within a project's `deployment.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments within a project to be version controlled and deployed with a single command.
 
-New deployment declarations can be added to a project's `deployment.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to identify and manage deployments.
+New deployment declarations can be added to a project's `deployment.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
 
 For example, consider the following `deployment.yaml` file:
 
@@ -306,9 +306,9 @@ Every step can optionally provide a `requires` field that Prefect will use to au
     [Just as in `deployment.yaml`](#templating-options), step inputs can be templated with the outputs of prior steps or with block references.
 
 !!! tip "Deployment Instruction Overrides"
-    `build`, `push`, and `pull` sections can all be overridden a per-deployment basis by defining `build`, `push`, and `pull` fields within the deployment's `deployment.yaml` file.
+    `build`, `push`, and `pull` sections can all be overridden a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the project's `deployment.yaml` file.
 
-    The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in the deployment's `deployment.yaml` file in lieu of the project's `prefect.yaml` file.
+    The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition instead of the project's `prefect.yaml` file.
 
     This capability is useful for projects that have multiple deployments that require different deployment instructions.
 
@@ -431,11 +431,15 @@ Registration also allows users to share their projects without requiring a full 
 
 Anytime you run `prefect deploy`, the following actions are taken in order:
 
-- The project `prefect.yaml` file is loaded; first, the `prefect.yaml` `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided
+- The project `prefect.yaml` and `deployment.yaml` files are loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided. 
 - Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
 - Next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
-- Next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
+- Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
 - The final step occurs when the fully realized deployment specification is registered with the Prefect API
+
+!!! tip "Deployment Instruction Overrides"
+    The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections in `prefect.yaml`.
+
 
 Anytime a step is run, the following actions are taken in order:
 
