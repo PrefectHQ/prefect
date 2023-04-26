@@ -1,6 +1,7 @@
 import enum
 import inspect
 import sys
+import asyncio
 import time
 from textwrap import dedent
 from typing import List
@@ -751,6 +752,23 @@ class TestSubflowCalls:
             return child(x, y, z)
 
         assert parent(1, 2) == 6
+
+    async def test_concurrent_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow(log_prints=True)
+        async def child(i):
+            assert await test_task() == 1
+            return i
+
+        @flow
+        async def parent():
+            coros = [child(i) for i in range(5)]
+            assert await asyncio.gather(*coros) == list(range(5))
+
+        await parent()
 
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
