@@ -28,7 +28,7 @@ See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Add support for concurrent runs same flow — https://github.com/PrefectHQ/prefect/pull/9342
 - Add ability for `flow_run_name` and `task_run_name` settings to accept functions — https://github.com/PrefectHQ/prefect/pull/8933
 - Add pending items count to service failure exception message — https://github.com/PrefectHQ/prefect/pull/9306
-- Add `"severity"` key to JSON formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
+- Add `severity` key to JSON-formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
 - Update orchestration rules to allow transitions from terminal states — https://github.com/PrefectHQ/prefect/pull/9152
 - Update projects to support multiple deployments — https://github.com/PrefectHQ/prefect/pull/9217
 - Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
