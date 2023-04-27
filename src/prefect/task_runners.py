@@ -115,11 +115,16 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         return type(self)()
 
-    def __eq__(self, __value: object) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Returns true if the task runners use the same options.
         """
-        if type(__value) == type(self):
+        if type(other) == type(self) and (
+            # Compare public attributes for naive equality check
+            # Subclasses should implement this method with a check init option equality
+            {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+            == {k: v for k, v in other.__dict__.items() if not k.startswith("_")}
+        ):
             return True
         else:
             return NotImplemented
