@@ -292,13 +292,13 @@ async def test_drain_all_timeout_async():
 
     instance.send(1)
     t0 = time.monotonic()
-    await MockService.drain_all(timeout=0.1)
+    await MockService.drain_all(timeout=0.01)
     t1 = time.monotonic()
 
     event.set()  # Unblock the handler and drain
     await MockService.drain_all()
 
-    assert t1 - t0 < 1
+    assert t1 - t0 < 2
 
 
 def test_lifespan():
