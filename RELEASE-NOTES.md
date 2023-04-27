@@ -28,7 +28,7 @@ For example, these changes enable the following behaviors:
 - A flow run may be rescheduled without using the "awaiting retry" name
 - A flow run that fails and is orchestrated again will run instead of aborting
 
-See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
+See https://github.com/PrefectHQ/prefect/pull/9152 for details.
 
 ### Enhancements
 - Add support for recursive flow calls — https://github.com/PrefectHQ/prefect/pull/9342
