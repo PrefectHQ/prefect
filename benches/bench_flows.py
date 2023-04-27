@@ -1,7 +1,6 @@
 """
 TODO: Add benches for higher number of tasks; blocked by engine deadlocks in CI.
 """
-import copy
 
 import anyio
 import pytest
@@ -127,7 +126,6 @@ def bench_async_flow_with_concurrent_subflows(
     async def benchmark_flow():
         async with anyio.create_task_group() as tg:
             for _ in range(num_flows):
-                # A copy is needed to avoid duplicate task runner starts
-                tg.start_soon(copy.deepcopy(test_flow))
+                tg.start_soon(test_flow)
 
     benchmark(anyio.run, benchmark_flow)
