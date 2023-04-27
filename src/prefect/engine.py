@@ -370,12 +370,23 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
+        task_runner = flow.task_runner.duplicate()
+        if task_runner is NotImplemented:
+            # Backwards compatibility; will not support concurrent flow runs
+            task_runner = flow.task_runner
+            logger.warning(
+                f"Task runner {type(task_runner).__name__!r} does not implement the"
+                " `duplicate` method and will fail if used for concurrent execution of"
+                " the same flow."
+            )
+
         logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
+
         flow_run_context.task_runner = await stack.enter_async_context(
-            flow.task_runner.start()
+            task_runner.start()
         )
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
@@ -526,7 +537,18 @@ async def create_and_begin_subflow_run(
             await stack.enter_async_context(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
-            task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+            task_runner = flow.task_runner.duplicate()
+            if task_runner is NotImplemented:
+                # Backwards compatibility; will not support concurrent flow runs
+                task_runner = flow.task_runner
+                logger.warning(
+                    f"Task runner {type(task_runner).__name__!r} does not implement the"
+                    " `duplicate` method and will fail if used for concurrent"
+                    " execution of the same flow."
+                )
+
+            await stack.enter_async_context(task_runner.start())
 
             if log_prints:
                 stack.enter_context(patch_print())

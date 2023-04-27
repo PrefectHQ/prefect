@@ -55,6 +55,11 @@ class TaskRunnerStandardTestSuite(ABC):
         file_path.touch()
         return file_path
 
+    async def test_duplicate(self, task_runner):
+        new = task_runner.duplicate()
+        assert new == task_runner
+        assert new is not task_runner
+
     async def test_successful_flow_run(self, task_runner):
         @task
         def task_a():

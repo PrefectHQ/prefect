@@ -14,6 +14,7 @@ import anyio
 import pendulum
 import pytest
 from pydantic import BaseModel
+from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 
 import prefect.flows
 from prefect import engine, flow, task
@@ -2041,3 +2042,59 @@ class TestAPIHealthcheck:
             # Not cached
             assert "http://ephemeral-prefect/api/" not in API_HEALTHCHECKS
             assert len(API_HEALTHCHECKS.keys()) == 0
+
+
+def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
+    class MyTaskRunner(BaseTaskRunner):
+        @property
+        def concurrency_type(self):
+            return TaskConcurrencyType.SEQUENTIAL
+
+        def wait(self, *args, **kwargs):
+            pass
+
+        def submit(self, *args, **kwargs):
+            pass
+
+    @flow(task_runner=MyTaskRunner)
+    def my_flow():
+        return 1
+
+    assert my_flow() == 1
+
+    assert (
+        "Task runner 'MyTaskRunner' does not implement the"
+        " `duplicate` method and will fail if used for concurrent execution of"
+        " the same flow."
+        in caplog.text
+    )
+
+
+def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
+    class MyTaskRunner(BaseTaskRunner):
+        @property
+        def concurrency_type(self):
+            return TaskConcurrencyType.SEQUENTIAL
+
+        def wait(self, *args, **kwargs):
+            pass
+
+        def submit(self, *args, **kwargs):
+            pass
+
+    @flow(task_runner=MyTaskRunner)
+    def child():
+        return 1
+
+    @flow
+    def parent():
+        return child()
+
+    assert parent() == 1
+
+    assert (
+        "Task runner 'MyTaskRunner' does not implement the"
+        " `duplicate` method and will fail if used for concurrent execution of"
+        " the same flow."
+        in caplog.text
+    )
