@@ -38,7 +38,7 @@ BP to add detail
 - @rsampaths16 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8933
 - @Shubhamparashar made their first contribution in https://github.com/PrefectHQ/prefect/pull/9028
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.5...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.5...2.10.6
 
 ## Release 2.10.5
 
