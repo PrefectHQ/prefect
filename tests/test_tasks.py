@@ -2243,7 +2243,7 @@ class TestSubflowWaitForTasks:
 
         flow_state = await test_flow._run()
         assert flow_state.is_failed()
-        assert "MissingResult: State data is missing" in flow_state.message
+        assert "UnfinishedRun" in flow_state.message
 
     def test_using_wait_for_in_task_definition_raises_reserved(self):
         with pytest.raises(
