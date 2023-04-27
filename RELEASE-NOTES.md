@@ -9,7 +9,7 @@ You can now declare multiple deployments for your project in the `deployment.yam
 Deployments that are declared in a project are independent of each other and can be deployed to different work pools, on different schedules, or using different project actions. By default, deployments will use the build, pull, and push actions defined in the projects `prefect.yaml` file, but those actions can be overridden by setting build, pull, or push on a deployment declared in `deployment.yaml`. This enables patterns like different project storage methods and multiple Dockerfiles for a project.
 
 Because the deployments are all declared in a single YAML file, you can also take advantage of YAML anchors and aliases to avoid duplication in your deployment.yaml file. This enables declaring custom projects actions once and reusing them across different deployments or using the same schedule for multiple deployments.
-
+To learn more about Projects, check out our documentation(link) and tutorials(link) to quickly accelerate your flow deployment process! 
 See https://github.com/PrefectHQ/prefect/pull/9217 for details.
 
 ### Improve run restart behavior
