@@ -132,6 +132,7 @@ class EventLoopThread(Portal):
         self._run_once: bool = run_once
         self._submitted_count: int = 0
         self._on_shutdown: List[Call] = []
+        self._lock = threading.Lock()
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -140,31 +141,34 @@ class EventLoopThread(Portal):
         """
         Start the worker thread; raises any exceptions encountered during startup.
         """
-        self.thread.start()
-        # Wait for the worker to be ready
-        self._ready_future.result()
+        with self._lock:
+            if self._loop is None:
+                self.thread.start()
+                self._ready_future.result()
 
     def submit(self, call: Call) -> Call:
-        if self._submitted_count > 0 and self._run_once:
-            raise RuntimeError(
-                "Worker configured to only run once. A call has already been submitted."
-            )
-
         if self._loop is None:
             self.start()
 
-        if self._shutdown_event.is_set():
-            raise RuntimeError("Worker is shutdown.")
+        with self._lock:
+            if self._submitted_count > 0 and self._run_once:
+                raise RuntimeError(
+                    "Worker configured to only run once. A call has already been"
+                    " submitted."
+                )
 
-        # Track the portal running the call
-        call.set_runner(self)
+            if self._shutdown_event.is_set():
+                raise RuntimeError("Worker is shutdown.")
 
-        # Submit the call to the event loop
-        asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
+            # Track the portal running the call
+            call.set_runner(self)
 
-        self._submitted_count += 1
-        if self._run_once:
-            call.future.add_done_callback(lambda _: self.shutdown())
+            # Submit the call to the event loop
+            asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
+
+            self._submitted_count += 1
+            if self._run_once:
+                call.future.add_done_callback(lambda _: self.shutdown())
 
         return call
 
@@ -172,10 +176,11 @@ class EventLoopThread(Portal):
         """
         Shutdown the worker thread. Does not wait for the thread to stop.
         """
-        if self._shutdown_event is None:
-            return
+        with self._lock:
+            if self._shutdown_event is None:
+                return
 
-        self._shutdown_event.set()
+            self._shutdown_event.set()
 
     @property
     def name(self) -> str:
