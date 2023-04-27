@@ -6,9 +6,11 @@
 BP to add detail
 
 ### Enhancements
+- Add support for recursive flow calls — https://github.com/PrefectHQ/prefect/pull/9342
+- Add support for concurrent runs same flow — https://github.com/PrefectHQ/prefect/pull/9342
 - Add ability for `flow_run_name` and `task_run_name` settings to accept functions — https://github.com/PrefectHQ/prefect/pull/8933
-- Add pending items count to service failure exception — https://github.com/PrefectHQ/prefect/pull/9306
-- Add "severity" key to JSON formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
+- Add pending items count to service failure exception message — https://github.com/PrefectHQ/prefect/pull/9306
+- Add `"severity"` key to JSON formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
 - Update orchestration rules to allow transitions from terminal states — https://github.com/PrefectHQ/prefect/pull/9152
 - Update projects to support multiple deployments — https://github.com/PrefectHQ/prefect/pull/9217
 - Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
@@ -20,18 +22,18 @@ BP to add detail
 - Ensure workers only create one client while running — https://github.com/PrefectHQ/prefect/pull/9302
 - Ensure services are drained on global loop shutdown — https://github.com/PrefectHQ/prefect/pull/9307
 - Show logs on pending flow run pages — https://github.com/PrefectHQ/prefect/pull/9313
-- Fix `flow-run logs` limit — https://github.com/PrefectHQ/prefect/pull/9314
+- Fix `flow-run logs --limit` — https://github.com/PrefectHQ/prefect/pull/9314
 - Fix `future.result()` and `future.wait()` calls from async contexts — https://github.com/PrefectHQ/prefect/pull/9316
 - Update `QueueService.send` to wait for the item to be placed in the queue before returning — https://github.com/PrefectHQ/prefect/pull/9318
 - Update `resolve_futures_to_data` and `resolve_futures_to_states` to wait for futures in the correct event loop — https://github.com/PrefectHQ/prefect/pull/9336
-- Fix issue in which tasks were not called when debug mode was enabled — https://github.com/PrefectHQ/prefect/pull/9341
+- Fix bug where tasks were not called when debug mode was enabled — https://github.com/PrefectHQ/prefect/pull/9341
 
 ### Documentation
 - Add tutorial for developing a new worker — https://github.com/PrefectHQ/prefect/pull/9179
 - Fix social cards to enable previews when linking documentation — https://github.com/PrefectHQ/prefect/pull/9321
 - Fix rendering of Prefect Server and Cloud feature list — https://github.com/PrefectHQ/prefect/pull/9305
 - Fix a broken link and clarify language — https://github.com/PrefectHQ/prefect/pull/9295
-- Update Event Feed screenshot — https://github.com/PrefectHQ/prefect/pull/9349
+- Update "Event Feed" screenshot — https://github.com/PrefectHQ/prefect/pull/9349
 
 ### New Contributors
 - @rsampaths16 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8933
