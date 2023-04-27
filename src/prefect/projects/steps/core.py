@@ -30,8 +30,8 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
     except ImportError:
         if requires:
             print(
-                "Unable to load step function: {fully_qualified_name}. Attempting"
-                " install of {requires}."
+                f"Unable to load step function: {fully_qualified_name}. Attempting"
+                f" install of {requires}."
             )
         else:
             raise
