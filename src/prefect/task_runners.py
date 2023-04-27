@@ -113,7 +113,9 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         Return a new task runner instance with the same options.
         """
-        return type(self)()
+        # The base class returns `NotImplemented` to indicate that this is not yet
+        # implemented by a given task runner.
+        return NotImplemented
 
     def __eq__(self, other: object) -> bool:
         """
@@ -216,6 +218,9 @@ class SequentialTaskRunner(BaseTaskRunner):
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.SEQUENTIAL
 
+    def duplicate(self):
+        return type(self)()
+
     async def submit(
         self,
         key: UUID,
@@ -263,6 +268,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     @property
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.CONCURRENT
+
+    def duplicate(self):
+        return type(self)()
 
     async def submit(
         self,
