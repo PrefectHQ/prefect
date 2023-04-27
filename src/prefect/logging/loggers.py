@@ -1,5 +1,6 @@
 import io
 import logging
+import sys
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
@@ -205,11 +206,18 @@ def print_as_log(*args, **kwargs):
     A patch for `print` to send printed messages to the Prefect run logger.
 
     If no run is active, `print` will behave as if it were not patched.
+
+    If `print` sends data to a file other than `sys.stdout` or `sys.stderr`, it will
+    not be forwarded to the Prefect logger either.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
     context = TaskRunContext.get() or FlowRunContext.get()
-    if not context or not context.log_prints:
+    if (
+        not context
+        or not context.log_prints
+        or kwargs.get("file") not in {None, sys.stdout, sys.stderr}
+    ):
         return print(*args, **kwargs)
 
     logger = get_run_logger()
