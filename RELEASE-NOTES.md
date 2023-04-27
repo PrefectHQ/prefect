@@ -28,11 +28,11 @@ BP to add detail
 - Fix issue in which tasks were not called when debug mode was enabled — https://github.com/PrefectHQ/prefect/pull/9341
 
 ### Documentation
-- Fix broken links and clarify language — https://github.com/PrefectHQ/prefect/pull/9295
-- Fix rendering of cloud feature list — https://github.com/PrefectHQ/prefect/pull/9305
-- Fix social cards — https://github.com/PrefectHQ/prefect/pull/9321
-- Add tutorial for creating a worker — https://github.com/PrefectHQ/prefect/pull/9179
-- Update events page screenshot — https://github.com/PrefectHQ/prefect/pull/9349
+- Add tutorial for developing a new worker — https://github.com/PrefectHQ/prefect/pull/9179
+- Fix social cards to enable previews when linking documentation — https://github.com/PrefectHQ/prefect/pull/9321
+- Fix rendering of Prefect Server and Cloud feature list — https://github.com/PrefectHQ/prefect/pull/9305
+- Fix a broken link and clarify language — https://github.com/PrefectHQ/prefect/pull/9295
+- Update Event Feed screenshot — https://github.com/PrefectHQ/prefect/pull/9349
 
 ### New Contributors
 - @rsampaths16 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8933
