@@ -1003,7 +1003,7 @@ async def begin_task_map(
     # Resolve the top-level parameters in order to get mappable data of a known length.
     # Nested parameters will be resolved in each mapped child where their relationships
     # will also be tracked.
-    parameters = await resolve_inputs(parameters, max_depth=1)
+    parameters = await resolve_inputs(parameters, max_depth=0)
 
     # Ensure that any parameters in kwargs are expanded before this check
     parameters = explode_variadic_parameter(task.fn, parameters)
@@ -1788,6 +1788,7 @@ async def resolve_inputs(
     Raises:
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
+
     futures = set()
     states = set()
     result_by_state = {}
@@ -1871,7 +1872,8 @@ async def resolve_inputs(
                 value,
                 visit_fn=resolve_input,
                 return_data=return_data,
-                max_depth=max_depth,
+                # we're manually going 1 layer deeper here
+                max_depth=max_depth - 1,
                 remove_annotations=True,
                 context={},
             )
