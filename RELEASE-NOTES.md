@@ -1,5 +1,78 @@
 # Prefect Release Notes
 
+## Release 2.10.6
+
+### Deploy many flows at once with projects
+
+You can now declare multiple deployments for your project in the `deployment.yaml` file. When multiple deployments are declared in a project, you can deploy any number of those deployments at a time by providing the names of the deployments in the `prefect deploy` command. You can also deploy all the deployments in a project with the `--all` flag on the `prefect deploy` command.
+
+Deployments that are declared in a project are independent of each other and can be deployed to different work pools, on different schedules, or using different project actions. By default, deployments will use the build, pull, and push actions defined in the projects `prefect.yaml` file, but those actions can be overridden by setting build, pull, or push on a deployment declared in `deployment.yaml`. This enables patterns like different project storage methods and multiple Dockerfiles for a project.
+
+Because the deployments are all declared in a single YAML file, you can also take advantage of YAML anchors and aliases to avoid duplication in your `deployment.yaml` file. This enables declaring custom projects actions once and reusing them across different deployments or using the same schedule for multiple deployments.
+To learn more about Projects, check out our [documentation](https://docs.prefect.io/latest/concepts/projects/) and [tutorials](https://docs.prefect.io/latest/tutorials/projects/) to quickly accelerate your flow deployment process! 
+See https://github.com/PrefectHQ/prefect/pull/9217 for details.
+
+### Improve run restart behavior
+
+Previously, transitions out of terminal states were allowed in very specific cases:
+
+- A task run could move from a failed/crashed/cancelled state to running if the flow run was retrying
+- A flow run could move to a scheduled (awaiting retry) state
+
+These rules could prevent runs from executing again during manual restarts or worker rescheduling.  We now allow transitions out of terminal states unless the run is completed _and_ has a persisted result to improve our behavior during these cases.
+
+For example, these changes enable the following behaviors:
+
+- A task run that fails and is orchestrated again will run instead of aborting
+- A task run that completes but does not persist its result will run again on flow run retry
+- A flow run may be rescheduled without using the "awaiting retry" name
+- A flow run that fails and is orchestrated again will run instead of aborting
+
+See https://github.com/PrefectHQ/prefect/pull/9152 for details.
+
+### Enhancements
+- Add support for recursive flow calls — https://github.com/PrefectHQ/prefect/pull/9342
+- Add support for concurrent runs same flow — https://github.com/PrefectHQ/prefect/pull/9342
+- Add ability for `flow_run_name` and `task_run_name` settings to accept functions — https://github.com/PrefectHQ/prefect/pull/8933
+- Add pending items count to service failure exception message — https://github.com/PrefectHQ/prefect/pull/9306
+- Add `severity` key to JSON-formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
+- Update orchestration rules to allow transitions from terminal states — https://github.com/PrefectHQ/prefect/pull/9152
+- Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
+- Add `--tail` option to `prefect flow-run logs` CLI — https://github.com/PrefectHQ/prefect/pull/9028
+- Enhance UI handling of flow run graph and accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
+- Enhance UI rendering of schema-generated forms (used for flow run creation, deployment editing, block configuration, notifications, and work pool job templates) and their values — https://github.com/PrefectHQ/prefect-ui-library/pull/1384
+- Update icons and Prefect logo — https://github.com/PrefectHQ/prefect/pull/9352
+- Add results to task run page — https://github.com/PrefectHQ/prefect-ui-library/pull/1372
+- Add artifacts to task run page — https://github.com/PrefectHQ/prefect/pull/9353
+- Show entrypoint and path in deployment details — https://github.com/PrefectHQ/prefect-ui-library/pull/1364
+- Enhance clarity of error message by raising `UnfinishedRun` instead of `MissingResult` when state is not final — https://github.com/PrefectHQ/prefect-ui-library/pull/9334
+
+### Fixes
+- Ensure the Prefect UI displays actual parameters used to kick off a flow run — https://github.com/PrefectHQ/prefect/pull/9293
+- Ensure workers only create one client while running — https://github.com/PrefectHQ/prefect/pull/9302
+- Ensure services are drained on global loop shutdown — https://github.com/PrefectHQ/prefect/pull/9307
+- Show logs on pending flow run pages — https://github.com/PrefectHQ/prefect/pull/9313
+- Fix `flow-run logs --limit` — https://github.com/PrefectHQ/prefect/pull/9314
+- Fix `future.result()` and `future.wait()` calls from async contexts — https://github.com/PrefectHQ/prefect/pull/9316
+- Update `QueueService.send` to wait for the item to be placed in the queue before returning — https://github.com/PrefectHQ/prefect/pull/9318
+- Update `resolve_futures_to_data` and `resolve_futures_to_states` to wait for futures in the correct event loop — https://github.com/PrefectHQ/prefect/pull/9336
+- Fix bug where tasks were not called when debug mode was enabled — https://github.com/PrefectHQ/prefect/pull/9341
+- Fix bug where boolean values for new flow runs created through the UI were not sent if the value matched the deployment's schema default - https://github.com/PrefectHQ/prefect-ui-library/pull/1389
+- Fix race condition in event loop thread start — https://github.com/PrefectHQ/prefect/pull/9343
+
+### Documentation
+- Add tutorial for developing a new worker — https://github.com/PrefectHQ/prefect/pull/9179
+- Fix social cards to enable previews when linking documentation — https://github.com/PrefectHQ/prefect/pull/9321
+- Fix rendering of Prefect Server and Cloud feature list — https://github.com/PrefectHQ/prefect/pull/9305
+- Fix a broken link and clarify language — https://github.com/PrefectHQ/prefect/pull/9295
+- Update "Event Feed" screenshot — https://github.com/PrefectHQ/prefect/pull/9349
+
+### New Contributors
+- @rsampaths16 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8933
+- @Shubhamparashar made their first contribution in https://github.com/PrefectHQ/prefect/pull/9028
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.5...2.10.6
+
 ## Release 2.10.5
 
 ### Deploy a Prefect flow via Github Actions
