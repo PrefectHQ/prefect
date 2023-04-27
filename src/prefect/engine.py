@@ -1875,15 +1875,14 @@ async def resolve_inputs(
                 remove_annotations=True,
                 context={},
             )
+        except UpstreamTaskError:
+            raise
         except Exception as exc:
-            if isinstance(exc, UpstreamTaskError):
-                raise
-            else:
-                raise PrefectException(
-                    f"Failed to resolve inputs in parameter {parameter!r}. If your"
-                    " parameter type is not supported, consider using the `quote`"
-                    " annotation to skip resolution of inputs."
-                ) from exc
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
 
     return resolved_parameters
 
