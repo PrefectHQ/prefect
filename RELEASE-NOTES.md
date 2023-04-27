@@ -11,7 +11,7 @@ BP to add detail
 - Add "severity" key to JSON formatted logs for GCP compatibility — https://github.com/PrefectHQ/prefect/pull/9200
 - Update orchestration rules to allow transitions from terminal states — https://github.com/PrefectHQ/prefect/pull/9152
 - Update projects to support multiple deployments — https://github.com/PrefectHQ/prefect/pull/9217
-- Add work pool filter for flows — https://github.com/PrefectHQ/prefect/pull/9308
+- Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
 - Add `--tail` option to `prefect flow-run logs` CLI — https://github.com/PrefectHQ/prefect/pull/9028
 - Add vue-charts dependency — https://github.com/PrefectHQ/prefect/pull/9331
 - Add component for handling the flow run graph and the accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
