@@ -4,7 +4,7 @@
 
 ### Deploy many flows at once with projects
 
-You can now declare multiple deployments for your project in the `deployment.yaml` file. When multiple deployments are declared in a project, you can deploy any number of those deployments at a time by providing the names of the deployments to the prefect deploy command. You can also deploy all the deployments in a project with the `--all` flag on the prefect deploy command.
+You can now declare multiple deployments for your project in the `deployment.yaml` file. When multiple deployments are declared in a project, you can deploy any number of those deployments at a time by providing the names of the deployments in the `prefect deploy` command. You can also deploy all the deployments in a project with the `--all` flag on the `prefect deploy` command.
 
 Deployments that are declared in a project are independent of each other and can be deployed to different work pools, on different schedules, or using different project actions. By default, deployments will use the build, pull, and push actions defined in the projects `prefect.yaml` file, but those actions can be overridden by setting build, pull, or push on a deployment declared in `deployment.yaml`. This enables patterns like different project storage methods and multiple Dockerfiles for a project.
 
