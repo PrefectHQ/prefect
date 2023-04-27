@@ -2044,7 +2044,7 @@ class TestAPIHealthcheck:
             assert len(API_HEALTHCHECKS.keys()) == 0
 
 
-def test_flow_call_with_task_runner_duplicate_not_implemented():
+def test_flow_call_with_task_runner_duplicate_not_implemented(caplog):
     class MyTaskRunner(BaseTaskRunner):
         @property
         def concurrency_type(self):
@@ -2061,3 +2061,10 @@ def test_flow_call_with_task_runner_duplicate_not_implemented():
         return 1
 
     assert my_flow() == 1
+
+    assert (
+        "Task runner 'MyTaskRunner' does not implement the"
+        " `duplicate` method and cannot be used in concurrent execution of"
+        " the same flow."
+        in caplog.text
+    )
