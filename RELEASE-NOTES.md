@@ -41,7 +41,7 @@ See https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
 - Add `--tail` option to `prefect flow-run logs` CLI — https://github.com/PrefectHQ/prefect/pull/9028
 - Enhance UI handling of flow run graph and accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
-- Minor enhancements to schema-generated forms (used for flow run creation, deployment editing, block configuration, notifications, and work pool job templates) and changes to the way list properties are displayed and mapped — https://github.com/PrefectHQ/prefect-ui-library/pull/1384
+- Enhance UI rendering of schema-generated forms (used for flow run creation, deployment editing, block configuration, notifications, and work pool job templates) and their values — https://github.com/PrefectHQ/prefect-ui-library/pull/1384
 - Update icons and Prefect logo — https://github.com/PrefectHQ/prefect/pull/9352
 - Add results to task run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1372
 - Add artifacts to task run page - https://github.com/PrefectHQ/prefect/pull/9353
