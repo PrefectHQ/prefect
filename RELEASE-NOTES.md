@@ -3,7 +3,10 @@
 ## Release 2.10.6
 
 ### Deploy many flows at once with projects
-BP to add detail
+
+
+
+See #9217 for implementation details.
 
 ### Improve run restart behavior
 
@@ -35,6 +38,7 @@ See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Add `--tail` option to `prefect flow-run logs` CLI — https://github.com/PrefectHQ/prefect/pull/9028
 - Enhance UI handling of flow run graph and accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
 - Minor enhancements to schema-generated forms (used for flow run creation, deployment editing, block configuration, notifications, and work pool job templates) and changes to the way list properties are displayed and mapped - https://github.com/PrefectHQ/prefect-ui-library/pull/1384
+- Update icons and Prefect logo - https://github.com/PrefectHQ/prefect/pull/9352
 
 ### Fixes
 - Ensure the Prefect UI displays actual parameters used to kick off a flow run — https://github.com/PrefectHQ/prefect/pull/9293
