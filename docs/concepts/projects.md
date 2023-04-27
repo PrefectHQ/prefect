@@ -167,7 +167,7 @@ Because a project's `deployment.yaml` file is a standard YAML file, you can use 
 
 This functionality is useful when multiple deployments need to share the work pool configuration, deployment actions, or other configurations.
 
-You can declare a YAML alias by using the `&{alias_name}` syntax and insert that alias elsewhere in the file with the `*{alias_name}` syntax. 
+You can declare a YAML alias by using the `&{alias_name}` syntax and insert that alias elsewhere in the file with the `*{alias_name}` syntax. When aliasing YAML maps, you can also override specific fields of the aliased map by using the `<<: *{alias_name}` syntax and adding additional fields below.
 
 We recommend adding a `definitions` section to your `deployment.yaml` file at the same level as the `deployments` section to store your aliases.
 
@@ -179,17 +179,18 @@ definitions:
         my_docker_work_pool: &my_docker_work_pool
             name: my-docker-work-pool
             work_queue_name: default
+            job_variables:
+                image: "{{ image_name }}"
     schedules:
         every_ten_minutes: &every_10_minutes
             interval: 600
     actions:
         docker_build: &docker_build
-            - prefect_docker.projects.steps.build_docker_image:
+            - prefect_docker.projects.steps.build_docker_image: &docker_build_config
                 requires: prefect-docker>=0.2.0
                 image_name: my-example-image
                 tag: dev
                 dockerfile: auto
-                push: false
 
 deployments:
   - name: deployment-1
@@ -198,13 +199,16 @@ deployments:
     parameters: 
         number: 42,
         message: Don't panic!
-    work_pool: *my-docker-work-pool
-    build: *docker_build
+    work_pool: *my_docker_work_pool
+    build: *docker_build # Uses the full docker_build action with no overrides
 
   - name: deployment-2
     entrypoint: flows/goodbye.py:my_other_flow
-    work_pool: *my-docker-work-pool
-    build: *docker_build
+    work_pool: *my_docker_work_pool
+    build:
+        - prefect_docker.projects.steps.build_docker_image:
+            <<: *docker_build_config # Uses the docker_build_config alias and overrides the dockerfile field
+            dockerfile: Dockerfile.custom
 
   - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
@@ -219,7 +223,7 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 
 - `deployment-1` and `deployment-2` are using the same work pool configuration
 - `deployment-1` and `deployment-3` are using the same schedule 
-- `deployment-1` and `deployment-2` are using the same build deployment action
+- `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` field to use a custom Dockerfile
 
 ### Deployment Declaration Reference
 
