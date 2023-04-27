@@ -43,6 +43,9 @@ See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Enhance UI handling of flow run graph and accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
 - Minor enhancements to schema-generated forms (used for flow run creation, deployment editing, block configuration, notifications, and work pool job templates) and changes to the way list properties are displayed and mapped — https://github.com/PrefectHQ/prefect-ui-library/pull/1384
 - Update icons and Prefect logo — https://github.com/PrefectHQ/prefect/pull/9352
+- Add results to task run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1372
+- Add artifacts to task run page - https://github.com/PrefectHQ/prefect/pull/9353
+- Show entrypoint and path in deployment details - https://github.com/PrefectHQ/prefect-ui-library/pull/1364
 
 ### Fixes
 - Ensure the Prefect UI displays actual parameters used to kick off a flow run — https://github.com/PrefectHQ/prefect/pull/9293
