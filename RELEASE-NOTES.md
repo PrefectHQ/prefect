@@ -17,7 +17,7 @@ BP to add detail
 - Add component for handling the flow run graph and the accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
 
 ### Fixes
-- Check on the existence of flow run instead of deployment for deciding whether to show the params tab — https://github.com/PrefectHQ/prefect/pull/9293
+- Ensure the Prefect UI displays actual parameters used to kick off a flow run — https://github.com/PrefectHQ/prefect/pull/9293
 - Ensure workers only create one client while running — https://github.com/PrefectHQ/prefect/pull/9302
 - Ensure services are drained on global loop shutdown — https://github.com/PrefectHQ/prefect/pull/9307
 - Show logs on pending flow run pages — https://github.com/PrefectHQ/prefect/pull/9313
