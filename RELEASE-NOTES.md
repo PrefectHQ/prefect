@@ -33,7 +33,7 @@ See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Update projects to support multiple deployments — https://github.com/PrefectHQ/prefect/pull/9217
 - Enable filtering flows by work pool at the `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/9308
 - Add `--tail` option to `prefect flow-run logs` CLI — https://github.com/PrefectHQ/prefect/pull/9028
-- Add component for handling the flow run graph and the accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
+- Enhance UI handling of flow run graph and accompanying selection panel — https://github.com/PrefectHQ/prefect/pull/9333
 
 ### Fixes
 - Ensure the Prefect UI displays actual parameters used to kick off a flow run — https://github.com/PrefectHQ/prefect/pull/9293
