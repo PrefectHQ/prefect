@@ -170,7 +170,10 @@ class TestInitProject:
         with open("deployment.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
-        assert contents["work_pool"]["job_variables"]["image"] == "{{ image_name }}"
+        assert (
+            contents["deployments"][0]["work_pool"]["job_variables"]["image"]
+            == "{{ image_name }}"
+        )
 
 
 class TestRegisterFlow:
