@@ -91,6 +91,14 @@ class PausedRun(PrefectException):
     """
 
 
+class UnfinishedRun(PrefectException):
+    """
+    Raised when the result from a run that is not finished is retrieved.
+
+    For example, if a run is in a SCHEDULED, PENDING, CANCELLING, or RUNNING state.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
