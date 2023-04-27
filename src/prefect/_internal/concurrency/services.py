@@ -187,7 +187,7 @@ class QueueService(abc.ABC, Generic[T]):
             return future.result()
 
     @classmethod
-    def drain_all(cls) -> Union[Awaitable, None]:
+    def drain_all(cls, timeout: Optional[float] = None) -> Union[Awaitable, None]:
         """
         Stop all instances of the service and wait for all remaining work to be
         completed.
@@ -201,9 +201,12 @@ class QueueService(abc.ABC, Generic[T]):
             futures.append(instance._drain())
 
         if get_running_loop() is not None:
-            return asyncio.gather(*[asyncio.wrap_future(fut) for fut in futures])
+            return asyncio.wait_for(
+                asyncio.gather(*[asyncio.wrap_future(fut) for fut in futures]),
+                timeout=timeout,
+            )
         else:
-            return concurrent.futures.wait(futures)
+            return concurrent.futures.wait(futures, timeout=timeout)
 
     @classmethod
     def instance(cls: Type[Self], *args) -> Self:

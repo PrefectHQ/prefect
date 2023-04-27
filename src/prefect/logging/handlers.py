@@ -86,11 +86,15 @@ class APILogHandler(logging.Handler):
     def flush(cls):
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
-        completion.
+        completion for up to 5 seconds.
 
         Returns an awaitable if called from an async context.
         """
-        return APILogWorker.drain_all()
+        # We set a timeout of 5s because we don't want to block forever if the worker
+        # is stuck. This can occur when the handler is being shutdown and the
+        # `logging._lock` is held but the worker is attempting to emit logs resulting
+        # in a deadlock.
+        return APILogWorker.drain_all(timeout=5.0)
 
     def emit(self, record: logging.LogRecord):
         """
@@ -192,7 +196,7 @@ class APILogHandler(logging.Handler):
         return len(json.dumps(log).encode())
 
     def close(self):
-        APILogWorker.drain_all()
+        APILogWorker.drain_all(timeout=5.0)
 
 
 class PrefectConsoleHandler(logging.StreamHandler):
