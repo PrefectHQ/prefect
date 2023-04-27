@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, call
 
 import pytest
-
+import concurrent.futures
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import EventLoopThread, WorkerThread
 from prefect.testing.utilities import AsyncMock
@@ -26,6 +26,13 @@ def test_event_loop_thread_with_failure_in_start():
     # The error should propagate to the main thread
     with pytest.raises(ValueError, match="test"):
         event_loop_thread.start()
+
+
+def test_event_loop_thread_start_race_condition():
+    event_loop_thread = EventLoopThread()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for _ in range(10):
+            executor.submit(event_loop_thread.start)
 
 
 def test_event_loop_thread_with_on_shutdown_hook():
