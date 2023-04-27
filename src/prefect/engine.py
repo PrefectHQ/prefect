@@ -376,8 +376,8 @@ async def begin_flow_run(
             task_runner = flow.task_runner
             logger.warning(
                 f"Task runner {type(task_runner).__name__!r} does not implement the"
-                " `duplicate` method and cannot be used in concurrent execution of the"
-                " same flow."
+                " `duplicate` method and will fail if used for concurrent execution of"
+                " the same flow."
             )
 
         logger.debug(
@@ -544,8 +544,8 @@ async def create_and_begin_subflow_run(
                 task_runner = flow.task_runner
                 logger.warning(
                     f"Task runner {type(task_runner).__name__!r} does not implement the"
-                    " `duplicate` method and cannot be used in concurrent execution of"
-                    " the same flow."
+                    " `duplicate` method and will fail if used for concurrent"
+                    " execution of the same flow."
                 )
 
             await stack.enter_async_context(task_runner.start())
