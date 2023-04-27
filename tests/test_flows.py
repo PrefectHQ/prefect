@@ -1,6 +1,7 @@
 import enum
 import inspect
 import sys
+import asyncio
 import time
 from textwrap import dedent
 from typing import List
@@ -751,6 +752,76 @@ class TestSubflowCalls:
             return child(x, y, z)
 
         assert parent(1, 2) == 6
+
+    async def test_concurrent_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow(log_prints=True)
+        async def child(i):
+            assert await test_task() == 1
+            return i
+
+        @flow
+        async def parent():
+            coros = [child(i) for i in range(5)]
+            assert await asyncio.gather(*coros) == list(range(5))
+
+        await parent()
+
+    async def test_recursive_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow
+        async def recurse(i):
+            assert await test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + await recurse(i - 1)
+
+        @flow
+        async def parent():
+            return await recurse(5)
+
+        assert await parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_subflow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        @flow
+        def parent():
+            return recurse(5)
+
+        assert parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_flow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        assert recurse(5) == 5 + 4 + 3 + 2 + 1
 
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow

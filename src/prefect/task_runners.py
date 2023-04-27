@@ -109,6 +109,28 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     def name(self):
         return type(self).__name__.lower().replace("taskrunner", "")
 
+    def duplicate(self):
+        """
+        Return a new task runner instance with the same options.
+        """
+        # The base class returns `NotImplemented` to indicate that this is not yet
+        # implemented by a given task runner.
+        return NotImplemented
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Returns true if the task runners use the same options.
+        """
+        if type(other) == type(self) and (
+            # Compare public attributes for naive equality check
+            # Subclasses should implement this method with a check init option equality
+            {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+            == {k: v for k, v in other.__dict__.items() if not k.startswith("_")}
+        ):
+            return True
+        else:
+            return NotImplemented
+
     @abc.abstractmethod
     async def submit(
         self,
@@ -196,6 +218,9 @@ class SequentialTaskRunner(BaseTaskRunner):
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.SEQUENTIAL
 
+    def duplicate(self):
+        return type(self)()
+
     async def submit(
         self,
         key: UUID,
@@ -243,6 +268,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     @property
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.CONCURRENT
+
+    def duplicate(self):
+        return type(self)()
 
     async def submit(
         self,
