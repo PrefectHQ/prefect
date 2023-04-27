@@ -5,6 +5,24 @@
 ### Deploy many flows at once with projects
 BP to add detail
 
+### Improve run restart behavior
+
+Previously, transitions out of terminal states were allowed in very specific cases:
+
+- A task run could move from a failed/crashed/cancelled state to running if the flow run was retrying
+- A flow run could move to a scheduled (awaiting retry) state
+
+These rules could prevent runs from executing again during manual restarts or worker rescheduling.  We now allow transitions out of terminal states unless the run is completed _and_ has a persisted result to improve our behavior during these cases.
+
+For example, these changes enable the following behaviors:
+
+- A task run that fails and is orchestrated again will run instead of aborting
+- A task run that completes but does not persist its result will run again on flow run retry
+- A flow run may be rescheduled without using the "awaiting retry" name
+- A flow run that fails and is orchestrated again will run instead of aborting
+
+See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
+
 ### Enhancements
 - Add support for recursive flow calls — https://github.com/PrefectHQ/prefect/pull/9342
 - Add support for concurrent runs same flow — https://github.com/PrefectHQ/prefect/pull/9342
