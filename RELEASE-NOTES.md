@@ -10,7 +10,7 @@ Deployments that are declared in a project are independent of each other and can
 
 Because the deployments are all declared in a single YAML file, you can also take advantage of YAML anchors and aliases to avoid duplication in your deployment.yaml file. This enables declaring custom projects actions once and reusing them across different deployments or using the same schedule for multiple deployments.
 
-See https://github.com/PrefectHQ/prefect/pull/9217 for implementation details.
+See https://github.com/PrefectHQ/prefect/pull/9217 for details.
 
 ### Improve run restart behavior
 
