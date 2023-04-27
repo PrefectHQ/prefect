@@ -45,6 +45,7 @@ See  https://github.com/PrefectHQ/prefect/pull/9152 for details.
 - Update `QueueService.send` to wait for the item to be placed in the queue before returning — https://github.com/PrefectHQ/prefect/pull/9318
 - Update `resolve_futures_to_data` and `resolve_futures_to_states` to wait for futures in the correct event loop — https://github.com/PrefectHQ/prefect/pull/9336
 - Fix bug where tasks were not called when debug mode was enabled — https://github.com/PrefectHQ/prefect/pull/9341
+- Fix bug where boolean values for new flow runs created through the UI were not sent if the value matched the deployment's schema default - https://github.com/PrefectHQ/prefect-ui-library/pull/1389
 
 ### Documentation
 - Add tutorial for developing a new worker — https://github.com/PrefectHQ/prefect/pull/9179
