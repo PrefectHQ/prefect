@@ -1792,6 +1792,9 @@ async def resolve_inputs(
     states = set()
     result_by_state = {}
 
+    if not parameters:
+        return {}
+
     def collect_futures_and_states(expr, context):
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
@@ -1862,18 +1865,20 @@ async def resolve_inputs(
         return result_by_state.get(state)
 
     resolved_parameters = {}
-    if parameters:
-        for parameter, value in parameters.items():
-            try:
-                resolved_parameters[parameter] = visit_collection(
-                    value,
-                    visit_fn=resolve_input,
-                    return_data=return_data,
-                    max_depth=max_depth,
-                    remove_annotations=True,
-                    context={},
-                )
-            except Exception as exc:
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_input,
+                return_data=return_data,
+                max_depth=max_depth,
+                remove_annotations=True,
+                context={},
+            )
+        except Exception as exc:
+            if isinstance(exc, UpstreamTaskError):
+                raise
+            else:
                 raise PrefectException(
                     f"Failed to resolve inputs in parameter {parameter!r}. If your"
                     " parameter type is not supported, consider using the `quote`"
