@@ -215,7 +215,9 @@ async def test_worker_discovers_work_pool_type(
     assert workers[0].name == "test-worker"
 
 
-async def test_start_worker_without_type_creates_process_work_pool():
+async def test_start_worker_without_type_creates_process_work_pool(
+    process_work_pool, orion_client: PrefectClient
+):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -237,3 +239,8 @@ async def test_start_worker_without_type_creates_process_work_pool():
             "Worker 'test-worker' stopped!",
         ],
     )
+
+    workers = await orion_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert workers[0].name == "test-worker"
