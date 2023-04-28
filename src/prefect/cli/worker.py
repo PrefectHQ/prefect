@@ -92,17 +92,10 @@ async def start(
         )
     except ObjectNotFound:
         app.console.print(
-            f"Work pool {work_pool_name!r} does not exist. A process type worker will"
-            " be created."
+            f"Work pool {work_pool_name!r} does not exist and no worker type was provided. Starting a process worker...",
+            style="yellow"
         )
-        worker_type = "process"
-        async with get_client() as client:
-            wp = WorkPoolCreate(
-                name=work_pool_name,
-                type=worker_type,
-            )
-            work_pool = await client.create_work_pool(work_pool=wp)
-        worker_cls = lookup_type(BaseWorker, worker_type)
+        worker_cls = ProcessWorker
 
     async with worker_cls(
         name=worker_name,
