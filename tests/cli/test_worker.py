@@ -230,8 +230,8 @@ async def test_start_worker_without_type_creates_process_work_pool():
         expected_code=0,
         expected_output_contains=[
             (
-                "Work pool 'not-here' does not exist. A process type worker will be"
-                " created."
+                "Work pool 'not-here' does not exist and no worker type was"
+                " provided. Starting a process worker..."
             ),
             "Worker 'test-worker' started!",
             "Worker 'test-worker' stopped!",
