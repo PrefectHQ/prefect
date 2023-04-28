@@ -215,7 +215,9 @@ async def test_worker_discovers_work_pool_type(
     assert workers[0].name == "test-worker"
 
 
-async def test_worker_errors_if_no_type_and_non_existent_work_pool():
+async def test_start_worker_without_type_creates_process_work_pool(
+    orion_client: PrefectClient,
+):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -227,9 +229,16 @@ async def test_worker_errors_if_no_type_and_non_existent_work_pool():
             "-n",
             "test-worker",
         ],
-        expected_code=1,
+        expected_code=0,
         expected_output_contains=[
-            "Work pool 'not-here' does not exist. To create a new work pool "
-            "on worker startup, include a worker type with the --type option."
+            (
+                "Work pool 'not-here' does not exist and no worker type was"
+                " provided. Starting a process worker..."
+            ),
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
         ],
     )
+
+    workers = await orion_client.read_workers_for_work_pool(work_pool_name="not-here")
+    assert workers[0].name == "test-worker"
