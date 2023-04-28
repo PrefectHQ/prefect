@@ -51,6 +51,8 @@ def project_dir_with_single_deployment_format(tmp_path):
         with open("deployment.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
+        contents["deployments"][0]["schedule"] = None
+
         with open("deployment.yaml", "w") as f:
             yaml.safe_dump(contents["deployments"][0], f)
 
@@ -63,6 +65,8 @@ def project_dir_with_single_deployment_format(tmp_path):
 
         with open("deployment.yaml", "r") as f:
             contents = yaml.safe_load(f)
+
+        contents["deployments"][0]["schedule"] = None
 
         with open("deployment.yaml", "w") as f:
             yaml.safe_dump(contents["deployments"][0], f)
