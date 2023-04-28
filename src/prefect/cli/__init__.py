@@ -23,3 +23,4 @@ import prefect.cli.variable
 import prefect.cli.work_queue
 import prefect.cli.work_pool
 import prefect.cli.worker
+import prefect.cli.deploy

@@ -123,7 +123,7 @@ Note that Prefect has automatically done a few things for you:
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
-You can customize all of this either by [manually editing `deployment.yaml`](/concepts/projects/#the-deployment-yaml-file) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will always be prioritized over hard-coded values in your deployment's YAML file.
+You can customize all of this either by [manually editing `deployment.yaml`](/concepts/projects/#the-deployment-yaml-file) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
 
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">

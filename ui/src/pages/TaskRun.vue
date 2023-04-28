@@ -13,6 +13,10 @@
         <TaskRunLogs :task-run="taskRun" />
       </template>
 
+      <template #artifacts>
+        <TaskRunArtifacts v-if="taskRun" :task-run="taskRun" />
+      </template>
+
       <template v-if="taskRun" #task-inputs-heading>
         Task inputs
         <ExtraInfoModal title="Task Inputs">
@@ -33,7 +37,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingTaskRun, TaskRunArtifacts, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -45,7 +49,7 @@
   const api = useWorkspaceApi()
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Inputs']
+    const values = ['Logs', 'Artifacts', 'Task Inputs']
 
     if (!media.xl) {
       values.push('Details')
