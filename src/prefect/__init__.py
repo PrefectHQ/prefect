@@ -20,6 +20,16 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
+if sys.version_info < (3, 8):
+    warnings.warn(
+        (
+            "Prefect will drop support for Python 3.7 when it reaches end-of-life on 27"
+            " Jun 2023. To use new versions of Prefect after that date, you will need"
+            " to upgrade to Python 3.8+."
+        ),
+        FutureWarning,
+    )
+
 
 # Import user-facing API
 from prefect.states import State
