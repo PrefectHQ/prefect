@@ -12,3 +12,6 @@ contact_links:
   - name: 🦆 Book a rubber duck
     url: https://calendly.com/prefect-experts/rubber-duck
     about: Book time with a Prefect engineer!
+  - name: 🔒 Report a security issue
+    url: https://www.prefect.io/security/bug-bounty-program/
+    about: Responsibly disclose a potential security issue.
