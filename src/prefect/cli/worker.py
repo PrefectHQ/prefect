@@ -9,7 +9,6 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -18,6 +17,7 @@ from prefect.settings import (
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
+from prefect.workers.process import ProcessWorker
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -92,8 +92,11 @@ async def start(
         )
     except ObjectNotFound:
         app.console.print(
-            f"Work pool {work_pool_name!r} does not exist and no worker type was provided. Starting a process worker...",
-            style="yellow"
+            (
+                f"Work pool {work_pool_name!r} does not exist and no worker type was"
+                " provided. Starting a process worker..."
+            ),
+            style="yellow",
         )
         worker_cls = ProcessWorker
 
