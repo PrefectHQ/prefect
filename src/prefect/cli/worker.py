@@ -17,6 +17,7 @@ from prefect.settings import (
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
+from prefect.workers.process import ProcessWorker
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -90,10 +91,14 @@ async def start(
             "Please ensure that you have installed this worker type on this machine."
         )
     except ObjectNotFound:
-        exit_with_error(
-            f"Work pool {work_pool_name!r} does not exist. To create a new work pool "
-            "on worker startup, include a worker type with the --type option."
+        app.console.print(
+            (
+                f"Work pool {work_pool_name!r} does not exist and no worker type was"
+                " provided. Starting a process worker..."
+            ),
+            style="yellow",
         )
+        worker_cls = ProcessWorker
 
     async with worker_cls(
         name=worker_name,
