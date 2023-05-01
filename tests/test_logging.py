@@ -282,6 +282,18 @@ class TestAPILogHandler:
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
+    @pytest.mark.flaky
+    async def test_logs_can_still_be_sent_after_flush(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        await handler.flush()
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        await handler.flush()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
             logger.info("test-task")
