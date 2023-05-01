@@ -62,6 +62,17 @@ class TestRunStep:
         assert flow.name == "test_value_1:test_value_2"
         assert flow.fn(None) == 42
 
+    async def test_run_step_runs_async_functions(self):
+        output = await run_step(
+            {
+                "anyio.run_process": {
+                    "command": ["echo", "hello world"],
+                }
+            }
+        )
+        assert output.returncode == 0
+        assert output.stdout.decode().strip() == "hello world"
+
 
 class TestGitCloneStep:
     async def test_git_clone_errors_obscure_access_token(self):
