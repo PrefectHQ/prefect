@@ -336,10 +336,16 @@ async def resolve_futures_to_data(
         *[
             # We must wait for the future in the thread it was created in
             from_async.call_soon_in_loop_thread(
-                create_call(future._result, raise_on_failure=False)
+                create_call(future._result, raise_on_failure=raise_on_failure)
             ).aresult()
             for future in futures
         ]
+    )
+    return visit_collection(
+        expr,
+        visit_fn=partial(_replace_futures_with_results, results),
+        return_data=True,
+        context={},
     )
 
     results_by_future = dict(zip(futures, results))
