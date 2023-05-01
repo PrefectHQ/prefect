@@ -830,9 +830,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            return child._run(x)
+            return child(x, return_state=True)
 
-        parent_state = parent._run("foo")
+        parent_state = parent("foo", return_state=True)
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             await parent_state.result()
@@ -843,6 +843,29 @@ class TestSubflowCalls:
         )
         assert flow_run.state.is_failed()
         assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_fails_parent(self):
+        child_state = None
+
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent():
+            nonlocal child_state
+            child_state = child("foo", return_state=True)
+
+            # create a happy child too
+            child(1, return_state=True)
+
+        parent_state = parent(return_state=True)
+
+        assert parent_state.is_failed()
+        assert "1/2 states failed." in parent_state.message
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            await child_state.result()
 
     async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
         self,
