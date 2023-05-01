@@ -2415,7 +2415,7 @@ class TestFlowHooksOnCancellation:
 
         state = my_passing_flow._run()
         assert state.type == StateType.COMPLETED
-        assert my_mock.call_args_list == []
+        assert my_mock.mock_calls == []
 
     def test_on_cancellation_hooks_are_ignored_if_terminal_state_failed(self):
         my_mock = MagicMock()
@@ -2432,7 +2432,7 @@ class TestFlowHooksOnCancellation:
 
         state = my_failing_flow._run()
         assert state.type == StateType.FAILED
-        assert my_mock.call_args_list == []
+        assert my_mock.mock_calls == []
 
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
