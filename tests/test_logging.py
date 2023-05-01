@@ -277,7 +277,7 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        await handler.flush()
+        handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
@@ -287,9 +287,9 @@ class TestAPILogHandler:
         self, logger, handler, flow_run, orion_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
-        await handler.flush()
+        handler.flush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        await handler.flush()
+        handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
