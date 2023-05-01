@@ -10,10 +10,10 @@ Whenever a step is run, the following actions are taken:
 - The step's function is called with the resolved inputs
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
-import inspect
 import subprocess
 import sys
 from typing import Optional
+from prefect._internal.concurrency.api import from_async, Call
 
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
@@ -75,8 +75,4 @@ async def run_step(step: dict) -> dict:
     inputs = await resolve_variables(inputs)
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
-    output = step_func(**inputs)
-    if inspect.isawaitable(output):
-        return await output
-    else:
-        return output
+    return await from_async.wait_for_call_in_new_thread(Call.new(step_func, **inputs))
