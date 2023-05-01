@@ -42,7 +42,7 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
+from prefect.server.schemas.core import Flow as ORMFlow, FlowRun, raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -117,6 +117,7 @@ class Flow(Generic[P, R]):
             loaded from the parent flow.
         on_failure: An optional list of callables to run when the flow enters a failed state.
         on_completion: An optional list of callables to run when the flow enters a completed state.
+        on_cancellation: An optional list of callables to run when the flow enters a cancelled state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -138,8 +139,11 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_cancellation: Optional[
+            List[Callable[[ORMFlow, FlowRun, State], None]]
+        ] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -228,6 +232,7 @@ class Flow(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.on_cancellation = on_cancellation
 
     def with_options(
         self,
@@ -246,8 +251,11 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
-        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_cancellation: Optional[
+            List[Callable[[ORMFlow, FlowRun, State], None]]
+        ] = None,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -274,6 +282,7 @@ class Flow(Generic[P, R]):
                 be cached in memory.
             on_failure: A new list of callables to run when the flow enters a failed state.
             on_completion: A new list of callables to run when the flow enters a completed state.
+            on_cancellation: A new list of callables to run when the flow enters a cancelled state.
 
         Returns:
             A new `Flow` instance.
@@ -337,6 +346,7 @@ class Flow(Generic[P, R]):
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            on_cancellation=on_cancellation or self.on_cancellation,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -550,8 +560,9 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_cancellation: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -573,8 +584,9 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_cancellation: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -625,6 +637,12 @@ def flow(
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
             the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
+        on_completion: An optional list of functions to call when the flow run completes.
+            These functions will be passed the flow, flow run, and final state.
+        on_failure: An optional list of functions to call when the flow run fails.
+            These functions will be passed the flow, flow run, and final state.
+        on_cancellation: An optional list of functions to call when the flow run is
+            cancelled. These functions will be passed the flow, flow run, and final state.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -685,6 +703,7 @@ def flow(
                 log_prints=log_prints,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                on_cancellation=on_cancellation,
             ),
         )
     else:
@@ -708,6 +727,7 @@ def flow(
                 log_prints=log_prints,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                on_cancellation=on_cancellation,
             ),
         )
 

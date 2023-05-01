@@ -2161,7 +2161,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure and on_completion hooks for a flow, making sure to
+    """Run the on_failure, on_completion, and on_cancellation hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2169,6 +2169,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_cancelled() and flow.on_cancellation:
+        hooks = flow.on_cancellation
 
     if hooks:
         logger = flow_run_logger(flow_run)
