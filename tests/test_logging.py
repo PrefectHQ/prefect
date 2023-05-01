@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import time
+from io import StringIO
 import uuid
 from contextlib import nullcontext
 from functools import partial
@@ -1250,6 +1251,24 @@ def test_patch_print_writes_to_stdout_with_run_context_and_no_log_prints(
     assert "foo" not in caplog.text
 
 
+def test_patch_print_does_not_write_to_logger_with_custom_file(
+    caplog, capsys, task_run
+):
+    string_io = StringIO()
+
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            print("foo", file=string_io)
+
+    assert "foo" not in caplog.text
+    assert "foo" not in capsys.readouterr().out
+    assert string_io.getvalue().rstrip() == "foo"
+
+
 def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task_run):
     @task
     def my_task():
@@ -1260,6 +1279,34 @@ def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task
             print("foo")
 
     assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.task_runs"
+    assert record.task_run_id == str(task_run.id)
+    assert record.task_name == my_task.name
+
+
+@pytest.mark.parametrize("file", ["stdout", "stderr"])
+def test_patch_print_writes_to_logger_with_explicit_file(
+    caplog, capsys, task_run, file
+):
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            # We must defer retrieval of sys.<file> because pytest overrides sys!
+            print("foo", file=getattr(sys, file))
+
+    out, err = capsys.readouterr()
+    assert "foo" not in out
+    assert "foo" not in err
     assert "foo" in caplog.text
 
     for record in caplog.records:

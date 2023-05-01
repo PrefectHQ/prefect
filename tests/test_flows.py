@@ -1,6 +1,7 @@
 import enum
 import inspect
 import sys
+import asyncio
 import time
 from textwrap import dedent
 from typing import List
@@ -752,6 +753,76 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    async def test_concurrent_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow(log_prints=True)
+        async def child(i):
+            assert await test_task() == 1
+            return i
+
+        @flow
+        async def parent():
+            coros = [child(i) for i in range(5)]
+            assert await asyncio.gather(*coros) == list(range(5))
+
+        await parent()
+
+    async def test_recursive_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow
+        async def recurse(i):
+            assert await test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + await recurse(i - 1)
+
+        @flow
+        async def parent():
+            return await recurse(5)
+
+        assert await parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_subflow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        @flow
+        def parent():
+            return recurse(5)
+
+        assert parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_flow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        assert recurse(5) == 5 + 4 + 3 + 2 + 1
+
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
         def child(x: int):
@@ -759,9 +830,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            return child._run(x)
+            return child(x, return_state=True)
 
-        parent_state = parent._run("foo")
+        parent_state = parent("foo", return_state=True)
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             await parent_state.result()
@@ -772,6 +843,29 @@ class TestSubflowCalls:
         )
         assert flow_run.state.is_failed()
         assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_fails_parent(self):
+        child_state = None
+
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent():
+            nonlocal child_state
+            child_state = child("foo", return_state=True)
+
+            # create a happy child too
+            child(1, return_state=True)
+
+        parent_state = parent(return_state=True)
+
+        assert parent_state.is_failed()
+        assert "1/2 states failed." in parent_state.message
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            await child_state.result()
 
     async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
         self,

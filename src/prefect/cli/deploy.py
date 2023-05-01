@@ -243,7 +243,7 @@ async def deploy(
                     project=project,
                     options=options,
                 )
-    except Exception as exc:
+    except ValueError as exc:
         exit_with_error(str(exc))
 
 
@@ -256,7 +256,9 @@ async def _run_single_deploy(
 
     base_deploy = _merge_with_default_deployment(base_deploy)
 
-    base_deploy_schedule = base_deploy.get("schedule", {})
+    base_deploy_schedule = base_deploy.get("schedule")
+    if base_deploy_schedule is None:
+        base_deploy_schedule = {}
 
     name = options.get("name") or base_deploy.get("name")
     flow_name = options.get("flow_name") or base_deploy.get("flow_name")
