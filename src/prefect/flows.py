@@ -42,7 +42,7 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.server.schemas.core import Flow as ORMFlow, FlowRun, raise_on_invalid_name
+import prefect.server.schemas as schemas
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -139,10 +139,14 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_completion: Optional[
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        ] = None,
+        on_failure: Optional[
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        ] = None,
         on_cancellation: Optional[
-            List[Callable[[ORMFlow, FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
         ] = None,
     ):
         if not callable(fn):
@@ -150,7 +154,7 @@ class Flow(Generic[P, R]):
 
         # Validate name if given
         if name:
-            raise_on_invalid_name(name)
+            schemas.core.raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
 
@@ -251,10 +255,14 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
-        on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+        on_completion: Optional[
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        ] = None,
+        on_failure: Optional[
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        ] = None,
         on_cancellation: Optional[
-            List[Callable[[ORMFlow, FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
         ] = None,
     ):
         """
@@ -560,9 +568,15 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-    on_cancellation: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
+    on_cancellation: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -584,9 +598,15 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
-    on_cancellation: Optional[List[Callable[[ORMFlow, FlowRun, State], None]]] = None,
+    on_completion: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
+    on_failure: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
+    on_cancellation: Optional[
+        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+    ] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
