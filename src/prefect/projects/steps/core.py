@@ -10,6 +10,7 @@ Whenever a step is run, the following actions are taken:
 - The step's function is called with the resolved inputs
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
+import inspect
 import subprocess
 import sys
 from typing import Optional
@@ -74,4 +75,8 @@ async def run_step(step: dict) -> dict:
     inputs = await resolve_variables(inputs)
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
-    return step_func(**inputs)
+    output = step_func(**inputs)
+    if inspect.isawaitable(output):
+        return await output
+    else:
+        return output
