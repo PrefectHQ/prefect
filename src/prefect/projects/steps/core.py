@@ -75,4 +75,6 @@ async def run_step(step: dict) -> dict:
     inputs = await resolve_variables(inputs)
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
-    return await from_async.wait_for_call_in_new_thread(Call.new(step_func, **inputs))
+    return await from_async.call_soon_in_new_thread(
+        Call.new(step_func, **inputs)
+    ).aresult()
