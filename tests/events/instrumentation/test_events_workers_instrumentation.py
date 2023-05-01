@@ -326,3 +326,13 @@ async def test_worker_emits_cancelled_event(
             "prefect.resource.name": work_pool.name,
         },
     ]
+
+
+def test_job_configuration_related_resources_no_objects():
+    config = BaseJobConfiguration()
+    config._related_objects = {
+        "deployment": None,
+        "flow": None,
+        "flow-run": None,
+    }
+    assert config._related_resources() == []
