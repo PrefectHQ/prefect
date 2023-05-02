@@ -17,11 +17,10 @@ Simply decorating functions as flows and tasks lets you take advantage of the or
 
 ## Attaching metadata to flows
 
-You can attach a `name`, `description`, `version` and other metadata to a flow via [flow arguments](/concepts/flows/#flow-arguments).
+You can attach a `name`, `description`, `version` and other metadata to a flow via [decorator keyword arguments](/api-ref/prefect/flows/#prefect.flows.Flow).
 
 
-### `name`
-The `name` that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of `version` or task structure. If not provided, Prefect will use the name of the flow function.
+You can provide a human-readable `name` for your flow to determine how it should appear in the logs and the UI - if not provided, Prefect will use the name of the flow function.
 
 ```python
 from prefect import flow
@@ -31,7 +30,6 @@ def my_flow():
     # run tasks and subflows
 ```
 
-### `description`
 You can attach a `description` to document your flow, and it will be rendered as markdown in the Prefect UI.
 
 ```python
@@ -47,7 +45,6 @@ def my_flow():
 
 If you don't provide one explicitly, the flow function's docstring will be used as the `description`.
 
-### `version`
 You can set a `version` for your flow to distinguish between different versions of the same flow, for example, a git SHA:
 
 ```python
@@ -65,10 +62,11 @@ def my_flow():
 
 By default, Prefect will attempt to compute a hash of the `.py` file where the flow is defined to automatically detect when your code changes. If this is not possible, `None` will be used as the `version`.
 
-### customizing `flow_run_name`
+### Customizing flow run names
 
-You can distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax:
+You can distinguish runs of a flow by providing a `flow_run_name`; this setting accepts a string that can contain templated references to the parameters of your flow.
 
+The name will be formatted using Python's standard string formatting syntax:
 ```python
 import datetime
 from prefect import flow
@@ -81,7 +79,7 @@ def my_flow(name: str, date: datetime.datetime):
 my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
-Additionally this setting also accepts a function that returns a string for the flow run name:
+Additionally this setting accepts a function that returns a string for the flow run name:
 
 ```python
 import datetime
@@ -173,7 +171,7 @@ def my_flow():
     my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
 
-You can even pass a custom function that returns your desired task run name:
+As with flows, you can pass a custom function that returns your desired task run name:
 
 ```python
 import datetime
