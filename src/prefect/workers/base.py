@@ -254,6 +254,8 @@ class BaseJobConfiguration(BaseModel):
         related = []
 
         for kind, obj in self._related_objects.items():
+            if obj is None:
+                continue
             if hasattr(obj, "tags"):
                 tags.update(obj.tags)
             related.append(object_as_related_resource(kind=kind, role=kind, object=obj))

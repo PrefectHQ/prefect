@@ -459,6 +459,7 @@ async def create_and_begin_subflow_run(
     parent_flow_run_context = FlowRunContext.get()
     parent_logger = get_run_logger(parent_flow_run_context)
     log_prints = should_log_prints(flow)
+    terminal_state = None
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
@@ -515,62 +516,58 @@ async def create_and_begin_subflow_run(
         )
 
         if flow.should_validate_parameters:
-            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception:
                 message = "Validation of flow parameters failed with error:"
                 logger.exception(message)
-                failed_state = await exception_to_failed_state(
-                    message=message, result_factory=result_factory
-                )
-
-            if failed_state is not None:
-                await propose_state(
+                terminal_state = await propose_state(
                     client,
-                    state=failed_state,
+                    state=await exception_to_failed_state(
+                        message=message, result_factory=result_factory
+                    ),
                     flow_run_id=flow_run.id,
                 )
-                return failed_state
 
-        async with AsyncExitStack() as stack:
-            await stack.enter_async_context(
-                report_flow_run_crashes(flow_run=flow_run, client=client)
-            )
-
-            task_runner = flow.task_runner.duplicate()
-            if task_runner is NotImplemented:
-                # Backwards compatibility; will not support concurrent flow runs
-                task_runner = flow.task_runner
-                logger.warning(
-                    f"Task runner {type(task_runner).__name__!r} does not implement the"
-                    " `duplicate` method and will fail if used for concurrent"
-                    " execution of the same flow."
+        if terminal_state is None or not terminal_state.is_final():
+            async with AsyncExitStack() as stack:
+                await stack.enter_async_context(
+                    report_flow_run_crashes(flow_run=flow_run, client=client)
                 )
 
-            await stack.enter_async_context(task_runner.start())
+                task_runner = flow.task_runner.duplicate()
+                if task_runner is NotImplemented:
+                    # Backwards compatibility; will not support concurrent flow runs
+                    task_runner = flow.task_runner
+                    logger.warning(
+                        f"Task runner {type(task_runner).__name__!r} does not implement"
+                        " the `duplicate` method and will fail if used for concurrent"
+                        " execution of the same flow."
+                    )
 
-            if log_prints:
-                stack.enter_context(patch_print())
+                await stack.enter_async_context(task_runner.start())
 
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run=flow_run,
-                parameters=parameters,
-                wait_for=wait_for,
-                # If the parent flow run has a timeout, then this one needs to be
-                # interruptible as well
-                interruptible=parent_flow_run_context.timeout_scope is not None,
-                client=client,
-                partial_flow_run_context=PartialModel(
-                    FlowRunContext,
-                    sync_portal=parent_flow_run_context.sync_portal,
-                    task_runner=task_runner,
-                    background_tasks=parent_flow_run_context.background_tasks,
-                    result_factory=result_factory,
-                    log_prints=log_prints,
-                ),
-            )
+                if log_prints:
+                    stack.enter_context(patch_print())
+
+                terminal_state = await orchestrate_flow_run(
+                    flow,
+                    flow_run=flow_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    # If the parent flow run has a timeout, then this one needs to be
+                    # interruptible as well
+                    interruptible=parent_flow_run_context.timeout_scope is not None,
+                    client=client,
+                    partial_flow_run_context=PartialModel(
+                        FlowRunContext,
+                        sync_portal=parent_flow_run_context.sync_portal,
+                        task_runner=task_runner,
+                        background_tasks=parent_flow_run_context.background_tasks,
+                        result_factory=result_factory,
+                        log_prints=log_prints,
+                    ),
+                )
 
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
