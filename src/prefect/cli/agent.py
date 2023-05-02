@@ -195,6 +195,7 @@ async def start(
                     printer=app.console.print,
                     run_once=run_once,
                     jitter_range=0.3,
+                    backoff=4,  # Up to ~1 minute interval during backoff
                 )
             )
 
@@ -206,6 +207,7 @@ async def start(
                     printer=app.console.print,
                     run_once=run_once,
                     jitter_range=0.3,
+                    backoff=4,
                 )
             )
 
