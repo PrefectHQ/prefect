@@ -205,6 +205,11 @@ class APILogHandler(logging.Handler):
     def _get_payload_size(self, log: Dict[str, Any]) -> int:
         return len(json.dumps(log).encode())
 
+    def close(self):
+        if not get_running_loop():
+            self.flush()
+        super().close()
+
 
 class PrefectConsoleHandler(logging.StreamHandler):
     def __init__(
