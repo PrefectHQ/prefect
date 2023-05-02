@@ -16,6 +16,7 @@ async def critical_service_loop(
     interval: float,
     memory: int = 10,
     consecutive: int = 3,
+    backoff: int = 1,
     printer: Callable[..., None] = print,
     run_once: bool = False,
     jitter_range: float = None,
@@ -24,13 +25,18 @@ async def critical_service_loop(
     Runs the given `workload` function on the specified `interval`, while being
     forgiving of intermittent issues like temporary HTTP errors.  If more than a certain
     number of `consecutive` errors occur, print a summary of up to `memory` recent
-    exceptions to `printer`, then exit.
+    exceptions to `printer`, then begin backoff.
+
+    The loop will exit after reaching the consecutive error limit `backoff` times.
+    On each backoff, the interval will be doubled. On a successful loop, the backoff
+    will be reset.
 
     Args:
         workload: the function to call
         interval: how frequently to call it
         memory: how many recent errors to remember
-        consecutive: how many consecutive errors must we see before we exit
+        consecutive: how many consecutive errors must we see before we begin backoff
+        backoff: how many times we should allow consecutive errors before exiting
         printer: a `print`-like function where errors will be reported
         run_once: if set, the loop will only run once then return
         jitter_range: if set, the interval will be a random variable (rv) drawn from
@@ -40,11 +46,15 @@ async def critical_service_loop(
 
     track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
     failures: Deque[Tuple[Exception, TracebackType]] = deque(maxlen=memory)
+    backoff_count = 0
 
     while True:
         try:
             await workload()
-
+            # Reset the backoff count on success; we may want to consider resetting
+            # this only if the track record is _all_ successful to avoid ending backoff
+            # prematurely
+            backoff_count = 0
             track_record.append(True)
         except httpx.TransportError as exc:
             # httpx.TransportError is the base class for any kind of communications
@@ -101,7 +111,18 @@ async def critical_service_loop(
                 printer("".join(format_exception(None, exception, traceback)))
                 printer()
 
-            raise RuntimeError("Service exceeded error threshold.")
+            backoff_count += 1
+
+            if backoff_count >= backoff:
+                raise RuntimeError("Service exceeded error threshold.")
+
+            # Reset the track record
+            track_record.extend([True] * consecutive)
+            failures.clear()
+            printer(
+                "Backing off due to consecutive errors, using increased interval of "
+                f" {interval * 2**backoff_count}s."
+            )
 
         if run_once:
             return
@@ -109,6 +130,6 @@ async def critical_service_loop(
         if jitter_range is not None:
             sleep = clamped_poisson_interval(interval, clamping_factor=jitter_range)
         else:
-            sleep = interval
+            sleep = interval * 2**backoff_count
 
         await anyio.sleep(sleep)
