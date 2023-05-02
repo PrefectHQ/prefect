@@ -170,3 +170,49 @@ async def test_jittered_sleeps_between_loops(monkeypatch):
     assert statistics.variance(sleep_times) > 0
     assert min(sleep_times) > 42 * (1 - 0.3)
     assert max(sleep_times) < 42 * (1 + 0.3)
+
+
+async def test_captures_all_http_500_errors():
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            httpx.HTTPStatusError(
+                "foo", request=None, response=httpx.Response(status_code=500)
+            ),
+            None,
+            httpx.HTTPStatusError(
+                "foo", request=None, response=httpx.Response(status_code=501)
+            ),
+            None,
+            httpx.HTTPStatusError(
+                "foo", request=None, response=httpx.Response(status_code=502)
+            ),
+            httpx.HTTPStatusError(
+                "foo", request=None, response=httpx.Response(status_code=503)
+            ),
+            UncapturedException,
+        ]
+    )
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0)
+
+    assert workload.await_count == 8
+
+
+async def test_does_not_capture_other_http_status_errors():
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            httpx.HTTPStatusError(
+                "foo", request=None, response=httpx.Response(status_code=403)
+            ),
+            None,
+            UncapturedException,
+        ]
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await critical_service_loop(workload, 0.0)
+
+    assert workload.await_count == 2
