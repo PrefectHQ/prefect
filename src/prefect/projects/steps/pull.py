@@ -7,6 +7,10 @@ import sys
 import urllib.parse
 from typing import Optional
 
+from prefect.logging.loggers import get_logger
+
+projects_logger = get_logger("projects")
+
 
 def set_working_directory(directory: str) -> dict:
     """
@@ -70,4 +74,5 @@ def git_clone_project(
         ) from exc_chain
 
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
+    projects_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
