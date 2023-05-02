@@ -7,7 +7,10 @@ import sys
 import urllib.parse
 from typing import Optional
 
+from prefect.logging.loggers import get_logger
+
 projects_logger = get_logger("projects")
+
 
 def set_working_directory(directory: str) -> dict:
     """
