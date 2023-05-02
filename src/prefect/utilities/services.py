@@ -119,6 +119,10 @@ async def critical_service_loop(
             # Reset the track record
             track_record.extend([True] * consecutive)
             failures.clear()
+            printer(
+                "Backing off due to consecutive errors, using increased interval of "
+                f" {interval * 2**backoff_count}"
+            )
 
         if run_once:
             return
@@ -128,5 +132,4 @@ async def critical_service_loop(
         else:
             sleep = interval * 2**backoff_count
 
-        print(f"sleeping for {sleep}")
         await anyio.sleep(sleep)
