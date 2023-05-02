@@ -7,6 +7,7 @@ import sys
 import urllib.parse
 from typing import Optional
 
+projects_logger = get_logger("projects")
 
 def set_working_directory(directory: str) -> dict:
     """
@@ -70,5 +71,5 @@ def git_clone_project(
         ) from exc_chain
 
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
-    print(f"Cloned repo {repository_url} to directory {directory}")
+    projects_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
