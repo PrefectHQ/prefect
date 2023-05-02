@@ -121,7 +121,7 @@ async def critical_service_loop(
             failures.clear()
             printer(
                 "Backing off due to consecutive errors, using increased interval of "
-                f" {interval * 2**backoff_count}"
+                f" {interval * 2**backoff_count}s."
             )
 
         if run_once:
