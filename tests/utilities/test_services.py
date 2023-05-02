@@ -216,3 +216,147 @@ async def test_does_not_capture_other_http_status_errors():
         await critical_service_loop(workload, 0.0)
 
     assert workload.await_count == 2
+
+
+async def test_backoff_quits_after_6_consecutive_errors_twice(
+    capsys: pytest.CaptureFixture,
+):
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            None,
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="Service exceeded error threshold"):
+        await critical_service_loop(workload, 0.0, consecutive=3, backoff=2)
+
+    assert workload.await_count == 7
+    result = capsys.readouterr()
+    assert "Failed the last 3 attempts" in result.out
+    assert "Examples of recent errors" in result.out
+    assert "httpx.ConnectError: woops" in result.out
+    assert "httpx.TimeoutException: boo" in result.out
+
+
+async def test_backoff_does_not_exit_after_5_consecutive_errors(
+    capsys: pytest.CaptureFixture,
+):
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            None,
+            UncapturedException,
+        ]
+    )
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0, consecutive=3, backoff=2)
+
+    assert workload.await_count == 8
+    result = capsys.readouterr()
+    assert "Failed the last 3 attempts" in result.out
+    assert "Examples of recent errors" in result.out
+    assert "httpx.ConnectError: woops" in result.out
+    assert "httpx.TimeoutException: boo" in result.out
+
+
+async def test_backoff_reset_on_success(
+    capsys: pytest.CaptureFixture,
+):
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            None,  # Reset on success so another 5 should run
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            None,
+            UncapturedException,
+        ]
+    )
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(workload, 0.0, consecutive=3, backoff=2)
+
+    assert workload.await_count == 14
+    result = capsys.readouterr()
+    assert "Failed the last 3 attempts" in result.out
+    assert "Examples of recent errors" in result.out
+    assert "httpx.ConnectError: woops" in result.out
+    assert "httpx.TimeoutException: boo" in result.out
+
+
+async def test_backoff_increases_interval_on_each_consecutive_group(
+    capsys: pytest.CaptureFixture, mock_anyio_sleep
+):
+    workload = AsyncMock(
+        side_effect=[
+            # 1s
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            # 2s
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            httpx.TimeoutException("oofta"),
+            # 4s
+            httpx.TimeoutException("boo"),
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            # 8s
+            httpx.TimeoutException("boo"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            # 16s
+            httpx.ConnectError("woops"),
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            # 32s
+            httpx.ConnectError("woops"),
+            # exit
+            UncapturedException,
+        ]
+    )
+
+    with mock_anyio_sleep.assert_sleeps_for(
+        1 * 2 + 2 * 3 + 4 * 3 + 8 * 3 + 16 * 3 + 32
+    ):
+        with pytest.raises(UncapturedException):
+            await critical_service_loop(workload, 1, consecutive=3, backoff=6)
+
+    assert workload.await_count == 16
+
+
+async def test_sleeps_for_interval(capsys: pytest.CaptureFixture, mock_anyio_sleep):
+    workload = AsyncMock(
+        side_effect=[
+            httpx.TimeoutException("oofta"),
+            httpx.TimeoutException("boo"),
+            None,
+            UncapturedException,
+        ]
+    )
+
+    with mock_anyio_sleep.assert_sleeps_for(1 * 3):
+        with pytest.raises(UncapturedException):
+            await critical_service_loop(workload, 1, consecutive=3)
+
+    assert workload.await_count == 4
