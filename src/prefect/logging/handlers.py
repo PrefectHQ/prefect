@@ -193,6 +193,7 @@ class APILogHandler(logging.Handler):
 
     def close(self):
         APILogWorker.drain_all()
+        super().close()
 
 
 class PrefectConsoleHandler(logging.StreamHandler):
