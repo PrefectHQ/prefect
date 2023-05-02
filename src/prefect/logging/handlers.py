@@ -7,7 +7,6 @@ import warnings
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Type, Union
 
-import threading
 import pendulum
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
@@ -17,7 +16,7 @@ from typing_extensions import Self
 import prefect.context
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.services import BatchedQueueService
-from prefect._internal.concurrency.threads import get_global_loop
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.api import from_sync, create_call
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingContextError
@@ -95,7 +94,7 @@ class APILogHandler(logging.Handler):
         If called in a synchronous context, will only block up to 5s before returning.
         """
 
-        if get_global_loop().thread.ident == threading.get_ident():
+        if get_running_loop():
             # Return an awaitable
             return APILogWorker.drain_all()
         else:
