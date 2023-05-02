@@ -310,13 +310,16 @@ def _collect_futures(futures, expr, context):
 
 
 async def resolve_futures_to_data(
-    expr: Union[PrefectFuture[R, Any], Any]
+    expr: Union[PrefectFuture[R, Any], Any],
+    raise_on_failure: bool = True
 ) -> Union[R, Any]:
     """
-    Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved to their results.
-    Resolving futures to their results may wait for execution to complete and require
-    communication with the API.
+    Recursively walks an expression tree and replaces any PrefectFutures with their results.
+
+    Args:
+        - expr (Union[PrefectFuture, Any]): the expression to resolve futures for
+        - raise_on_failure (bool, optional): whether to raise an exception if a Future has a failed state.
+            Defaults to True.
 
     Unsupported object types will be returned without modification.
     """
@@ -341,6 +344,8 @@ async def resolve_futures_to_data(
             for future in futures
         ]
     )
+
+    # Replace futures with their results
     return visit_collection(
         expr,
         visit_fn=partial(_replace_futures_with_results, results),
