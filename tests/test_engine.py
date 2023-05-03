@@ -1262,13 +1262,15 @@ class TestFlowRunCrashes:
         assert flow_run.state.type != StateType.CRASHED
 
     async def test_report_flow_run_crashes_handles_sigterm(
-        self, flow_run, orion_client, monkeypatch
+        self, flow_run, orion_client, monkeypatch, parameterized_flow
     ):
         original_handler = Mock()
         signal.signal(signal.SIGTERM, original_handler)
 
         with pytest.raises(TerminationSignal):
-            async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
+            async with report_flow_run_crashes(
+                flow_run=flow_run, client=orion_client, flow=parameterized_flow
+            ):
                 assert signal.getsignal(signal.SIGTERM) != original_handler
                 os.kill(os.getpid(), signal.SIGTERM)
 
