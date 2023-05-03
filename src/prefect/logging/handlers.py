@@ -16,7 +16,9 @@ from typing_extensions import Self
 import prefect.context
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.services import BatchedQueueService
+from prefect._internal.concurrency.threads import get_global_loop
 from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
@@ -89,19 +91,43 @@ class APILogHandler(logging.Handler):
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
 
-        Returns an awaitable if called from an asynchronous context.
-        If called in a synchronous context, will only block up to 5s before returning.
+        Use `aflush` from async contexts instead.
         """
-
-        if get_running_loop():
-            # Return an awaitable
-            return APILogWorker.drain_all()
+        loop = get_running_loop()
+        if loop:
+            # Not ideal, but this method is called by the stdlib and cannot return a
+            # coroutine.
+            if get_global_loop()._loop == loop:
+                raise RuntimeError(
+                    "Cannot call `APILogWorker.flush` from the global event loop; it"
+                    " would"
+                )
+            return from_sync.call_soon_in_new_thread(
+                create_call(APILogWorker.drain_all)
+            ).result()
         else:
             # We set a timeout of 5s because we don't want to block forever if the worker
             # is stuck. This can occur when the handler is being shutdown and the
             # `logging._lock` is held but the worker is attempting to emit logs resulting
             # in a deadlock.
             return APILogWorker.drain_all(timeout=5)
+
+    @classmethod
+    def aflush(cls):
+        """
+        Tell the `APILogWorker` to send any currently enqueued logs and block until
+        completion.
+
+        If called in a synchronous context, will only block up to 5s before returning.
+        """
+
+        if not get_running_loop():
+            raise RuntimeError(
+                "`aflush` cannot be used from a synchronous context; use `flush`"
+                " instead."
+            )
+
+        return APILogWorker.drain_all()
 
     def emit(self, record: logging.LogRecord):
         """

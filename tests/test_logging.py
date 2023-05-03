@@ -68,12 +68,6 @@ def dictConfigMock(monkeypatch):
     prefect.logging.configuration.PROCESS_LOGGING_CONFIG = old
 
 
-@pytest.fixture(autouse=True)
-async def flush_after_test():
-    yield
-    await APILogHandler.flush()
-
-
 @pytest.fixture
 async def logger_test_deployment(orion_client):
     """
@@ -281,10 +275,10 @@ class TestAPILogHandler:
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, orion_client
     ):
-        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        await handler.flush()
+        await handler.aflush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
@@ -293,13 +287,23 @@ class TestAPILogHandler:
     async def test_logs_can_still_be_sent_after_flush(
         self, logger, handler, flow_run, orion_client
     ):
-        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
-        await handler.flush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        await handler.flush()
+        await handler.aflush()
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        await handler.aflush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    @pytest.mark.flaky
+    async def test_sync_flush_from_async_context(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
