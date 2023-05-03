@@ -108,7 +108,7 @@ Check the status of your Prefect worker deployment:
 
 ```bash
 
-kubectl get pods -n prefect-worker
+kubectl get pods -n prefect
 ```
 
 
