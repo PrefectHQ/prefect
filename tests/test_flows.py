@@ -223,6 +223,7 @@ class TestFlowWithOptions:
             cache_result_in_memory=False,
             on_completion=[],
             on_failure=[],
+            on_crashed=[],
         )
         def initial_flow():
             pass
@@ -232,6 +233,9 @@ class TestFlowWithOptions:
 
         def success_hook(task, task_run, state):
             return print("Meow!")
+
+        def crash_hook(task, task_run, state):
+            return print("Crash!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
@@ -248,6 +252,7 @@ class TestFlowWithOptions:
             cache_result_in_memory=True,
             on_completion=[success_hook],
             on_failure=[failure_hook],
+            on_crashed=[crash_hook],
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -264,6 +269,7 @@ class TestFlowWithOptions:
         assert flow_with_options.cache_result_in_memory is True
         assert flow_with_options.on_completion == [success_hook]
         assert flow_with_options.on_failure == [failure_hook]
+        assert flow_with_options.on_crashed == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -2392,3 +2398,115 @@ class TestFlowHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
+
+
+class TestFlowHooksOnCrashed:
+    def test_on_crashed_hooks_run_on_crashed_state(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_completed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_passing_flow():
+            pass
+
+        state = my_passing_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.mock_calls == []
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_failed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_failing_flow():
+            raise Exception("Failing flow")
+
+        state = my_failing_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.mock_calls == []
+
+    def test_other_crashed_hooks_run_if_one_hook_fails(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def crashed2(flow, flow_run, state):
+            raise Exception("Failing flow")
+
+        def crashed3(flow, flow_run, state):
+            my_mock("crashed3")
+
+        @flow(on_crashed=[crashed1, crashed2, crashed3])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_crashed_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_crashed=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call(), call()]
+
+    def test_on_crashed_hook_on_subflow_succeeds(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @flow(on_crashed=[crashed1])
+        def subflow():
+            return State(type=StateType.CRASHED)
+
+        @flow(on_failure=[failed1])
+        def my_flow():
+            subflow()
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
