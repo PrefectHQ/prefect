@@ -12,11 +12,7 @@ import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.event_loop import (
-    call_in_loop,
-    get_running_loop,
-    call_soon_in_loop,
-)
+from prefect._internal.concurrency.event_loop import get_running_loop, call_soon_in_loop
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.logging import get_logger
 
@@ -91,8 +87,6 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
 
             self._stopped = True
-            # Do not wait for the item to be placed in the queue to prevent deadlock
-            # when the service is busy handling items
             call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
     def send(self, item: T):
@@ -108,7 +102,7 @@ class QueueService(abc.ABC, Generic[T]):
             if not self._started:
                 self._early_items.append(item)
             else:
-                call_in_loop(
+                call_soon_in_loop(
                     self._loop, self._queue.put_nowait, self._prepare_item(item)
                 )
 
