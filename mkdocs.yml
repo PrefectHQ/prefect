@@ -168,6 +168,7 @@ nav:
         - Deployment:
             - Docker: guides/deployment/docker.md
             - Azure Container Instance: guides/deployment/aci.md
+            - Kubernetes: guides/deployment/helm.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
