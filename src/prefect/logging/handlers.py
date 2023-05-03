@@ -100,7 +100,8 @@ class APILogHandler(logging.Handler):
             if get_global_loop()._loop == loop:
                 raise RuntimeError(
                     "Cannot call `APILogWorker.flush` from the global event loop; it"
-                    " would"
+                    " would block the event loop and cause a deadlock. Use"
+                    " `APILogWorker.aflush` instead."
                 )
             return from_sync.call_soon_in_new_thread(
                 create_call(APILogWorker.drain_all)
