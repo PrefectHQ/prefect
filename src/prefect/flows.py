@@ -43,6 +43,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 import prefect.server.schemas as schemas
+from prefect.client.schemas import FlowRun
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -140,13 +141,13 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_failure: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
         if not callable(fn):
@@ -256,13 +257,13 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_failure: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
         """
@@ -569,10 +570,10 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -596,13 +597,13 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
 ):
     """

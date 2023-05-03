@@ -2490,3 +2490,23 @@ class TestFlowHooksOnCrashed:
 
         my_flow._run()
         assert my_mock.mock_calls == [call(), call()]
+
+    def test_on_crashed_hook_on_subflow_succeeds(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @flow(on_crashed=[crashed1])
+        def subflow():
+            return State(type=StateType.CRASHED)
+
+        @flow(on_failure=[failed1])
+        def my_flow():
+            subflow()
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("failed1")]

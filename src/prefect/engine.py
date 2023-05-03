@@ -532,7 +532,7 @@ async def create_and_begin_subflow_run(
         if terminal_state is None or not terminal_state.is_final():
             async with AsyncExitStack() as stack:
                 await stack.enter_async_context(
-                    report_flow_run_crashes(flow_run=flow_run, client=client)
+                    report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
                 )
 
                 task_runner = flow.task_runner.duplicate()
@@ -1709,9 +1709,7 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(
-    flow_run: FlowRun, client: PrefectClient, flow: Flow = None
-):
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1750,12 +1748,11 @@ async def report_flow_run_crashes(
 
             # Only `on_crashed` flow run state change hook is called here
             # We call the hook after the state is set to `CRASHED`
-            if flow is not None:
-                await _run_flow_hooks(
-                    flow=flow,
-                    flow_run=flow_run,
-                    state=state,
-                )
+            await _run_flow_hooks(
+                flow=flow,
+                flow_run=flow_run,
+                state=state,
+            )
 
         if isinstance(exc, TerminationSignal):
             # Termination signals are swapped out during a flow run to perform
