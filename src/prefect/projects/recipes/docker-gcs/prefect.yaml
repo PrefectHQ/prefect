@@ -13,6 +13,7 @@ build:
       image_name: null
       tag: null
       dockerfile: "{{ dockerfile }}"
+      push: true
 
 push: 
   - prefect_gcp.projects.steps.push_project_to_gcs:
