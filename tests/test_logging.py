@@ -23,6 +23,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -304,6 +305,17 @@ class TestAPILogHandler:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 1
+
+    @pytest.mark.flaky
+    def test_sync_flush_from_global_event_loop(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        with pytest.raises(RuntimeError, match="would block"):
+            from_sync.call_soon_in_loop_thread(create_call(handler.flush)).result()
+
+    @pytest.mark.flaky
+    def test_sync_flush_from_sync_context(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
