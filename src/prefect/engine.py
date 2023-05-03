@@ -357,7 +357,7 @@ async def begin_flow_run(
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
+            report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
         )
 
         # Create a task group for background tasks
@@ -1709,7 +1709,9 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
+async def report_flow_run_crashes(
+    flow_run: FlowRun, client: PrefectClient, flow: Flow = None
+):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1745,6 +1747,13 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
+
+            if flow is not None:
+                await _run_flow_hooks(
+                    flow=flow,
+                    flow_run=flow_run,
+                    state=state,
+                )
 
         if isinstance(exc, TerminationSignal):
             # Termination signals are swapped out during a flow run to perform
@@ -2158,7 +2167,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure and on_completion hooks for a flow, making sure to
+    """Run the on_failure, on_completion, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2166,6 +2175,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_crashed() and flow.on_crashed:
+        hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)
