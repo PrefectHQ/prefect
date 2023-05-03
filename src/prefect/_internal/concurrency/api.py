@@ -21,7 +21,6 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
     return Call.new(__fn, *args, **kwargs)
 
 
-@staticmethod
 def _cast_to_call(call_like: Union[Callable[[], T], Call[T]]) -> Call[T]:
     if isinstance(call_like, Call):
         return call_like
