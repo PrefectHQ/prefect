@@ -266,32 +266,29 @@ class TestAPILogHandler:
         yield logger
         logger.removeHandler(handler)
 
-    def test_worker_is_not_flushed_on_handler_close(self, mock_log_worker):
+    def test_worker_is_flushed_on_sync_handler_close(self, mock_log_worker):
         handler = APILogHandler()
         handler.close()
-        mock_log_worker.drain_all.assert_not_called()
+        mock_log_worker.drain_all.assert_called_once()
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, orion_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush()
+        await handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
-    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_flush(
         self, logger, handler, flow_run, orion_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
-        handler.flush()
+        await handler.flush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush()
-
+        await handler.flush()
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
