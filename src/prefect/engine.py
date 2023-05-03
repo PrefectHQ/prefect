@@ -1748,6 +1748,8 @@ async def report_flow_run_crashes(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
+            # Only `on_crashed` flow run state change hook is called here
+            # We call the hook after the state is set to `CRASHED`
             if flow is not None:
                 await _run_flow_hooks(
                     flow=flow,
