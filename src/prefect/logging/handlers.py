@@ -7,7 +7,6 @@ import warnings
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Type, Union
 
-import threading
 import pendulum
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
@@ -17,8 +16,7 @@ from typing_extensions import Self
 import prefect.context
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.services import BatchedQueueService
-from prefect._internal.concurrency.threads import get_global_loop
-from prefect._internal.concurrency.api import from_sync, create_call
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
@@ -91,11 +89,11 @@ class APILogHandler(logging.Handler):
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
 
-        Returns an awaitable if called from the global event loop.
+        Returns an awaitable if called from an asynchronous context.
         If called in a synchronous context, will only block up to 5s before returning.
         """
 
-        if get_global_loop().thread.ident == threading.get_ident():
+        if get_running_loop():
             # Return an awaitable
             return APILogWorker.drain_all()
         else:
@@ -103,9 +101,7 @@ class APILogHandler(logging.Handler):
             # is stuck. This can occur when the handler is being shutdown and the
             # `logging._lock` is held but the worker is attempting to emit logs resulting
             # in a deadlock.
-            return from_sync.call_soon_in_loop_thread(
-                create_call(APILogWorker.drain_all)
-            ).result(timeout=5)
+            return APILogWorker.drain_all(timeout=5)
 
     def emit(self, record: logging.LogRecord):
         """

@@ -68,6 +68,12 @@ def dictConfigMock(monkeypatch):
     prefect.logging.configuration.PROCESS_LOGGING_CONFIG = old
 
 
+@pytest.fixture(autouse=True)
+async def flush_after_test():
+    yield
+    await APILogHandler.flush()
+
+
 @pytest.fixture
 async def logger_test_deployment(orion_client):
     """
@@ -278,7 +284,7 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush()
+        await handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
@@ -288,9 +294,9 @@ class TestAPILogHandler:
         self, logger, handler, flow_run, orion_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
-        handler.flush()
+        await handler.flush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush()
+        await handler.flush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
