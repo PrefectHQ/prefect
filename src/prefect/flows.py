@@ -575,6 +575,9 @@ def flow(
     on_failure: Optional[
         List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
+    on_crashed: Optional[
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+    ] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
