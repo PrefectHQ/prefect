@@ -90,7 +90,7 @@ class APILogHandler(logging.Handler):
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
 
-        Returns an awaitable if called from the global event loop.
+        Returns an awaitable if called from an asynchronous context.
         If called in a synchronous context, will only block up to 5s before returning.
         """
 
