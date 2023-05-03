@@ -408,8 +408,8 @@ The path of the result file in the result storage can be configured with the `re
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem, S3
 
-@flow()
-def my_flow(result_storage=S3(bucket_path="my-bucket")):
+@flow(result_storage=S3(bucket_path="my-bucket"))
+def my_flow():
     my_task()
 
 @task(persist_result=True, result_storage_key="my_task.json")
