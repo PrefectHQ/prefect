@@ -169,6 +169,7 @@ nav:
             - Azure Container Instance: guides/deployment/aci.md
             - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
             - Developing a New Worker Type: guides/deployment/developing-a-new-worker-type.md
+            - ECS Flow Run Infra Guide: guides/deployment/ecs-flow-run-infra.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
