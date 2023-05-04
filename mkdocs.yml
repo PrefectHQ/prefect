@@ -13,7 +13,7 @@ extra_css:
 extra_javascript:
     - js/termynal.js
     - js/custom.js
-markdown_extensions:    
+markdown_extensions:
     - admonition
     - attr_list
     - codehilite
@@ -120,7 +120,6 @@ nav:
         - Projects: tutorial/projects.md
         - Deployments: tutorial/deployments.md
         - Storage & Infrastructure: tutorial/storage.md
-        - Developing a New Worker Type: tutorial/developing-a-new-worker-type.md
     - Concepts:
         - concepts/index.md
         - Develop:
@@ -131,10 +130,10 @@ nav:
             - States: concepts/states.md
             - Blocks: concepts/blocks.md
             - Variables: concepts/variables.md
-            - Task Runners: concepts/task-runners.md 
+            - Task Runners: concepts/task-runners.md
             - Runtime Context: concepts/runtime-context.md
             - Profiles & Configuration: concepts/settings.md
-        - Deploy: 
+        - Deploy:
             - Deployments: concepts/deployments.md
             - Projects: concepts/projects.md
             - Work Pools, Workers & Agents: concepts/work-pools.md
@@ -148,7 +147,7 @@ nav:
         - Cloud Quickstart: cloud/cloud-quickstart.md
         - Workspaces: cloud/workspaces.md
         - Organizations: cloud/organizations.md
-        - Users: 
+        - Users:
             - cloud/users/index.md
             - Roles (RBAC): cloud/users/roles.md
             - API Keys: cloud/users/api-keys.md
@@ -159,9 +158,9 @@ nav:
         - Automations: cloud/automations.md
         - API Rate Limits: cloud/rate-limits.md
         - Connecting & Troubleshooting: cloud/connecting.md
-    - Host: 
+    - Host:
         - host/index.md
-    - Guides: 
+    - Guides:
         - guides/index.md
         - Testing: guides/testing.md
         - Dask & Ray: guides/dask-ray-task-runners.md
@@ -169,6 +168,7 @@ nav:
             - Docker: guides/deployment/docker.md
             - Azure Container Instance: guides/deployment/aci.md
             - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
+            - Developing a New Worker Type: guides/deployment/developing-a-new-worker-type.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
@@ -194,7 +194,7 @@ nav:
                 - 'prefect.projects.base': api-ref/prefect/projects/base.md
                 - 'prefect.projects.steps.core': api-ref/prefect/projects/steps/core.md
                 - 'prefect.projects.steps.pull': api-ref/prefect/projects/steps/pull.md
-            - 'prefect.runtime': 
+            - 'prefect.runtime':
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
                 - 'prefect.runtime.task_run': api-ref/prefect/runtime/task_run.md
@@ -281,10 +281,10 @@ nav:
                 - 'server.utilities.database': api-ref/server/utilities/database.md
                 - 'server.utilities.schemas': api-ref/server/utilities/schemas.md
                 - 'server.utilities.server': api-ref/server/utilities/server.md
-        - REST API: 
+        - REST API:
             - Prefect REST API Overview: api-ref/rest-api.md
             - Prefect REST API Reference: api-ref/rest-api-reference.md
-    - Community: 
+    - Community:
         - community/index.md
         - Contributing: contributing/overview.md
         - Style: contributing/style.md
