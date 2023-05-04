@@ -9,15 +9,19 @@ tags:
     - subflows
 ---
 
-
-
 # Flows and tasks
+- [Run a basic flow](#run-a-basic-flow)
+- [Run flows with parameters](#run-flows-with-parameters)
+- [Run a basic flow with tasks](#run-a-basic-flow-with-tasks)
+- [Run a flow within a flow](#run-a-flow-within-a-flow)
+- [Parameter type conversion](#parameter-type-conversion)
+
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.se
 
 Some important things to know about flows:
 1. All Prefect workflows are defined within the context of a flow.
@@ -88,7 +92,7 @@ Let's run the `call_api()` flow, passing a valid URL as a parameter. In this cas
 
 ## Run a basic flow with tasks
 
-Let's now add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level.
+Let's add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level.
 
 A task is a function that represents a distinct piece of work executed within a flow. You don't have to use tasks &mdash; you can include all of the logic of your workflow within the flow itself. However, encapsulating your business logic into smaller task units gives you more granular observability, control over how specific tasks are run (potentially taking advantage of parallel execution), and the ability to reuse tasks across flows and subflows.
 
@@ -292,3 +296,5 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 
 !!! tip "Next steps: Flow and task configuration"
     Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
+
+[def]: #flows-and-tasks
