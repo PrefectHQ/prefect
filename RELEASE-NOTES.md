@@ -66,7 +66,6 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
 - Fix bug where work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
 - Fix bug where child flows would not fail the parent when they received invalid parameters — https://github.com/PrefectHQ/prefect/pull/9386
-- Fix parameter schema mapping to enable editing of deployment default parameter values  [`#1398`](https://github.com/PrefectHQ/prefect-ui-library/pull/1398)
 - Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
 - Add a check for color scheme to ensure the flow run state favicon is visible [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
 
