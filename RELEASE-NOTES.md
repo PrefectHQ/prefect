@@ -28,7 +28,7 @@ if __name__ == '__main__':
     my_flow()
 ```
 
-Now, if your flow crashes, `crash_hook` will be executed! Notably, you can also call the same hook for a variety of terminal states, or call multiple hooks for the same terminal state, e.g.
+Now, if your flow crashes, `crash_hook` will be executed! Notably, you can also call the same hook for a variety of terminal states, or call multiple hooks for the same terminal state. For example:
 
 ```python
 @flow(on_crashed=[my_hook], on_failure=[my_hook])
