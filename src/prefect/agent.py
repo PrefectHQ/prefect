@@ -3,6 +3,7 @@ The agent is responsible for checking for flow runs that are ready to run and st
 their execution.
 """
 import inspect
+import itertools
 from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
 
@@ -202,7 +203,7 @@ class PrefectAgent:
 
         else:
             # keep each work queue's list of flow runs to do
-            queue_flow_lists = []
+            queue_flow_lists: List[List[FlowRun]] = []
 
             # load runs from each work queue
             async for work_queue in self.get_work_queues():
@@ -235,7 +236,8 @@ class PrefectAgent:
             # if we do round robin scheduling, transpose the queues' lists of flow runs, and
             # then flatten the list
             if self.round_robin:
-                submittable_runs = [x for xs in zip(*queue_flow_lists) for x in list(xs)]
+                transposed = list(map(list, itertools.zip_longest(*queue_flow_lists, fillvalue=None)))
+                submittable_runs = [x for xs in transposed for x in list(xs) if x is not None]
             # otherwise we simply flatten the list and sort it
             else:
                 submittable_runs = [x for ls in queue_flow_lists for x in ls]
