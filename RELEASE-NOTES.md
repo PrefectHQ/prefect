@@ -65,7 +65,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix issue preventing work pool filter from being applied to the flow runs page — https://github.com/PrefectHQ/prefect/pull/9390
 - Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
 - Fix bug with work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
-- Fix bug where child flows would not fail the parent when they received invalid parameters — https://github.com/PrefectHQ/prefect/pull/9386
+- Fix bug where child flows would not fail the parent when they received invalid arguments — https://github.com/PrefectHQ/prefect/pull/9386
 - Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited — [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
 - Add a check for color scheme to ensure the flow run state favicon is visible — [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
 
