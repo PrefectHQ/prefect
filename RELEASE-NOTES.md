@@ -72,7 +72,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
 - Add `Additional Resources` Section to Work Pools, Workers, & Agents page — https://github.com/PrefectHQ/prefect/pull/9393
-- Fix mistaken placement of `result_storage` argument — https://github.com/PrefectHQ/prefect/pull/9422
+- Fix mistaken placement of `result_storage` parameter — https://github.com/PrefectHQ/prefect/pull/9422
 - Add concept list to concept section parent page — https://github.com/PrefectHQ/prefect/pull/9404
 - Add Paused and Cancelling states to states concept page — https://github.com/PrefectHQ/prefect/pull/9435
 - Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
