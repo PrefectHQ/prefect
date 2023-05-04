@@ -116,7 +116,7 @@ async def delete(id: UUID):
     async with get_client() as client:
         try:
             await client.delete_flow_run(id)
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run '{id}' not found!")
 
     exit_with_success(f"Successfully deleted flow run '{id}'.")
@@ -131,7 +131,7 @@ async def cancel(id: UUID):
             result = await client.set_flow_run_state(
                 flow_run_id=id, state=cancelling_state
             )
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run '{id}' not found!")
 
     if result.status == SetStateStatus.ABORT:
@@ -160,8 +160,8 @@ async def logs(
         "--num-logs",
         "-n",
         help=(
-            "Number of logs to show when using the --head flag. If None, defaults to"
-            f" {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
+            "Number of logs to show when using the --head or --tail flag. If None,"
+            f" defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
         ),
         min=1,
     ),
@@ -170,6 +170,15 @@ async def logs(
         "--reverse",
         "-r",
         help="Reverse the logs order to print the most recent logs first",
+    ),
+    tail: bool = typer.Option(
+        False,
+        "--tail",
+        "-t",
+        help=(
+            f"Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
+            " all logs."
+        ),
     ),
 ):
     """
@@ -180,11 +189,19 @@ async def logs(
     more_logs = True
     num_logs_returned = 0
 
-    # If head is specified, we need to stop after we've retrieved enough logs
-    if head or num_logs:
-        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-    else:
-        user_specified_num_logs = None
+    # if head and tail flags are being used together
+    if head and tail:
+        exit_with_error("Please provide either a `head` or `tail` option but not both.")
+
+    user_specified_num_logs = (
+        num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+        if head or tail or num_logs
+        else None
+    )
+
+    # if using tail update offset according to LOGS_DEFAULT_PAGE_SIZE
+    if tail:
+        offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
@@ -192,14 +209,16 @@ async def logs(
         # Get the flow run
         try:
             flow_run = await client.read_flow_run(id)
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             exit_with_error(f"Flow run {str(id)!r} not found!")
 
         while more_logs:
             num_logs_to_return_from_page = (
                 LOGS_DEFAULT_PAGE_SIZE
                 if user_specified_num_logs is None
-                else min(LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs)
+                else min(
+                    LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
+                )
             )
 
             # Get the next page of logs
@@ -209,13 +228,12 @@ async def logs(
                 offset=offset,
                 sort=(
                     schemas.sorting.LogSort.TIMESTAMP_DESC
-                    if reverse
+                    if reverse or tail
                     else schemas.sorting.LogSort.TIMESTAMP_ASC
                 ),
             )
 
-            # Print the logs
-            for log in page_logs:
+            for log in reversed(page_logs) if tail and not reverse else page_logs:
                 app.console.print(
                     # Print following the flow run format (declared in logging.yml)
                     (
@@ -229,8 +247,20 @@ async def logs(
             # Update the number of logs retrieved
             num_logs_returned += num_logs_to_return_from_page
 
-            if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
-                offset += LOGS_DEFAULT_PAGE_SIZE
+            if tail:
+                #  If the current offset is not 0, update the offset for the next page
+                if offset != 0:
+                    offset = (
+                        0
+                        # Reset the offset to 0 if there are less logs than the LOGS_DEFAULT_PAGE_SIZE to get the remaining log
+                        if offset < LOGS_DEFAULT_PAGE_SIZE
+                        else offset - LOGS_DEFAULT_PAGE_SIZE
+                    )
+                else:
+                    more_logs = False
             else:
-                # No more logs to show, exit
-                more_logs = False
+                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
+                    offset += LOGS_DEFAULT_PAGE_SIZE
+                else:
+                    # No more logs to show, exit
+                    more_logs = False

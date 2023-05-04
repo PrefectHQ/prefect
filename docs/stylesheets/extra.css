@@ -51,6 +51,7 @@
 nav.md-code__nav {
     margin-top: 20px;
 }
+
 /* Image drop shadow, separates browser from background */
 img {
     margin-top: 1rem;
@@ -159,6 +160,32 @@ to force column width */
     vertical-align: super;
     text-align: center;
     border-radius: 5px;
+}
+
+/* apply extra styling to badges inside h1 and h2 elements */
+:where(h1, h2) > .badge::before {
+    position: relative;
+    top: -0.42rem;
+    font-weight: 600;
+    margin-left: 0.25rem;
+    vertical-align: super;
+    font-size: 0.63rem;
+    border-radius: 15px;
+}
+
+:is(h1) > .badge::before {
+    margin-left: 0.4rem;
+}
+
+/* badges appearing immediately after another badge 
+ *  should not have additional left margin */
+:is(.badge + .badge)::before {
+    margin-left: 0;
+}
+
+/* Avoid displaying badges in the right sidebar */
+.md-sidebar--secondary .badge {
+    display: none;
 }
 
 .badge-api::before {
@@ -363,11 +390,11 @@ to force column width */
 }
 
 .main-button--primary {
-    background: linear-gradient(90deg,#0a082e,#5988e3);
+    background: linear-gradient(90deg, #0a082e, #5988e3);
     color: white !important;
     border: none !important;
     font-weight: 400 !important;
-    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    clip-path: polygon(0 0, 0 0, 100% 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0 100%);
     padding-right: 10px;
     border-radius: 3px !important;
 }
@@ -379,11 +406,11 @@ to force column width */
 }
 
 .main-button--secondary {
-    background: linear-gradient(90deg,#5988e3,#5988e3);
+    background: linear-gradient(90deg, #5988e3, #5988e3);
     color: white !important;
     border: none !important;
     font-weight: 400 !important;
-    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    clip-path: polygon(0 0, 0 0, 100% 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0 100%);
     border-radius: 3px !important;
 }
 
@@ -404,7 +431,7 @@ to force column width */
 /* At 76.1875em, the hamburger menu disappears 
    and users see the full nav menu */
 @media screen and (min-width: 76.1875em) {
-    div[class="md-header__topic"]:not([data-md-component="header-topic"]) > span {
+    div[class="md-header__topic"]:not([data-md-component="header-topic"])>span {
         display: none;
     }
 }
@@ -425,7 +452,7 @@ to force column width */
 
 /* Mobile nav menu appears at 76.1875em */
 @media screen and (max-width: 76.1875em) {
-    .md-nav--primary .md-nav__title[for=__drawer] { 
+    .md-nav--primary .md-nav__title[for=__drawer] {
         background-color: #0a082e;
     }
 }

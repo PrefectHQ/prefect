@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List, Tuple, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
 
 import pendulum
@@ -24,6 +24,10 @@ class Labelled(PrefectBaseModel):
 
     def __getitem__(self, label: str) -> str:
         return self.__root__[label]
+
+    def __setitem__(self, label: str, value: str) -> str:
+        self.__root__[label] = value
+        return value
 
 
 class Resource(Labelled):
@@ -113,6 +117,19 @@ class Event(PrefectBaseModel):
         default_factory=uuid4,
         description="The client-provided identifier of this event",
     )
+    follows: Optional[UUID] = Field(
+        None,
+        description=(
+            "The ID of an event that is known to have occurred prior to this "
+            "one. If set, this may be used to establish a more precise "
+            "ordering of causally-related events when they occur close enough "
+            "together in time that the system may receive them out-of-order."
+        ),
+    )
+
+    @property
+    def involved_resources(self) -> Iterable[Resource]:
+        return [self.resource] + list(self.related)
 
     @validator("related")
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):

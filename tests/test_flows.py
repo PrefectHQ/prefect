@@ -1,10 +1,11 @@
 import enum
 import inspect
 import sys
+import asyncio
 import time
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
 import pydantic
@@ -21,6 +22,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
@@ -51,6 +53,12 @@ class TestFlow:
         assert f.version == "A"
         assert f.description == "B"
         assert f.flow_run_name == "hi"
+
+    def test_initializes_with_callable_flow_run_name(self):
+        f = Flow(name="test", fn=lambda **kwargs: 42, flow_run_name=lambda: "hi")
+        assert f.name == "test"
+        assert f.fn() == 42
+        assert f.flow_run_name() == "hi"
 
     def test_initializes_with_default_version(self):
         f = Flow(name="test", fn=lambda **kwargs: 42)
@@ -122,13 +130,25 @@ class TestFlow:
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
 
+    def test_invalid_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        with pytest.raises(
+            TypeError,
+            match=(
+                "Expected string or callable for 'flow_run_name'; got"
+                " InvalidFlowRunNameArg instead."
+            ),
+        ):
+            Flow(fn=lambda: 1, name="hello", flow_run_name=InvalidFlowRunNameArg())
+
     def test_using_return_state_in_flow_definition_raises_reserved(self):
         with pytest.raises(
             ReservedArgumentError, match="'return_state' is a reserved argument name"
         ):
-            f = Flow(
-                name="test", fn=lambda return_state: 42, version="A", description="B"
-            )
+            Flow(name="test", fn=lambda return_state: 42, version="A", description="B")
 
     def test_param_description_from_docstring(self):
         def my_fn(x):
@@ -156,10 +176,36 @@ class TestDecorator:
         assert my_flow.fn() == "bar"
         assert my_flow.flow_run_name == "hi"
 
+    def test_flow_decorator_initializes_with_callable_flow_run_name(self):
+        @flow(flow_run_name=lambda: "hi")
+        def my_flow():
+            return "bar"
+
+        assert isinstance(my_flow, Flow)
+        assert my_flow.fn() == "bar"
+        assert my_flow.flow_run_name() == "hi"
+
     def test_flow_decorator_sets_default_version(self):
         my_flow = flow(flatdict_to_dict)
 
         assert my_flow.version == file_hash(flatdict_to_dict.__globals__["__file__"])
+
+    def test_invalid_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        with pytest.raises(
+            TypeError,
+            match=(
+                "Expected string or callable for 'flow_run_name'; got"
+                " InvalidFlowRunNameArg instead."
+            ),
+        ):
+
+            @flow(flow_run_name=InvalidFlowRunNameArg())
+            def flow_with_illegal_run_name():
+                pass
 
 
 class TestFlowWithOptions:
@@ -177,17 +223,24 @@ class TestFlowWithOptions:
             cache_result_in_memory=False,
             on_completion=[],
             on_failure=[],
+            on_crashed=[],
         )
         def initial_flow():
             pass
 
-        failure_hook = lambda task, task_run, state: print("Woof!")
-        success_hook = lambda task, task_run, state: print("Meow!")
+        def failure_hook(task, task_run, state):
+            return print("Woof!")
+
+        def success_hook(task, task_run, state):
+            return print("Meow!")
+
+        def crash_hook(task, task_run, state):
+            return print("Crash!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
             description="A copied flow",
-            flow_run_name="new-name",
+            flow_run_name=lambda: "new-name",
             task_runner=SequentialTaskRunner,
             retries=3,
             retry_delay_seconds=20,
@@ -199,11 +252,12 @@ class TestFlowWithOptions:
             cache_result_in_memory=True,
             on_completion=[success_hook],
             on_failure=[failure_hook],
+            on_crashed=[crash_hook],
         )
 
         assert flow_with_options.name == "Copied flow"
         assert flow_with_options.description == "A copied flow"
-        assert flow_with_options.flow_run_name == "new-name"
+        assert flow_with_options.flow_run_name() == "new-name"
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 5
         assert flow_with_options.retries == 3
@@ -215,6 +269,7 @@ class TestFlowWithOptions:
         assert flow_with_options.cache_result_in_memory is True
         assert flow_with_options.on_completion == [success_hook]
         assert flow_with_options.on_failure == [failure_hook]
+        assert flow_with_options.on_crashed == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -704,6 +759,76 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    async def test_concurrent_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow(log_prints=True)
+        async def child(i):
+            assert await test_task() == 1
+            return i
+
+        @flow
+        async def parent():
+            coros = [child(i) for i in range(5)]
+            assert await asyncio.gather(*coros) == list(range(5))
+
+        await parent()
+
+    async def test_recursive_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow
+        async def recurse(i):
+            assert await test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + await recurse(i - 1)
+
+        @flow
+        async def parent():
+            return await recurse(5)
+
+        assert await parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_subflow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        @flow
+        def parent():
+            return recurse(5)
+
+        assert parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_flow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        assert recurse(5) == 5 + 4 + 3 + 2 + 1
+
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
         def child(x: int):
@@ -711,9 +836,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            return child._run(x)
+            return child(x, return_state=True)
 
-        parent_state = parent._run("foo")
+        parent_state = parent("foo", return_state=True)
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             await parent_state.result()
@@ -724,6 +849,29 @@ class TestSubflowCalls:
         )
         assert flow_run.state.is_failed()
         assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_fails_parent(self):
+        child_state = None
+
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent():
+            nonlocal child_state
+            child_state = child("foo", return_state=True)
+
+            # create a happy child too
+            child(1, return_state=True)
+
+        parent_state = parent(return_state=True)
+
+        assert parent_state.is_failed()
+        assert "1/2 states failed." in parent_state.message
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            await child_state.result()
 
     async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
         self,
@@ -1341,8 +1489,8 @@ class TestFlowRunLogs:
         def my_flow():
             logger = get_run_logger()
             try:
-                x + y
-            except:
+                x + y  # noqa: F821
+            except Exception:
                 logger.error("There was an issue", exc_info=True)
 
         my_flow()
@@ -1491,12 +1639,12 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            fut = my_task()
+            state = my_task(return_state=True)
 
             if flow_run_count == 1:
                 raise ValueError()
 
-            return fut
+            return state.result()
 
         assert foo() == "hello"
         assert flow_run_count == 2
@@ -1940,28 +2088,146 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     assert len(flow_runs) == 1
 
 
-async def test_sets_run_name_when_provided(orion_client):
-    @flow(flow_run_name="hi")
-    def flow_with_name(foo: str = "bar", bar: int = 1):
-        pass
+class TestFlowRunName:
+    async def test_invalid_runtime_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
 
-    state = flow_with_name(return_state=True)
+        @flow
+        def my_flow():
+            pass
 
-    assert state.type == StateType.COMPLETED
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    assert flow_run.name == "hi"
+        my_flow.flow_run_name = InvalidFlowRunNameArg()
 
+        with pytest.raises(
+            TypeError,
+            match=(
+                "Expected string or callable for 'flow_run_name'; got"
+                " InvalidFlowRunNameArg instead."
+            ),
+        ):
+            my_flow()
 
-async def test_sets_run_name_with_params_including_defaults(orion_client):
-    @flow(flow_run_name="hi-{foo}-{bar}")
-    def flow_with_name(foo: str = "one", bar: str = "1"):
-        pass
+    async def test_sets_run_name_when_provided(self, orion_client):
+        @flow(flow_run_name="hi")
+        def flow_with_name(foo: str = "bar", bar: int = 1):
+            pass
 
-    state = flow_with_name(bar="two", return_state=True)
+        state = flow_with_name(return_state=True)
 
-    assert state.type == StateType.COMPLETED
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    assert flow_run.name == "hi-one-two"
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi"
+
+    async def test_sets_run_name_with_params_including_defaults(self, orion_client):
+        @flow(flow_run_name="hi-{foo}-{bar}")
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        state = flow_with_name(bar="two", return_state=True)
+
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi-one-two"
+
+    async def test_sets_run_name_with_function(self, orion_client):
+        def generate_flow_run_name():
+            return "hi"
+
+        @flow(flow_run_name=generate_flow_run_name)
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        state = flow_with_name(bar="two", return_state=True)
+
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi"
+
+    async def test_sets_run_name_with_function_using_runtime_context(
+        self, orion_client
+    ):
+        def generate_flow_run_name():
+            params = flow_run_ctx.parameters
+            tokens = ["hi"]
+            print(f"got the parameters {params!r}")
+            if "foo" in params:
+                tokens.append(str(params["foo"]))
+
+            if "bar" in params:
+                tokens.append(str(params["bar"]))
+
+            return "-".join(tokens)
+
+        @flow(flow_run_name=generate_flow_run_name)
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        state = flow_with_name(bar="two", return_state=True)
+
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi-one-two"
+
+    async def test_sets_run_name_with_function_not_returning_string(self, orion_client):
+        def generate_flow_run_name():
+            pass
+
+        @flow(flow_run_name=generate_flow_run_name)
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=(
+                r"Callable <function"
+                r" TestFlowRunName.test_sets_run_name_with_function_not_returning_string.<locals>.generate_flow_run_name"
+                r" at .*> for 'flow_run_name' returned type NoneType but a string is"
+                r" required."
+            ),
+        ):
+            flow_with_name(bar="two")
+
+    async def test_sets_run_name_once(self):
+        generate_flow_run_name = MagicMock(return_value="some-string")
+
+        def flow_method():
+            pass
+
+        mocked_flow_method = create_autospec(
+            flow_method, side_effect=RuntimeError("some-error")
+        )
+        decorated_flow = flow(flow_run_name=generate_flow_run_name, retries=3)(
+            mocked_flow_method
+        )
+
+        state = decorated_flow(return_state=True)
+
+        assert state.type == StateType.FAILED
+        assert mocked_flow_method.call_count == 4
+        assert generate_flow_run_name.call_count == 1
+
+    async def test_sets_run_name_once_per_call(self):
+        generate_flow_run_name = MagicMock(return_value="some-string")
+
+        def flow_method():
+            pass
+
+        mocked_flow_method = create_autospec(flow_method, return_value="hello")
+        decorated_flow = flow(flow_run_name=generate_flow_run_name)(mocked_flow_method)
+
+        state1 = decorated_flow(return_state=True)
+
+        assert state1.type == StateType.COMPLETED
+        assert mocked_flow_method.call_count == 1
+        assert generate_flow_run_name.call_count == 1
+
+        state2 = decorated_flow(return_state=True)
+
+        assert state2.type == StateType.COMPLETED
+        assert mocked_flow_method.call_count == 2
+        assert generate_flow_run_name.call_count == 2
 
 
 def create_hook(mock_obj):
@@ -2132,3 +2398,115 @@ class TestFlowHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
+
+
+class TestFlowHooksOnCrashed:
+    def test_on_crashed_hooks_run_on_crashed_state(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_completed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_passing_flow():
+            pass
+
+        state = my_passing_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.mock_calls == []
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_failed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_failing_flow():
+            raise Exception("Failing flow")
+
+        state = my_failing_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.mock_calls == []
+
+    def test_other_crashed_hooks_run_if_one_hook_fails(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def crashed2(flow, flow_run, state):
+            raise Exception("Failing flow")
+
+        def crashed3(flow, flow_run, state):
+            my_mock("crashed3")
+
+        @flow(on_crashed=[crashed1, crashed2, crashed3])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_crashed_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_crashed=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call(), call()]
+
+    def test_on_crashed_hook_on_subflow_succeeds(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @flow(on_crashed=[crashed1])
+        def subflow():
+            return State(type=StateType.CRASHED)
+
+        @flow(on_failure=[failed1])
+        def my_flow():
+            subflow()
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("failed1")]

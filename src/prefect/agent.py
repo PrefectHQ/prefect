@@ -165,7 +165,7 @@ class PrefectAgent:
                     # created by some other agent; rather than entering a re-read
                     # loop with new error handling, we log the exception and
                     # continue.
-                    except Exception as exc:
+                    except Exception:
                         self.logger.exception(f"Failed to create work queue {name!r}.")
                         continue
 
@@ -401,9 +401,9 @@ class PrefectAgent:
             deployment.infrastructure_document_id
         )
 
-        # this piece of logic applies any overrides that may have been set on the deployment;
-        # overrides are defined as dot.delimited paths on possibly nested attributes of the
-        # infrastructure block
+        # this piece of logic applies any overrides that may have been set on the
+        # deployment; overrides are defined as dot.delimited paths on possibly nested
+        # attributes of the infrastructure block
         doc_dict = infra_document.dict()
         infra_dict = doc_dict.get("data", {})
         for override, value in (deployment.infra_overrides or {}).items():
@@ -458,7 +458,7 @@ class PrefectAgent:
                             flow_run_id=flow_run.id,
                             infrastructure_pid=str(readiness_result),
                         )
-                    except Exception as exc:
+                    except Exception:
                         self.logger.exception(
                             "An error occured while setting the `infrastructure_pid`"
                             f" on flow run {flow_run.id!r}. The flow run will not be"
@@ -541,7 +541,7 @@ class PrefectAgent:
                 ),
             )
             return False
-        except Exception as exc:
+        except Exception:
             self.logger.error(
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,

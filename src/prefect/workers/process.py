@@ -1,12 +1,32 @@
+"""
+<span class="badge-api beta"/>
+
+Module containing the Process worker used for executing flow runs as subprocesses.
+
+Note this module is in **beta**. The interfaces within may change without notice.
+
+To start a Process worker, run the following command:
+
+```bash
+prefect worker start --pool 'my-work-pool' --type process
+```
+
+Replace `my-work-pool` with the name of the work pool you want the worker
+to poll for flow runs.
+
+For more information about work pools and workers,
+checkout out the [Prefect docs](concepts/work-pools/).
+"""
 import asyncio
 import contextlib
 import os
+import signal
 import socket
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import anyio
 import anyio.abc
@@ -14,6 +34,7 @@ import sniffio
 from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
 from prefect.workers.base import (
@@ -51,9 +72,14 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
+def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
+    hostname, pid = infrastructure_pid.split(":")
+    return hostname, int(pid)
+
+
 class ProcessJobConfiguration(BaseJobConfiguration):
-    stream_output: bool
-    working_dir: Optional[Path]
+    stream_output: bool = Field(default=True)
+    working_dir: Optional[Path] = Field(default=None)
 
     @validator("working_dir")
     def validate_command(cls, v):
@@ -186,3 +212,58 @@ class ProcessWorker(BaseWorker):
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: ProcessJobConfiguration,
+        grace_seconds: int = 30,
+    ):
+        hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
+
+        if hostname != socket.gethostname():
+            raise InfrastructureNotAvailable(
+                f"Unable to kill process {pid!r}: The process is running on a different"
+                f" host {hostname!r}."
+            )
+
+        # In a non-windows environment first send a SIGTERM, then, after
+        # `grace_seconds` seconds have passed subsequent send SIGKILL. In
+        # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        if sys.platform == "win32":
+            try:
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            except (ProcessLookupError, WindowsError):
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
+                )
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
+                )
+
+            # Throttle how often we check if the process is still alive to keep
+            # from making too many system calls in a short period of time.
+            check_interval = max(grace_seconds / 10, 1)
+
+            with anyio.move_on_after(grace_seconds):
+                while True:
+                    await anyio.sleep(check_interval)
+
+                    # Detect if the process is still alive. If not do an early
+                    # return as the process respected the SIGTERM from above.
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        return
+
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                # We shouldn't ever end up here, but it's possible that the
+                # process ended right after the check above.
+                return

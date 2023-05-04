@@ -13,8 +13,8 @@ __version__ = __version_info__["version"]
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
-# The absolute path to the root of the repository, only valid for use during development.
-__root_path__ = __module_path__.parents[1]
+# The absolute path to the root of the repository, only valid for use during development
+__development_base_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "server" / "ui"
 
@@ -33,6 +33,7 @@ from prefect.results import BaseResult
 from prefect.engine import pause_flow_run, resume_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
+import prefect.variables
 import prefect.runtime
 
 # Import modules that register types

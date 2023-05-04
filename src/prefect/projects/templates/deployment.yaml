@@ -1,0 +1,18 @@
+deployments:
+  - # base metadata
+    name: null
+    version: null
+    tags: []
+    description: null
+    schedule: {}
+
+    # flow-specific fields
+    flow_name: null
+    entrypoint: null
+    parameters: {}
+
+    # infra-specific fields
+    work_pool:
+      name: null
+      work_queue_name: null
+      job_variables: {}

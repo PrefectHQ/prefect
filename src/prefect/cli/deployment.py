@@ -34,7 +34,6 @@ from prefect.exceptions import (
     exception_traceback,
 )
 from prefect.flows import load_flow_from_entrypoint
-from prefect.infrastructure.base import Block
 from prefect.server.schemas.filters import FlowFilter
 from prefect.server.schemas.schedules import (
     CronSchedule,
@@ -46,7 +45,7 @@ from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
-from prefect.utilities.filesystem import set_default_ignore_file
+from prefect.utilities.filesystem import create_default_ignore_file
 
 
 def str_presenter(dumper, data):
@@ -150,14 +149,14 @@ async def create_work_queue_and_set_concurrency_limit(
                         ),
                         style="green",
                     )
-            except Exception as exc:
+            except Exception:
                 exit_with_error(
                     "Failed to set concurrency limit on work queue"
                     f" {work_queue_name!r} in work pool {work_pool_name!r}."
                 )
         elif work_queue_concurrency:
             app.console.print(
-                f"No work queue set! The concurrency limit cannot be updated."
+                "No work queue set! The concurrency limit cannot be updated."
             )
 
 
@@ -440,8 +439,11 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
             )
         }
 
-    sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
-    sort_by_created_key = lambda d: pendulum.now("utc") - d.created
+    def sort_by_name_keys(d):
+        return flows[d.flow_id].name, d.name
+
+    def sort_by_created_key(d):
+        return pendulum.now("utc") - d.created
 
     table = Table(
         title="Deployments",
@@ -896,8 +898,11 @@ async def build(
         "-sb",
         help=(
             "The slug of a remote storage block. Use the syntax:"
-            " 'block_type/block_name', where block_type must be one of 'github', 's3',"
-            " 'gcs', 'azure', 'smb', 'gitlab-repository'"
+            " 'block_type/block_name', where block_type is one of 'github', 's3',"
+            " 'gcs', 'azure', 'smb', or a registered block from a library that"
+            " implements the WritableDeploymentStorage interface such as"
+            " 'gitlab-repository', 'bitbucket-repository', 's3-bucket',"
+            " 'gcs-bucket'"
         ),
     ),
     skip_upload: bool = typer.Option(
@@ -1073,7 +1078,7 @@ async def build(
     else:
         storage = None
 
-    if set_default_ignore_file(path="."):
+    if create_default_ignore_file(path="."):
         app.console.print(
             (
                 "Default '.prefectignore' file written to"

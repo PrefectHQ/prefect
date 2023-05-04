@@ -1,4 +1,3 @@
-import datetime
 import os
 import random
 import threading
@@ -13,6 +12,7 @@ import anyio
 import httpcore
 import httpx
 import pendulum
+import pydantic
 import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
@@ -747,7 +747,7 @@ async def test_read_nonexistent_concurrency_limit_by_tag(orion_client):
 
 
 async def test_resetting_concurrency_limits(orion_client):
-    cl = await orion_client.create_concurrency_limit(
+    await orion_client.create_concurrency_limit(
         tag="an-unimportant-limit", concurrency_limit=100
     )
 
@@ -767,7 +767,7 @@ async def test_resetting_concurrency_limits(orion_client):
 
 
 async def test_deleting_concurrency_limits(orion_client):
-    cl = await orion_client.create_concurrency_limit(
+    await orion_client.create_concurrency_limit(
         tag="dead-limit-walking", concurrency_limit=10
     )
 
@@ -847,7 +847,7 @@ async def test_set_flow_run_state_404_is_object_not_found(orion_client):
 
     await orion_client.create_flow_run(foo)
     with pytest.raises(prefect.exceptions.ObjectNotFound):
-        response = await orion_client.set_flow_run_state(
+        await orion_client.set_flow_run_state(
             uuid4(),
             state=Completed(message="Test!"),
         )
@@ -876,9 +876,9 @@ async def test_read_flow_runs_with_filtering(orion_client):
     def bar():
         pass
 
-    fr_id_1 = (await orion_client.create_flow_run(foo, state=Pending())).id
-    fr_id_2 = (await orion_client.create_flow_run(foo, state=Scheduled())).id
-    fr_id_3 = (await orion_client.create_flow_run(bar, state=Pending())).id
+    (await orion_client.create_flow_run(foo, state=Pending())).id
+    (await orion_client.create_flow_run(foo, state=Scheduled())).id
+    (await orion_client.create_flow_run(bar, state=Pending())).id
     # Only below should match the filter
     fr_id_4 = (await orion_client.create_flow_run(bar, state=Scheduled())).id
     fr_id_5 = (await orion_client.create_flow_run(bar, state=Running())).id
@@ -934,7 +934,7 @@ async def test_read_flows_with_filter(orion_client):
 
     flow_id_1 = await orion_client.create_flow(foo)
     flow_id_2 = await orion_client.create_flow(bar)
-    flow_id_3 = await orion_client.create_flow(foobar)
+    await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
         flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
@@ -1388,7 +1388,7 @@ class TestClientAPIKey:
         async with PrefectClient(test_app) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
-            ) as e:
+            ):
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
@@ -1588,7 +1588,6 @@ class TestWorkPools:
         pools = await orion_client.read_work_pools()
         existing_name = set([p.name for p in pools])
         existing_ids = set([p.id for p in pools])
-        default_agent_pool_name = "default-agent-pool"
         work_pool_1 = await orion_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")
         )
@@ -1667,13 +1666,7 @@ class TestArtifacts:
         }
 
     async def test_read_artifacts_with_latest_filter(self, orion_client, artifacts):
-        latest_artifact_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
-        )
-
-        artifact_list = await orion_client.read_artifacts(
-            artifact_filter=latest_artifact_filter
-        )
+        artifact_list = await orion_client.read_latest_artifacts()
 
         assert len(artifact_list) == 2
         keyed_data = {(r.key, r.data) for r in artifact_list}
@@ -1711,3 +1704,73 @@ class TestArtifacts:
     async def test_delete_nonexistent_artifact_raises(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.delete_artifact(uuid4())
+
+
+class TestVariables:
+    @pytest.fixture
+    async def variable(
+        self,
+        client,
+    ):
+        res = await client.post(
+            "/variables/",
+            json=schemas.actions.VariableCreate(
+                name="my_variable", value="my-value", tags=["123", "456"]
+            ).dict(json_compatible=True),
+        )
+        assert res.status_code == 201
+        return pydantic.parse_obj_as(schemas.core.Variable, res.json())
+
+    @pytest.fixture
+    async def variables(
+        self,
+        client,
+    ):
+        variables = [
+            schemas.actions.VariableCreate(
+                name="my_variable1", value="my-value1", tags=["1"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable2", value="my-value2", tags=["2"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable3", value="my-value3", tags=["3"]
+            ),
+        ]
+        results = []
+        for variable in variables:
+            res = await client.post(
+                "/variables/", json=variable.dict(json_compatible=True)
+            )
+            assert res.status_code == 201
+            results.append(res.json())
+        return pydantic.parse_obj_as(List[schemas.core.Variable], results)
+
+    async def test_read_variable_by_name(self, orion_client, variable):
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert res.name == variable.name
+        assert res.value == variable.value
+        assert res.tags == variable.tags
+
+    async def test_read_variable_by_name_doesnt_exist(self, orion_client):
+        res = await orion_client.read_variable_by_name("doesnt_exist")
+        assert res is None
+
+    async def test_delete_variable_by_name(self, orion_client, variable):
+        await orion_client.delete_variable_by_name(variable.name)
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert not res
+
+    async def test_delete_variable_by_name_doesnt_exist(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_variable_by_name("doesnt_exist")
+
+    async def test_read_variables(self, orion_client, variables):
+        res = await orion_client.read_variables()
+        assert len(res) == len(variables)
+        assert {r.name for r in res} == {v.name for v in variables}
+
+    async def test_read_variables_with_limit(self, orion_client, variables):
+        res = await orion_client.read_variables(limit=1)
+        assert len(res) == 1
+        assert res[0].name == variables[0].name

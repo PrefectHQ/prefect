@@ -17,6 +17,7 @@ from prefect.settings import (
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
+from prefect.workers.process import ProcessWorker
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -27,25 +28,42 @@ app.add_typer(worker_app)
 @worker_app.command()
 async def start(
     worker_name: str = typer.Option(
-        None, "-n", "--name", help="The name to give to the started worker."
+        None,
+        "-n",
+        "--name",
+        help=(
+            "The name to give to the started worker. If not provided, a unique name"
+            " will be generated."
+        ),
     ),
     work_pool_name: str = typer.Option(
-        ..., "-p", "--pool", help="The work pool the started worker should join."
+        ..., "-p", "--pool", help="The work pool the started worker should poll."
     ),
     work_queues: List[str] = typer.Option(
         None,
         "-q",
         "--work-queue",
-        help="One or more work queue names for the worker to poll.",
+        help=(
+            "One or more work queue names for the worker to pull from. If not provided,"
+            " the worker will pull from all work queues in the work pool."
+        ),
     ),
     worker_type: Optional[str] = typer.Option(
-        None, "-t", "--type", help="The type of worker to start."
+        None,
+        "-t",
+        "--type",
+        help=(
+            "The type of worker to start. If not provided, the worker type will be"
+            " inferred from the work pool."
+        ),
     ),
     prefetch_seconds: int = SettingsOption(
         PREFECT_WORKER_PREFETCH_SECONDS,
         help="Number of seconds to look into the future for scheduled flow runs.",
     ),
-    run_once: bool = typer.Option(False, help="Run worker loops only one time."),
+    run_once: bool = typer.Option(
+        False, help="Only run worker polling once. By default, the worker runs forever."
+    ),
     limit: int = typer.Option(
         None,
         "-l",
@@ -73,10 +91,14 @@ async def start(
             "Please ensure that you have installed this worker type on this machine."
         )
     except ObjectNotFound:
-        exit_with_error(
-            f"Work pool {work_pool_name!r} does not exist. To create a new work pool "
-            "on worker startup, include a worker type with the --type option."
+        app.console.print(
+            (
+                f"Work pool {work_pool_name!r} does not exist and no worker type was"
+                " provided. Starting a process worker..."
+            ),
+            style="yellow",
         )
+        worker_cls = ProcessWorker
 
     async with worker_cls(
         name=worker_name,
@@ -97,6 +119,7 @@ async def start(
                     interval=PREFECT_WORKER_QUERY_SECONDS.value(),
                     run_once=run_once,
                     printer=app.console.print,
+                    jitter_range=0.3,
                 )
             )
             # schedule the sync loop
@@ -107,7 +130,21 @@ async def start(
                     interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
                     run_once=run_once,
                     printer=app.console.print,
+                    jitter_range=0.3,
+                )
+            )
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    workload=worker.check_for_cancelled_flow_runs,
+                    interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                    run_once=run_once,
+                    printer=app.console.print,
+                    jitter_range=0.3,
                 )
             )
 
+            started_event = await worker._emit_worker_started_event()
+
+    await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")

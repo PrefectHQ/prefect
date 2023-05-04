@@ -77,6 +77,7 @@ API_ROUTERS = (
     api.block_schemas.router,
     api.block_capabilities.router,
     api.collections.router,
+    api.variables.router,
     api.ui.flow_runs.router,
     api.admin.router,
     api.root.router,
@@ -132,7 +133,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 async def integrity_exception_handler(request: Request, exc: Exception):
     """Capture database integrity errors."""
-    logger.error(f"Encountered exception in request:", exc_info=True)
+    logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={
             "detail": (
@@ -161,7 +162,7 @@ async def db_locked_exception_handler(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    logger.error(f"Encountered exception in request:", exc_info=True)
+    logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -170,7 +171,7 @@ async def db_locked_exception_handler(
 
 async def custom_internal_exception_handler(request: Request, exc: Exception):
     """Log a detailed exception for internal server errors before returning."""
-    logger.error(f"Encountered exception in request:", exc_info=True)
+    logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -470,7 +471,7 @@ def create_app(
                 await asyncio.gather(
                     *[task.stop() for task in app.state.services.values()]
                 )
-            except Exception as exc:
+            except Exception:
                 # `on_service_exit` should handle logging exceptions on exit
                 pass
 

@@ -20,6 +20,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -35,6 +36,7 @@ import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
+from prefect._internal.concurrency.timeouts import get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
@@ -115,6 +117,7 @@ R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
 
 
+API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
@@ -199,7 +202,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
     return from_sync.wait_for_call_in_loop_thread(
         create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
-    ).result()
+    )
 
 
 @inject_client
@@ -218,11 +221,8 @@ async def create_then_begin_flow_run(
     # TODO: Returns a `State` depending on `return_type` and we can add an overload to
     #       the function signature to clarify this eventually.
 
-    connect_error = await client.api_healthcheck()
-    if connect_error:
-        raise RuntimeError(
-            f"Cannot create flow run. Failed to reach API at {client.api_url}."
-        ) from connect_error
+    await check_api_reachable(client, "Cannot create flow run")
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -275,7 +275,7 @@ async def retrieve_flow_then_begin_flow_run(
     flow_run = await client.read_flow_run(flow_run_id)
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
-    except Exception as exc:
+    except Exception:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
         state = await exception_to_failed_state(message=message)
@@ -358,7 +358,7 @@ async def begin_flow_run(
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
+            report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
         )
 
         # Create a task group for background tasks
@@ -371,12 +371,23 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
+        task_runner = flow.task_runner.duplicate()
+        if task_runner is NotImplemented:
+            # Backwards compatibility; will not support concurrent flow runs
+            task_runner = flow.task_runner
+            logger.warning(
+                f"Task runner {type(task_runner).__name__!r} does not implement the"
+                " `duplicate` method and will fail if used for concurrent execution of"
+                " the same flow."
+            )
+
         logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
+
         flow_run_context.task_runner = await stack.enter_async_context(
-            flow.task_runner.start()
+            task_runner.start()
         )
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
@@ -406,7 +417,7 @@ async def begin_flow_run(
                 f" {timeout.to_rfc3339_string()} to finish execution."
             ),
         )
-        APILogHandler.flush(block=True)
+        await APILogHandler.aflush()
 
         return terminal_or_paused_state
     else:
@@ -422,7 +433,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    APILogHandler.flush(block=True)
+    await APILogHandler.aflush()
 
     return terminal_state
 
@@ -449,6 +460,7 @@ async def create_and_begin_subflow_run(
     parent_flow_run_context = FlowRunContext.get()
     parent_logger = get_run_logger(parent_flow_run_context)
     log_prints = should_log_prints(flow)
+    terminal_state = None
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
@@ -505,51 +517,58 @@ async def create_and_begin_subflow_run(
         )
 
         if flow.should_validate_parameters:
-            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception:
                 message = "Validation of flow parameters failed with error:"
                 logger.exception(message)
-                failed_state = await exception_to_failed_state(
-                    message=message, result_factory=result_factory
-                )
-
-            if failed_state is not None:
-                await propose_state(
+                terminal_state = await propose_state(
                     client,
-                    state=failed_state,
+                    state=await exception_to_failed_state(
+                        message=message, result_factory=result_factory
+                    ),
                     flow_run_id=flow_run.id,
                 )
-                return failed_state
 
-        async with AsyncExitStack() as stack:
-            await stack.enter_async_context(
-                report_flow_run_crashes(flow_run=flow_run, client=client)
-            )
-            task_runner = await stack.enter_async_context(flow.task_runner.start())
+        if terminal_state is None or not terminal_state.is_final():
+            async with AsyncExitStack() as stack:
+                await stack.enter_async_context(
+                    report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
+                )
 
-            if log_prints:
-                stack.enter_context(patch_print())
+                task_runner = flow.task_runner.duplicate()
+                if task_runner is NotImplemented:
+                    # Backwards compatibility; will not support concurrent flow runs
+                    task_runner = flow.task_runner
+                    logger.warning(
+                        f"Task runner {type(task_runner).__name__!r} does not implement"
+                        " the `duplicate` method and will fail if used for concurrent"
+                        " execution of the same flow."
+                    )
 
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run=flow_run,
-                parameters=parameters,
-                wait_for=wait_for,
-                # If the parent flow run has a timeout, then this one needs to be
-                # interruptible as well
-                interruptible=parent_flow_run_context.timeout_scope is not None,
-                client=client,
-                partial_flow_run_context=PartialModel(
-                    FlowRunContext,
-                    sync_portal=parent_flow_run_context.sync_portal,
-                    task_runner=task_runner,
-                    background_tasks=parent_flow_run_context.background_tasks,
-                    result_factory=result_factory,
-                    log_prints=log_prints,
-                ),
-            )
+                await stack.enter_async_context(task_runner.start())
+
+                if log_prints:
+                    stack.enter_context(patch_print())
+
+                terminal_state = await orchestrate_flow_run(
+                    flow,
+                    flow_run=flow_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    # If the parent flow run has a timeout, then this one needs to be
+                    # interruptible as well
+                    interruptible=parent_flow_run_context.timeout_scope is not None,
+                    client=client,
+                    partial_flow_run_context=PartialModel(
+                        FlowRunContext,
+                        sync_portal=parent_flow_run_context.sync_portal,
+                        task_runner=task_runner,
+                        background_tasks=parent_flow_run_context.background_tasks,
+                        result_factory=result_factory,
+                        log_prints=log_prints,
+                    ),
+                )
 
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -610,14 +629,10 @@ async def orchestrate_flow_run(
             flow_run_id=flow_run.id,
         )
 
-    if flow.flow_run_name:
-        flow_run_name = flow.flow_run_name.format(**parameters)
-        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
-        logger.extra["flow_run_name"] = flow_run_name
-        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
-        flow_run.name = flow_run_name
-
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+
+    # flag to ensure we only update the flow run name once
+    run_name_set = False
 
     while state.is_running():
         waited_for_task_runs = False
@@ -631,6 +646,22 @@ async def orchestrate_flow_run(
                 client=client,
                 parameters=parameters,
             ) as flow_run_context:
+                # update flow run name
+                if not run_name_set and flow.flow_run_name:
+                    flow_run_name = _resolve_custom_flow_run_name(
+                        flow=flow, parameters=parameters
+                    )
+
+                    await client.update_flow_run(
+                        flow_run_id=flow_run.id, name=flow_run_name
+                    )
+                    logger.extra["flow_run_name"] = flow_run_name
+                    logger.debug(
+                        f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}"
+                    )
+                    flow_run.name = flow_run_name
+                    run_name_set = True
+
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -640,7 +671,7 @@ async def orchestrate_flow_run(
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+                        "Beginning execution...", extra={"state_message": True}
                     )
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
@@ -997,7 +1028,7 @@ async def begin_task_map(
     static_parameters = {}
     annotated_parameters = {}
     for key, val in parameters.items():
-        if isinstance(val, allow_failure):
+        if isinstance(val, (allow_failure, quote)):
             # Unwrap annotated parameters to determine if they are iterable
             annotated_parameters[key] = val
             val = val.unwrap()
@@ -1056,6 +1087,11 @@ async def begin_task_map(
                 extra_task_inputs=task_inputs,
             )
         )
+
+    # Maintain the order of the task runs when using the sequential task runner
+    runner = task_runner if task_runner else flow_run_context.task_runner
+    if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        return [await task_run() for task_run in task_runs]
 
     return await gather(*task_runs)
 
@@ -1340,14 +1376,11 @@ async def begin_task_run(
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
-            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
-            background_tasks = await stack.enter_async_context(
-                anyio.create_task_group()
-            )
+            await stack.enter_async_context(anyio.create_task_group())
 
         await stack.enter_async_context(report_task_run_crashes(task_run, client))
 
@@ -1356,13 +1389,9 @@ async def begin_task_run(
         if log_prints:
             stack.enter_context(patch_print())
 
-        connect_error = await client.api_healthcheck()
-        if connect_error:
-            raise RuntimeError(
-                f"Cannot orchestrate task run '{task_run.id}'. "
-                f"Failed to connect to API at {client.api_url}."
-            ) from connect_error
-
+        await check_api_reachable(
+            client, f"Cannot orchestrate task run '{task_run.id}'"
+        )
         try:
             state = await orchestrate_task_run(
                 task=task,
@@ -1378,7 +1407,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                APILogHandler.flush(block=True)
+                await APILogHandler.aflush()
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
@@ -1441,7 +1470,8 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-    logger = task_run_logger(task_run, task=task)
+    flow_run = await client.read_flow_run(task_run.flow_run_id)
+    logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
         TaskRunContext,
@@ -1521,10 +1551,11 @@ async def orchestrate_task_run(
                     args, kwargs = parameters_to_args_kwargs(
                         task.fn, resolved_parameters
                     )
-
                     # update task run name
                     if not run_name_set and task.task_run_name:
-                        task_run_name = task.task_run_name.format(**resolved_parameters)
+                        task_run_name = _resolve_custom_task_run_name(
+                            task=task, parameters=resolved_parameters
+                        )
                         await client.set_task_run_name(
                             task_run_id=task_run.id, name=task_run_name
                         )
@@ -1539,13 +1570,13 @@ async def orchestrate_task_run(
                         logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                     else:
                         logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
+                            "Beginning execution...", extra={"state_message": True}
                         )
 
-                        call = from_async.call_soon_in_new_thread(
-                            create_call(task.fn, *args, **kwargs)
-                        )
-                        result = await call.aresult()
+                    call = from_async.call_soon_in_new_thread(
+                        create_call(task.fn, *args, **kwargs)
+                    )
+                    result = await call.aresult()
 
             except Exception as exc:
                 name = message = None
@@ -1676,7 +1707,7 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1711,6 +1742,14 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
             )
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
+            )
+
+            # Only `on_crashed` flow run state change hook is called here
+            # We call the hook after the state is set to `CRASHED`
+            await _run_flow_hooks(
+                flow=flow,
+                flow_run=flow_run,
+                state=state,
             )
 
         if isinstance(exc, TerminationSignal):
@@ -2053,6 +2092,44 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
+def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+    if callable(flow.flow_run_name):
+        flow_run_name = flow.flow_run_name()
+        if not isinstance(flow_run_name, str):
+            raise TypeError(
+                f"Callable {flow.flow_run_name} for 'flow_run_name' returned type"
+                f" {type(flow_run_name).__name__} but a string is required."
+            )
+    elif isinstance(flow.flow_run_name, str):
+        flow_run_name = flow.flow_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'flow_run_name'; got"
+            f" {type(flow.flow_run_name).__name__} instead."
+        )
+
+    return flow_run_name
+
+
+def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+    if callable(task.task_run_name):
+        task_run_name = task.task_run_name()
+        if not isinstance(task_run_name, str):
+            raise TypeError(
+                f"Callable {task.task_run_name} for 'task_run_name' returned type"
+                f" {type(task_run_name).__name__} but a string is required."
+            )
+    elif isinstance(task.task_run_name, str):
+        task_run_name = task.task_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'task_run_name'; got"
+            f" {type(task.task_run_name).__name__} instead."
+        )
+
+    return task_run_name
+
+
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a task, making sure to
     catch and log any errors that occur.
@@ -2077,7 +2154,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, task=task, task_run=task_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
@@ -2087,7 +2164,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure and on_completion hooks for a flow, making sure to
+    """Run the on_failure, on_completion, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2095,6 +2172,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_crashed() and flow.on_crashed:
+        hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)
@@ -2110,7 +2189,7 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, flow=flow, flow_run=flow_run, state=state
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
@@ -2119,10 +2198,25 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                 logger.info(f"Hook {hook.__name__!r} finished running successfully")
 
 
-if __name__ == "__main__":
-    import os
-    import sys
+async def check_api_reachable(client: PrefectClient, fail_message: str):
+    # Do not perform a healthcheck if it exists and is not expired
+    api_url = str(client.api_url)
+    if api_url in API_HEALTHCHECKS:
+        expires = API_HEALTHCHECKS[api_url]
+        if expires > time.monotonic():
+            return
 
+    connect_error = await client.api_healthcheck()
+    if connect_error:
+        raise RuntimeError(
+            f"{fail_message}. Failed to reach API at {api_url}."
+        ) from connect_error
+
+    # Create a 10 minute cache for the healthy response
+    API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
+
+
+if __name__ == "__main__":
     try:
         flow_run_id = UUID(
             sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")

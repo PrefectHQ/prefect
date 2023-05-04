@@ -392,9 +392,9 @@ async def read_work_queue_status(
         session=session,
         flow_run_filter=schemas.filters.FlowRunFilter(
             state=schemas.filters.FlowRunFilterState(name={"any_": ["Late"]}),
-            work_queue_name=schemas.filters.FlowRunFilterWorkQueueName(
-                any_=[work_queue.name]
-            ),
+        ),
+        work_queue_filter=schemas.filters.WorkQueueFilter(
+            id=schemas.filters.WorkQueueFilterId(any_=[work_queue_id])
         ),
     )
 

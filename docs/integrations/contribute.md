@@ -7,11 +7,13 @@ tags:
   - configuration
   - infrastructure
   - integrations
+  - integrations
   - contributing
 ---
 
 # Contribute
 
+We welcome contributors! You can help contribute blocks and integrations by following these steps.
 We welcome contributors! You can help contribute blocks and integrations by following these steps.
 
 ## Contributing Blocks
@@ -67,7 +69,7 @@ Anyone can create and share a Prefect Integration and we encourage anyone intere
 
 To help you get started with your integration, we've created a template that gives the tools you need to create and publish your integration.
 
-Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-integration-template#quickstart) to get started creating an integration with a bootstrapped project!
+Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating an integration with a bootstrapped project!
 
 ### List a project in the Integrations Catalog
 

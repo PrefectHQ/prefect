@@ -79,6 +79,7 @@ def test_json_representation():
         ],
         payload={"hello": "world"},
         id=uuid4(),
+        follows=uuid4(),
     )
 
     jsonified = json.loads(event.json().encode())
@@ -94,6 +95,7 @@ def test_json_representation():
         ],
         "payload": {"hello": "world"},
         "id": str(event.id),
+        "follows": str(event.follows),
     }
 
 
@@ -122,3 +124,20 @@ def test_limit_on_related_resources(monkeypatch: pytest.MonkeyPatch):
             ],
             id=uuid4(),
         )
+
+
+def test_client_event_involved_resources():
+    event = Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        related=[
+            {"prefect.resource.id": "related-1", "prefect.resource.role": "role-1"},
+        ],
+        id=uuid4(),
+    )
+
+    assert [resource.id for resource in event.involved_resources] == [
+        "hello",
+        "related-1",
+    ]

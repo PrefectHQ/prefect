@@ -1,17 +1,23 @@
+import asyncio
 import contextlib
+import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
+
+from prefect._internal.concurrency.api import from_async
 
 import pytest
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.services import (
+    BatchedQueueService,
     QueueService,
     drain_on_exit,
     drain_on_exit_async,
 )
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 
 
 class MockService(QueueService[int]):
@@ -24,12 +30,36 @@ class MockService(QueueService[int]):
             super().__init__()
 
     async def _handle(self, item: int):
+        # Checkpoint to catch errors where async cancellation has occurred
+        await asyncio.sleep(0)
         self.mock(self, item)
+        print(f"Handled item {item} for {self}")
+
+
+class MockBatchedService(BatchedQueueService[int]):
+    _max_batch_size = 2
+    mock = MagicMock()
+
+    def __init__(self, index: Optional[int] = None) -> None:
+        if index is not None:
+            super().__init__(index)
+        else:
+            super().__init__()
+
+    async def _handle_batch(self, items: List[int]):
+        # Checkpoint to catch errors where async cancellation has occurred
+        await asyncio.sleep(0)
+        self.mock(self, items)
+        print(f"Handled batch for {self}")
 
 
 @pytest.fixture(autouse=True)
-def reset_mock_service():
-    MockService.mock.reset_mock()
+def reset_mock_services():
+    yield
+    MockService.mock.reset_mock(side_effect=True)
+    MockBatchedService.mock.reset_mock(side_effect=True)
+    MockService.drain_all()
+    MockBatchedService.drain_all()
 
 
 def test_instance_returns_instance():
@@ -65,7 +95,6 @@ def test_instance_returns_same_instance_after_error():
         raise ValueError("Oh no")
 
     instance = MockService.instance()
-    instance.mock = MagicMock()
     instance.mock.side_effect = on_handle
     instance.send(1)
 
@@ -92,12 +121,12 @@ def test_instance_returns_new_instance_after_base_exception():
         raise BaseException("Oh no")
 
     instance = MockService.instance()
-    instance.mock = MagicMock()
     instance.mock.side_effect = on_handle
     instance.send(1)
 
     # Wait for the service to actually handle the item
     event.wait()
+    instance.mock.reset_mock(side_effect=True)
 
     new_instance = MockService.instance()
     assert new_instance is not instance
@@ -161,6 +190,12 @@ def test_send_many_threads():
         for i in range(10):
             executor.submit(on_thread, i)
 
+    # Wait for a call in the event loop thread to force a yield ensuring all items
+    # have been sent successfully
+    # TODO: This is a bit of a hack. The queue service should ensure that all items are
+    #       sent on drain but it's tricky to do without introducing deadlocks.
+    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0)).result()
+
     MockService.drain_all()
     MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)], any_order=True)
 
@@ -195,6 +230,16 @@ def test_drain_many_instances_many_threads():
     )
 
 
+def test_drain_on_global_loop_shutdown():
+    # Regression test https://github.com/PrefectHQ/prefect/issues/9275#issuecomment-1520468276
+    for i in range(10):
+        MockService.instance().send(i)
+
+    wait_for_global_loop_exit()
+
+    MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)])
+
+
 def test_drain_on_exit():
     with drain_on_exit(MockService):
         for i in range(10):
@@ -218,6 +263,48 @@ def test_drain_on_exit_async_from_same_loop():
     from_sync.call_soon_in_loop_thread(create_call(on_global_loop)).result()
 
     MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)])
+
+
+def test_drain_all_timeout_sync():
+    import os
+
+    print(os.getpid())
+    instance = MockService.instance()
+
+    # Block forever on handling of this item
+    event = threading.Event()
+    MockService.mock.side_effect = lambda *_: event.wait()
+    instance.send(1)
+
+    t0 = time.monotonic()
+    MockService.drain_all(timeout=0.01)
+    t1 = time.monotonic()
+
+    event.set()  # Unblock the handler and drain
+    MockService.drain_all()
+
+    assert t1 - t0 < 2
+
+
+async def test_drain_all_timeout_async():
+    # Creating an instance from an async context is not always safe when sending an
+    # item that blocks the event loop like this
+    instance = await from_async.call_soon_in_loop_thread(
+        create_call(MockService.instance)
+    ).aresult()
+
+    event = threading.Event()
+    MockService.mock.side_effect = lambda *_: event.wait()
+
+    instance.send(1)
+    t0 = time.monotonic()
+    await MockService.drain_all(timeout=0.01)
+    t1 = time.monotonic()
+
+    event.set()  # Unblock the handler and drain
+    await MockService.drain_all()
+
+    assert t1 - t0 < 2
 
 
 def test_lifespan():
@@ -258,3 +345,33 @@ def test_lifespan_on_base_exception():
     LifespanService.instance().send(1)
     LifespanService.drain_all()
     assert LifespanService.events == ["enter", "exit"]
+
+
+def test_batched_queue_service():
+    instance = MockBatchedService.instance()
+    instance.send(1)
+    instance.send(2)
+    instance.send(3)
+    instance.send(4)
+    instance.send(5)
+    instance.drain()
+    MockBatchedService.mock.assert_has_calls(
+        [call(instance, [1, 2]), call(instance, [3, 4]), call(instance, [5])]
+    )
+
+
+def test_batched_queue_service_min_interval():
+    event = threading.Event()
+
+    class IntervalMockBatchedService(MockBatchedService):
+        _min_interval = 0.01
+
+    instance = IntervalMockBatchedService.instance()
+    instance.mock.side_effect = lambda *_: event.set()
+    instance.send(1)
+    assert event.wait(10.0), "Item not handled within 10s"
+    instance.send(2)
+    IntervalMockBatchedService.drain_all()
+    IntervalMockBatchedService.mock.assert_has_calls(
+        [call(instance, [1]), call(instance, [2])]
+    )
