@@ -296,5 +296,3 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 
 !!! tip "Next steps: Flow and task configuration"
     Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
-
-[def]: #flows-and-tasks

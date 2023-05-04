@@ -10,14 +10,18 @@ tags:
 ---
 
 
-- [Run a basic flow](#run-a-basic-flow)
-- [Run flows with parameters](#run-flows-with-parameters)
-- [Run a basic flow with tasks](#run-a-basic-flow-with-tasks)
-- [Run a flow within a flow](#run-a-flow-within-a-flow)
-- [Parameter type conversion](#parameter-type-conversion)
+
+
 
 # Flow and task configuration
-
+- [Basic flow configuration](#basic-flow-configuration)
+- [Basic task configuration](#basic-task-configuration)
+- [Flow and task retries](#flow-and-task-retries)
+- [Task caching](#task-caching)
+- [Task input hash](#task-input-hash)
+- [Cache key function](#cache-key-function)
+- [Configuring task runners](#configuring-task-runners)
+- 
 Now that you've written some [basic flows and tasks](/tutorials/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
 Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
