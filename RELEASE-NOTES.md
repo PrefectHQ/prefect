@@ -9,12 +9,12 @@ This release combines the previously seperate Flows and Deployments pages in the
 TODO: Add screenshot
 
 ### Enhancements
-- Update `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
-- Start process worker when no type and non-existent work pool are provided — https://github.com/PrefectHQ/prefect/pull/9326
-- Add support for async project steps — https://github.com/PrefectHQ/prefect/pull/9388
+- Prevent unnecessarily verbose logs by updating `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
+- Create a process work pool by default when a new worker is started with a new work pool name and no type — https://github.com/PrefectHQ/prefect/pull/9326
+- Add support for asyncronous project steps — https://github.com/PrefectHQ/prefect/pull/9388
 - Update `critical_service_loop` to retry on all 5XX HTTP status codes — https://github.com/PrefectHQ/prefect/pull/9400
 - Add backoff on failure to agent critical loop services — https://github.com/PrefectHQ/prefect/pull/9402
-- Add print statement to git pull to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
+- Add print statement to `git pull` to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
 - Add `on_crashed` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9418
 - Makes build->push step explicit in docker project recipes — https://github.com/PrefectHQ/prefect/pull/9417
 - Add storage blocks to cli `deployment build` help description  — https://github.com/PrefectHQ/prefect/pull/9411
@@ -38,8 +38,8 @@ TODO: Add screenshot
 - Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
 - Direct 'Prefect Integration template' link to the correct page — https://github.com/PrefectHQ/prefect/pull/9362
 
-## New Contributors
-* @rmorshea made their first contribution in https://github.com/PrefectHQ/prefect/pull/9422
+### New Contributors
+- @rmorshea made their first contribution in https://github.com/PrefectHQ/prefect/pull/9422
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.6...2.10.7
 
