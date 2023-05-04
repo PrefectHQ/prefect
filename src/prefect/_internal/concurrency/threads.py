@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.primitives import Event
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.logging import get_logger
 
 logger = get_logger("prefect._internal.concurrency.threads")
@@ -249,6 +250,17 @@ def get_global_loop() -> EventLoopThread:
         GLOBAL_LOOP.start()
 
     return GLOBAL_LOOP
+
+
+def in_global_loop() -> bool:
+    """
+    Check if called from the global loop.
+    """
+    if GLOBAL_LOOP is None:
+        # Avoid creating a global loop if there isn't one
+        return False
+
+    return get_global_loop()._loop == get_running_loop()
 
 
 def wait_for_global_loop_exit() -> None:
