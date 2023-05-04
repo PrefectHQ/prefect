@@ -404,3 +404,6 @@ If this value is _more_ than the amount of time it takes for the infrastructure 
 ### Polling for work
 Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.
+
+### Additional Resources
+- [How to run a Prefect 2 worker as a systemd service on Linux](https://discourse.prefect.io/t/how-to-run-a-prefect-2-worker-as-a-systemd-service-on-linux/1450)
