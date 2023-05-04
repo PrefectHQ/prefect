@@ -27,7 +27,7 @@ tags:
 * [Work Pools, Workers & Agents](work-pools.md)
 * [Storage](storage.md)
 * [Filesystems](filesystems.md)
-* [Infrastructure](ingrastructure.md)
+* [Infrastructure](infrastructure.md)
 * [Schedules](schedules.md)
 * [Logging](logs.md)
 
