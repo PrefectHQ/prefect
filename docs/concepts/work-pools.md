@@ -343,6 +343,8 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs. | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers. | `prefect-docker` |
 
+If you don’t see a worker type that meets your needs, you can follow [the guide](/guides/deployment/developing-a-new-worker-type/) to create one.
+
 ### Worker Options
 Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool. Alternatively, you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
 
