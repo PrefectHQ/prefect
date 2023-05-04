@@ -68,6 +68,8 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited — [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
 - Add a check for color scheme to ensure the flow run state favicon is visible — [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
 - Fix deadlock during API log handler flush when logging configuration is overridden — https://github.com/PrefectHQ/prefect/pull/9354
+- Fix send/drain race conditions in queue services — https://github.com/PrefectHQ/prefect/pull/9426
+- Fix bug where missing trailing slash in remote filesystems path would cause download failures — https://github.com/PrefectHQ/prefect/pull/9440
 
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
