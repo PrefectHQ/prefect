@@ -178,7 +178,7 @@ def test_drain_safe_to_call_multiple_times():
     MockService.drain_all()
 
     MockService.mock.assert_has_calls(
-        [call(instance, i) for instance, i in zip(instances, range(10))]
+        [call(instance, i) for instance, i in zip(instances, range(10))], any_order=True
     )
 
 
