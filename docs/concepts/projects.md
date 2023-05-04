@@ -191,6 +191,7 @@ definitions:
                 image_name: my-example-image
                 tag: dev
                 dockerfile: auto
+                push: true
 
 deployments:
   - name: deployment-1
@@ -349,6 +350,7 @@ build:
     image_name: my-repo/my-image
     tag: my-tag
     dockerfile: auto
+    push: true
 ```
 
 Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
