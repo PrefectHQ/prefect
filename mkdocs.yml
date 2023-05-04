@@ -107,23 +107,23 @@ watch:
     - mkdocs.insiders.yml
     - src/prefect/
 nav:
-    - Getting Started: 
-        - index.md  
+    - Getting Started:
+        - index.md
         - Installation: getting-started/installation.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
-    - Tutorials: 
-        - tutorials/index.md
-        - Flows & Tasks: tutorials/first-steps.md
-        - Configuration: tutorials/flow-task-config.md
-        - Execution: tutorials/execution.md
-        - Orchestration: tutorials/orchestration.md
-        - Projects: tutorials/projects.md
-        - Deployments: tutorials/deployments.md
-        - Storage & Infrastructure: tutorials/storage.md
-        - Developing a New Worker Type: tutorials/developing-a-new-worker-type.md
-    - Concepts: 
+    - Tutorial:
+        - tutorial/index.md
+        - Flows & Tasks: tutorial/first-steps.md
+        - Flow & Task Configuration: tutorial/flow-task-config.md
+        - Execution: tutorial/execution.md
+        - Orchestration: tutorial/orchestration.md
+        - Projects: tutorial/projects.md
+        - Deployments: tutorial/deployments.md
+        - Storage & Infrastructure: tutorial/storage.md
+        - Developing a New Worker Type: tutorial/developing-a-new-worker-type.md
+    - Concepts:
         - concepts/index.md
-        - Develop: 
+        - Develop:
             - Flows: concepts/flows.md
             - Tasks: concepts/tasks.md
             - Results: concepts/results.md
