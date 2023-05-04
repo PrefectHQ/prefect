@@ -1,5 +1,54 @@
 # Prefect Release Notes
 
+## Release 2.10.7
+
+### New and improved Flows page
+
+This release combines the previously seperate Flows and Deployments pages in the Prefect UI into a single, holistic page that brings together information about flows and deployments, as well as recent and upcoming runs. You can now see the state of the most recent flow run, giving you a snapshot of the status of your workspace. In addition, you can now filter deployments by whether their scheudle is active and the work pool to which flow runs are submitted. See https://github.com/PrefectHQ/prefect/pull/9438 for details.
+
+TODO: Add screenshot
+
+### Enhancements
+- Update `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
+- Start process worker when no type and non-existent work pool are provided — https://github.com/PrefectHQ/prefect/pull/9326
+- Add support for async project steps — https://github.com/PrefectHQ/prefect/pull/9388
+- Update `critical_service_loop` to retry on all 5XX HTTP status codes — https://github.com/PrefectHQ/prefect/pull/9400
+- Add backoff on failure to agent critical loop services — https://github.com/PrefectHQ/prefect/pull/9402
+- Add print statement to git pull to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
+- Add `on_crashed` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9418
+- Makes build->push step explicit in docker project recipes — https://github.com/PrefectHQ/prefect/pull/9417
+- Add storage blocks to cli `deployment build` help description  — https://github.com/PrefectHQ/prefect/pull/9411
+- Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
+- Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
+- Add `timeout` to `QueueService.drain_all` and limit `APILogHandler.flush` time to 5s — https://github.com/PrefectHQ/prefect/pull/9354
+
+### Fixes
+- Add color scheme mode to favicon id — https://github.com/PrefectHQ/prefect/pull/9370
+- Add guard against null schedule in `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/9373
+- Revert change where `QueueService.send` blocked until the item was enqueued — https://github.com/PrefectHQ/prefect/pull/9398
+- Add work pools to the ui history flow run route — https://github.com/PrefectHQ/prefect/pull/9390
+- Fix Project recipe image_name and tag templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
+- Fix work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
+- Ensure `close()` is called on the base handler during `APILogHandler` shutdown — https://github.com/PrefectHQ/prefect/pull/9351
+- Fix bug where child flows would not fail the parent when they received invalid paremeters — https://github.com/PrefectHQ/prefect/pull/9386
+- Fix 'Prefect Integration template' link — https://github.com/PrefectHQ/prefect/pull/9362
+
+### Documentation
+- Add a link to bug bounty program info — https://github.com/PrefectHQ/prefect/pull/9366
+- Pin IPython to 8.12 when running with Python 3.8 — https://github.com/PrefectHQ/prefect/pull/9369
+- Add `Additional Resources` Section to Work Pools, Workers, & Agents page — https://github.com/PrefectHQ/prefect/pull/9393
+- docs typo - result_storage declared in the wrong place — https://github.com/PrefectHQ/prefect/pull/9422
+- add all concepts to landing page — https://github.com/PrefectHQ/prefect/pull/9404
+- Add Paused and Cancelling states to states concept page — https://github.com/PrefectHQ/prefect/pull/9435
+- Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
+
+
+## New Contributors
+* @rmorshea made their first contribution in https://github.com/PrefectHQ/prefect/pull/9422
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.6...2.10.7
+
+
 ## Release 2.10.6
 
 ### Deploy many flows at once with projects
