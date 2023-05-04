@@ -190,12 +190,6 @@ def test_send_many_threads():
         for i in range(10):
             executor.submit(on_thread, i)
 
-    # Wait for a call in the event loop thread to force a yield ensuring all items
-    # have been sent successfully
-    # TODO: This is a bit of a hack. The queue service should ensure that all items are
-    #       sent on drain but it's tricky to do without introducing deadlocks.
-    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0)).result()
-
     MockService.drain_all()
     MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)], any_order=True)
 
