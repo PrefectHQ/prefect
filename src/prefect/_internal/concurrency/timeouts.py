@@ -135,6 +135,18 @@ def get_deadline(timeout: Optional[float]):
     return time.monotonic() + timeout
 
 
+def get_timeout(deadline: Optional[float]):
+    """
+    Compute an timeout given a deadline.
+
+    Uses a monotonic clock.
+    """
+    if deadline is None:
+        return None
+
+    return max(0, deadline - time.monotonic())
+
+
 class _AsyncCanceller(anyio._backends._asyncio.CancelScope):
     """
     Implementation for cancellation of async tasks.
