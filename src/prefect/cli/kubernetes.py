@@ -24,9 +24,14 @@ kubernetes_app = PrefectTyper(
 )
 app.add_typer(kubernetes_app)
 
+# Deprecate kubernetes maniest
 manifest_app = PrefectTyper(
     name="manifest",
-    help="Commands for generating Kubernetes manifests.",
+    help="Deprecated. Use the 'Helm charts' instead.",
+    deprecated=True,
+    deprecated_name="prefect kubernetes manifest",
+    deprecated_start_date="4th May 2023",
+    deprecated_help="Use the 'Helm charts' instead.",
 )
 kubernetes_app.add_typer(manifest_app)
 
@@ -184,3 +189,6 @@ async def manifest_flow_run_job():
     )
 
     print(output)
+"""
+
+"""
