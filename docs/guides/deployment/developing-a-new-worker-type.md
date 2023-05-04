@@ -8,19 +8,19 @@ tags:
     - deployments
     - storage
     - infrastructure
-    - tutorial
     - recipes
+    - guide
 ---
 
 # Developing a New Worker Type
 
 !!! warning "Advanced Topic"
-    This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
+    This guide  is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
 
 
 Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
-A list of available workers can be found in the [Work Pools, Workers & Agents documentation](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
+A list of available workers can be found in the [Work Pools, Workers & Agents documentation](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This guide will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
 
 ## Worker Configuration
 
