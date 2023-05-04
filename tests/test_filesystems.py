@@ -351,6 +351,16 @@ class TestRemoteFileSystem:
 
         assert (cwd / "test").exists()
 
+    async def test_get_directory_always_adds_trailing_slash(self):
+        """Ensure trailing slashes are added for Cloud storage compatibility."""
+        fs = RemoteFileSystem(basepath="memory://root")
+        await fs.write_path("memory://root/folder/test.txt", content=b"hello")
+
+        fs._filesystem = MagicMock()
+        await fs.get_directory(from_path="memory://root/folder", local_path=None)
+
+        assert fs.filesystem.get.call_args[0][0] == "memory://root/folder/"
+
     @pytest.mark.parametrize("null_value", {None, ""})
     async def test_get_directory_empty_from_path_uses_basepath(
         self, tmp_path: Path, null_value
