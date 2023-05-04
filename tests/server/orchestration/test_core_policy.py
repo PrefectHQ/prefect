@@ -1263,13 +1263,10 @@ class TestPreventPendingTransitions:
         StateType.PENDING,
     ]
     banned_transitions = [(type_, StateType.PENDING) for type_ in banned_states]
-    allowed_transitions = [
-        (type_, StateType.PENDING)
-        # If you think this is silly, read https://github.com/python/cpython/issues/99295
-        for type_ in sorted(
-            set(ALL_ORCHESTRATION_STATES) - set(banned_states).union({None})
-        )
-    ]
+    all_states = set(ALL_ORCHESTRATION_STATES) - {None}
+    allowed_transitions = list(
+        sorted(set(product(all_states, all_states)).difference(banned_transitions))
+    )
 
     @pytest.mark.parametrize(
         "intended_transition", banned_transitions, ids=transition_names
