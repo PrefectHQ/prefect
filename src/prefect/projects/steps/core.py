@@ -13,6 +13,7 @@ Whenever a step is run, the following actions are taken:
 import subprocess
 import sys
 from typing import Optional
+from prefect._internal.concurrency.api import from_async, Call
 
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
@@ -30,8 +31,8 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
     except ImportError:
         if requires:
             print(
-                "Unable to load step function: {fully_qualified_name}. Attempting"
-                " install of {requires}."
+                f"Unable to load step function: {fully_qualified_name}. Attempting"
+                f" install of {requires}."
             )
         else:
             raise
@@ -74,4 +75,6 @@ async def run_step(step: dict) -> dict:
     inputs = await resolve_variables(inputs)
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
-    return step_func(**inputs)
+    return await from_async.call_soon_in_new_thread(
+        Call.new(step_func, **inputs)
+    ).aresult()
