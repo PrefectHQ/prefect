@@ -27,12 +27,12 @@ TODO: Add screenshot
 - Fix issue preventing work pool filter from being applied to the flow runs page — https://github.com/PrefectHQ/prefect/pull/9390
 - Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
 - Fix bug where work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
-- Fix bug where child flows would not fail the parent when they received invalid paremeters — https://github.com/PrefectHQ/prefect/pull/9386
+- Fix bug where child flows would not fail the parent when they received invalid parameters — https://github.com/PrefectHQ/prefect/pull/9386
 
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
 - Add `Additional Resources` Section to Work Pools, Workers, & Agents page — https://github.com/PrefectHQ/prefect/pull/9393
-- Fix mistaken placement of `result_storage` arguement — https://github.com/PrefectHQ/prefect/pull/9422
+- Fix mistaken placement of `result_storage` argument — https://github.com/PrefectHQ/prefect/pull/9422
 - Add concept list to concept section parent page — https://github.com/PrefectHQ/prefect/pull/9404
 - Add Paused and Cancelling states to states concept page — https://github.com/PrefectHQ/prefect/pull/9435
 - Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
