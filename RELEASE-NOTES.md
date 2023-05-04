@@ -57,9 +57,8 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
 - Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
 - Add `timeout` to `QueueService.drain_all` and limit `APILogHandler.flush` time to 5s — https://github.com/PrefectHQ/prefect/pull/9354
-- UI Parameters JSON input [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
-- Use state name to determine polling for task run artifacts [`#1396`](https://github.com/PrefectHQ/prefect-ui-library/pull/1396)
-- Improve consistency in UI ? help modals [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
+- Add a parameters JSON input option for deployments in the UI [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
+- Improve consistency in UI help modals [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
 
 ### Fixes
 - Add guard against null schedule in `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/9373
