@@ -57,6 +57,9 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
 - Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
 - Add `timeout` to `QueueService.drain_all` and limit `APILogHandler.flush` time to 5s — https://github.com/PrefectHQ/prefect/pull/9354
+- UI Parameters JSON input [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
+- Use state name to determine polling for task run artifacts [`#1396`](https://github.com/PrefectHQ/prefect-ui-library/pull/1396)
+- Improve consistency in UI ? help modals [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
 
 ### Fixes
 - Add guard against null schedule in `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/9373
@@ -64,6 +67,9 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
 - Fix bug where work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
 - Fix bug where child flows would not fail the parent when they received invalid parameters — https://github.com/PrefectHQ/prefect/pull/9386
+- Fix `anyOf` and `array` schema mapping [`#1398`](https://github.com/PrefectHQ/prefect-ui-library/pull/1398)
+- Fix invalid Schema Values mapping on create flow run forms [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
+- Add check for color scheme to ensure correct UI favicon is updated [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
 
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
