@@ -1,5 +1,91 @@
 # Prefect Release Notes
 
+## Release 2.10.7
+
+### New and improved Flows page
+
+This release combines the previously separate flows and deployments UI pages into a single, holistic page that brings together flows and deployments, as well as their recent and upcoming runs. You can now see the state of the most recent flow run for each flow and deployment, giving you a snapshot of the status of your workspace. In addition, you can now filter deployments by whether their schedule is active and the work pool to which flow runs are submitted. See https://github.com/PrefectHQ/prefect/pull/9438 for details.
+
+![flows-page](https://user-images.githubusercontent.com/3407835/236275227-04944fde-cdc2-4f44-bcae-eb65f4cafa0d.png)
+
+### `on_crashed` state change hook for flows
+This release introduces the new `on_crashed` hook for flows, allowing you to add client-side hooks that will be called when your flow crashes. This is useful for cases where you want to execute code without involving the Prefect API, and for custom handling on `CRASHED` terminal states. This callable hook will receive three arguments: `flow`, `flow_run`, and `state`.
+
+Here is an example of how to use the `on_crashed` hook in your flow:
+
+```python
+from prefect import flow
+
+def crash_hook(flow, flow_run, state):
+    print("Don't Panic! But the flow has crashed...")
+
+@flow(on_crashed=[crash_hook])
+def my_flow():
+    # call `crash_hook` if this flow enters a `CRASHED` state
+    pass
+
+if __name__ == '__main__':
+    my_flow()
+```
+
+Now, if your flow crashes, `crash_hook` will be executed! Notably, you can also call the same hook for a variety of terminal states, or call multiple hooks for the same terminal state. For example:
+
+```python
+@flow(on_crashed=[my_hook], on_failure=[my_hook])
+def my_flow():
+   # call the same hook if this flow enters a `FAILED` or `CRASHED` state
+   pass
+   
+@flow(on_crashed=[my_first_hook, my_second_hook])
+def my_flow():
+   # call two different hooks if this flow enters a `CRASHED` state
+   pass
+```
+
+See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for implementation details.
+
+### Enhancements
+- Prevent unnecessarily verbose logs by updating `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
+- Create a process work pool by default when a new worker is started with a new work pool name and no type — https://github.com/PrefectHQ/prefect/pull/9326
+- Add support for asyncronous project steps — https://github.com/PrefectHQ/prefect/pull/9388
+- Update `critical_service_loop` to retry on all 5XX HTTP status codes — https://github.com/PrefectHQ/prefect/pull/9400
+- Add backoff on failure to agent critical loop services — https://github.com/PrefectHQ/prefect/pull/9402
+- Add print statement to `git pull` to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
+- Add `on_crashed` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9418
+- Make build->push step explicit in docker project recipes — https://github.com/PrefectHQ/prefect/pull/9417
+- Add storage blocks to cli `deployment build` help description  — https://github.com/PrefectHQ/prefect/pull/9411
+- Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
+- Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
+- Add a parameters JSON input option for deployments in the UI — [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
+- Improve consistency in UI help modals — [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
+
+### Fixes
+- Add guard against null schedule in `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/9373
+- Fix issue preventing work pool filter from being applied to the flow runs page — https://github.com/PrefectHQ/prefect/pull/9390
+- Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
+- Fix bug with work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
+- Fix bug where child flows would not fail the parent when they received invalid arguments — https://github.com/PrefectHQ/prefect/pull/9386
+- Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited — [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
+- Add a check for color scheme to ensure the flow run state favicon is visible — [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
+- Fix deadlock during API log handler flush when logging configuration is overridden — https://github.com/PrefectHQ/prefect/pull/9354
+- Fix send/drain race conditions in queue services — https://github.com/PrefectHQ/prefect/pull/9426
+- Fix bug where missing trailing slash in remote filesystems path would cause download failures — https://github.com/PrefectHQ/prefect/pull/9440
+
+### Documentation
+- Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
+- Add `Additional Resources` Section to Work Pools, Workers, & Agents page — https://github.com/PrefectHQ/prefect/pull/9393
+- Fix mistaken placement of `result_storage` parameter — https://github.com/PrefectHQ/prefect/pull/9422
+- Add concept list to concept section parent page — https://github.com/PrefectHQ/prefect/pull/9404
+- Add Paused and Cancelling states to states concept page — https://github.com/PrefectHQ/prefect/pull/9435
+- Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
+- Direct *Prefect Integration template* link to the correct page — https://github.com/PrefectHQ/prefect/pull/9362
+- Update landing page image — https://github.com/PrefectHQ/prefect/pull/9448
+
+### New Contributors
+- @rmorshea made their first contribution in https://github.com/PrefectHQ/prefect/pull/9422
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.6...2.10.7
+
 ## Release 2.10.6
 
 ### Deploy many flows at once with projects
