@@ -12,6 +12,7 @@ build:
       image_name: null
       tag: null
       dockerfile: "{{ dockerfile }}"
+      push: true
 
 push: null
 
