@@ -168,14 +168,14 @@ nav:
         - Deployment:
             - Docker: guides/deployment/docker.md
             - Azure Container Instance: guides/deployment/aci.md
-            - Kubernetes with Helm: guides/deployment/helm.md
+            - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md
         - Contributing Integrations: integrations/contribute.md
-    - API References: 
+    - API References:
         - api-ref/index.md
         - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md
