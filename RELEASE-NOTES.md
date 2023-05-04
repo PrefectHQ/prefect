@@ -8,6 +8,42 @@ This release combines the previously separate Flows and Deployments UI pages int
 
 [Screenshot 2023-05-04 at 12 59 00 PM](https://user-images.githubusercontent.com/3407835/236273882-a72022d4-67ae-406f-960d-43edf349aba0.png)
 
+### `on_crashed` state change hook for flows
+Introducing the new `on_crashed` hook for flows, allowing you to add client-side hooks that will be called when your flow crashes. This is useful for cases where you want to execute code without involving the Prefect API, and for custom handling on `CRASHED` terminal states. This callable hook will receive three arguments: `flow`, `flow_run`, and `state`.
+
+Here is an example of how to use the `on_crashed` hook in your flow:
+
+```python
+from prefect import flow
+
+def crash_hook(flow, flow_run, state):
+    print("Don't Panic! But the flow has crashed...")
+
+@flow(on_crashed=[crash_hook])
+def my_flow():
+    # call `crash_hook` if this flow enters a `CRASHED` state
+    pass
+
+if __name__ == '__main__':
+    my_flow()
+```
+
+Now, if your flow crashes, `crash_hook` will be executed! Notably, you can also call the same hook for a variety of terminal states, or call multiple hooks for the same terminal state, e.g.
+
+```python
+@flow(on_crashed=[my_hook], on_failure=[my_hook])
+def my_flow():
+   # call the same hook if this flow enters a `FAILED` or `CRASHED` state
+   pass
+   
+@flow(on_crashed=[my_first_hook, my_second_hook])
+def my_flow():
+   # call two different hooks if this flow enters a `CRASHED` state
+   pass
+```
+
+See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for implementation details.
+
 ### Enhancements
 - Prevent unnecessarily verbose logs by updating `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
 - Create a process work pool by default when a new worker is started with a new work pool name and no type — https://github.com/PrefectHQ/prefect/pull/9326
