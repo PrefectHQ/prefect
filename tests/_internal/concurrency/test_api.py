@@ -163,14 +163,14 @@ def test_from_sync_wait_for_call_in_loop_thread_captures_context_variables():
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
 async def test_from_async_wait_for_call_in_new_thread_captures_context_variables(get):
     with set_contextvar("test"):
-        result = await from_async.wait_for_call_in_new_thread(create_call(get))
+        result = await from_async.wait_for_call_in_new_thread(get)
         assert result == "test"
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
 def test_from_sync_wait_for_call_in_new_thread_captures_context_variables(get):
     with set_contextvar("test"):
-        result = from_sync.wait_for_call_in_new_thread(create_call(get))
+        result = from_sync.wait_for_call_in_new_thread(get)
         assert result == "test"
 
 
@@ -180,20 +180,20 @@ async def test_from_async_call_soon_in_waiter_thread_captures_context_varaibles(
 ):
     async def from_loop_thread():
         with set_contextvar("test"):
-            call = from_async.call_soon_in_waiter_thread(create_call(get))
+            call = from_async.call_soon_in_waiter_thread(get)
         assert await call.aresult() == "test"
 
-    await from_async.wait_for_call_in_loop_thread(create_call(from_loop_thread))
+    await from_async.wait_for_call_in_loop_thread(from_loop_thread)
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
 def test_from_sync_call_soon_in_waiter_thread_captures_context_varaibles(get):
     async def from_loop_thread():
         with set_contextvar("test"):
-            call = from_async.call_soon_in_waiter_thread(create_call(get))
+            call = from_async.call_soon_in_waiter_thread(get)
         assert await call.aresult() == "test"
 
-    from_sync.wait_for_call_in_loop_thread(create_call(from_loop_thread))
+    from_sync.wait_for_call_in_loop_thread(from_loop_thread)
 
 
 async def test_from_async_wait_for_call_in_loop_thread_timeout():
