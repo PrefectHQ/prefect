@@ -1,7 +1,7 @@
 import contextlib
 import math
 import random
-from itertools import combinations_with_replacement, product
+from itertools import product
 from unittest import mock
 from uuid import uuid4
 
@@ -22,7 +22,7 @@ from prefect.server.orchestration.core_policy import (
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
-    PreventRedundantTransitions,
+    PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
@@ -1255,30 +1255,26 @@ class TestTransitionsFromTerminalStatesRule:
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
-class TestPreventingRedundantTransitionsRule:
-    active_states = (
-        states.StateType.CANCELLING,
-        states.StateType.RUNNING,
-        states.StateType.PENDING,
-        states.StateType.SCHEDULED,
-        None,
-    )
-    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
-    redundant_transitions = set(combinations_with_replacement(active_states, 2))
-
-    # Cast to sorted lists for deterministic ordering.
-    # Sort as strings to handle `None`.
-    active_transitions = list(
-        sorted(all_transitions - redundant_transitions, key=lambda item: str(item))
-    )
-    redundant_transitions = list(
-        sorted(redundant_transitions, key=lambda item: str(item))
-    )
+class TestPreventPendingTransitions:
+    banned_states = [
+        StateType.CANCELLING,
+        StateType.CANCELLED,
+        StateType.RUNNING,
+        StateType.PENDING,
+    ]
+    banned_transitions = [(type_, StateType.PENDING) for type_ in banned_states]
+    allowed_transitions = [
+        (type_, StateType.PENDING)
+        # If you think this is silly, read https://github.com/python/cpython/issues/99295
+        for type_ in sorted(
+            set(ALL_ORCHESTRATION_STATES) - set(banned_states).union({None})
+        )
+    ]
 
     @pytest.mark.parametrize(
-        "intended_transition", redundant_transitions, ids=transition_names
+        "intended_transition", banned_transitions, ids=transition_names
     )
-    async def test_redundant_transitions_are_aborted(
+    async def test_banned_transitions_are_aborted(
         self,
         session,
         run_type,
@@ -1291,7 +1287,7 @@ class TestPreventingRedundantTransitionsRule:
             *intended_transition,
         )
 
-        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
@@ -1299,7 +1295,7 @@ class TestPreventingRedundantTransitionsRule:
         assert ctx.response_status == SetStateStatus.ABORT
 
     @pytest.mark.parametrize(
-        "intended_transition", active_transitions, ids=transition_names
+        "intended_transition", allowed_transitions, ids=transition_names
     )
     async def test_all_other_transitions_are_accepted(
         self,
@@ -1314,7 +1310,7 @@ class TestPreventingRedundantTransitionsRule:
             *intended_transition,
         )
 
-        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
