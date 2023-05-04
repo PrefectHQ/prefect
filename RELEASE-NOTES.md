@@ -56,7 +56,6 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add storage blocks to cli `deployment build` help description  — https://github.com/PrefectHQ/prefect/pull/9411
 - Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
 - Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
-- Add `timeout` to `QueueService.drain_all` and limit `APILogHandler.flush` time to 5s — https://github.com/PrefectHQ/prefect/pull/9354
 - Add a parameters JSON input option for deployments in the UI — [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
 - Improve consistency in UI help modals — [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
 
@@ -68,6 +67,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix bug where child flows would not fail the parent when they received invalid arguments — https://github.com/PrefectHQ/prefect/pull/9386
 - Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited — [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
 - Add a check for color scheme to ensure the flow run state favicon is visible — [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
+- Fix deadlock during API log handler flush when logging configuration is overridden — https://github.com/PrefectHQ/prefect/pull/9354
 
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
