@@ -8,7 +8,6 @@ This release combines the previously separate Flows and Deployments UI pages int
 
 ![flows-page](https://user-images.githubusercontent.com/3407835/236275227-04944fde-cdc2-4f44-bcae-eb65f4cafa0d.png)
 
-
 ### `on_crashed` state change hook for flows
 This release introduces the new `on_crashed` hook for flows, allowing you to add client-side hooks that will be called when your flow crashes. This is useful for cases where you want to execute code without involving the Prefect API, and for custom handling on `CRASHED` terminal states. This callable hook will receive three arguments: `flow`, `flow_run`, and `state`.
 
@@ -58,8 +57,8 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
 - Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
 - Add `timeout` to `QueueService.drain_all` and limit `APILogHandler.flush` time to 5s — https://github.com/PrefectHQ/prefect/pull/9354
-- Add a parameters JSON input option for deployments in the UI [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
-- Improve consistency in UI help modals [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
+- Add a parameters JSON input option for deployments in the UI — [`#1405`](https://github.com/PrefectHQ/prefect-ui-library/pull/1405)
+- Improve consistency in UI help modals — [`#1397`](https://github.com/PrefectHQ/prefect-ui-library/pull/1397)
 
 ### Fixes
 - Add guard against null schedule in `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/9373
@@ -67,8 +66,8 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Fix project recipe `image_name` and `tag` templating in docker-git, docker-gcs, and docker-s3 — https://github.com/PrefectHQ/prefect/pull/9425
 - Fix bug where work queues showing as unhealthy when a work queue with the same name is unhealthy — https://github.com/PrefectHQ/prefect/pull/9437
 - Fix bug where child flows would not fail the parent when they received invalid parameters — https://github.com/PrefectHQ/prefect/pull/9386
-- Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
-- Add a check for color scheme to ensure the flow run state favicon is visible [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
+- Fix schema values mapping on the create flow run forms to ensure all parameter values can be edited — [`#1407`](https://github.com/PrefectHQ/prefect-ui-library/pull/1407)
+- Add a check for color scheme to ensure the flow run state favicon is visible — [`#1392`](https://github.com/PrefectHQ/prefect-ui-library/pull/1392)
 
 ### Documentation
 - Add a link to bug bounty program information — https://github.com/PrefectHQ/prefect/pull/9366
