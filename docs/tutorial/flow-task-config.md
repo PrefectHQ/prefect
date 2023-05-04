@@ -9,12 +9,8 @@ tags:
     - caching
 ---
 
-
-
-
-
 # Flow and task configuration
-  
+
 Now that you've written some [basic flows and tasks](/tutorials/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
 Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
@@ -40,7 +36,7 @@ A flow `description` enables you to provide documentation right alongside your f
 ```python
 from prefect import flow
 
-@flow(name="My Example Flow", 
+@flow(name="My Example Flow",
       description="An example flow for a tutorial.")
 def my_flow():
     # run tasks and subflows
@@ -57,25 +53,25 @@ def my_flow():
     # run tasks and subflows
 ```
 
-A flow `version` enables you to associate a given run of your workflow with the version of code or configuration that was used. 
+A flow `version` enables you to associate a given run of your workflow with the version of code or configuration that was used.
 
 ```python
 from prefect import flow
 
-@flow(name="My Example Flow", 
+@flow(name="My Example Flow",
       description="An example flow for a tutorial.",
       version="tutorial_02")
 def my_flow():
     # run tasks and subflows
 ```
 
-If you are using `git` to version control your code, you might use the commit hash as the version. 
+If you are using `git` to version control your code, you might use the commit hash as the version.
 
 ```python
 import os
 from prefect import flow
 
-@flow(name="My Example Flow", 
+@flow(name="My Example Flow",
       description="An example flow for a tutorial.",
       version=os.getenv("GIT_COMMIT_SHA"))
 def my_flow():
@@ -148,7 +144,7 @@ By design, tasks follow a very similar model to flows: you can independently ass
 ```python
 from prefect import flow, task
 
-@task(name="My Example Task", 
+@task(name="My Example Task",
       description="An example task for a tutorial.")
 def my_task():
     # do some work
@@ -165,7 +161,7 @@ You specify the tags on a task as a list of tag strings.
 ```python hl_lines="5"
 from prefect import flow, task
 
-@task(name="My Example Task", 
+@task(name="My Example Task",
       description="An example task for a tutorial.",
       tags=["tutorial","tag-test"])
 def my_task():
@@ -182,7 +178,7 @@ You can also distinguish runs of this task by providing a `task_run_name`; this 
 import datetime
 from prefect import flow, task
 
-@task(name="My Example Task", 
+@task(name="My Example Task",
       description="An example task for a tutorial.",
       task_run_name="hello-{name}-on-{date:%A}")
 def my_task(name, date):
@@ -274,27 +270,27 @@ If you run `test_retries()`, the `failure()` task always raises an error, but wi
 running
 13:48:40.663 | Task run 'failure-acc38180-0' encountered exception:
 Traceback (most recent call last):...
-13:48:40.708 | Task run 'failure-acc38180-0' received non-final state 
+13:48:40.708 | Task run 'failure-acc38180-0' received non-final state
 'AwaitingRetry' when proposing final state 'Failed' and will attempt to run again...
 running
 13:48:40.748 | Task run 'failure-acc38180-0' encountered exception:
 Traceback (most recent call last):...
-13:48:40.786 | Task run 'failure-acc38180-0' received non-final state 
+13:48:40.786 | Task run 'failure-acc38180-0' received non-final state
 'AwaitingRetry' when proposing final state 'Failed' and will attempt to run again...
 running
 13:48:40.829 | Task run 'failure-acc38180-0' encountered exception:
 Traceback (most recent call last):...
-13:48:40.871 | Task run 'failure-acc38180-0' finished in state 
+13:48:40.871 | Task run 'failure-acc38180-0' finished in state
 Failed(message='Task run encountered an exception.', type=FAILED)
 13:48:40.872 | Shutting down task runner `SequentialTaskRunner`...
-13:48:40.899 | Flow run 'red-orca' finished in state 
+13:48:40.899 | Flow run 'red-orca' finished in state
 Failed(message='1/1 states failed.', type=FAILED)
 ```
 </div>
 
-Once we dive deeper into state transitions and orchestration policies, you will see that this task run actually went through the following state transitions some number of times: 
+Once we dive deeper into state transitions and orchestration policies, you will see that this task run actually went through the following state transitions some number of times:
 
-`Pending` -> `Running` -> `AwaitingRetry` -> `Retrying` 
+`Pending` -> `Running` -> `AwaitingRetry` -> `Retrying`
 
 Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
 
@@ -305,14 +301,14 @@ Metadata such as this allows for a full reconstruction of what happened with you
 
 [Caching](/concepts/tasks/#caching) refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flows and flow runs using the concept of a "cache key function".
 
-You can specify the cache key function using the `cache_key_fn` argument on a task. 
+You can specify the cache key function using the `cache_key_fn` argument on a task.
 
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
 ### Task input hash
 
-One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again. 
+One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again.
 
 To illustrate, run the following flow in a Python interpreter.
 
@@ -367,9 +363,9 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
 
 !!! tip "Cache expiration"
-    Note that in this example we're also specifying a cache expiration duration: `cache_expiration=timedelta(minutes=1)`. This causes the cache to expire after one minute regardless of the task input. You can demonstrate this by: 
+    Note that in this example we're also specifying a cache expiration duration: `cache_expiration=timedelta(minutes=1)`. This causes the cache to expire after one minute regardless of the task input. You can demonstrate this by:
 
-    - Running `hello_flow("Marvin")` a few times, noting that the task only prints its message the first time. 
+    - Running `hello_flow("Marvin")` a few times, noting that the task only prints its message the first time.
     - Waiting 60 seconds.
     - Running `hello_flow("Marvin")` again, noting that the task prints its message this time, even though the input didn't change.
 
@@ -392,7 +388,7 @@ def cache_key_from_sum(context, parameters):
 
 @task(cache_key_fn=cache_key_from_sum, cache_expiration=timedelta(minutes=1))
 def cached_task(nums):
-    print('running an expensive operation')  
+    print('running an expensive operation')
     time.sleep(3)
     return sum(nums)
 
@@ -453,24 +449,24 @@ For further details on cache key functions, see the [Caching](/concepts/tasks/#c
 
 ## Configuring task runners
 
-A more advanced configuration option for flows is to specify a [task runner](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow. 
+A more advanced configuration option for flows is to specify a [task runner](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow.
 
 You must use `.submit()` to submit your task to a task runner. Calling the task directly from within a flow does not invoke the task runner for execution and will execute tasks sequentially. Tasks called directly without submitting to a task runner return the result data you'd expect from a Python function.
 
-Prefect provides two built-in task runners: 
+Prefect provides two built-in task runners:
 
-- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
+- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially.
 - [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
-We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorials/dask-ray-task-runners/) tutorial. 
+We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorials/dask-ray-task-runners/) tutorial.
 
 !!! tip "Task runners are optional"
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
 
-For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option. The difference is that you need to: 
+For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option. The difference is that you need to:
 
 - Import the task runner
-- Specify you're using the task runner for tasks within your flow with the `task_runner` setting on the flow. 
+- Specify you're using the task runner for tasks within your flow with the `task_runner` setting on the flow.
 - Call [`.submit()`](/concepts/task-runners/#using-a-task-runner) on your task to submit task execution to the task runner.
 
 ```python
@@ -485,7 +481,7 @@ def first_task(num):
 def second_task(num):
     return num * num
 
-@flow(name="My Example Flow", 
+@flow(name="My Example Flow",
       task_runner=SequentialTaskRunner(),
 )
 def my_flow(num):
