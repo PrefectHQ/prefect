@@ -409,18 +409,6 @@ class Flow(Generic[P, R]):
         return serialized_parameters
 
     @overload
-    def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def __call__(
-        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
-
-    @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,

@@ -447,16 +447,6 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
-        self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> None:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def __call__(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
