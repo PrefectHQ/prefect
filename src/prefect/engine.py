@@ -357,7 +357,7 @@ async def begin_flow_run(
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
+            report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
         )
 
         # Create a task group for background tasks
@@ -416,7 +416,7 @@ async def begin_flow_run(
                 f" {timeout.to_rfc3339_string()} to finish execution."
             ),
         )
-        await APILogHandler.flush()
+        await APILogHandler.aflush()
 
         return terminal_or_paused_state
     else:
@@ -432,7 +432,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    await APILogHandler.flush()
+    await APILogHandler.aflush()
 
     return terminal_state
 
@@ -532,7 +532,7 @@ async def create_and_begin_subflow_run(
         if terminal_state is None or not terminal_state.is_final():
             async with AsyncExitStack() as stack:
                 await stack.enter_async_context(
-                    report_flow_run_crashes(flow_run=flow_run, client=client)
+                    report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
                 )
 
                 task_runner = flow.task_runner.duplicate()
@@ -1409,7 +1409,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                await APILogHandler.flush()
+                await APILogHandler.aflush()
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
@@ -1709,7 +1709,7 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1744,6 +1744,14 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
             )
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
+            )
+
+            # Only `on_crashed` flow run state change hook is called here
+            # We call the hook after the state is set to `CRASHED`
+            await _run_flow_hooks(
+                flow=flow,
+                flow_run=flow_run,
+                state=state,
             )
 
         if isinstance(exc, TerminationSignal):
@@ -2158,7 +2166,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure and on_completion hooks for a flow, making sure to
+    """Run the on_failure, on_completion, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2166,6 +2174,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_crashed() and flow.on_crashed:
+        hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)

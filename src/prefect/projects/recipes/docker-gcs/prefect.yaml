@@ -10,9 +10,10 @@ required_inputs:
 build:
   - prefect_docker.projects.steps.build_docker_image:
       requires: "prefect-docker>=0.2.0"
-      image_name: null
-      tag: null
+      image_name: "{{ image_name }}"
+      tag: "{{ tag }}"
       dockerfile: "{{ dockerfile }}"
+      push: true
 
 push: 
   - prefect_gcp.projects.steps.push_project_to_gcs:
