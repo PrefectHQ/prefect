@@ -9,7 +9,6 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   artifacts: () => import('@/pages/Artifacts.vue'),
   flowRuns: () => import('@/pages/FlowRuns.vue'),
   flowRun: () => import('@/pages/FlowRun.vue'),
-  flowRunRadar: () => import('@/pages/FlowRunRadar.vue'),
   taskRun: () => import('@/pages/TaskRun.vue'),
   flows: () => import('@/pages/Flows.vue'),
   flow: () => import('@/pages/Flow.vue'),

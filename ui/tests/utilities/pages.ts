@@ -2,7 +2,6 @@ export const pages = {
   root: () => '/',
   flowRuns: () => '/runs',
   flowRun: (id: string) => `/flow-run/${id}`,
-  flowRunRadar: (id: string) => `/flow-run/${id}/radar`,
   flows: () => '/flows',
   flow: (id: string) => `/flow/${id}`,
   deployments: () => '/deployments',
