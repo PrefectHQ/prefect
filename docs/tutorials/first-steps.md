@@ -13,20 +13,19 @@ tags:
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
-A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
+A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator. 
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. 
 
-Some important things to know about flows:
-1. All Prefect workflows are defined within the context of a flow.
-2. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow.
-3. Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
+All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
+
+Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
 ## Run a basic flow
 
 The simplest way to begin with Prefect is to import `flow` and annotate your Python function using the [`@flow`][prefect.flows.flow] decorator.
 
-Enter the following code into your code editor, Jupyter Notebook, or Python REPL.
+Enter the following code into your code editor, Jupyter Notebook, or Python REPL. 
 
 ```python
 from prefect import flow
@@ -41,7 +40,7 @@ print(my_favorite_function())
 
 Running a Prefect flow manually is as easy as calling the annotated function &mdash; in this case, the `my_favorite_function()`.
 
-Here's what the output looks like if your run the code in a Python script:
+Run your code in your chosen environment. Here's what the output looks like if your run the code in a Python script:
 
 <div class="terminal">
 ```bash
@@ -53,9 +52,11 @@ What is your favorite number?
 ```
 </div>
 
-Notice the log messages surrounding the expected output, "What is your favorite number?". Finally, the value returned by the function is printed.
+Notice the log messages surrounding the expected output, "What is your favorite number?". Finally, the value returned by the function is printed. 
 
-By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect orchestration engine manages flow and task state regardless of where your flow code runs.
+By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect orchestration engine manages flow and task state, including inspecting their progress, regardless of where your flow code runs.
+
+In this case, the state of `my_favorite_function()` is "Completed", with no further message details. This reflects the logged message we saw earlier, `Flow run 'olive-poodle' - Finished in state Completed()`. 
 
 ## Run flows with parameters
 
@@ -73,7 +74,9 @@ api_result = call_api("http://time.jsontest.com/")
 print(api_result)
 ```
 
-Let's run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dicionary returned by the API call, we wrap it in a `print` function.
+You can pass any parameters needed by your flow function, and you can pass [parameters on the `@flow`](/api-ref/prefect/flows/#prefect.flows.flow) decorator for configuration as well. We'll cover that in a future tutorial.
+
+For now, we run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dicionary returned by the API call, we wrap it in a `print` function.
 
 <div class="terminal">
 ```bash
@@ -86,7 +89,7 @@ Let's run the `call_api()` flow, passing a valid URL as a parameter. In this cas
 
 ## Run a basic flow with tasks
 
-Let's now add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level.
+Let's now add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level. 
 
 A task is a function that represents a distinct piece of work executed within a flow. You don't have to use tasks &mdash; you can include all of the logic of your workflow within the flow itself. However, encapsulating your business logic into smaller task units gives you more granular observability, control over how specific tasks are run (potentially taking advantage of parallel execution), and the ability to reuse tasks across flows and subflows.
 
@@ -112,8 +115,9 @@ def api_flow(url):
 print(api_flow("https://catfact.ninja/fact"))
 ```
 
-We can then call our flow function &mdash; now called `api_flow()` &mdash;
-just as before and see the printed output.
+As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  
+We can then call our flow function &mdash; now called `api_flow()` &mdash; 
+just as before and see the printed output. 
 Prefect manages all the intermediate states.
 
 <div class="terminal">
@@ -252,7 +256,7 @@ Received a <class 'str'> with value 100
 ```
 </div>
 
-You can see that Prefect coerced the provided inputs into the types specified on your flow function!
+You can see that Prefect coerced the provided inputs into the types specified on your flow function!  
 
 While the above example is basic, this can be extended in powerful ways. In particular, Prefect attempts to coerce _any_ [pydantic](https://pydantic-docs.helpmanual.io/) model type hint into the correct form automatically:
 
