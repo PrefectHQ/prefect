@@ -79,6 +79,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add Paused and Cancelling states to states concept page — https://github.com/PrefectHQ/prefect/pull/9435
 - Update docs logos — https://github.com/PrefectHQ/prefect/pull/9365
 - Direct *Prefect Integration template* link to the correct page — https://github.com/PrefectHQ/prefect/pull/9362
+- Update landing page image — https://github.com/PrefectHQ/prefect/pull/9448
 
 ### New Contributors
 - @rmorshea made their first contribution in https://github.com/PrefectHQ/prefect/pull/9422
