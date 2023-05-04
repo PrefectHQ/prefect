@@ -14,13 +14,6 @@ tags:
 
 
 # Flow and task configuration
-- [Basic flow configuration](#basic-flow-configuration)
-- [Basic task configuration](#basic-task-configuration)
-- [Flow and task retries](#flow-and-task-retries)
-- [Task caching](#task-caching)
-- [Task input hash](#task-input-hash)
-- [Cache key function](#cache-key-function)
-- [Configuring task runners](#configuring-task-runners)
   
 Now that you've written some [basic flows and tasks](/tutorials/first-steps/), let's explore some of the configuration options that Prefect exposes.
 

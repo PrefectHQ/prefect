@@ -10,12 +10,6 @@ tags:
 ---
 
 # Flows and tasks
-- [Run a basic flow](#run-a-basic-flow)
-- [Run flows with parameters](#run-flows-with-parameters)
-- [Run a basic flow with tasks](#run-a-basic-flow-with-tasks)
-- [Run a flow within a flow](#run-a-flow-within-a-flow)
-- [Parameter type conversion](#parameter-type-conversion)
-
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
