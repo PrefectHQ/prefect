@@ -1,18 +1,20 @@
 import abc
+import queue
 import asyncio
 import atexit
 import concurrent.futures
 import contextlib
 import sys
 import threading
-from collections import deque
+from functools import partial
 from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 import anyio
 from typing_extensions import Self
 
-from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.event_loop import get_running_loop, call_soon_in_loop
+from prefect._internal.concurrency.api import create_call, from_sync, from_async
+from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect._internal.concurrency.timeouts import get_deadline, get_timeout
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.logging import get_logger
 
@@ -24,13 +26,13 @@ logger = get_logger("prefect._internal.concurrency.services")
 
 class QueueService(abc.ABC, Generic[T]):
     _instances: Dict[int, Self] = {}
+    _instance_lock = threading.Lock()
 
     def __init__(self, *args) -> None:
-        self._queue: Optional[asyncio.Queue] = None
+        self._queue: queue.Queue = queue.Queue()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._done_event: Optional[asyncio.Event] = None
         self._task: Optional[asyncio.Task] = None
-        self._early_items = deque()
         self._stopped: bool = False
         self._started: bool = False
         self._key = hash(args)
@@ -43,7 +45,6 @@ class QueueService(abc.ABC, Generic[T]):
         if not asyncio.get_running_loop() == loop_thread._loop:
             raise RuntimeError("Services must run on the global loop thread.")
 
-        self._queue = asyncio.Queue()
         self._loop = loop_thread._loop
         self._done_event = asyncio.Event()
         self._task = self._loop.create_task(self._run())
@@ -51,10 +52,6 @@ class QueueService(abc.ABC, Generic[T]):
 
         # Ensure that we wait for worker completion before loop thread shutdown
         loop_thread.add_shutdown_call(create_call(self.drain))
-
-        # Put all early submissions in the queue
-        while self._early_items:
-            self.send(self._early_items.popleft())
 
         # Stop at interpreter exit by default
         if sys.version_info < (3, 9):
@@ -85,9 +82,10 @@ class QueueService(abc.ABC, Generic[T]):
 
             # Stop sending work to this instance
             self._remove_instance()
-
             self._stopped = True
-            call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+
+            # Signal completion to the loop
+            self._queue.put_nowait(None)
 
     def send(self, item: T):
         """
@@ -98,13 +96,7 @@ class QueueService(abc.ABC, Generic[T]):
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
             logger.debug("Service %r enqueing item %r", self, item)
-
-            if not self._started:
-                self._early_items.append(item)
-            else:
-                call_soon_in_loop(
-                    self._loop, self._queue.put_nowait, self._prepare_item(item)
-                )
+            self._queue.put_nowait(self._prepare_item(item))
 
     def _prepare_item(self, item: T) -> T:
         """
@@ -135,7 +127,9 @@ class QueueService(abc.ABC, Generic[T]):
 
     async def _main_loop(self):
         while True:
-            item: T = await self._queue.get()
+            item: T = await from_async.call_soon_in_new_thread(
+                self._queue.get
+            ).aresult()
 
             if item is None:
                 break
@@ -195,10 +189,11 @@ class QueueService(abc.ABC, Generic[T]):
         Returns an awaitable if called from an async context.
         """
         futures = []
-        instances = tuple(cls._instances.values())
+        with cls._instance_lock:
+            instances = tuple(cls._instances.values())
 
-        for instance in instances:
-            futures.append(instance._drain())
+            for instance in instances:
+                futures.append(instance._drain())
 
         if get_running_loop() is not None:
             return (
@@ -220,11 +215,12 @@ class QueueService(abc.ABC, Generic[T]):
 
         If an instance already exists with the given arguments, it will be returned.
         """
-        key = hash(args)
-        if key not in cls._instances:
-            cls._instances[key] = cls._new_instance(*args)
+        with cls._instance_lock:
+            key = hash(args)
+            if key not in cls._instances:
+                cls._instances[key] = cls._new_instance(*args)
 
-        return cls._instances[key]
+            return cls._instances[key]
 
     def _remove_instance(self):
         self._instances.pop(self._key, None)
@@ -265,12 +261,13 @@ class BatchedQueueService(QueueService[T]):
             batch = []
             batch_size = 0
 
-            # Process the batch after `min_interval` even if it is smaller than the
-            # batch size
-            with anyio.move_on_after(self._min_interval):
-                # Pull items from the queue until we reach the batch size
-                while batch_size < self._max_batch_size:
-                    item = await self._queue.get()
+            # Pull items from the queue until we reach the batch size
+            deadline = get_deadline(self._min_interval)
+            while batch_size < self._max_batch_size:
+                try:
+                    item = await anyio.to_thread.run_sync(
+                        partial(self._queue.get, timeout=get_timeout(deadline))
+                    )
 
                     if item is None:
                         done = True
@@ -285,6 +282,10 @@ class BatchedQueueService(QueueService[T]):
                         batch_size,
                         self._max_batch_size,
                     )
+                except queue.Empty:
+                    # Process the batch after `min_interval` even if it is smaller than
+                    # the batch size
+                    break
 
             if not batch:
                 continue
