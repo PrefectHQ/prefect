@@ -351,10 +351,6 @@ Strict-Transport-Security = """
 # connect-src
 #   'self' - all connections to current current origin are permitted
 #   https://api.github.com - required to display release information
-#   https://api.segment.io - default domain for Segment analytics
-#   https://cdn.segment.com - default domain for Segment analytics.js
-#   https://api.segment.prefect.io - custom proxy for Segment analytics
-#   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
 #   https://www.google-analytics.com - Google Analytics
 # font-src
 #   https://fonts.gstatic.com - load fonts from Google Fonts
@@ -376,8 +372,6 @@ Strict-Transport-Security = """
 # script-src
 #   'self' - all resources from current origin are permitted
 #   'unsafe-inline' - required for scripts loaded in partials
-#   https://cdn.segment.com - default domain for Segment analytics.js
-#   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
 # style-src
 #   'self' - all styles from current origin are permitted
@@ -391,10 +385,6 @@ Content-Security-Policy = """\
       connect-src \
         'self' \
         https://api.github.com \
-        https://api.segment.io \
-        https://cdn.segment.com \
-        https://api.segment.prefect.io \
-        https://cdn.segment.prefect.io \
         https://www.google-analytics.com \
         ; \
       font-src 
@@ -419,8 +409,6 @@ Content-Security-Policy = """\
       script-src \
         'self' \
         'unsafe-inline' \
-        https://cdn.segment.com/ \
-        https://cdn.segment.prefect.io \
         https://www.googletagmanager.com \
         https://unpkg.com \
         ; \
@@ -478,10 +466,6 @@ Permissions-Policy = """\
       web-share=(), \
       xr-spatial-tracking=() \
       """
-
-[[edge_functions]]
-path = "/segment/*"
-function = "segment"
 
 [[edge_functions]]
   path = "/2/httpapi"
