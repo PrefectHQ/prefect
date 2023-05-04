@@ -12,10 +12,7 @@ import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.event_loop import (
-    call_soon_in_loop,
-    get_running_loop,
-)
+from prefect._internal.concurrency.event_loop import get_running_loop, call_soon_in_loop
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.logging import get_logger
 
@@ -90,7 +87,6 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
 
             self._stopped = True
-
             call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
     def send(self, item: T):
@@ -191,7 +187,7 @@ class QueueService(abc.ABC, Generic[T]):
             return future.result()
 
     @classmethod
-    def drain_all(cls) -> Union[Awaitable, None]:
+    def drain_all(cls, timeout: Optional[float] = None) -> Union[Awaitable, None]:
         """
         Stop all instances of the service and wait for all remaining work to be
         completed.
@@ -205,9 +201,17 @@ class QueueService(abc.ABC, Generic[T]):
             futures.append(instance._drain())
 
         if get_running_loop() is not None:
-            return asyncio.gather(*[asyncio.wrap_future(fut) for fut in futures])
+            return (
+                asyncio.wait(
+                    [asyncio.wrap_future(fut) for fut in futures], timeout=timeout
+                )
+                if futures
+                # `wait` errors if it receieves an empty list but we need to return a
+                # coroutine still
+                else asyncio.sleep(0)
+            )
         else:
-            return concurrent.futures.wait(futures)
+            return concurrent.futures.wait(futures, timeout=timeout)
 
     @classmethod
     def instance(cls: Type[Self], *args) -> Self:
