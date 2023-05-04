@@ -89,6 +89,14 @@ async def start(
         "--limit",
         help="Maximum number of flow runs to start simultaneously.",
     ),
+    round_robin: bool = typer.Option(
+        False,
+        "--round_robin",
+        help=(
+            "If the agent is responsible for multiple work queues, this enables the"
+            " agent to select the flow runs to do in the queues in a round robin manner."
+        ),
+    ),
 ):
     """
     Start an agent process to poll one or more work queues for flow runs.
@@ -167,6 +175,7 @@ async def start(
         work_pool_name=work_pool_name,
         prefetch_seconds=prefetch_seconds,
         limit=limit,
+        round_robin=round_robin,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)

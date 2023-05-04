@@ -51,6 +51,7 @@ class PrefectAgent:
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
+        round_robin: bool = False,
     ) -> None:
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
@@ -70,6 +71,7 @@ class PrefectAgent:
         self.limit: Optional[int] = limit
         self.limiter: Optional[anyio.CapacityLimiter] = None
         self.client: Optional[PrefectClient] = None
+        self.round_robin: bool = round_robin
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -196,9 +198,12 @@ class PrefectAgent:
                 work_queue_names=[wq.name async for wq in self.get_work_queues()],
                 scheduled_before=before,
             )
-            submittable_runs.extend([response.flow_run for response in responses])
+            submittable_runs = [response.flow_run for response in responses]
 
         else:
+            # keep each work queue's list of flow runs to do
+            queue_flow_lists = []
+
             # load runs from each work queue
             async for work_queue in self.get_work_queues():
                 # print a nice message if the work queue is paused
@@ -212,7 +217,14 @@ class PrefectAgent:
                         queue_runs = await self.client.get_runs_in_work_queue(
                             id=work_queue.id, limit=10, scheduled_before=before
                         )
-                        submittable_runs.extend(queue_runs)
+                        # if we do round robin scheduling, each work queue's flows should be sorted
+                        if self.round_robin:
+                            queue_runs.sort(key=lambda run: run.next_scheduled_start_time)
+
+                        # push the flow runs for this work queue into `queue_flow_lists`.
+                        # for FIFO scheduling (i.e. `self.round_robin == false`), we sort once we
+                        # collect every work queue's list of flow runs
+                        queue_flow_lists.append(queue_runs)
                     except ObjectNotFound:
                         self.logger.error(
                             f"Work queue {work_queue.name!r} ({work_queue.id}) not"
@@ -220,8 +232,14 @@ class PrefectAgent:
                         )
                     except Exception as exc:
                         self.logger.exception(exc)
-
-            submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
+            # if we do round robin scheduling, transpose the queues' lists of flow runs, and
+            # then flatten the list
+            if self.round_robin:
+                submittable_runs = [x for xs in zip(*queue_flow_lists) for x in list(xs)]
+            # otherwise we simply flatten the list and sort it
+            else:
+                submittable_runs = [x for ls in queue_flow_lists for x in ls]
+                submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
             # don't resubmit a run
