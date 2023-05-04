@@ -321,6 +321,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if local_path is None:
             local_path = Path(".").absolute()
 
+        # validate that from_path has a trailing slash for proper fsspec behavior across versions
+        if not from_path.endswith("/"):
+            from_path += "/"
+
         return self.filesystem.get(from_path, local_path, recursive=True)
 
     @sync_compatible
