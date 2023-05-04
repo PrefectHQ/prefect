@@ -1,9 +1,12 @@
 import asyncio
 import contextlib
+import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
+
+from prefect._internal.concurrency.api import from_async
 
 import pytest
 
@@ -260,6 +263,48 @@ def test_drain_on_exit_async_from_same_loop():
     from_sync.call_soon_in_loop_thread(create_call(on_global_loop)).result()
 
     MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)])
+
+
+def test_drain_all_timeout_sync():
+    import os
+
+    print(os.getpid())
+    instance = MockService.instance()
+
+    # Block forever on handling of this item
+    event = threading.Event()
+    MockService.mock.side_effect = lambda *_: event.wait()
+    instance.send(1)
+
+    t0 = time.monotonic()
+    MockService.drain_all(timeout=0.01)
+    t1 = time.monotonic()
+
+    event.set()  # Unblock the handler and drain
+    MockService.drain_all()
+
+    assert t1 - t0 < 2
+
+
+async def test_drain_all_timeout_async():
+    # Creating an instance from an async context is not always safe when sending an
+    # item that blocks the event loop like this
+    instance = await from_async.call_soon_in_loop_thread(
+        create_call(MockService.instance)
+    ).aresult()
+
+    event = threading.Event()
+    MockService.mock.side_effect = lambda *_: event.wait()
+
+    instance.send(1)
+    t0 = time.monotonic()
+    await MockService.drain_all(timeout=0.01)
+    t1 = time.monotonic()
+
+    event.set()  # Unblock the handler and drain
+    await MockService.drain_all()
+
+    assert t1 - t0 < 2
 
 
 def test_lifespan():
