@@ -52,7 +52,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 - Add backoff on failure to agent critical loop services — https://github.com/PrefectHQ/prefect/pull/9402
 - Add print statement to `git pull` to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
 - Add `on_crashed` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9418
-- Makes build->push step explicit in docker project recipes — https://github.com/PrefectHQ/prefect/pull/9417
+- Make build->push step explicit in docker project recipes — https://github.com/PrefectHQ/prefect/pull/9417
 - Add storage blocks to cli `deployment build` help description  — https://github.com/PrefectHQ/prefect/pull/9411
 - Add `call_in_...` methods to the concurrency API — https://github.com/PrefectHQ/prefect/pull/9415
 - Add support for `Callable[[], T]` to concurrency API methods — https://github.com/PrefectHQ/prefect/pull/9413
