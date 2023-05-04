@@ -482,3 +482,7 @@ Permissions-Policy = """\
 [[edge_functions]]
 path = "/segment/*"
 function = "segment"
+
+[[edge_functions]]
+  path = "/2/httpapi"
+  function = "amplitude"
