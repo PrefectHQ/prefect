@@ -4,9 +4,9 @@
 
 ### New and improved Flows page
 
-This release combines the previously separate Flows and Deployments pages in the Prefect UI into a single, holistic page that brings together information about flows and deployments, as well as recent and upcoming runs. You can now see the state of the most recent flow run, giving you a snapshot of the status of your workspace. In addition, you can now filter deployments by whether their schedule is active and the work pool to which flow runs are submitted. See https://github.com/PrefectHQ/prefect/pull/9438 for details.
+This release combines the previously separate Flows and Deployments UI pages into a single, holistic page that brings together information about flows and deployments, as well as recent and upcoming runs. You can now see the state of the most recent flow run for each flow and deployment, giving you a snapshot of the status of your workspace. In addition, you can now filter deployments by whether their schedule is active and the work pool to which flow runs are submitted. See https://github.com/PrefectHQ/prefect/pull/9438 for details.
 
-TODO: Add screenshot
+[Screenshot 2023-05-04 at 12 59 00 PM](https://user-images.githubusercontent.com/3407835/236273882-a72022d4-67ae-406f-960d-43edf349aba0.png)
 
 ### Enhancements
 - Prevent unnecessarily verbose logs by updating `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
