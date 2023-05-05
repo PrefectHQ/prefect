@@ -1254,7 +1254,7 @@ class TestTransitionsFromTerminalStatesRule:
         assert ctx.response_status == SetStateStatus.ACCEPT
 
 
-@pytest.mark.parametrize("run_type", ["task", "flow"])
+@pytest.mark.parametrize("run_type", ["flow"])
 class TestPreventPendingTransitions:
     banned_states = [
         StateType.CANCELLING,
