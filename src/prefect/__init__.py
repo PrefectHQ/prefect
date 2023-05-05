@@ -28,6 +28,7 @@ if sys.version_info < (3, 8):
             " to upgrade to Python 3.8+."
         ),
         FutureWarning,
+        stacklevel=2,
     )
 
 
