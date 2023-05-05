@@ -458,7 +458,7 @@ Prefect provides two built-in task runners:
 - [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially.
 - [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
-We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/guides/deployment/flow-task-config/) tutorial.
+We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorial/flow-task-config) tutorial.
 
 !!! tip "Task runners are optional"
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.

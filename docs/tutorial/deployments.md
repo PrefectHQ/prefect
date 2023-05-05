@@ -654,4 +654,4 @@ To terminate the agent, simply go to the terminal session where it's running and
 You can pause or delete a work pool on the Prefect UI **Work pools** page.
 
 !!! tip "Next steps: Storage and infrastructure"
-    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/storage/), which is covered in our next tutorial.
+    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/docs/tutorial/storage/), which is covered in our next tutorial.
