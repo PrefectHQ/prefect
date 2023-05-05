@@ -786,7 +786,8 @@ class Deployment(BaseModel):
         deployment.parameter_openapi_schema = parameter_schema(flow)
 
         # ensure the ignore file exists
-        Path(ignore_file).touch()
+        if not Path(ignore_file).exists():
+            Path(ignore_file).touch()
 
         if not deployment.version:
             deployment.version = flow.version
