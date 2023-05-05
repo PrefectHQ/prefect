@@ -51,10 +51,14 @@ async def critical_service_loop(
     while True:
         try:
             await workload()
+
             # Reset the backoff count on success; we may want to consider resetting
             # this only if the track record is _all_ successful to avoid ending backoff
             # prematurely
-            backoff_count = 0
+            if backoff_count > 0:
+                printer("Resetting backoff due to successful run.")
+                backoff_count = 0
+
             track_record.append(True)
         except httpx.TransportError as exc:
             # httpx.TransportError is the base class for any kind of communications
