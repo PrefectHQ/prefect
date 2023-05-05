@@ -21,7 +21,7 @@ A project is a minimally opinionated set of files that describe how to prepare o
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing procedural steps for preparing a deployment from this project, as well as instructions for preparing the execution environment for a deployment run
 - [`.prefect/`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
 
-Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.  
+Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.
 
 !!! tip "Project recipes"
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `deployment.yaml` and `prefect.yaml` files; run `prefect project recipe ls` to see what recipes are available in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your project directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
@@ -93,8 +93,8 @@ deployments:
 So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.  
-    
+    The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
+
     For an example, [check out the project tutorial](/projects/#dockerized-deployment).
 
 ### Working With Multiple Deployments
@@ -109,7 +109,7 @@ For example, consider the following `deployment.yaml` file:
 deployments:
   - name: deployment-1
     entrypoint: flows/hello.py:my_flow
-    parameters: 
+    parameters:
         number: 42,
         message: Don't panic!
     work_pool:
@@ -129,7 +129,7 @@ deployments:
         work_queue_name: tertiary-queue
 ```
 
-This file has three deployment declarations, each referencing a different flow in the project. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying. 
+This file has three deployment declarations, each referencing a different flow in the project. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
 
 For example, to deploy `deployment-1` we would run:
 
@@ -197,7 +197,7 @@ deployments:
   - name: deployment-1
     entrypoint: flows/hello.py:my_flow
     schedule: *every_10_minutes
-    parameters: 
+    parameters:
         number: 42,
         message: Don't panic!
     work_pool: *my_docker_work_pool
@@ -214,7 +214,7 @@ deployments:
   - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
     schedule: *every_10_minutes
-    work_pool: 
+    work_pool:
         name: my-process-work-pool
         work_queue_name: primary-queue
 
@@ -223,7 +223,7 @@ deployments:
 In the above example, we are using YAML aliases to reuse work pool, schedule, and build configuration across multiple deployments:
 
 - `deployment-1` and `deployment-2` are using the same work pool configuration
-- `deployment-1` and `deployment-3` are using the same schedule 
+- `deployment-1` and `deployment-3` are using the same schedule
 - `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` field to use a custom Dockerfile
 
 ### Deployment Declaration Reference
@@ -243,7 +243,7 @@ Below are fields that can be added to each deployment declaration.
 
 | Property                                   | Description                                                                                                                                                                                                                                                                   |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                                     | A list of deployment declarations for the current project.                                                                                                                                                                                                                    |
+| `name`                                     | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments in a project.                                                                                                                                     |
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                       |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                        |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                   |
@@ -323,7 +323,7 @@ For more information on the mechanics of steps, [see below](#deployment-mechanic
 
 ### The Build Section
 
-The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag: 
+The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
 <div class="terminal">
 ```bash
@@ -342,7 +342,7 @@ $ prefect project init --recipe docker
         --field tag=my-tag
     ```
     </div>
-    
+
 ```yaml
 build:
 - prefect_docker.projects.steps.build_docker_image:
@@ -361,7 +361,7 @@ Once you've confirmed that these fields are set to their desired values, this st
 
 ### The Push Section
 
-The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations. 
+The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations.
 
 For example, a user wishing to store their project in an S3 bucket and rely on default worker settings for its runtime environment could use the `s3` recipe:
 
@@ -390,7 +390,7 @@ pull:
       credentials: null
 ```
 
-The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the `folder` property of the `push` step is a template - the `pull_project_from_s3` step outputs both a `bucket` value as well as a `folder` value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits. 
+The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the `folder` property of the `push` step is a template - the `pull_project_from_s3` step outputs both a `bucket` value as well as a `folder` value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits.
 
 As discussed above, if you are using [blocks](/concepts/blocks/), the credentials section can be templated with a block reference for secure and dynamic credentials access:
 
@@ -439,10 +439,10 @@ Registration also allows users to share their projects without requiring a full 
 
 Anytime you run `prefect deploy`, the following actions are taken in order:
 
-- The project `prefect.yaml` and `deployment.yaml` files are loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided. 
+- The project `prefect.yaml` and `deployment.yaml` files are loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
 - Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
-- Next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
-- Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
+- Next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime
+- Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file.
 - The final step occurs when the fully realized deployment specification is registered with the Prefect API
 
 !!! tip "Deployment Instruction Overrides"
