@@ -528,7 +528,15 @@ class BaseWorker(abc.ABC):
             )
             return
 
-        configuration = await self._get_configuration(flow_run)
+        try:
+            configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound as exc:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+            await self._propose_failed_state(flow_run, exc)
+            return
 
         try:
             await self.kill_infrastructure(
@@ -698,7 +706,7 @@ class BaseWorker(abc.ABC):
         """
         try:
             await self._check_flow_run(flow_run)
-        except ValueError:
+        except (ValueError, ObjectNotFound):
             self._logger.exception(
                 (
                     "Flow run %s did not pass checks and will not be submitted for"
