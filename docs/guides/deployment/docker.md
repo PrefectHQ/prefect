@@ -42,7 +42,7 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](/img/guides/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorial/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 

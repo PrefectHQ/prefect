@@ -73,7 +73,7 @@ To create a new block, select the **+** button. Prefect displays a library of bl
 
 Select **Add +** to configure a new storage block based on a specific block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configuring an S3 storage block in the Prefect UI](../img/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](/img/concepts/s3-block-configuration.png)
 
 You can also create blocks using the Prefect Python API:
 

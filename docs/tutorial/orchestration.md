@@ -104,7 +104,7 @@ When the Prefect API server is running (either in a local environment or using P
 - Creating [deployments](/concepts/deployments/)
 - [Scheduling](/concepts/schedules/) flow runs
 - Configuring [agents and work pools](/concepts/work-pools/)
-- Executing [ad hoc flow runs from deployments](/tutorials/deployments/)
+- Executing [ad hoc flow runs from deployments](/tutorial/deployments/)
 
 During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#prefect-ui-and-prefect-cloud). Most users will spin up everything all at once with `prefect server start`.
 
