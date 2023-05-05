@@ -530,7 +530,7 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound as exc:
+        except ObjectNotFound:
             self._logger.warning(
                 f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
                 f" associated deployment {flow_run.deployment_id!r} does not exist."
