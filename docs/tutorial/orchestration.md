@@ -104,7 +104,7 @@ When the Prefect API server is running (either in a local environment or using P
 - Creating [deployments](/concepts/deployments/)
 - [Scheduling](/concepts/schedules/) flow runs
 - Configuring [agents and work pools](/concepts/work-pools/)
-- Executing [ad hoc flow runs from deployments](/deployments/)
+- Executing [ad hoc flow runs from deployments](/tutorials/deployments/)
 
 During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#prefect-ui-and-prefect-cloud). Most users will spin up everything all at once with `prefect server start`.
 
@@ -206,4 +206,4 @@ You can create work pools:
 Agents are configured to pull work from a specific work pool. You'll use the CLI to [start an agent](/concepts/work-pools/#agent-configuration) in your execution environment. If you configure work pools in the Prefect UI, the work pool panel provides the CLI command: you can simply copy the entire command and run it in your execution environment.
 
 !!! tip "Next steps: Deployments"
-    Continue on to the [Deployments](/deployments/) tutorial to start seeing flow orchestration with Prefect in action.
+    Continue on to the [Deployments](/tutorial/deployments/) tutorial to start seeing flow orchestration with Prefect in action.
