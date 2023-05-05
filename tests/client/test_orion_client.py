@@ -722,7 +722,7 @@ async def test_create_then_delete_deployment(orion_client):
     )
 
     await orion_client.delete_deployment(deployment_id)
-    with pytest.raises(httpx.HTTPStatusError, match="404"):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_deployment(deployment_id)
 
 

@@ -535,8 +535,6 @@ class BaseWorker(abc.ABC):
                 f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
                 f" associated deployment {flow_run.deployment_id!r} does not exist."
             )
-            await self._propose_failed_state(flow_run, exc)
-            return
 
         try:
             await self.kill_infrastructure(
