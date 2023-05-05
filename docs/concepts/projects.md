@@ -243,7 +243,7 @@ Below are fields that can be added to each deployment declaration.
 
 | Property | Description |
 | --- | --- |
-| `name` | A list of deployment declarations for the current project. |
+| `name` | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments in a project. |
 | `version` | An optional version for the deployment. |
 | `tags` | A list of strings to assign to the deployment as tags. |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment. |
