@@ -6,7 +6,7 @@ Usage:
 
     precommit-versions.py [<hook>, ...]
 
-The hooks default to 'black', 'autoflake8', and 'isort', but you can specify different
+The hooks default to 'black' and 'ruff' but you can specify different
 hooks. For example, here we just get the 'black' version:
 
     ./precommit-versions.py black
@@ -29,7 +29,7 @@ if not os.path.exists(path):
     )
     exit(1)
 
-hooks = sys.argv[1:] if len(sys.argv) > 1 else ["black", "isort", "autoflake8"]
+hooks = sys.argv[1:] if len(sys.argv) > 1 else ["black", "ruff"]
 
 # Parse the versions from the pre-commit config which pins them
 precommit_config = yaml.safe_load(open(path))
