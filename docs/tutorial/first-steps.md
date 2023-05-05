@@ -286,10 +286,10 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 !!! note "Parameter validation can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your `@flow` decorator and Prefect will passively accept whatever input values you provide.
 
-    Flow configuration is covered in more detail in the [Flow and task configuration](/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
+    Flow configuration is covered in more detail in the [Flow and task configuration](/tutorial/flow-task-config/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
 
 !!! tip "Next steps: Flow and task configuration"
-    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/flow-task-config/) with options such as parameters, retries, caching, and task runners.
+    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorial/flow-task-config/) with options such as parameters, retries, caching, and task runners.
 
 [def]: #flows-and-tasks

@@ -10,7 +10,7 @@ tags:
 
 # Running flows with Docker
 
-In the [Deployments](/deployments/) and [Storage and Infrastructure](/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
+In the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
 In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
@@ -24,7 +24,7 @@ In this guide we'll:
 
 To run a deployed flow in a Docker container, you'll need the following:
 
-- We'll use the flow script and deployment from the [Deployments](/deployments/) tutorial. 
+- We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
 - We'll also use the remote storage block created in the [Storage and Infrastructure](/storage/) tutorial.
 - You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
@@ -32,7 +32,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
 !!! note "Run a Prefect server"
-    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/deployments/) tutorial.
+    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorial/deployments/) tutorial.
     
     If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
@@ -82,7 +82,7 @@ The `prefect deployment build` command also supports specifying a built-in infra
 
 ## Build a deployment with Docker infrastructure
 
-To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
+To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
 
 - Use the storage block created in the [Storage and Infrastructure](/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
 - Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--infra-block docker-container/log-tutorial`.

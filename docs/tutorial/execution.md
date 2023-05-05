@@ -15,7 +15,7 @@ tags:
 
 So far you've seen that flows are the fundamental component of Prefect workflows, and tasks are components that enable you to encapsulate discrete, repeatable units of work within flows. You've also seen some of the configuration options for flows and tasks.
 
-One of the configuration options demonstrated in the [Flow and task configuration](/flow-task-config/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
+One of the configuration options demonstrated in the [Flow and task configuration](/tutorial/flow-task-config/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
 
 ## Task runners
 

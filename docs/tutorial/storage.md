@@ -78,7 +78,7 @@ For this tutorial example, we'll use the AWS S3 block as an example. If you use 
 
 Scroll down the list of blocks and find the **S3** block, then select **Add +** to configure a new storage block based on this block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configuring an S3 storage block in the Prefect UI](../img/tutorial/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](/img/tutorial/s3-block-configuration.png)
 
 Enter the configuration for your storage.
 
@@ -86,7 +86,7 @@ Enter the configuration for your storage.
 - **Bucket Path** is the name of the bucket or container and, optionally, path to a folder within the bucket. If the folder does not exist it will be created. For example: `my-bucket/my/path`.
 - **AWS Access Key ID** and **AWS Secret Access Key** take the respective authentication keys if they are needed to access the storage location.
 
-In this example we've specified a storage location that could be used by the flow example from the [deployments tutorial](/deployments/).
+In this example we've specified a storage location that could be used by the flow example from the [deployments tutorial](/tutorial/deployments/).
 
 - The name `log-test` makes it clear what flow code is stored in this location.
 - `bucket-full-of-sunshine/flows/log-test` specifies the bucket name `bucket-full-of-sunshine` and the path to use within that bucket: `/flows/log-test`.
@@ -106,7 +106,7 @@ Select **Create** to create the new storage block. Prefect displays the details 
 
 ## Using storage blocks with deployments
 
-To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
+To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
 
 <div class="terminal">
 ```bash
@@ -167,7 +167,7 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../img/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorial/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
