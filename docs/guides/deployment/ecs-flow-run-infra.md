@@ -49,7 +49,100 @@ On the other hand, ECS Tasks are ephemeral instances of a Task Definition. An EC
 
 As mentioned above you have two options for a capacity provider, either EC2 or Fargate. Fargate makes it easier to get started but it will increase the time it takes to spin up infrastructure for each flow run. Provisioning EC2 instances for the ECS cluster can reduce this lead time.
 
-## How to Get Started
+# How to Get Started
 
+### Setting Up Prefect ECS Work Pool
 First, you'll want to create an ECS Work Pool to so that you have something for the worker to point to.
 
+### Setting up Prefect Worker in ECS Worker
+Next, you'll want to start a Prefect in worker in your ECS cluster.
+
+#### Prerequisites
+Before you begin, make sure you have the following prerequisites in place:
+
+- An AWS account with permissions to create ECS services and IAM roles.
+- The AWS CLI installed on your local machine. You can download it from the AWS website.
+- A Docker image of your Prefect worker, which you can build and push to an Amazon ECR registry. TODO: Point to another file with instructions on building and pushing a container to host the worker.
+
+## Step 1: Create an IAM Role for the ECS Task
+
+First, you need to create an IAM role that the ECS task will use to access AWS resources. Here are the steps:
+
+1. Open the IAM console and click on "Roles" in the left sidebar.
+2. Click on the "Create role" button.
+3. Select "ECS" as the trusted entity type and click on "Next: Permissions".
+4. Select the "AmazonECSTaskExecutionRolePolicy" policy and click on "Next: Tags".
+5. Add any tags you want to the role and click on "Next: Review".
+6. Enter a name for the role (e.g., "prefect-worker-ecs-role") and click on "Create role".
+## Step 2: Create a Task Definition
+
+Next, you need to create an ECS task definition that specifies the Docker image for the Prefect worker, the resources it requires, and the command it should run. 
+Here are the steps:
+
+1. Create a JSON file with the following contents:
+
+```json
+{
+  "family": "prefect-worker-task",
+  "networkMode": "awsvpc",
+  "taskRoleArn": "<your-ecs-task-role-arn>",
+  "executionRoleArn": "<your-ecs-task-role-arn>",
+  "containerDefinitions": [
+    {
+      "name": "prefect-worker",
+      "image": "<your-ecr-image>",
+      "cpu": 512,
+      "memory": 1024,
+      "essential": true,
+      "command": [
+        "prefect",
+        "execute",
+        "cloud",
+        "--label",
+        "worker"
+      ]
+      "environment": [
+        {
+          "name": "PREFECT_API_URL",
+          "value": "https://api.prefect.cloud/api/accounts/<your-account-id>/workspaces/<your-workspace-id>"
+        },
+        {
+          "name": "PREFECT_API_KEY",
+          "value": "<your-api-key>"
+        }
+      ]
+    }
+  ]
+}
+```
+
+2. Use prefect config view to see the values for `PREFECT_API_URL`. For the `PREFECT_API_KEY`, organization tier can create a [service account](https://docs.prefect.io/latest/cloud/users/service-accounts/) for the worker, personal tiers can pass a user’s API key here.
+3. Replace `<your-ecs-task-role-arn>` with the ARN of the IAM role you created in Step 1, and `<your-ecr-image>` with the URI of the Docker image you pushed to Amazon ECR.
+
+## Step 3: Create an ECS Service
+
+Finally, you can create an ECS Fargate service that will run your Prefect worker task without needing to manage the underlying EC2 instances. Here are the steps:
+1. Open a terminal window and run the following command to create an ECS Fargate service:
+
+```lua
+aws ecs create-service \
+    --service-name prefect-worker-service \
+    --cluster <your-ecs-cluster> \
+    --task-definition file://<path-to-task-definition-file>.json \
+    --launch-type FARGATE \
+    --desired-count 1 \
+    --network-configuration "awsvpcConfiguration={subnets=[<your-subnet-ids>],securityGroups=[<your-security-group-ids>]}"
+```
+
+
+
+Replace `<your-ecs-cluster>` with the name of your ECS cluster, `<path-to-task-definition-file>` with the path to the JSON file you created in Step 2, `<your-subnet-ids>` with a comma-separated list of your VPC subnet IDs, and `<your-security-group-ids>` with a comma-separated list of your VPC security group IDs.
+1. Wait for the ECS service to be created. You can check its status by running the following command:
+
+```sql
+aws ecs describe
+```
+
+*Sanity Check* 
+Work pool page will allow you to reference any newly created workers
+* Insert screenshot
