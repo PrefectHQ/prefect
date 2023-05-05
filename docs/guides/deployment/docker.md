@@ -42,13 +42,13 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../../img/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/guides/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
 For this guide, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../../img/docker-infrastructure.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/guides/docker-infrastructure.png)
 
 To configure this Docker Container block to run the `log_flow.py` deployment, we just need to add two pieces of information.
 
@@ -69,7 +69,7 @@ In the **Env (Optional)** box, enter the following to specify that the `s3fs` pa
 ```
 If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/storage/#prerequisites) for details.
 
-![Configuring a new Docker Container infrastructure block in the Prefect UI](../../img/docker-tutorial-block.png)
+![Configuring a new Docker Container infrastructure block in the Prefect UI](/img/guides/docker-tutorial-block.png)
 
 ## Using infrastructure blocks with deployments
 
@@ -126,7 +126,7 @@ $ prefect agent start -q 'test'
 
 Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect server instance, including the new `log-flow/log-flow-docker` deployment.
 
-![Viewing the new Docker deployment in the Prefect UI](../../img/docker-deployment.png)
+![Viewing the new Docker deployment in the Prefect UI](/img/guides/docker-deployment.png)
 
 ## Edit the deployment in the UI
 
@@ -134,13 +134,13 @@ Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and sele
 
 Instead, let's edit the deployment through the Prefect UI. Select **log-flow/log-flow-docker** to see the deployment's details.
 
-![Viewing the Docker deployment details in the Prefect UI](../../img/docker-deployment-details.png)
+![Viewing the Docker deployment details in the Prefect UI](/img/guides/docker-deployment-details.png)
 
 Select the menu next to **Run**, then select **Edit** to edit the deployment.
 
 Scroll down to the **Parameters** section and provide a value for the `name` parameter. We used "Ford Prefect" here. 
 
-![Editing the Docker deployment details in the Prefect UI](../../img/edit-docker-deployment.png)
+![Editing the Docker deployment details in the Prefect UI](/img/guides/edit-docker-deployment.png)
 
 Select **Save** to save these changes to the deployment.
 
@@ -180,7 +180,7 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
 
 On the deployment details page, select **Run**, then select **Now with defaults**. This creates a new flow run using the default parameters and other settings.
 
-![Running the Docker deployment from the Prefect UI](../../img/run-docker-deployment.png)
+![Running the Docker deployment from the Prefect UI](/img/guides/run-docker-deployment.png)
 
 Go to the terminal session running the Prefect agent. You should see logged output showing:
 
@@ -213,7 +213,7 @@ Collecting s3fs
 
 In the Prefect UI, go to the **Flow Runs** page and select the flow run. You should see the "Hello Ford Prefect!" log message created by the flow running in the Docker container!
 
-![Log messages from the deployment flow run.](../../img/docker-flow-log.png)
+![Log messages from the deployment flow run.](/img/guides/docker-flow-log.png)
 
 ## Cleaning up
 
