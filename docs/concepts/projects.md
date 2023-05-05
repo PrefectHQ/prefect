@@ -95,7 +95,7 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.  
     
-    For an example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
+    For an example, [check out the project tutorial](/projects/#dockerized-deployment).
 
 ### Working With Multiple Deployments
 
@@ -232,39 +232,39 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 
 Below are fields that can be added at the root level of the `deployment.yaml` file.
 
-| Property | Description |
-| --- | --- |
+| Property                                   | Description                                                                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <span class="no-wrap">`deployments`</span> | A list of deployment declarations for the current project. Fields for this section are documented in the [Deployment Fields](#deployment-fields) section. |
-| `definitions` | Definitions for configuration that is shared across deployment declarations (e.g., schedules, deployment actions, etc.). |
+| `definitions`                              | Definitions for configuration that is shared across deployment declarations (e.g., schedules, deployment actions, etc.).                                  |
 
 #### Deployment Fields
 
 Below are fields that can be added to each deployment declaration.
 
-| Property | Description |
-| --- | --- |
-| `name` | A list of deployment declarations for the current project. |
-| `version` | An optional version for the deployment. |
-| `tags` | A list of strings to assign to the deployment as tags. |
-| <span class="no-wrap">`description`</span> | An optional description for the deployment. |
-| `schedule` | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this sections are documented in the [Schedule Fields](#schedule-fields) section. |
-| `flow_name`   | The name of a flow that has been registered in the current project's [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required. |
-| `entrypoint` | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your project) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
-| `parameters` | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs. |
-| `work_pool` | Information on where to schedule flow runs for the deployment. Fields for this sections are documented in the [Work Pool Fields](#work-pool-fields) section. |
+| Property                                   | Description                                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                     | A list of deployment declarations for the current project.                                                                                                                                                                                                                    |
+| `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                       |
+| `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                        |
+| <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                   |
+| `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this sections are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                          |
+| `flow_name`                                | The name of a flow that has been registered in the current project's [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                      |
+| `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your project) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
+| `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                         |
+| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this sections are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                  |
 
 #### Schedule Fields
 
 Below are fields that can be added to a deployment declaration's `schedule` section.
 
-| Property | Description |
-| --- | --- |
-| `interval` | Number of seconds indicating the time between flow runs. Cannot be used in conjunction with `cron` or `rrule`. |
-| <span class="no-wrap">`anchor_date`</span> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`. |
-| `timezone` | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones. |
-| `cron` | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`. |
-| `day_or` | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`. |
-| `rrule` | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
+| Property                                   | Description                                                                                                                                                                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interval`                                 | Number of seconds indicating the time between flow runs. Cannot be used in conjunction with `cron` or `rrule`.                                                                                                         |
+| <span class="no-wrap">`anchor_date`</span> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`.                                       |
+| `timezone`                                 | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.                                       |
+| `cron`                                     | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`.                                                                                                                                         |
+| `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`.                                                                                                     |
+| `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
 
 For more information about schedules, see the [Schedules](/concepts/schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section) concept doc.
 
@@ -272,11 +272,11 @@ For more information about schedules, see the [Schedules](/concepts/schedules/#c
 
 Below are fields that can be added to a deployment declaration's `work_pool` section.
 
-| Property | Description |
-| --- | --- |
-| `name` | The name of the work pool to schedule flow runs in for the deployment. |
-| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.  |
-| `job_variables` | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+| Property                                       | Description                                                                                                                                                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
+| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.                       |
+| `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 ## The Prefect YAML file
 
@@ -353,7 +353,7 @@ build:
     push: true
 ```
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/projects/#dockerized-deployment).
 
 
 !!! note Some steps require Prefect integrations

@@ -31,12 +31,12 @@ To create a storage block, you will need the storage location (for example, a bu
 
 To use a remote storage block when creating deployments or using storage blocks within your flow script, you must install the required library for the storage service. 
 
-| Service | Library |
-| --- | --- |
-| AWS S3 | [`s3fs`](https://s3fs.readthedocs.io/en/latest/) |
-| Azure | [`adlfs`](https://github.com/fsspec/adlfs) |
-| GCS | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
-| GitHub | `git` CLI |
+| Service | Library                                            |
+| ------- | -------------------------------------------------- |
+| AWS S3  | [`s3fs`](https://s3fs.readthedocs.io/en/latest/)   |
+| Azure   | [`adlfs`](https://github.com/fsspec/adlfs)         |
+| GCS     | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
+| GitHub  | `git` CLI                                          |
 
 For example:
 
@@ -68,17 +68,17 @@ Most users will find it easiest to configure new storage blocks through the Pref
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page.
 
-![Viewing a list of previously configured storage blocks in the Prefect UI](../img/tutorials/storage-blocks.png)
+![Viewing a list of previously configured storage blocks in the Prefect UI](../img/storage-blocks.png)
 
 To create a new block, select the **+** button on this page, or if you haven't previously created any blocks, **New Block**. Prefect displays a page of available block types.
 
-![Viewing a list of block types in the Prefect UI](../img/tutorials/choose-blocks.png)
+![Viewing a list of block types in the Prefect UI](../img/choose-blocks.png)
 
 For this tutorial example, we'll use the AWS S3 block as an example. If you use a different cloud storage service or solution, feel free to use the appropriate block type. The process is similar for all blocks, though the configuration options are slightly different, reflecting the authentication requirements of different cloud services.
 
 Scroll down the list of blocks and find the **S3** block, then select **Add +** to configure a new storage block based on this block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configuring an S3 storage block in the Prefect UI](../img/tutorials/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](../img/s3-block-configuration.png)
 
 Enter the configuration for your storage.
 
@@ -86,7 +86,7 @@ Enter the configuration for your storage.
 - **Bucket Path** is the name of the bucket or container and, optionally, path to a folder within the bucket. If the folder does not exist it will be created. For example: `my-bucket/my/path`.
 - **AWS Access Key ID** and **AWS Secret Access Key** take the respective authentication keys if they are needed to access the storage location.
 
-In this example we've specified a storage location that could be used by the flow example from the [deployments tutorial](/tutorials/deployments/).
+In this example we've specified a storage location that could be used by the flow example from the [deployments tutorial](/deployments/).
 
 - The name `log-test` makes it clear what flow code is stored in this location.
 - `bucket-full-of-sunshine/flows/log-test` specifies the bucket name `bucket-full-of-sunshine` and the path to use within that bucket: `/flows/log-test`.
@@ -99,14 +99,14 @@ In this example we've specified a storage location that could be used by the flo
 
 Select **Create** to create the new storage block. Prefect displays the details of the new block, including a code example for using the block within your flow code.
 
-![Viewing details of a new S3 storage block in the Prefect UI](../img/tutorials/new-storage-block.png)
+![Viewing details of a new S3 storage block in the Prefect UI](../img/new-storage-block.png)
 
 !!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
     Note that, if you ran through this tutorial on a local Prefect server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
 
 ## Using storage blocks with deployments
 
-To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
+To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
 
 <div class="terminal">
 ```bash
@@ -167,13 +167,13 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../img/tutorials/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](../img/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
 For example, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../img/tutorials/docker-infrastructure.png)
+![Viewing a list of infrastructure block types in the Prefect UI](../img/docker-infrastructure.png)
 
 We're not going to create a custom infrastructure block until a later tutorial, so select **Cancel** to close the form.
 
@@ -225,7 +225,7 @@ When specified via CLI, overrides must be dot-delimited keys that target a speci
 
 ## Specifying blocks in Python
 
-As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](/tutorials/deployments/#deployment-creation-with-python):
+As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](/deployments/#deployment-creation-with-python):
 
 ```python hl_lines="5 7 15"
 # deployment.py

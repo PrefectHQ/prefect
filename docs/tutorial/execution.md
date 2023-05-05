@@ -15,7 +15,7 @@ tags:
 
 So far you've seen that flows are the fundamental component of Prefect workflows, and tasks are components that enable you to encapsulate discrete, repeatable units of work within flows. You've also seen some of the configuration options for flows and tasks.
 
-One of the configuration options demonstrated in the [Flow and task configuration](/tutorials/flow-task-config/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
+One of the configuration options demonstrated in the [Flow and task configuration](/flow-task-config/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
 
 ## Task runners
 
@@ -188,7 +188,7 @@ If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package instal
 
     This means the only way to _force_ Dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-Read more about using Dask in the [Dask task runner tutorial](/tutorials/dask-ray-task-runners/#running-parallel-tasks-with-dask).
+Read more about using Dask in the [Dask task runner tutorial](/dask-ray-task-runners/#running-parallel-tasks-with-dask).
 
 ## Asynchronous execution
 
@@ -259,4 +259,4 @@ The ability to execute flow runs in a non-blocking or parallel manner is subject
 Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
 
 !!! tip "Next steps: Flow orchestration with Prefect"
-    The next step is learning about [the components of Prefect](/tutorials/orchestration/) that enable coordination and orchestration of your flow and task runs.
+    The next step is learning about [the components of Prefect](/orchestration/) that enable coordination and orchestration of your flow and task runs.

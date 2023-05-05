@@ -218,7 +218,7 @@ $ prefect server start
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
-![Viewing the orchestrated flow runs in the Prefect UI.](../img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Prefect UI.](../img/first-steps-ui.png)
 
 The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 
@@ -286,10 +286,10 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 !!! note "Parameter validation can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your `@flow` decorator and Prefect will passively accept whatever input values you provide.
 
-    Flow configuration is covered in more detail in the [Flow and task configuration](/tutorials/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
+    Flow configuration is covered in more detail in the [Flow and task configuration](/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
 
 !!! tip "Next steps: Flow and task configuration"
-    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
+    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/flow-task-config/) with options such as parameters, retries, caching, and task runners.
 
 [def]: #flows-and-tasks
