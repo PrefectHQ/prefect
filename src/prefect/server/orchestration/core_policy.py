@@ -43,7 +43,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             HandleFlowTerminalStateTransitions,
             EnforceCancellingToCancelledTransition,
             BypassCancellingScheduledFlowRuns,
-            PreventRedundantTransitions,
+            PreventPendingTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
             CopyScheduledTime,
@@ -737,38 +737,35 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
 
 
-class PreventRedundantTransitions(BaseOrchestrationRule):
+class PreventPendingTransitions(BaseOrchestrationRule):
     """
-    Prevents redundant transitions.
+    Prevents transitions to PENDING.
 
-    Under normal operation, this rule prevents the "backwards" progress of a run. This
-    rule will also help prevent multiple agents from attempting to orchestrate a run by
-    preventing transitions into the same state type. If any of these disallowed
-    transitions are attempted, this rule will abort the transition.
+    This rule is only used for flow runs.
+
+    This is intended to prevent race conditions during duplicate submissions of runs.
+    Before a run is submitted to its execution environment, it should be placed in a
+    PENDING state. If two workers attempt to submit the same run, one of them should
+    encounter a PENDING -> PENDING transition and abort orchestration of the run.
+
+    Similarly, if the execution environment starts quickly the run may be in a RUNNING
+    state when the second worker attempts the PENDING transition. We deny these state
+    changes as well to prevent duplicate submission. If a run has transitioned to a
+    RUNNING state a worker should not attempt to submit it again unless it has moved
+    into a terminal state.
+
+    CANCELLING and CANCELLED runs should not be allowed to transition to PENDING.
+    For re-runs of deployed runs, they should transition to SCHEDULED first.
+    For re-runs of ad-hoc runs, they should transition directly to RUNNING.
     """
-
-    STATE_PROGRESS = {
-        None: 0,
-        StateType.SCHEDULED: 1,
-        StateType.PENDING: 2,
-        StateType.RUNNING: 3,
-        StateType.CANCELLING: 4,
-    }
 
     FROM_STATES = [
-        StateType.SCHEDULED,
         StateType.PENDING,
-        StateType.RUNNING,
         StateType.CANCELLING,
-        None,
-    ]
-    TO_STATES = [
-        StateType.SCHEDULED,
-        StateType.PENDING,
         StateType.RUNNING,
-        StateType.CANCELLING,
-        None,
+        StateType.CANCELLED,
     ]
+    TO_STATES = [StateType.PENDING]
 
     async def before_transition(
         self,
@@ -776,19 +773,12 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        initial_state_type = initial_state.type if initial_state else None
-        proposed_state_type = proposed_state.type if proposed_state else None
-
-        if (
-            self.STATE_PROGRESS[proposed_state_type]
-            <= self.STATE_PROGRESS[initial_state_type]
-        ):
-            await self.abort_transition(
-                reason=(
-                    f"This run cannot transition to the {proposed_state_type} state"
-                    f" from the {initial_state_type} state."
-                )
+        await self.abort_transition(
+            reason=(
+                f"This run is in a {initial_state.type.name} state and cannot"
+                " transition to a PENDING state."
             )
+        )
 
 
 class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
