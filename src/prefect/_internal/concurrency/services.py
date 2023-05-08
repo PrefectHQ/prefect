@@ -12,10 +12,10 @@ from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Unio
 import anyio
 from typing_extensions import Self
 
-from prefect._internal.concurrency.api import create_call, from_sync, from_async
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.timeouts import get_deadline, get_timeout
-from prefect._internal.concurrency.threads import get_global_loop
+from prefect._internal.concurrency.threads import get_global_loop, WorkerThread
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -37,6 +37,12 @@ class QueueService(abc.ABC, Generic[T]):
         self._started: bool = False
         self._key = hash(args)
         self._lock = threading.Lock()
+        self._queue_get_thread = WorkerThread(
+            # TODO: This thread should not need to be a daemon but when it is not, it
+            #       can prevent the interpreter from exiting.
+            daemon=True,
+            name=f"{type(self).__name__}Thread",
+        )
 
     def start(self):
         logger.debug("Starting service %r", self)
@@ -48,6 +54,7 @@ class QueueService(abc.ABC, Generic[T]):
         self._loop = loop_thread._loop
         self._done_event = asyncio.Event()
         self._task = self._loop.create_task(self._run())
+        self._queue_get_thread.start()
         self._started = True
 
         # Ensure that we wait for worker completion before loop thread shutdown
@@ -122,16 +129,21 @@ class QueueService(abc.ABC, Generic[T]):
             )
         finally:
             self._remove_instance()
+
+            # Shutdown the worker thread
+            self._queue_get_thread.shutdown()
+
             self._stopped = True
             self._done_event.set()
 
     async def _main_loop(self):
         while True:
-            item: T = await from_async.call_soon_in_new_thread(
-                self._queue.get
+            item: T = await self._queue_get_thread.submit(
+                create_call(self._queue.get)
             ).aresult()
 
             if item is None:
+                logger.debug("Exiting service %r", self)
                 break
 
             try:
@@ -159,6 +171,8 @@ class QueueService(abc.ABC, Generic[T]):
         """
         Internal implementation for `drain`. Returns a future for sync/async interfaces.
         """
+
+        logger.debug("Draining service %r", self)
         self._stop()
         if self._done_event.is_set():
             future = concurrent.futures.Future()
