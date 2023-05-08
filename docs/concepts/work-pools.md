@@ -343,6 +343,8 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs. | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers. | `prefect-docker` |
 
+If you don’t see a worker type that meets your needs, consider [developing a new worker type](/guides/deployment/developing-a-new-worker-type/)!
+
 ### Worker Options
 Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool. Alternatively, you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
 
@@ -404,3 +406,6 @@ If this value is _more_ than the amount of time it takes for the infrastructure 
 ### Polling for work
 Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.
+
+### Additional Resources
+- [How to run a Prefect 2 worker as a systemd service on Linux](https://discourse.prefect.io/t/how-to-run-a-prefect-2-worker-as-a-systemd-service-on-linux/1450)
