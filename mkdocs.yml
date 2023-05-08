@@ -56,7 +56,7 @@ theme:
     icon:
         repo: fontawesome/brands/github
         edit: material/pencil
-    logo: img/logos/prefect-logo-gradient-white.svg
+    logo: img/logos/prefect-logo-gradient-white.png
     palette:
       - media: "(prefers-color-scheme)"
         toggle:
