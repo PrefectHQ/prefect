@@ -94,9 +94,6 @@ class QueueService(abc.ABC, Generic[T]):
             # Signal completion to the loop
             self._queue.put_nowait(None)
 
-            # Shutdown the worker thread
-            self._queue_get_thread.shutdown()
-
     def send(self, item: T):
         """
         Send an item to this instance of the service.
@@ -132,6 +129,10 @@ class QueueService(abc.ABC, Generic[T]):
             )
         finally:
             self._remove_instance()
+
+            # Shutdown the worker thread
+            self._queue_get_thread.shutdown()
+
             self._stopped = True
             self._done_event.set()
 
@@ -142,6 +143,7 @@ class QueueService(abc.ABC, Generic[T]):
             ).aresult()
 
             if item is None:
+                logger.debug("Exiting service %r", self)
                 break
 
             try:
