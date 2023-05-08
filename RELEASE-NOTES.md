@@ -1,5 +1,38 @@
 # Prefect Release Notes
 
+## Release 2.10.8
+
+### Flow run orchestration rule updates
+
+A flow run orchestration rule which was previously intended to prevent backwards transitions is updated in this release to allow most transitions. Now, it only prevents some transitions to `PENDING` states to prevent race conditions during handling of runs by multiple agents or workers. This improves orchestration behavior during infrastructure restarts. For example, when a Kubernetes pod is interrupted, the flow run can be rescheduled on a new pod by Kubernetes. Previously, Prefect would abort the run as it attempted to transition from a `RUNNING` to a `RUNNING` state. Now, Prefect will allow this transition and your flow run will continue.
+
+In summary, the following rules apply now:
+- `CANCELLED` -> `PENDING` is not allowed
+- `CANCELLING`/`RUNNING` -> `RUNNING` is allowed
+- `CANCELLING`/`RUNNING`/`PENDING` -> `SCHEDULED` is allowed
+
+See https://github.com/PrefectHQ/prefect/pull/9447 for details.
+
+
+### Enhancements
+- Display message when service back-off is reset to avoid confusion — https://github.com/PrefectHQ/prefect/pull/9463
+- Improve `QueueService` performance — https://github.com/PrefectHQ/prefect/pull/9481
+
+### Fixes
+- Ensure deployment creation does not require write access when a prefectignore file exists — https://github.com/PrefectHQ/prefect/pull/9460
+- Fix bug where `deployment deployment apply` command could hang on exit — https://github.com/PrefectHQ/prefect/pull/9481 
+
+### Deprecations
+- Add future warning for Python 3.7 EOL — https://github.com/PrefectHQ/prefect/pull/9469
+
+### Documentation
+- Move creating a new worker type tutorial to guides — https://github.com/PrefectHQ/prefect/pull/9455
+- Fix `name` description in `deployment.yaml` reference — https://github.com/PrefectHQ/prefect/pull/9461
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.7...2.10.8
+
+
 ## Release 2.10.7
 
 ### New and improved Flows page
