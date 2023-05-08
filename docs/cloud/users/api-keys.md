@@ -18,11 +18,11 @@ To create an API key, select the account icon at the bottom-left corner of the U
 
 Select the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
 
-![Viewing and editing API keys in the Cloud UI.](../../img/ui/cloud-api-keys.png)
+![Viewing and editing API keys in the Cloud UI.](..//img/ui/cloud-api-keys.png)
 
 Select the **+** button to create a new API key. You're prompted to provide a name for the key and, optionally, an expiration date. Select **Create API Key** to generate the key.
 
-![Creating an API key in the Cloud UI.](../../img/ui/cloud-new-api-key.png)
+![Creating an API key in the Cloud UI.](..//img/ui/cloud-new-api-key.png)
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 

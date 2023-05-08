@@ -165,7 +165,7 @@ See the Prefect [Database](/concepts/database/) documentation for further detail
 
 The [Prefect UI](/ui/overview/) comes prepackaged with the Prefect server API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
 
-![Prefect UI](../img/ui/prefect-dashboard.png)
+![Prefect UI](/img/ui/prefect-dashboard.png)
 
 The Prefect UI enables you to track and manage your flows, runs, and deployments and additionally allows you to filter by names, tags, and other metadata to quickly find the information you are looking for.
 
