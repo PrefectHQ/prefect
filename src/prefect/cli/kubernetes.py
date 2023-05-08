@@ -26,7 +26,11 @@ app.add_typer(kubernetes_app)
 
 manifest_app = PrefectTyper(
     name="manifest",
-    help="Commands for generating Kubernetes manifests.",
+    help="Deprecated. Use 'helm server' instead.",
+    deprecated=True,
+    deprecated_name="prefect kubernetes",
+    deprecated_start_date="May 2023",
+    deprecated_help="Use 'helm server' instead."
 )
 kubernetes_app.add_typer(manifest_app)
 
