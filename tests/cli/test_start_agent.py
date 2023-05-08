@@ -11,7 +11,17 @@ from prefect.utilities.processutils import open_process
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
-SHUTDOWN_TIMEOUT = 60
+SHUTDOWN_TIMEOUT = 5
+
+
+async def safe_shutdown(process):
+    try:
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
+            await process.wait()
+    except TimeoutError:
+        # try twice in case process.wait() hangs
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
+            await process.wait()
 
 
 @pytest.fixture(scope="function")
@@ -65,8 +75,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sigint_sends_sigterm(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
-        with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await agent_process.wait()
+        await safe_shutdown(agent_process)
         agent_process.out.seek(0)
         out = agent_process.out.read().decode()
 
@@ -85,8 +94,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_directly(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
-        with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await agent_process.wait()
+        await safe_shutdown(agent_process)
         agent_process.out.seek(0)
         out = agent_process.out.read().decode()
 
@@ -107,8 +115,7 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGINT)
-        with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await agent_process.wait()
+        await safe_shutdown(agent_process)
         agent_process.out.seek(0)
         out = agent_process.out.read().decode()
 
@@ -132,8 +139,7 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGTERM)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGTERM)
-        with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await agent_process.wait()
+        await safe_shutdown(agent_process)
         agent_process.out.seek(0)
         out = agent_process.out.read().decode()
 
@@ -155,8 +161,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sends_ctrl_break_win32(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
-        with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await agent_process.wait()
+        await safe_shutdown(agent_process)
         agent_process.out.seek(0)
         out = agent_process.out.read().decode()
 
