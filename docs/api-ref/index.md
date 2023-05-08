@@ -1,5 +1,5 @@
 ---
-description: Prefect APIs enable you to interact programmatically with flows, deployments, the REST API, and Prefect Cloud.
+description: Prefect APIs enable you to interact programmatically with the REST API and Prefect Cloud.
 icon: octicons/book-16
 tags:
     - API
@@ -10,16 +10,17 @@ tags:
     - orchestration
 ---
 
-# API Reference
+# API References
 
 !!! tip "Changing 'Orion' nomenclature"
     With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
 
-Prefect provides a number of programmatic workflow interfaces. Each API is documented in this section. 
+Prefect provides several programmatic workflow interfaces. 
 
-- The Prefect Python API is used to build, test, and execute workflows against the Prefect orchestration engine. This is the primary user-facing API.
+- The Prefect Python SDK API/api-ref/ is used to build, test, and execute workflows against the Prefect orchestration engine. This is the primary user-facing API.
 - The Prefect Server API is used by the server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Prefect developers.
-- The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is mainly consumed by clients like the Prefect Python Client or the server dashboard.
+- The Prefect REST API is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is mainly consumed by clients such as the Prefect Python SDK or the server dashboard.
+
 
 !!! note "Prefect REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
