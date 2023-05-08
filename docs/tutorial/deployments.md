@@ -22,7 +22,7 @@ Leading up to this section, you've been able to explore Prefect capabilities lik
     See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect server.
 
 !!! tip "Projects: An improved experience"
-    Prefect Deployments are getting even easier with the introduction of [Projects](/projects), currently in beta.
+    Prefect Deployments are getting even easier with the introduction of [Projects](projects/), currently in beta.
 
 ## Components of a deployment
 

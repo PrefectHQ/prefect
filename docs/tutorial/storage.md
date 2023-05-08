@@ -225,7 +225,7 @@ When specified via CLI, overrides must be dot-delimited keys that target a speci
 
 ## Specifying blocks in Python
 
-As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](/deployments/#deployment-creation-with-python):
+As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](deployments/#deployment-creation-with-python):
 
 ```python hl_lines="5 7 15"
 # deployment.py
