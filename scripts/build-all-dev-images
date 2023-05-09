@@ -5,7 +5,7 @@ set -e
 
 expected_prefect=`prefect --version`
 
-for python in 3.8 3.9 3.10; do
+for python in 3.8 3.9 3.10 3.11; do
     for flavor in '' 'conda'; do
         flavor_arg=''
         flavor_tag=''
@@ -21,13 +21,13 @@ for python in 3.8 3.9 3.10; do
 
         echo
         echo "---- expecting Python $python$flavor_desc ----"
-        docker run --rm prefecthq/prefect:dev-python$python$flavor_tag python --version
+        docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short HEAD)-python$python$flavor_tag python --version
         echo "---- expecting Prefect $expected_prefect ----"
-        docker run --rm prefecthq/prefect:dev-python$python$flavor_tag prefect --version
+        docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short HEAD)-python$python$flavor_tag prefect --version
 
         if [ "$flavor" = "conda" ]; then
             echo "---- expecting Conda ----"
-            docker run --rm prefecthq/prefect:dev-python$python$flavor_tag conda --version
+            docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short HEAD)-python$python$flavor_tag conda --version
         fi
 
         echo
