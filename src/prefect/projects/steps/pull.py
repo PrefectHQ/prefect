@@ -48,6 +48,40 @@ def git_clone_project(
 
     Raises:
         subprocess.CalledProcessError: if the git clone command fails for any reason
+
+    Examples:
+        Clone a public repository:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/PrefectHQ/prefect.git
+        ```
+
+        Clone a branch of a public repository:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/PrefectHQ/prefect.git
+                branch: my-branch
+        ```
+
+        Clone a private repository using an access token:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/org/repo.git
+                access_token: ${{ prefect.blocks.secret.github-access-token }}
+        ```
+
+        Clone a repository with submodules:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/org/repo.git
+                include_submodules: true
+        ```
+
+
     """
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
