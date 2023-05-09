@@ -22,7 +22,7 @@ Using service account credentials, you can [configure an execution environment](
 
 Select **Service Accounts** to view, create, or edit service accounts for your organization.
 
-![Viewing service accounts for an organization in Prefect Cloud.](..//img/ui/service-accounts.png)
+![Viewing service accounts for an organization in Prefect Cloud.](/img/ui/service-accounts.png)
 
 Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account. See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more information.
 
@@ -46,7 +46,7 @@ Within your organization, on the **Service Accounts** page, select the **+** ico
 
 Select **Create** to actually create the new service account. 
 
-![Creating a new service account in the Prefect Cloud UI.](..//img/ui/create-service-account.png)
+![Creating a new service account in the Prefect Cloud UI.](/img/ui/create-service-account.png)
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
