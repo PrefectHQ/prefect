@@ -57,7 +57,7 @@ async def setup_db(database_engine, db):
         ) from exc
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)
 async def clear_db(db):
     """
     Delete all data from all tables after running each test.
