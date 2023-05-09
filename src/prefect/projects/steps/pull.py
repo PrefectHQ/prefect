@@ -81,7 +81,13 @@ def git_clone_project(
                 include_submodules: true
         ```
 
-
+        Clone a repository with an SSH key (note that the SSH key must be added to the worker
+        before executing flows):
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: git@github.com:org/repo.git
+        ```
     """
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
