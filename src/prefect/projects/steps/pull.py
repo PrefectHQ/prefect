@@ -28,7 +28,10 @@ def set_working_directory(directory: str) -> dict:
 
 
 def git_clone_project(
-    repository: str, branch: Optional[str] = None, access_token: Optional[str] = None
+    repository: str,
+    branch: Optional[str] = None,
+    include_submodules: bool = False,
+    access_token: Optional[str] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -36,6 +39,7 @@ def git_clone_project(
     Args:
         repository (str): the URL of the repository to clone
         branch (str, optional): the branch to clone; if not provided, the default branch will be used
+        include_submodules (bool): whether to include git submodules when cloning the repository
         access_token (str, optional): an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
 
@@ -57,6 +61,8 @@ def git_clone_project(
     cmd = ["git", "clone", repository_url]
     if branch:
         cmd += ["-b", branch]
+    if include_submodules:
+        cmd += ["--recurse-submodules"]
 
     # Limit git history
     cmd += ["--depth", "1"]

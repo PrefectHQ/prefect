@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock, ANY
 import pytest
 
 import prefect
@@ -75,6 +76,35 @@ class TestRunStep:
 
 
 class TestGitCloneStep:
+    async def test_git_clone_include_submodules(self, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "repository": "https://github.com/org/has-submodules.git",
+                    "include_submodules": True,
+                }
+            }
+        )
+        assert output["directory"] == "has-submodules"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/has-submodules.git",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
     async def test_git_clone_errors_obscure_access_token(self):
         with pytest.raises(RuntimeError) as exc:
             await run_step(
