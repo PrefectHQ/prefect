@@ -1730,12 +1730,12 @@ def capture_sigterm():
 
     try:
         yield
-    except BaseException as exc:
-        if isinstance(exc, TerminationSignal):
-            # Termination signals are swapped out during a flow run to perform
-            # a graceful shutdown and raise this exception. This `os.kill` call
-            # ensures that the previous handler, likely the Python default,
-            # gets called as well.
+    except TerminationSignal as exc:
+        # Termination signals are swapped out during a flow run to perform
+        # a graceful shutdown and raise this exception. This `os.kill` call
+        # ensures that the previous handler, likely the Python default,
+        # gets called as well.
+        if original_term_handler is not None:
             signal.signal(exc.signal, original_term_handler)
             os.kill(os.getpid(), exc.signal)
 

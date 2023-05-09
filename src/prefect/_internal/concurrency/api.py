@@ -170,7 +170,7 @@ class from_async(_base):
             for context in contexts or []:
                 stack.enter_context(context)
             await waiter.wait()
-        return call.result()
+            return call.result()
 
     @staticmethod
     async def wait_for_call_in_new_thread(
@@ -229,7 +229,7 @@ class from_sync(_base):
             for context in contexts or []:
                 stack.enter_context(context)
             waiter.wait()
-        return call.result()
+            return call.result()
 
     @staticmethod
     def wait_for_call_in_new_thread(
