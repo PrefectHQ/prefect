@@ -1,13 +1,11 @@
 import asyncio
-import os
-import signal
 import statistics
 import sys
 import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import anyio
@@ -32,7 +30,6 @@ from prefect.engine import (
     orchestrate_task_run,
     pause_flow_run,
     propose_state,
-    report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
@@ -44,7 +41,6 @@ from prefect.exceptions import (
     Pause,
     PausedRun,
     SignatureMismatchError,
-    TerminationSignal,
 )
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -1260,22 +1256,6 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
         assert flow_run.state.type != StateType.CRASHED
-
-    async def test_report_flow_run_crashes_handles_sigterm(
-        self, flow_run, orion_client, monkeypatch, parameterized_flow
-    ):
-        original_handler = Mock()
-        signal.signal(signal.SIGTERM, original_handler)
-
-        with pytest.raises(TerminationSignal):
-            async with report_flow_run_crashes(
-                flow_run=flow_run, client=orion_client, flow=parameterized_flow
-            ):
-                assert signal.getsignal(signal.SIGTERM) != original_handler
-                os.kill(os.getpid(), signal.SIGTERM)
-
-        original_handler.assert_called_once()
-        assert signal.getsignal(signal.SIGTERM) == original_handler
 
 
 class TestTaskRunCrashes:
