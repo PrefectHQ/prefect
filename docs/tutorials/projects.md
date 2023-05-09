@@ -220,7 +220,7 @@ A few important notes on what we're looking at here:
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
-    For more examples configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
+    For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
 
 
 ### Dockerized deployment
@@ -276,7 +276,7 @@ A few notes:
 - [each step](/concepts/projects/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
-- to see all available configuration options for this step, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
+- to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
 
 All that's left to do is create our deployment and specify our image name to instruct the worker what image to pull:
 
