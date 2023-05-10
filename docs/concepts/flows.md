@@ -896,3 +896,5 @@ def noisy_flow():
 if __name__ == "__main__":
     noisy_flow()
 ```
+
+Note that the `on_failure` hook will not run until all `retries` have completed, when the flow run finally enters a `Failed` state.
