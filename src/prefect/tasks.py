@@ -252,10 +252,6 @@ class Task(Generic[P, R]):
         self.retries = (
             retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
         )
-        print(
-            "**********************EIRJGNHVPWEIORNG[OWIERTNGV[OWRIAENTGBV[OIWRANTGBH[PIUNWR]]]]"
-        )
-        print(PREFECT_TASK_DEFAULT_RETRIES.value())
         if retry_delay_seconds is None:
             retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
 
