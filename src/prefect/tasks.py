@@ -248,9 +248,14 @@ class Task(Generic[P, R]):
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
+        print(retries)
         self.retries = (
             retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
         )
+        print(
+            "**********************EIRJGNHVPWEIORNG[OWIERTNGV[OWRIAENTGBV[OIWRANTGBH[PIUNWR]]]]"
+        )
+        print(PREFECT_TASK_DEFAULT_RETRIES.value())
         if retry_delay_seconds is None:
             retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
 
@@ -926,13 +931,13 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = 0,
+    retries: int = None,
     retry_delay_seconds: Union[
         float,
         int,
         List[float],
         Callable[[int], List[float]],
-    ] = 0,
+    ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,

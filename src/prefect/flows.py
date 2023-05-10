@@ -42,16 +42,12 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-<<<<<<< HEAD
 import prefect.server.schemas as schemas
 from prefect.client.schemas import FlowRun
-=======
-from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
 )
->>>>>>> 62e865e0d (Merging and testing)
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -206,6 +202,7 @@ class Flow(Generic[P, R]):
         self.retries = (
             retries if retries is not None else PREFECT_FLOW_DEFAULT_RETRIES.value()
         )
+
         self.retry_delay_seconds = (
             retry_delay_seconds
             if retry_delay_seconds is not None
@@ -602,8 +599,8 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = 0,
-    retry_delay_seconds: Union[int, float] = 0,
+    retries: int = None,
+    retry_delay_seconds: Union[int, float] = None,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
