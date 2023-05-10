@@ -145,6 +145,8 @@ class ProcessWorker(BaseWorker):
         if not command:
             command = f"{sys.executable} -m prefect.engine"
 
+        flow_run_logger = self.get_flow_run_logger(flow_run)
+
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
@@ -153,7 +155,7 @@ class ProcessWorker(BaseWorker):
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
         _use_threaded_child_watcher()
-        self._logger.info("Opening process...")
+        flow_run_logger.info("Opening process...")
 
         working_dir_ctx = (
             tempfile.TemporaryDirectory(suffix="prefect")
@@ -161,7 +163,9 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            self._logger.debug(f"Process running command: {command} in {working_dir}")
+            flow_run_logger.debug(
+                f"Process running command: {command} in {working_dir}"
+            )
             process = await run_process(
                 command.split(" "),
                 stream_output=configuration.stream_output,
@@ -202,12 +206,12 @@ class ProcessWorker(BaseWorker):
                     "Typically, this is caused by manual cancellation."
                 )
 
-            self._logger.error(
+            flow_run_logger.error(
                 f"Process{display_name} exited with status code: {process.returncode}"
                 + (f"; {help_message}" if help_message else "")
             )
         else:
-            self._logger.info(f"Process{display_name} exited cleanly.")
+            flow_run_logger.info(f"Process{display_name} exited cleanly.")
 
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
