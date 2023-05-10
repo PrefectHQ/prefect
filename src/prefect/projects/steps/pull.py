@@ -70,7 +70,7 @@ def git_clone_project(
         pull:
             - prefect.projects.steps.git_clone_project:
                 repository: https://github.com/org/repo.git
-                access_token: ${{ prefect.blocks.secret.github-access-token }}
+                access_token: "{{ prefect.blocks.secret.github-access-token }}"
         ```
 
         Clone a repository with submodules:
