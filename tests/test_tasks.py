@@ -977,6 +977,7 @@ class TestTaskRetries:
                     last_context.start_time < context.start_time
                 ), "Timestamps should be increasing"
 
+    @pytest.mark.parametrize("always_fail", [True, False])
     async def test_global_task_retry_config(self, always_fail):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
             mock = MagicMock()
