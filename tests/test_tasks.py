@@ -979,24 +979,23 @@ class TestTaskRetries:
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
+            mock = MagicMock()
             exc = ValueError()
-            run_count = 0
 
             @task()
             def flaky_function():
-                nonlocal run_count
-                run_count += 1
-                if run_count == 1:
-                    raise ValueError()
+                mock()
+                if mock.call_count == 2:
+                    return True
                 raise exc
 
-            @flow()
-            def foo():
-                flaky_function()
-                return "hello"
+            @flow
+            def test_flow():
+                future = flaky_function.submit()
+                return future.wait()
 
-            assert foo() == "hello"
-            assert run_count == 2
+            test_flow()
+            assert mock.call_count == 2
 
 
 class TestTaskCaching:
