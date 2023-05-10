@@ -11,6 +11,7 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.server.schemas.actions import ArtifactCreate
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.events import emit_event
 
 
 @inject_client
@@ -54,7 +55,18 @@ async def _create_artifact(
 
     artifact = ArtifactCreate(**artifact_args)
 
-    return await client.create_artifact(artifact=artifact)
+    created_artifact = await client.create_artifact(artifact=artifact)
+    emit_event(
+        event=f"prefect.artifact.{artifact.key}.created",
+        resource={
+            "prefect.resource.id": f"prefect.artifact.{artifact.key}",
+            "prefect.artifact.type": f"{artifact.type}",
+            "prefect.artifact.key": f"{artifact.key}",
+            "prefect.artifact.description": f"{artifact.description}",
+        },
+    )
+
+    return created_artifact
 
 
 @sync_compatible
