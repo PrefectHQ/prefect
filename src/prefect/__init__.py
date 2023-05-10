@@ -27,6 +27,7 @@ from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
 from prefect.context import tags
+from prefect.settings import PREFECT_UI_URL
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
@@ -73,10 +74,9 @@ import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
 prefect.logging.get_logger("profiles").debug(
-    f"Using profile {prefect.context.get_settings_context().profile.name!r}"
-    f"- view dashboard at {prefect.context.get_settings_context().run_url}"
+    f"Using profile {prefect.context.get_settings_context().profile.name!r} - view"
+    f" dashboard at {PREFECT_UI_URL}"
 )
-
 
 # Ensure moved names are accessible at old locations
 import prefect.client
