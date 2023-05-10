@@ -643,19 +643,19 @@ task will refresh the cached results. Defaults to `False`.
 
 PREFECT_TASK_DEFAULT_RETRIES = Setting(int, default=0)
 """
-This value sets the retries for all tasks associated with a flow. 
+This value sets the default number of retries for all tasks.
 This value does not overwrite individually set retries values on tasks
 """
 
 PREFECT_FLOW_DEFAULT_RETRIES = Setting(int, default=0)
 """
-This value sets the retries for all flows. 
+This value sets the default number of retries for all flows. 
 This value does not overwrite individually set retries values on a flow
 """
 
 PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
 """
-This value sets the retry delay seconds for all flows when this environment is set
+This value sets the retry delay seconds for all flows.
 This value does not overwrite invidually set retry delay seconds
 """
 
@@ -663,7 +663,7 @@ PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
     Union[float, int, List[float], Callable[[int], List[float]]], default=0
 )
 """
-This value sets the retry delay seconds for all flows when this environment is set
+This value sets the default retry delay seconds for all tasks.
 This value does not overwrite invidually set retry delay seconds
 """
 

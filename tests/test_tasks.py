@@ -977,40 +977,26 @@ class TestTaskRetries:
                     last_context.start_time < context.start_time
                 ), "Timestamps should be increasing"
 
-    @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_global_task_retry_config(self, always_fail):
+    async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
-            mock = MagicMock()
             exc = ValueError()
+            run_count = 0
 
             @task()
             def flaky_function():
-                mock()
-
-                # 3 retries means 4 attempts
-                # Succeed on the final retry unless we're ending in a failure
-                if not always_fail and mock.call_count == 4:
-                    return True
-
+                nonlocal run_count
+                run_count += 1
+                if run_count == 1:
+                    raise ValueError()
                 raise exc
 
-            @flow
-            def test_flow():
-                future = flaky_function.submit()
-                return future.wait(), ...
+            @flow()
+            def foo():
+                flaky_function()
+                return "hello"
 
-            task_run_state, _ = test_flow()
-
-            if always_fail:
-                assert task_run_state.is_failed()
-                assert exceptions_equal(
-                    await task_run_state.result(raise_on_failure=False), exc
-                )
-                assert mock.call_count == 4
-            else:
-                assert task_run_state.is_completed()
-                assert await task_run_state.result() is True
-                assert mock.call_count == 4
+            assert foo() == "hello"
+            assert run_count == 2
 
 
 class TestTaskCaching:

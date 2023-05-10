@@ -56,6 +56,11 @@ from prefect.server.schemas.responses import (
     StateWaitDetails,
 )
 from prefect.server.schemas.states import StateDetails, StateType
+from prefect.settings import (
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    temporary_settings,
+)
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
@@ -1008,6 +1013,51 @@ class TestOrchestrateTaskRun:
         # Check that the task completed happily
         assert state.is_completed()
 
+    async def test_global_task_retry_delay_seconds(
+        self, mock_anyio_sleep, orion_client, flow_run, result_factory
+    ):
+        with temporary_settings(
+            updates={PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: "43"}
+        ):
+            # the flow run must be running prior to running tasks
+            await orion_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=Running(),
+            )
+
+            # Define a task that fails once and then succeeds
+            mock = MagicMock()
+
+            @task(retries=1)
+            def flaky_function():
+                mock()
+
+                if mock.call_count == 2:
+                    return 1
+
+                raise ValueError("try again, but only once")
+
+            # Create a task run to test
+            task_run = await orion_client.create_task_run(
+                task=flaky_function,
+                flow_run_id=flow_run.id,
+                state=Pending(),
+                dynamic_key="0",
+            )
+
+            # Actually run the task
+            with mock_anyio_sleep.assert_sleeps_for(43):
+                await orchestrate_task_run(
+                    task=flaky_function,
+                    task_run=task_run,
+                    parameters={},
+                    wait_for=None,
+                    result_factory=result_factory,
+                    interruptible=False,
+                    client=orion_client,
+                    log_prints=False,
+                )
+
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
@@ -1174,6 +1224,41 @@ class TestOrchestrateFlowRun:
             StateType.RUNNING,
             StateType.COMPLETED,
         ]
+
+    async def test_global_flow_retry_delay_seconds(
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
+    ):
+        with temporary_settings(
+            updates={PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS: "43"}
+        ):
+            flow_run_count = 0
+
+            partial_flow_run_context.background_tasks = anyio.create_task_group()
+
+            @flow(retries=1)
+            def flaky_function():
+                nonlocal flow_run_count
+                flow_run_count += 1
+
+                if flow_run_count == 1:
+                    raise ValueError("try again, but only once")
+
+                return 1
+
+            flow_run = await orion_client.create_flow_run(
+                flow=flaky_function, state=Pending()
+            )
+
+            with mock_anyio_sleep.assert_sleeps_for(43):
+                await orchestrate_flow_run(
+                    flow=flaky_function,
+                    flow_run=flow_run,
+                    parameters={},
+                    wait_for=None,
+                    client=orion_client,
+                    interruptible=False,
+                    partial_flow_run_context=partial_flow_run_context,
+                )
 
 
 class TestFlowRunCrashes:
