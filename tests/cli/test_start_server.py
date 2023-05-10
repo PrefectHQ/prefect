@@ -11,6 +11,7 @@ from prefect.settings import get_current_settings
 from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.processutils import open_process
 
+POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
 
@@ -70,7 +71,7 @@ async def server_process():
                         if response.status_code == 200:
                             await anyio.sleep(0.5)  # extra sleep for less flakiness
                             break
-                    await anyio.sleep(0.1)
+                    await anyio.sleep(POLL_INTERVAL)
             if response:
                 response.raise_for_status()
             if not response:
