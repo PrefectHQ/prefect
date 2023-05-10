@@ -868,3 +868,33 @@ $ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
 --> 
+
+## Configure a state hook
+To run a client-side hook upon a flow run entering a certain state (like `Failed`), you can configure a state hook:
+
+For example, to send a Slack notification when a flow run fails, we can use the `on_failure` hook:
+
+```python
+from prefect import flow
+from prefect.blocks.core import Block
+from prefect.settings import PREFECT_API_URL
+
+def notify_slack(flow, flow_run, state):
+    slack_webhook_block = Block.load("slack-webhook/my-slack-webhook")
+            
+    slack_webhook_block.notify(
+        f"Your job {flow_run.name} entered {state.name} with message:\n\n>{state.message}\n\n"
+        f"See <https://{PREFECT_API_URL.value()}/flow-runs/flow-run/{flow_run.id}|the flow run in the UI>\n\n"
+        f"Tags: {flow_run.tags}\n\n"
+        f"Scheduled start time = {flow_run.expected_start_time}\n"
+    )
+
+@flow(on_failure=[notify_slack], retries=1)
+def noisy_flow():
+    raise ValueError("oops!")
+
+if __name__ == "__main__":
+    noisy_flow()
+```
+
+Note that the `on_failure` hook will not run until all `retries` have completed, when the flow run finally enters a `Failed` state.
