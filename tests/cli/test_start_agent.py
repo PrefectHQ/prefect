@@ -25,7 +25,7 @@ async def safe_shutdown(process):
 
 
 @pytest.fixture(scope="function")
-async def agent_process():
+async def agent_process(use_hosted_api_server):
     """
     Runs an agent listening to all queues.
     Yields:
@@ -40,7 +40,6 @@ async def agent_process():
             "agent",
             "start",
             "--match=nonexist",
-            "--api=",  # ephemeral API
         ],
         stdout=out,
         stderr=out,
