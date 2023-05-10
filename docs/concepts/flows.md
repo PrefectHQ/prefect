@@ -872,7 +872,7 @@ To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
 ## Configure a state hook
 To run a client-side hook upon a flow run entering a certain state (like `Failed`), you can configure a state hook:
 
-For example, to send a Slack notification when a flow run fails we can use the `on_failure` hook:
+For example, to send a Slack notification when a flow run fails, we can use the `on_failure` hook:
 
 ```python
 from prefect import flow
