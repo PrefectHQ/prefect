@@ -155,9 +155,10 @@ TODO: Insert screenshot
 
 ### Now lets get this worker to deploy its first flow run!
 TODO: clean this up and add more
-Create a simple flow 
-prefect deploy my_flow.py:my_flow --name ecs-worker-test-deployment --pool my-ecs-pool
-run the flow
+- Create a simple flow 
+- Deploy the flow with the preconfigured ecs-pool
+'prefect deploy my_flow.py:my_flow --name ecs-worker-test-deployment --pool my-ecs-pool'
+- Ad hoc run the flow
 
 ## Trouble Shooting
 TODO: Add more here
