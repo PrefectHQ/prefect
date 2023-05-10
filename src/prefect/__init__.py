@@ -61,6 +61,7 @@ prefect.client.schemas.State.update_forward_refs(
     BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
 )
 
+
 # Ensure collections are imported and have the opportunity to register types
 import prefect.plugins
 
@@ -73,7 +74,9 @@ import prefect.logging.configuration
 prefect.logging.configuration.setup_logging()
 prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
+    f"- view dashboard at {prefect.context.get_settings_context().run_url}"
 )
+
 
 # Ensure moved names are accessible at old locations
 import prefect.client
