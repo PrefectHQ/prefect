@@ -75,7 +75,7 @@ import prefect.logging.configuration
 prefect.logging.configuration.setup_logging()
 prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r} - view"
-    f" dashboard at {PREFECT_UI_URL}"
+    f" dashboard at {PREFECT_UI_URL!r}"
 )
 
 # Ensure moved names are accessible at old locations
