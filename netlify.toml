@@ -376,9 +376,9 @@ Strict-Transport-Security = """
 #            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
 # script-src
 #   'self' - all resources from current origin are permitted
-#   'unsafe-inline' - required for scripts loaded in partials
 # script-src-elem
 #   'self' - all resources from current origin are permitted
+#   'unsafe-inline' - required for scripts loaded in partials
 #   https://cdn.redoc.ly - required for API docs
 #   https://unpkg.com - required for Swagger rendering plugin
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
@@ -418,10 +418,10 @@ Content-Security-Policy = """\
         ; \
       script-src \
         'self' \
-        'unsafe-inline' \
       ; \
       script-src-elem \
         'self' \
+        'unsafe-inline' \
         https://cdn.redoc.ly \
         https://unpkg.com \
         https://www.googletagmanager.com \
