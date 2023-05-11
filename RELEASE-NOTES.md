@@ -2,8 +2,17 @@
 
 ## Release 2.10.9
 
+### Worker logs can now be seen on the flow run page
+
+Workers now link relevant logs to specific flow runs, allowing you to view infrastructure related logs on your flow run page.
+
+![Process worker logs](https://github.com/PrefectHQ/prefect/assets/2586601/88f00f91-a772-428e-b1e4-9d88755102ed)
+
+You'll see generic logs from all worker types and following this release the integration worker implementations e.g. for Kubernetes will be updated to send additional rich logs to give you insight into the behavior of flow run infrastructure.
+
+See https://github.com/PrefectHQ/prefect/pull/9496 for details.
+
 ### Enhancements
-- Update base and process worker to send flow run related logs — https://github.com/PrefectHQ/prefect/pull/9496
 - Handle `SIGTERM` received by agent gracefully — https://github.com/PrefectHQ/prefect/pull/8691
 - Global flow and task retries and retry delay seconds — https://github.com/PrefectHQ/prefect/pull/9171
 - Add `include_submodules` option to `git_clone_project` step — https://github.com/PrefectHQ/prefect/pull/9504
