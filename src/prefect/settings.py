@@ -660,7 +660,7 @@ This value does not overwrite invidually set retry delay seconds
 """
 
 PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
-    Union[float, int, List[float], Callable[[int], List[float]]], default=0
+    Union[float, int, List[float]], default=0
 )
 """
 This value sets the default retry delay seconds for all tasks.
