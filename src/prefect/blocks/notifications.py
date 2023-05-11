@@ -1,6 +1,8 @@
 from abc import ABC
-from typing import Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional
 
+import httpx
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
 from apprise.plugins.NotifyMattermost import NotifyMattermost
@@ -11,6 +13,7 @@ from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock
+from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -34,14 +37,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PrefectNotifyType.DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal[
+        "prefect_default", "info", "success", "warning", "failure"
+    ] = Field(
+        default=PrefectNotifyType.DEFAULT,
+        description=(
+            "The type of notification being performed; the prefect_default "
+            "is a plain notification that does not attach an image."
+        ),
     )
 
     def _start_apprise_client(self, url: SecretStr):
@@ -486,3 +489,122 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
             ).url()
         )
         self._start_apprise_client(url)
+
+
+class SubstitutionHelper:
+    """A helper class for value substitution
+
+    It will be used to replace any `${key}` in strings inside nested data
+    with value in context.
+    """
+
+    def __init__(self, data: dict) -> None:
+        self.data = data
+
+    def get(self, m: re.Match):
+        key = m.group(1)
+        val = self.data[key]
+        if val is None:
+            return 'null'
+        return str(val)
+
+    def handle(self, val: Any):
+        """Do substitution"""
+        if isinstance(val, dict):
+            return {key: self.handle(subval) for key, subval in val.items()}
+        if isinstance(val, list):
+            return [self.handle(subval) for subval in val]
+        if isinstance(val, str):
+            return re.sub(r'\$\{(\w+)\}', self.get, val)
+        return val
+
+
+class CustomWebhookNotificationBlock(NotificationBlock):
+    """
+    Enables sending notifications via any custom webhook.
+
+    All nested string param contains `${key}` will be substituted with value from context/secrets.
+
+    Context values include: `subject`, `body` and `name`.
+
+    Examples:
+        Load a saved custom webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import CustomWebhookNotificationBlock
+
+        custom_webhook_block = CustomWebhookNotificationBlock.load("BLOCK_NAME")
+
+        custom_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _block_type_name = "Custom Webhook"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
+
+    name: str = Field(description="Name of the webhook")
+
+    url: str = Field(
+        default=...,
+        title="Webhook URL",
+        description="The webhook URL.",
+        example="https://hooks.slack.com/XXX",
+    )
+
+    method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
+        default="POST", description="The webhook request method. Defaults to `POST`."
+    )
+
+    params: Optional[Dict[str, str]] = Field(
+        default=None, title="Query params", description="Custom query params"
+    )
+    json_data: Optional[dict] = Field(
+        default=None,
+        alias="json",
+        title="Json data",
+        description="Send json data as payload",
+        example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
+    )
+    data: Optional[Dict[str, str]] = Field(
+        default=None,
+        title="Form data",
+        description="Send form data as payload. Should not be used together with `json`",
+        example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
+    )
+
+    headers: Dict[str, str] = Field(default_factory=dict, description="Custom headers")
+    cookies: Dict[str, str] = Field(default_factory=dict, description="Custom cookies")
+
+    timeout: float = Field(
+        default=10, description='Request timeout in seconds. Defaults to 10.'
+    )
+
+    secrets: SecretDict = Field(
+        default_factory=lambda: SecretDict(dict()),
+        title="Custom Secret values",
+        description="A dictionary of secret values to be substituted in other configs.",
+        example='{"tokenFromSecrets":"SomeSecretToken"}',
+    )
+
+    @sync_compatible
+    @instrument_instance_method_call()
+    async def notify(self, body: str, subject: Optional[str] = None):
+        # prepare SubstitutionHelper
+        ctx = SubstitutionHelper(self.secrets.get_secret_value())
+        ctx.data.update({'subject': subject, 'body': body, 'name': self.name})
+        # set default user-agent
+        headers = {k.lower(): v for k, v in self.headers.items()}
+        headers.setdefault('user-agent', 'Prefect Notifications')
+        # make request with httpx
+        client = httpx.AsyncClient()
+        resp = await client.request(
+            self.method,
+            ctx.handle(self.url),
+            params=ctx.handle(self.params),
+            data=ctx.handle(self.data),
+            json=ctx.handle(self.json_data),
+            headers=ctx.handle(self.headers),
+            cookies=ctx.handle(self.cookies),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
