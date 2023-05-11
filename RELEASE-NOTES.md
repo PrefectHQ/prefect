@@ -4,12 +4,12 @@
 
 ### Worker logs can now be seen on the flow run page
 
-Workers now link relevant logs to specific flow runs, allowing you to view infrastructure related logs on your flow run page.
+Workers now link relevant logs to specific flow runs, allowing you to view infrastructure-related logs on your flow run page.
 
 <img width="1294" alt="Process worker logs" src="https://github.com/PrefectHQ/prefect/assets/2586601/658c2883-69f7-4ee0-abf6-a20ee4723b3a">
 
 
-You'll see generic logs from all worker types and following this release the integration worker implementations e.g. for Kubernetes will be updated to send additional rich logs to give you insight into the behavior of flow run infrastructure.
+You'll see generic logs from all worker types. Integration worker implementations such as Kubernetes workers will be updated to send additional rich logs to give you insight into the behavior of flow run infrastructure.
 
 See https://github.com/PrefectHQ/prefect/pull/9496 for details.
 
@@ -27,7 +27,7 @@ See https://github.com/PrefectHQ/prefect/pull/9496 for details.
 
 ### Documentation
 - Add tip about flow run level concurrency — https://github.com/PrefectHQ/prefect/pull/9490
-- Add `on_failure` example to docs — https://github.com/PrefectHQ/prefect/pull/9511
+- Add documentation on `on_failure` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9511
 - Update tutorials landing page — https://github.com/PrefectHQ/prefect/pull/9450
 
 
