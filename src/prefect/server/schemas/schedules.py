@@ -230,7 +230,7 @@ class CronSchedule(PrefectBaseModel):
         extra = "forbid"
 
     cron: str = Field(default=..., example="0 0 * * *")
-    timezone: Optional[str] = Field(default=None, example="America/New_York")
+    timezone: Optional[list] = Field(default=None, example="America/New_York")
     day_or: bool = Field(
         default=True,
         description=(
