@@ -336,3 +336,26 @@ def test_job_configuration_related_resources_no_objects():
         "flow-run": None,
     }
     assert config._related_resources() == []
+
+
+async def test_worker_can_include_itself_as_related(work_pool):
+    async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        related = [dict(r) for r in worker._event_related_resources(include_self=True)]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.role": "work-pool",
+                "prefect.resource.name": work_pool.name,
+            },
+            {
+                "prefect.resource.id": (
+                    f"prefect.worker.events-test.{worker.get_name_slug()}"
+                ),
+                "prefect.resource.role": "worker",
+                "prefect.resource.name": worker.name,
+                "prefect.version": str(__version__),
+                "prefect.worker-type": worker.type,
+            },
+        ]
