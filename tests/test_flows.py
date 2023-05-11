@@ -292,9 +292,6 @@ class TestFlowWithOptions:
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
             log_prints=False,
-            on_cancellation=[],
-            on_completion=[],
-            on_failure=[],
         )
         def initial_flow():
             pass
