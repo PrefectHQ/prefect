@@ -433,8 +433,8 @@ Content-Security-Policy = """\
         https://fonts.googleapis.com/ \
         ; \
       worker-src \
-      'self' \
-      'blob:' \
+        'self' \
+        blob: \
         ; \
       """
 
