@@ -172,7 +172,6 @@ def enter_flow_run_engine_from_flow_call(
         [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
     )
 
-    #
     contexts = [capture_sigterm()]
 
     if flow.isasync and (
