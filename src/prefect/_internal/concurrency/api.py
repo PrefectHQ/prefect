@@ -4,7 +4,16 @@ Primary developer-facing API for concurrency management.
 import abc
 import asyncio
 import concurrent.futures
-from typing import Awaitable, Callable, Iterable, Optional, TypeVar, Union
+import contextlib
+from typing import (
+    Awaitable,
+    Callable,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+    ContextManager,
+)
 
 from typing_extensions import ParamSpec
 
@@ -150,14 +159,18 @@ class from_async(_base):
         __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
+        contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call)
         for callback in done_callbacks or []:
             waiter.add_done_callback(callback)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
-        await waiter.wait()
-        return call.result()
+        with contextlib.ExitStack() as stack:
+            for context in contexts or []:
+                stack.enter_context(context)
+            await waiter.wait()
+            return call.result()
 
     @staticmethod
     async def wait_for_call_in_new_thread(
@@ -205,14 +218,18 @@ class from_sync(_base):
         ],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
+        contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = SyncWaiter(call)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
         for callback in done_callbacks or []:
             waiter.add_done_callback(callback)
-        waiter.wait()
-        return call.result()
+        with contextlib.ExitStack() as stack:
+            for context in contexts or []:
+                stack.enter_context(context)
+            waiter.wait()
+            return call.result()
 
     @staticmethod
     def wait_for_call_in_new_thread(

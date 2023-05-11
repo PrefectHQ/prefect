@@ -22,6 +22,7 @@ from prefect.exceptions import (
     FailedRun,
     UnfinishedRun,
     MissingResult,
+    TerminationSignal,
     PausedRun,
 )
 from prefect.results import BaseResult, R, ResultFactory
@@ -141,6 +142,9 @@ async def exception_to_crashed_state(
 
     elif isinstance(exc, KeyboardInterrupt):
         state_message = "Execution was aborted by an interrupt signal."
+
+    elif isinstance(exc, TerminationSignal):
+        state_message = "Execution was aborted by a termination signal."
 
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
