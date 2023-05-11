@@ -1,5 +1,32 @@
 # Prefect Release Notes
 
+## Release 2.10.9
+
+### Enhancements
+- Update base and process worker to send flow run related logs — https://github.com/PrefectHQ/prefect/pull/9496
+- Handle `SIGTERM` received by agent gracefully — https://github.com/PrefectHQ/prefect/pull/8691
+- Global flow and task retries and retry delay seconds — https://github.com/PrefectHQ/prefect/pull/9171
+- Add `include_submodules` option to `git_clone_project` step — https://github.com/PrefectHQ/prefect/pull/9504
+- Add wrapper for exceptions encountered while resolving parameter inputs — https://github.com/PrefectHQ/prefect/pull/8584
+- Flush logs before exiting deployed flow run processes — https://github.com/PrefectHQ/prefect/pull/9516
+- Update worker to be able to include itself as a related resource — https://github.com/PrefectHQ/prefect/pull/9531
+
+### Fixes
+- Fix bug where `SIGTERM` was not properly captured as a flow run crash — https://github.com/PrefectHQ/prefect/pull/9498
+- Fix pass of optional parameters to API in `client.create_work_queue` — https://github.com/PrefectHQ/prefect/pull/9521
+
+### Documentation
+- Add tip about flow run level concurrency — https://github.com/PrefectHQ/prefect/pull/9490
+- Add `on_failure` example to docs — https://github.com/PrefectHQ/prefect/pull/9511
+- Update tutorials landing page — https://github.com/PrefectHQ/prefect/pull/9450
+
+
+### Contributors
+* @andrewbrannan made their first contribution in https://github.com/PrefectHQ/prefect/pull/9521
+- @ddelange
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.8...2.10.9
+
 ## Release 2.10.8
 
 ### Flow run orchestration rule updates
