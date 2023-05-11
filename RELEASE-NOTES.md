@@ -15,7 +15,7 @@ See https://github.com/PrefectHQ/prefect/pull/9496 for details.
 
 ### Enhancements
 - Handle `SIGTERM` received by agent gracefully — https://github.com/PrefectHQ/prefect/pull/8691
-- Global flow and task retries and retry delay seconds — https://github.com/PrefectHQ/prefect/pull/9171
+- Add global default settings for flow and task retries and retry delay seconds — https://github.com/PrefectHQ/prefect/pull/9171
 - Add `include_submodules` option to `git_clone_project` step — https://github.com/PrefectHQ/prefect/pull/9504
 - Add wrapper for exceptions encountered while resolving parameter inputs — https://github.com/PrefectHQ/prefect/pull/8584
 - Flush logs before exiting deployed flow run processes — https://github.com/PrefectHQ/prefect/pull/9516
