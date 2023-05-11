@@ -685,10 +685,12 @@ def flow(
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
             the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
-        on_completion: An optional list of functions to call when the flow run completes.
-            These functions will be passed the flow, flow run, and final state.
-        on_failure: An optional list of functions to call when the flow run fails.
-            These functions will be passed the flow, flow run, and final state.
+        on_completion: An optional list of functions to call when the flow run is
+            completed. Each function should accept three arguments: the flow, the flow
+            run, and the final state of the flow run.
+        on_failure: An optional list of functions to call when the flow run fails. Each
+            function should accept three arguments: the flow, the flow run, and the
+            final state of the flow run.
         on_cancellation: An optional list of functions to call when the flow run is
             cancelled. These functions will be passed the flow, flow run, and final state.
         on_crashed: An optional list of functions to call when the flow run crashes. Each

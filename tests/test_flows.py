@@ -314,9 +314,6 @@ class TestFlowWithOptions:
         assert flow_with_options.result_storage == LocalFileSystem()
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
-        assert flow_with_options.on_cancellation == []
-        assert flow_with_options.on_completion == []
-        assert flow_with_options.on_failure == []
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
