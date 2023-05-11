@@ -37,8 +37,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  isinternal:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.isinternal.outputs.status }}
+    steps:
+      - name: Is internal team?
+        id: isinternal
+        run: |
+          echo "actor: ${{ github.actor }}"
+          curl -iL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.ORG_MEMBER_RO }}"\
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/orgs/prefecthq/members/${{ github.actor }}
+
+          if [[ $? -eq 0 ]]; then
+            echo "status=true" >> $GITHUB_OUTPUT
+          else
+            echo "status=false" >> $GITHUB_OUTPUT
+          fi
+
   run-tests:
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
+    needs: isinternal
 
     strategy:
       matrix:
@@ -47,7 +69,7 @@ jobs:
           - "postgres:14"
           - "sqlite"
         os:
-          - ubuntu-latest
+          - ${{ needs.isinternal.outputs.status == 'true' && 'oss-test-runner' || 'ubuntu-latest' }}
         python-version:
           - "3.7"
           - "3.8"
