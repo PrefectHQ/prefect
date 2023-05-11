@@ -245,6 +245,15 @@ from prefect.tasks import exponential_backoff
 )
 ```
 
+You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator. 
+
+```
+prefect config set PREFECT_FLOW_DEFAULT_RETRIES=2
+prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
+prefect config set PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
+prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
+```
+
 !!! note "Retries don't create new task runs"
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
 
