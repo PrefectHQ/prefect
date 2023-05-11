@@ -120,7 +120,6 @@ nav:
         - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
-        - Developing a New Worker Type: tutorials/developing-a-new-worker-type.md
     - Concepts: 
         - concepts/index.md
         - Develop: 
@@ -168,13 +167,15 @@ nav:
         - Deployment:
             - Docker: guides/deployment/docker.md
             - Azure Container Instance: guides/deployment/aci.md
+            - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
+            - Developing a New Worker Type: guides/deployment/developing-a-new-worker-type.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md
         - Contributing Integrations: integrations/contribute.md
-    - API References: 
+    - API References:
         - api-ref/index.md
         - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md

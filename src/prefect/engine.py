@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import signal
+import contextlib
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
@@ -55,6 +56,7 @@ from prefect.exceptions import (
     NotPausedError,
     Pause,
     PausedRun,
+    PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
@@ -171,18 +173,24 @@ def enter_flow_run_engine_from_flow_call(
         [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
     )
 
+    contexts = [capture_sigterm()]
+
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
         retval = from_async.wait_for_call_in_loop_thread(
-            begin_run, done_callbacks=done_callbacks
+            begin_run,
+            done_callbacks=done_callbacks,
+            contexts=contexts,
         )
 
     else:
         retval = from_sync.wait_for_call_in_loop_thread(
-            begin_run, done_callbacks=done_callbacks
+            begin_run,
+            done_callbacks=done_callbacks,
+            contexts=contexts,
         )
 
     return retval
@@ -199,9 +207,12 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return from_sync.wait_for_call_in_loop_thread(
+    state = from_sync.wait_for_call_in_loop_thread(
         create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
     )
+
+    APILogHandler.flush()
+    return state
 
 
 @inject_client
@@ -357,7 +368,7 @@ async def begin_flow_run(
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
+            report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
         )
 
         # Create a task group for background tasks
@@ -416,7 +427,7 @@ async def begin_flow_run(
                 f" {timeout.to_rfc3339_string()} to finish execution."
             ),
         )
-        await APILogHandler.flush()
+        await APILogHandler.aflush()
 
         return terminal_or_paused_state
     else:
@@ -432,7 +443,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    await APILogHandler.flush()
+    await APILogHandler.aflush()
 
     return terminal_state
 
@@ -532,7 +543,7 @@ async def create_and_begin_subflow_run(
         if terminal_state is None or not terminal_state.is_final():
             async with AsyncExitStack() as stack:
                 await stack.enter_async_context(
-                    report_flow_run_crashes(flow_run=flow_run, client=client)
+                    report_flow_run_crashes(flow_run=flow_run, client=client, flow=flow)
                 )
 
                 task_runner = flow.task_runner.duplicate()
@@ -620,7 +631,7 @@ async def orchestrate_flow_run(
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:
-            await resolve_inputs(wait_for, return_data=False)
+            await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1409,7 +1420,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                await APILogHandler.flush()
+                await APILogHandler.aflush()
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
@@ -1488,7 +1499,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_inputs(wait_for, return_data=False)
+        await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1708,15 +1719,8 @@ async def wait_for_task_runs_and_report_crashes(
     return True
 
 
-@asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
-    """
-    Detect flow run crashes during this context and update the run to a proper final
-    state.
-
-    This context _must_ reraise the exception to properly exit the run.
-    """
-
+@contextlib.contextmanager
+def capture_sigterm():
     def cancel_flow_run(*args):
         raise TerminationSignal(signal=signal.SIGTERM)
 
@@ -1726,6 +1730,33 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
     except ValueError:
         # Signals only work in the main thread
         pass
+
+    try:
+        yield
+    except TerminationSignal as exc:
+        # Termination signals are swapped out during a flow run to perform
+        # a graceful shutdown and raise this exception. This `os.kill` call
+        # ensures that the previous handler, likely the Python default,
+        # gets called as well.
+        if original_term_handler is not None:
+            signal.signal(exc.signal, original_term_handler)
+            os.kill(os.getpid(), exc.signal)
+
+        raise
+
+    finally:
+        if original_term_handler is not None:
+            signal.signal(signal.SIGTERM, original_term_handler)
+
+
+@asynccontextmanager
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
+    """
+    Detect flow run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
 
     try:
         yield
@@ -1746,19 +1777,16 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
-        if isinstance(exc, TerminationSignal):
-            # Termination signals are swapped out during a flow run to perform
-            # a graceful shutdown and raise this exception. This `os.kill` call
-            # ensures that the previous handler, likely the Python default,
-            # gets called as well.
-            signal.signal(exc.signal, original_term_handler)
-            os.kill(os.getpid(), exc.signal)
+            # Only `on_crashed` flow run state change hook is called here
+            # We call the hook after the state is set to `CRASHED`
+            await _run_flow_hooks(
+                flow=flow,
+                flow_run=flow_run,
+                state=state,
+            )
 
         # Reraise the exception
-        raise exc from None
-    finally:
-        if original_term_handler is not None:
-            signal.signal(signal.SIGTERM, original_term_handler)
+        raise
 
 
 @asynccontextmanager
@@ -1810,6 +1838,9 @@ async def resolve_inputs(
     futures = set()
     states = set()
     result_by_state = {}
+
+    if not parameters:
+        return {}
 
     def collect_futures_and_states(expr, context):
         # Expressions inside quotes should not be traversed
@@ -1880,14 +1911,28 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    return visit_collection(
-        parameters,
-        visit_fn=resolve_input,
-        return_data=return_data,
-        max_depth=max_depth,
-        remove_annotations=True,
-        context={},
-    )
+    resolved_parameters = {}
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_input,
+                return_data=return_data,
+                # we're manually going 1 layer deeper here
+                max_depth=max_depth - 1,
+                remove_annotations=True,
+                context={},
+            )
+        except UpstreamTaskError:
+            raise
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters
 
 
 async def propose_state(
@@ -2158,7 +2203,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure, on_completion, and on_cancellation hooks for a flow, making sure to
+    """Run the on_failure, on_completion, on_cancellation, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2168,6 +2213,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_completion
     elif state.is_cancelled() and flow.on_cancellation:
         hooks = flow.on_cancellation
+    elif state.is_crashed() and flow.on_crashed:
+        hooks = flow.on_crashed
 
     if hooks:
         logger = flow_run_logger(flow_run)

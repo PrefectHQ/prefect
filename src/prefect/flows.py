@@ -43,6 +43,11 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 import prefect.server.schemas as schemas
+from prefect.client.schemas import FlowRun
+from prefect.settings import (
+    PREFECT_FLOW_DEFAULT_RETRIES,
+    PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+)
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -118,6 +123,7 @@ class Flow(Generic[P, R]):
         on_failure: An optional list of callables to run when the flow enters a failed state.
         on_completion: An optional list of callables to run when the flow enters a completed state.
         on_cancellation: An optional list of callables to run when the flow enters a cancelled state.
+        on_crashed: An optional list of callables to run when the flow enters a crashed state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -128,8 +134,8 @@ class Flow(Generic[P, R]):
         name: Optional[str] = None,
         version: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        retries: int = 0,
-        retry_delay_seconds: Union[int, float] = 0,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[Union[int, float]] = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
@@ -140,13 +146,16 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_failure: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_cancellation: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+        ] = None,
+        on_crashed: Optional[
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
         if not callable(fn):
@@ -194,8 +203,15 @@ class Flow(Generic[P, R]):
         # FlowRunPolicy settings
         # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = retries
-        self.retry_delay_seconds = retry_delay_seconds
+        self.retries = (
+            retries if retries is not None else PREFECT_FLOW_DEFAULT_RETRIES.value()
+        )
+
+        self.retry_delay_seconds = (
+            retry_delay_seconds
+            if retry_delay_seconds is not None
+            else PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS.value()
+        )
 
         self.parameters = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
@@ -237,6 +253,7 @@ class Flow(Generic[P, R]):
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
+        self.on_crashed = on_crashed
 
     def with_options(
         self,
@@ -256,13 +273,16 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_failure: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
         on_cancellation: Optional[
-            List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+        ] = None,
+        on_crashed: Optional[
+            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
         """
@@ -291,6 +311,7 @@ class Flow(Generic[P, R]):
             on_failure: A new list of callables to run when the flow enters a failed state.
             on_completion: A new list of callables to run when the flow enters a completed state.
             on_cancellation: A new list of callables to run when the flow enters a cancelled state.
+            on_crashed: A new list of callables to run when the flow enters a crashed state.
 
         Returns:
             A new `Flow` instance.
@@ -355,6 +376,7 @@ class Flow(Generic[P, R]):
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
             on_cancellation=on_cancellation or self.on_cancellation,
+            on_crashed=on_crashed or self.on_crashed,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -557,8 +579,8 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = 0,
-    retry_delay_seconds: Union[int, float] = 0,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Optional[Union[int, float]] = None,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -569,13 +591,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+    ] = None,
+    on_crashed: Optional[
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -587,8 +612,8 @@ def flow(
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = 0,
-    retry_delay_seconds: Union[int, float] = 0,
+    retries: int = None,
+    retry_delay_seconds: Union[int, float] = None,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -599,13 +624,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[schemas.core.Flow, schemas.core.FlowRun, State], None]]
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+    ] = None,
+    on_crashed: Optional[
+        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
     ] = None,
 ):
     """
@@ -663,6 +691,9 @@ def flow(
             These functions will be passed the flow, flow run, and final state.
         on_cancellation: An optional list of functions to call when the flow run is
             cancelled. These functions will be passed the flow, flow run, and final state.
+        on_crashed: An optional list of functions to call when the flow run crashes. Each
+            function should accept three arguments: the flow, the flow run, and the
+            final state of the flow run.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -724,6 +755,7 @@ def flow(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
+                on_crashed=on_crashed,
             ),
         )
     else:
@@ -748,6 +780,7 @@ def flow(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
+                on_crashed=on_crashed,
             ),
         )
 

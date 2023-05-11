@@ -7,6 +7,10 @@ import sys
 import urllib.parse
 from typing import Optional
 
+from prefect.logging.loggers import get_logger
+
+projects_logger = get_logger("projects")
+
 
 def set_working_directory(directory: str) -> dict:
     """
@@ -24,7 +28,10 @@ def set_working_directory(directory: str) -> dict:
 
 
 def git_clone_project(
-    repository: str, branch: Optional[str] = None, access_token: Optional[str] = None
+    repository: str,
+    branch: Optional[str] = None,
+    include_submodules: bool = False,
+    access_token: Optional[str] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -32,6 +39,7 @@ def git_clone_project(
     Args:
         repository (str): the URL of the repository to clone
         branch (str, optional): the branch to clone; if not provided, the default branch will be used
+        include_submodules (bool): whether to include git submodules when cloning the repository
         access_token (str, optional): an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
 
@@ -40,6 +48,49 @@ def git_clone_project(
 
     Raises:
         subprocess.CalledProcessError: if the git clone command fails for any reason
+
+    Examples:
+        Clone a public repository:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/PrefectHQ/prefect.git
+        ```
+
+        Clone a branch of a public repository:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/PrefectHQ/prefect.git
+                branch: my-branch
+        ```
+
+        Clone a private repository using an access token:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/org/repo.git
+                access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
+        ```
+        Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
+        value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
+        in your secret block. Refer to your git providers documentation for the correct authentication schema.
+
+        Clone a repository with submodules:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: https://github.com/org/repo.git
+                include_submodules: true
+        ```
+
+        Clone a repository with an SSH key (note that the SSH key must be added to the worker
+        before executing flows):
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                repository: git@github.com:org/repo.git
+        ```
     """
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
@@ -53,6 +104,8 @@ def git_clone_project(
     cmd = ["git", "clone", repository_url]
     if branch:
         cmd += ["-b", branch]
+    if include_submodules:
+        cmd += ["--recurse-submodules"]
 
     # Limit git history
     cmd += ["--depth", "1"]
@@ -70,4 +123,5 @@ def git_clone_project(
         ) from exc_chain
 
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
+    projects_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}

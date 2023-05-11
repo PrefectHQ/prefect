@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock, ANY
 import pytest
 
 import prefect
@@ -62,8 +63,75 @@ class TestRunStep:
         assert flow.name == "test_value_1:test_value_2"
         assert flow.fn(None) == 42
 
+    async def test_run_step_runs_async_functions(self):
+        output = await run_step(
+            {
+                "anyio.run_process": {
+                    "command": ["echo", "hello world"],
+                }
+            }
+        )
+        assert output.returncode == 0
+        assert output.stdout.decode().strip() == "hello world"
+
 
 class TestGitCloneStep:
+    async def test_git_clone(self, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "repository": "https://github.com/org/repo.git",
+                }
+            }
+        )
+        assert output["directory"] == "repo"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/repo.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    async def test_git_clone_include_submodules(self, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "repository": "https://github.com/org/has-submodules.git",
+                    "include_submodules": True,
+                }
+            }
+        )
+        assert output["directory"] == "has-submodules"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/has-submodules.git",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
     async def test_git_clone_errors_obscure_access_token(self):
         with pytest.raises(RuntimeError) as exc:
             await run_step(
