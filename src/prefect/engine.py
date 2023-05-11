@@ -208,7 +208,8 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     setup_logging()
 
     state = from_sync.wait_for_call_in_loop_thread(
-        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id),
+        contexts=[capture_sigterm()],
     )
 
     APILogHandler.flush()
