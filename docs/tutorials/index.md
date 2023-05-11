@@ -11,7 +11,7 @@ tags:
 ---
 # Tutorial Overview
 
-These tutorials are designed to provide the reader with basic examples of Prefect core concepts, and step-by-step instructions on how to use them. For more advanced tutorials and orchestration patterns, feel free to check out our [guides](/guides/).
+These tutorials provide examples of Prefect core concepts and step-by-step instructions on how to use them. For specific examples of how to perform more advanced tasks, check out our [guides](/guides/).
 
 If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](/tutorials/first-steps/#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
 
