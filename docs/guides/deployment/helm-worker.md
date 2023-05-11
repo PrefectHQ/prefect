@@ -8,7 +8,7 @@ tags:
     - deployments
 ---
 
-# Guide: Using Prefect Helm Chart for Prefect Workers
+# Using Prefect Helm Chart for Prefect Workers
 
 This guide will walk you through the process of deploying Prefect workers using the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker). We will also cover how to set up a Kubernetes secret for the API key and mount it as an environment variable.
 ## Prerequisites
