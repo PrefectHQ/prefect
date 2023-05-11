@@ -6,7 +6,8 @@
 
 Workers now link relevant logs to specific flow runs, allowing you to view infrastructure related logs on your flow run page.
 
-![Process worker logs](https://github.com/PrefectHQ/prefect/assets/2586601/88f00f91-a772-428e-b1e4-9d88755102ed)
+<img width="1294" alt="Process worker logs" src="https://github.com/PrefectHQ/prefect/assets/2586601/658c2883-69f7-4ee0-abf6-a20ee4723b3a">
+
 
 You'll see generic logs from all worker types and following this release the integration worker implementations e.g. for Kubernetes will be updated to send additional rich logs to give you insight into the behavior of flow run infrastructure.
 
