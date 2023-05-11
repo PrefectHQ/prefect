@@ -174,7 +174,9 @@ class TestReadWorkQueues:
         response = await client.post("/work_queues/filter")
         assert response.status_code == status.HTTP_200_OK
         # includes default work queue
-        assert len(response.json()) == 4
+        assert (
+            len(response.json()) == 4
+        ), f"Work queue names: {[wq['name'] for wq in response.json()]}"
 
     async def test_read_work_queues_applies_limit(self, work_queues, client):
         response = await client.post("/work_queues/filter", json=dict(limit=1))
