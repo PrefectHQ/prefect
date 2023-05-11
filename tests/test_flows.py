@@ -2434,7 +2434,7 @@ class TestFlowHooksOnCancellation:
 
         @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
         def my_flow():
-            return State(type=StateType.CANCELLED)
+            return State(type=StateType.CANCELLING)
 
         my_flow._run()
         assert my_mock.mock_calls == [call("cancelled_hook1"), call("cancelled_hook2")]
@@ -2485,7 +2485,7 @@ class TestFlowHooksOnCancellation:
 
         @flow(on_cancellation=[cancelled1, cancelled2, cancelled3])
         def my_flow():
-            return State(type=StateType.CANCELLED)
+            return State(type=StateType.CANCELLING)
 
         my_flow._run()
         assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
@@ -2501,7 +2501,7 @@ class TestFlowHooksOnCancellation:
 
         @flow(on_cancellation=[cancelled])
         def subflow():
-            return State(type=StateType.CANCELLED)
+            return State(type=StateType.CANCELLING)
 
         @flow(on_failure=[failed])
         def my_flow():
@@ -2526,7 +2526,7 @@ class TestFlowHooksOnCancellation:
 
         @flow(on_cancellation=[hook1_with_mock, hook2_with_mock])
         def my_flow():
-            return State(type=StateType.CANCELLED)
+            return State(type=StateType.CANCELLING)
 
         my_flow._run()
         assert my_mock.mock_calls == [call(), call()]
