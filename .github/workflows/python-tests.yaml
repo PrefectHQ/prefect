@@ -139,7 +139,8 @@ jobs:
         if: ${{ matrix.build-docker-images }}
         run: |
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          echo "image_tag="sha-$SHORT_SHA-python${{ matrix.python-version }}" >> $GITHUB_OUTPUT
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
