@@ -26,6 +26,7 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
+from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
@@ -2034,6 +2035,21 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+    def test_global_retry_config(self):
+        with temporary_settings(updates={PREFECT_FLOW_DEFAULT_RETRIES: "1"}):
+            run_count = 0
+
+            @flow()
+            def foo():
+                nonlocal run_count
+                run_count += 1
+                if run_count == 1:
+                    raise ValueError()
+                return "hello"
+
+            assert foo() == "hello"
+            assert run_count == 2
 
 
 def test_load_flow_from_entrypoint(tmp_path):

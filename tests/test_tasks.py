@@ -29,6 +29,7 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
     PREFECT_DEBUG_MODE,
+    PREFECT_TASK_DEFAULT_RETRIES,
 )
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
@@ -975,6 +976,26 @@ class TestTaskRetries:
                 assert (
                     last_context.start_time < context.start_time
                 ), "Timestamps should be increasing"
+
+    async def test_global_task_retry_config(self):
+        with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
+            mock = MagicMock()
+            exc = ValueError()
+
+            @task()
+            def flaky_function():
+                mock()
+                if mock.call_count == 2:
+                    return True
+                raise exc
+
+            @flow
+            def test_flow():
+                future = flaky_function.submit()
+                return future.wait()
+
+            test_flow()
+            assert mock.call_count == 2
 
 
 class TestTaskCaching:
