@@ -239,7 +239,7 @@ class TestFlowWithOptions:
         def cancellation_hook(flow, flow_run, state):
             return print("Fizz Buzz!")
 
-        def crash_hook(task, task_run, state):
+        def crash_hook(flow, flow_run, state):
             return print("Crash!")
 
         flow_with_options = initial_flow.with_options(
