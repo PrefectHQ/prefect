@@ -387,6 +387,7 @@ Strict-Transport-Security = """
 #   'unsafe-inline' - required for styles loaded in partials
 # worker-src
 #   'self' - allow web workers from current origin
+#   blob: - required by Redocly for a generated Worker
 Content-Security-Policy = """\
       default-src \
         'none' \
@@ -433,6 +434,7 @@ Content-Security-Policy = """\
         ; \
       worker-src \
       'self' \
+      'blob:' \
         ; \
       """
 
