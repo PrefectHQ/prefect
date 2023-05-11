@@ -377,6 +377,10 @@ Strict-Transport-Security = """
 # script-src
 #   'self' - all resources from current origin are permitted
 #   'unsafe-inline' - required for scripts loaded in partials
+# script-src-elem
+#   'self' - all resources from current origin are permitted
+#   https://cdn.redoc.ly - required for API docs
+#   https://unpkg.com - required for Swagger rendering plugin
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
 # style-src
 #   'self' - all styles from current origin are permitted
@@ -400,7 +404,8 @@ Content-Security-Policy = """\
       frame-src 
         https://www.youtube.com \
         ; \
-      img-src 'self' \
+      img-src \
+        'self' \
         data: \
         https://avatars.githubusercontent.com \
         https://img.shields.io \
@@ -414,8 +419,12 @@ Content-Security-Policy = """\
       script-src \
         'self' \
         'unsafe-inline' \
-        https://www.googletagmanager.com \
+      ; \
+      script-src-elem \
+        'self' \
+        https://cdn.redoc.ly \
         https://unpkg.com \
+        https://www.googletagmanager.com \
         ; \
       style-src \
         'self' \
