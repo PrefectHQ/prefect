@@ -56,6 +56,7 @@ from prefect.exceptions import (
     NotPausedError,
     Pause,
     PausedRun,
+    PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
@@ -627,7 +628,7 @@ async def orchestrate_flow_run(
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:
-            await resolve_inputs(wait_for, return_data=False)
+            await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1495,7 +1496,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_inputs(wait_for, return_data=False)
+        await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1835,6 +1836,9 @@ async def resolve_inputs(
     states = set()
     result_by_state = {}
 
+    if not parameters:
+        return {}
+
     def collect_futures_and_states(expr, context):
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
@@ -1904,14 +1908,28 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    return visit_collection(
-        parameters,
-        visit_fn=resolve_input,
-        return_data=return_data,
-        max_depth=max_depth,
-        remove_annotations=True,
-        context={},
-    )
+    resolved_parameters = {}
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_input,
+                return_data=return_data,
+                # we're manually going 1 layer deeper here
+                max_depth=max_depth - 1,
+                remove_annotations=True,
+                context={},
+            )
+        except UpstreamTaskError:
+            raise
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters
 
 
 async def propose_state(
