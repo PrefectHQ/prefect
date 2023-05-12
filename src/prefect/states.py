@@ -20,7 +20,9 @@ from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
     FailedRun,
+    UnfinishedRun,
     MissingResult,
+    TerminationSignal,
     PausedRun,
 )
 from prefect.results import BaseResult, R, ResultFactory
@@ -79,6 +81,11 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
         # Paused states are not truly terminal and do not have results associated with them
         raise PausedRun("Run paused.")
 
+    if not state.is_final():
+        raise UnfinishedRun(
+            f"Run is in {state.type.name} state, its result is not available."
+        )
+
     if raise_on_failure and (
         state.is_crashed() or state.is_failed() or state.is_cancelled()
     ):
@@ -135,6 +142,9 @@ async def exception_to_crashed_state(
 
     elif isinstance(exc, KeyboardInterrupt):
         state_message = "Execution was aborted by an interrupt signal."
+
+    elif isinstance(exc, TerminationSignal):
+        state_message = "Execution was aborted by a termination signal."
 
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."

@@ -245,6 +245,15 @@ from prefect.tasks import exponential_backoff
 )
 ```
 
+You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator. 
+
+```
+prefect config set PREFECT_FLOW_DEFAULT_RETRIES=2
+prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
+prefect config set PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
+prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
+```
+
 !!! note "Retries don't create new task runs"
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
 
@@ -536,6 +545,10 @@ If there are no concurrency slots available for any one of your task's tags, the
     Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
 
 ### Configuring concurrency limits
+
+!!! tip "Flow run concurrency limits are set at a work pool and/or work queue level"
+    While task run concurrency limits are configured via tags (as shown below), [flow run concurrency limits](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-concurrency) are configured via work pools and/or work queues.
+
 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 

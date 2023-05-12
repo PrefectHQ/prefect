@@ -25,7 +25,12 @@ from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
+from prefect.settings import (
+    PREFECT_TASKS_REFRESH_CACHE,
+    temporary_settings,
+    PREFECT_DEBUG_MODE,
+    PREFECT_TASK_DEFAULT_RETRIES,
+)
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
@@ -208,6 +213,18 @@ class TestTaskCall:
             return foo(1)
 
         assert bar() == 1
+
+    def test_task_call_with_debug_mode(self):
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1)
+
+        with temporary_settings({PREFECT_DEBUG_MODE: True}):
+            assert bar() == 1
 
     def test_task_called_with_task_dependency(self):
         @task
@@ -959,6 +976,26 @@ class TestTaskRetries:
                 assert (
                     last_context.start_time < context.start_time
                 ), "Timestamps should be increasing"
+
+    async def test_global_task_retry_config(self):
+        with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
+            mock = MagicMock()
+            exc = ValueError()
+
+            @task()
+            def flaky_function():
+                mock()
+                if mock.call_count == 2:
+                    return True
+                raise exc
+
+            @flow
+            def test_flow():
+                future = flaky_function.submit()
+                return future.wait()
+
+            test_flow()
+            assert mock.call_count == 2
 
 
 class TestTaskCaching:
@@ -2227,7 +2264,7 @@ class TestSubflowWaitForTasks:
 
         flow_state = await test_flow._run()
         assert flow_state.is_failed()
-        assert "MissingResult: State data is missing" in flow_state.message
+        assert "UnfinishedRun" in flow_state.message
 
     def test_using_wait_for_in_task_definition_raises_reserved(self):
         with pytest.raises(

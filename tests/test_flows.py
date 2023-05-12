@@ -1,6 +1,7 @@
 import enum
 import inspect
 import sys
+import asyncio
 import time
 from textwrap import dedent
 from typing import List
@@ -25,6 +26,7 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
+from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
@@ -222,6 +224,7 @@ class TestFlowWithOptions:
             cache_result_in_memory=False,
             on_completion=[],
             on_failure=[],
+            on_crashed=[],
         )
         def initial_flow():
             pass
@@ -231,6 +234,9 @@ class TestFlowWithOptions:
 
         def success_hook(task, task_run, state):
             return print("Meow!")
+
+        def crash_hook(task, task_run, state):
+            return print("Crash!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
@@ -247,6 +253,7 @@ class TestFlowWithOptions:
             cache_result_in_memory=True,
             on_completion=[success_hook],
             on_failure=[failure_hook],
+            on_crashed=[crash_hook],
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -263,6 +270,7 @@ class TestFlowWithOptions:
         assert flow_with_options.cache_result_in_memory is True
         assert flow_with_options.on_completion == [success_hook]
         assert flow_with_options.on_failure == [failure_hook]
+        assert flow_with_options.on_crashed == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -752,6 +760,76 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    async def test_concurrent_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow(log_prints=True)
+        async def child(i):
+            assert await test_task() == 1
+            return i
+
+        @flow
+        async def parent():
+            coros = [child(i) for i in range(5)]
+            assert await asyncio.gather(*coros) == list(range(5))
+
+        await parent()
+
+    async def test_recursive_async_subflow(self):
+        @task
+        async def test_task():
+            return 1
+
+        @flow
+        async def recurse(i):
+            assert await test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + await recurse(i - 1)
+
+        @flow
+        async def parent():
+            return await recurse(5)
+
+        assert await parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_subflow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        @flow
+        def parent():
+            return recurse(5)
+
+        assert parent() == 5 + 4 + 3 + 2 + 1
+
+    def test_recursive_sync_flow(self):
+        @task
+        def test_task():
+            return 1
+
+        @flow
+        def recurse(i):
+            assert test_task() == 1
+            if i == 0:
+                return i
+            else:
+                return i + recurse(i - 1)
+
+        assert recurse(5) == 5 + 4 + 3 + 2 + 1
+
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
         def child(x: int):
@@ -759,9 +837,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            return child._run(x)
+            return child(x, return_state=True)
 
-        parent_state = parent._run("foo")
+        parent_state = parent("foo", return_state=True)
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             await parent_state.result()
@@ -772,6 +850,29 @@ class TestSubflowCalls:
         )
         assert flow_run.state.is_failed()
         assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_fails_parent(self):
+        child_state = None
+
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent():
+            nonlocal child_state
+            child_state = child("foo", return_state=True)
+
+            # create a happy child too
+            child(1, return_state=True)
+
+        parent_state = parent(return_state=True)
+
+        assert parent_state.is_failed()
+        assert "1/2 states failed." in parent_state.message
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            await child_state.result()
 
     async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
         self,
@@ -1539,12 +1640,12 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            fut = my_task()
+            state = my_task(return_state=True)
 
             if flow_run_count == 1:
                 raise ValueError()
 
-            return fut
+            return state.result()
 
         assert foo() == "hello"
         assert flow_run_count == 2
@@ -1935,6 +2036,21 @@ class TestFlowRetries:
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
 
+    def test_global_retry_config(self):
+        with temporary_settings(updates={PREFECT_FLOW_DEFAULT_RETRIES: "1"}):
+            run_count = 0
+
+            @flow()
+            def foo():
+                nonlocal run_count
+                run_count += 1
+                if run_count == 1:
+                    raise ValueError()
+                return "hello"
+
+            assert foo() == "hello"
+            assert run_count == 2
+
 
 def test_load_flow_from_entrypoint(tmp_path):
     flow_code = """
@@ -2298,3 +2414,115 @@ class TestFlowHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
+
+
+class TestFlowHooksOnCrashed:
+    def test_on_crashed_hooks_run_on_crashed_state(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_completed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_passing_flow():
+            pass
+
+        state = my_passing_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.mock_calls == []
+
+    def test_on_crashed_hooks_are_ignored_if_terminal_state_failed(self):
+        my_mock = MagicMock()
+
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        @flow(on_crashed=[crashed_hook1, crashed_hook2])
+        def my_failing_flow():
+            raise Exception("Failing flow")
+
+        state = my_failing_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.mock_calls == []
+
+    def test_other_crashed_hooks_run_if_one_hook_fails(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def crashed2(flow, flow_run, state):
+            raise Exception("Failing flow")
+
+        def crashed3(flow, flow_run, state):
+            my_mock("crashed3")
+
+        @flow(on_crashed=[crashed1, crashed2, crashed3])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_crashed_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_crashed=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call(), call()]
+
+    def test_on_crashed_hook_on_subflow_succeeds(self):
+        my_mock = MagicMock()
+
+        def crashed1(flow, flow_run, state):
+            my_mock("crashed1")
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @flow(on_crashed=[crashed1])
+        def subflow():
+            return State(type=StateType.CRASHED)
+
+        @flow(on_failure=[failed1])
+        def my_flow():
+            subflow()
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
