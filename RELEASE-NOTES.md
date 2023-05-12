@@ -57,7 +57,7 @@ See https://github.com/PrefectHQ/prefect/pull/9447 for details.
 
 ### Fixes
 - Ensure deployment creation does not require write access when a prefectignore file exists — https://github.com/PrefectHQ/prefect/pull/9460
-- Fix bug where `deployment deployment apply` command could hang on exit — https://github.com/PrefectHQ/prefect/pull/9481 
+- Fix bug where `deployment apply` command could hang on exit — https://github.com/PrefectHQ/prefect/pull/9481 
 
 ### Deprecations
 - Add future warning for Python 3.7 EOL — https://github.com/PrefectHQ/prefect/pull/9469
