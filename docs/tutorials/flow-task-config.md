@@ -158,7 +158,7 @@ Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime m
 
 You specify the tags on a task as a list of tag strings.
 
-```python hl_lines="5"
+```python 
 from prefect import flow, task
 
 @task(name="My Example Task", 
@@ -245,7 +245,7 @@ def my_flow(name: str):
 
 Prefect includes built-in support for both flow and [task retries](/concepts/tasks/#retries), which you configure on the flow or task. This enables flows and tasks to automatically retry on failure. You can specify how many retries you want to attempt and, optionally, a delay between retry attempts:
 
-```python hl_lines="4"
+```python 
 from prefect import flow, task
 
 # this tasks runs 3 times before the flow fails
@@ -312,7 +312,7 @@ One way to use `cache_key_fn` is to cache based on inputs by specifying `task_in
 
 To illustrate, run the following flow in a Python interpreter.
 
-```python hl_lines="5"
+```python 
 from prefect import flow, task
 from prefect.tasks import task_input_hash
 from datetime import timedelta
@@ -377,7 +377,7 @@ You can also define your own cache key function that returns a string cache key.
 
 In this example, you could provide different input, but the cache key remains the same if the sum of the inputs remains the same.
 
-```python hl_lines="5-9"
+```python 
 from prefect import flow, task
 from datetime import timedelta
 import time

@@ -61,7 +61,7 @@ See the [install guide](/getting-started/installation/) for more detailed instru
 
 Import `flow` and decorate your Python function using the [`@flow`][prefect.flows.flow] decorator.
 
-```python hl_lines="1 3"
+```python
 from prefect import flow
 
 @flow

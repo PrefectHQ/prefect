@@ -71,7 +71,7 @@ Returning [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFut
 
 By default, running a task will return data:
 
-```python hl_lines="3-5"
+```python
 from prefect import flow, task 
 
 @task 
@@ -85,7 +85,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="1-3"
+```python 
 @flow 
 def subflow():
     return 42 
@@ -99,7 +99,7 @@ def my_flow():
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call.
 
-```python hl_lines="3-4"
+```python
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -107,7 +107,7 @@ def my_flow():
 
 To get data from a `State`, call `.result()`.
 
-```python hl_lines="4-5"
+```python 
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -116,7 +116,6 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="7-8"
 @flow 
 def subflow():
     return 42 
@@ -131,7 +130,7 @@ def my_flow():
 
 To get a `PrefectFuture`, add `.submit()` to your task call.
 
-```python hl_lines="3-5"
+```python 
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -139,7 +138,7 @@ def my_flow():
 
 To get data from a `PrefectFuture`, call `.result()`.
 
-```python hl_lines="4-5"
+```python
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -148,7 +147,7 @@ def my_flow():
 
 To get a `State` from a `PrefectFuture`, call `.wait()`.
 
-```python hl_lines="4-5"
+```python 
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture

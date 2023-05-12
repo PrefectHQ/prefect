@@ -53,7 +53,7 @@ When you run a flow that contains tasks or additional flows, Prefect will track 
 
 For most use cases, we recommend using the [`@flow`][prefect.flows.flow] decorator to designate a flow:
 
-```python hl_lines="3"
+```python 
 from prefect import flow
 
 @flow
@@ -63,7 +63,7 @@ def my_flow():
 
 Flows are uniquely identified by name. You can provide a `name` parameter value for the flow. If you don't provide a name, Prefect uses the flow function name.
 
-```python hl_lines="1"
+```python 
 @flow(name="My Flow")
 def my_flow():
     return
@@ -410,7 +410,7 @@ The following examples illustrate each of these cases:
 
 If an exception is raised within the flow function, the flow is immediately marked as failed.
 
-```python hl_lines="5"
+```python 
 from prefect import flow
 
 @flow
@@ -485,7 +485,7 @@ ValueError: I fail successfully
 
 If a flow returns one or more futures, the final state is determined based on the underlying states.
 
-```python hl_lines="15"
+```python 
 from prefect import flow, task
 
 @task
@@ -532,7 +532,7 @@ I'm fail safe!
 
 If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states, then determining if any of the states are not `COMPLETED`.
 
-```python hl_lines="20"
+```python 
 from prefect import task, flow
 
 @task
@@ -582,7 +582,7 @@ Failed(message='1/3 states failed.', type=FAILED, result=(Failed(message='Task r
 
 If a flow returns a manually created state, the final state is determined based on the return value.
 
-```python hl_lines="16-19"
+```python 
 from prefect import task, flow
 from prefect.server.schemas.states import Completed, Failed
 
@@ -633,7 +633,7 @@ I'm fail safe!
 
 If the flow run returns _any other object_, then it is marked as completed.
 
-```python hl_lines="10"
+```python
 from prefect import task, flow
 
 @task

@@ -96,7 +96,7 @@ Sometimes you may want to intentionally run tasks sequentially. The built-in Pre
 
 When using non-default task runner, you must import the task runner into your flow script.
 
-```python hl_lines="3 11"
+```python 
 import time
 from prefect import task, flow
 from prefect.task_runners import SequentialTaskRunner

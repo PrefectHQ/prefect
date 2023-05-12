@@ -57,7 +57,7 @@ To configure your flow to use a specific task runner, import a task runner and a
 
 For example, you can use `ConcurrentTaskRunner` to allow tasks to switch when they would block.
 
-```python hl_lines="2 11"
+```python 
 from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 import time
@@ -452,7 +452,7 @@ The [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) is a parallel 
 
 For example, this flow uses the `DaskTaskRunner` configured to access an existing Dask cluster at `http://my-dask-cluster`.
 
-```python hl_lines="4"
+```python 
 from prefect import flow
 from prefect_dask.task_runners import DaskTaskRunner
 
@@ -632,7 +632,7 @@ To configure your flow to use the `RayTaskRunner`:
 
 For example, this flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
 
-```python hl_lines="4"
+```python 
 from prefect import flow
 from prefect_ray.task_runners import RayTaskRunner
 

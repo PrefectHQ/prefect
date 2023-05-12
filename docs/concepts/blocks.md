@@ -150,7 +150,7 @@ json_block.save(name="life-the-universe-everything")
 
 The name given when saving the value stored in the JSON block can be used when retrieving the value during a flow or task run:
 
-```python hl_lines="6"
+```python 
 from prefect import flow
 from prefect.blocks.system import JSON
 
@@ -166,7 +166,7 @@ Blocks can also be loaded with a unique slug that is a combination of a block ty
 
 To load our JSON block document from before, we can run the following:
 
-```python hl_lines="3"
+```python 
 from prefect.blocks.core import Block
 
 json_block = Block.load("json/life-the-universe-everything")
@@ -191,7 +191,7 @@ class Cube(Block):
 
 You can also include methods on a block include useful functionality. Here's the same cube block with methods to calculate the volume and surface area of the cube:
 
-```python hl_lines="6-10"
+```python 
 from prefect.blocks.core import Block
 
 class Cube(Block):
@@ -226,7 +226,7 @@ All block values are encrypted before being stored, but if you have values that 
 
 Here's an example of an `AWSCredentials` block that uses `SecretStr`:
 
-```python hl_lines="8"
+```python 
 from typing import Optional
 
 from prefect.blocks.core import Block
@@ -335,7 +335,6 @@ class AWSCredentials(Block):
 
 The `AWSCredentials` block can be used within an S3Bucket block to provide authentication when interacting with an S3 bucket:
 
-```python hl_lines="5"
 import io
 
 class S3Bucket(Block):
@@ -394,7 +393,7 @@ Let's say that you now want to add a `bucket_folder` field to your custom `S3Buc
 We can add the new field to the class definition:
 
 
-```python hl_lines="4"
+```python
 class S3Bucket(Block):
     bucket_name: str
     credentials: AWSCredentials

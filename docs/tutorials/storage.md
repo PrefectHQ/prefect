@@ -227,7 +227,7 @@ When specified via CLI, overrides must be dot-delimited keys that target a speci
 
 As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](/tutorials/deployments/#deployment-creation-with-python):
 
-```python hl_lines="5 7 15"
+```python 
 # deployment.py
 
 from log_flow import log_flow

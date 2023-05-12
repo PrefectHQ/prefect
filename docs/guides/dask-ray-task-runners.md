@@ -42,7 +42,7 @@ Let's start with the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#pre
 
 Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
-```python hl_lines="2 12 15 16"
+```python 
 from prefect import flow, task
 from prefect.task_runners import SequentialTaskRunner
 
@@ -135,7 +135,7 @@ To configure your flow to use the `DaskTaskRunner`:
 
 This is the same flow as above, with a few minor changes to use `DaskTaskRunner` where we previously configured `SequentialTaskRunner`. Install `prefect-dask`, made these changes, then save the updated code as `dask_flow.py`.
 
-```python hl_lines="2 12 18"
+```python 
 from prefect import flow, task
 from prefect_dask.task_runners import DaskTaskRunner
 
@@ -298,7 +298,7 @@ To configure your flow to use the `RayTaskRunner`:
 
 Save this code in `ray_flow.py`.
 
-```python hl_lines="2 12"
+```python 
 from prefect import flow, task
 from prefect_ray.task_runners import RayTaskRunner
 

@@ -36,7 +36,7 @@ You can define your tasks within the same file as your flow definition, or you c
 
 Use the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
 
-```python hl_lines="3-5"
+```python 
 from prefect import flow, task
 
 @task
@@ -59,7 +59,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
     Prefect does not allow triggering task runs from other tasks. If you want to call your task's function directly, you can use `task.fn()`. 
 
-    ```python hl_lines="9"
+    ```python 
     from prefect import flow, task
 
     @task
@@ -96,7 +96,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
-```python hl_lines="1"
+```python 
 @task(name="hello-task", 
       description="This task says hello.")
 def my_task():
@@ -180,7 +180,7 @@ Tags are optional string labels that enable you to identify and group tasks othe
 
 Tags may be specified as a keyword argument on the [task decorator](/api-ref/prefect/tasks/#prefect.tasks.task).
 
-```python hl_lines="1"
+```python 
 @task(name="hello-task", tags=["test"])
 def my_task():
     print("Hello, I'm a task")
@@ -188,7 +188,7 @@ def my_task():
 
 You can also provide tags as an argument with a [`tags` context manager](/api-ref/prefect/context/#prefect.context.tags), specifying tags when the task is called rather than in its definition.
 
-```python hl_lines="10"
+```python 
 from prefect import flow, task
 from prefect import tags
 
@@ -206,7 +206,7 @@ def my_flow():
 
 Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task. This task will retry up to 3 times, waiting 60 seconds between each retry:
 
-```python hl_lines="4"
+```python 
 import requests
 from prefect import task, flow
 
@@ -271,7 +271,7 @@ Note that, if any arguments are not JSON serializable, the pickle serializer is 
 
 In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, the cached return value is returned. In this situation the task is not rerun. However, if the input argument value changes, `hello_task()` runs using the new input.
 
-```python hl_lines="3 5"
+```python
 from datetime import timedelta
 from prefect import flow, task
 from prefect.tasks import task_input_hash
@@ -297,7 +297,7 @@ Note that the `cache_key_fn` is _not_ defined as a `@task`.
 !!! note "Task cache keys"
     By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
 
-```python hl_lines="3-5 7"
+```python 
 from prefect import task, flow
 
 def static_cache_key(context, parameters):
@@ -319,7 +319,7 @@ def test_caching():
 In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
 
 <div class="terminal">
-```bash hl_lines="2"
+```bash 
 >>> test_caching()
 running an expensive operation
 >>> test_caching()
