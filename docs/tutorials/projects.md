@@ -28,7 +28,8 @@ The main components of a project are 3 files:
 
 <a name="worker-tip"></a>
 !!! tip "Projects require workers"
-    Note that using a project to manage your deployments requires the use of workers.  This tutorial assumes that you have already set up two work pools, each with a worker, which only requires a single CLI command for each:
+    Note that using a project to manage your deployments requires the use of workers.  
+    This tutorial assumes that you have already set up two work pools, each with a worker, which only requires a single CLI command for each:
 
     - **Local**: `prefect worker start -t process -p local-work`
     - **Docker**: `prefect worker start -t docker -p docker-work`
@@ -219,6 +220,8 @@ A few important notes on what we're looking at here:
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
+    For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
+
 
 ### Dockerized deployment
 
@@ -273,6 +276,7 @@ A few notes:
 - [each step](/concepts/projects/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
+- to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
 
 All that's left to do is create our deployment and specify our image name to instruct the worker what image to pull:
 
@@ -286,7 +290,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 ```
 </div>
 
-Your run should complete succsessfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
+Your run should complete successfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
 
 !!! tip "Templating values"
     As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/projects/#templating-options).

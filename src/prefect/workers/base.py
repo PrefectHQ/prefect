@@ -990,7 +990,9 @@ class BaseWorker(abc.ABC):
         }
 
     def _event_related_resources(
-        self, configuration: Optional[BaseJobConfiguration] = None
+        self,
+        configuration: Optional[BaseJobConfiguration] = None,
+        include_self: bool = False,
     ) -> List[RelatedResource]:
         related = []
         if configuration:
@@ -1002,6 +1004,11 @@ class BaseWorker(abc.ABC):
                     kind="work-pool", role="work-pool", object=self._work_pool
                 )
             )
+
+        if include_self:
+            worker_resource = self._event_resource()
+            worker_resource["prefect.resource.role"] = "worker"
+            related.append(RelatedResource(__root__=worker_resource))
 
         return related
 
