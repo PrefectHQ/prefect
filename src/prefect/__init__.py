@@ -73,9 +73,15 @@ prefect.plugins.load_extra_entrypoints()
 import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
+
+if PREFECT_UI_URL:
+    dashboard_url = PREFECT_UI_URL.value()
+else:
+    dashboard_url = "<no dashboard available>"
+
 prefect.logging.get_logger("profiles").debug(
-    f"Using profile {prefect.context.get_settings_context().profile.name!r} - view"
-    f" dashboard at {PREFECT_UI_URL!r}"
+    f"Using profile {prefect.context.get_settings_context().profile.name!r} - View"
+    f" dashboard at {dashboard_url!r}"
 )
 
 # Ensure moved names are accessible at old locations
