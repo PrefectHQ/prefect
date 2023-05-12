@@ -1,5 +1,5 @@
 from importlib import reload
-from typing import Type
+from typing import Optional, Type
 from unittest.mock import patch
 
 import cloudpickle
@@ -13,6 +13,7 @@ from prefect.blocks.notifications import (
     PagerDutyWebHook,
     PrefectNotifyType,
     TwilioSMS,
+    CustomWebhookNotificationBlock,
 )
 from prefect.testing.utilities import AsyncMock
 
@@ -367,3 +368,166 @@ class TestTwilioSMS:
             )
 
             assert "Dropped invalid phone # (0000000) specified." in caplog.text
+
+
+class TestCustomWebhook:
+    async def _test_notify_async(
+        self,
+        data: dict,
+        expected_call: dict,
+        body: str = "test",
+        subject: Optional[str] = "subject",
+    ):
+        with patch("httpx.AsyncClient", autospec=True) as HttpxClientMock:
+            reload_modules()
+
+            httpx_instance_mock = HttpxClientMock.return_value
+            httpx_instance_mock.request = AsyncMock()
+
+            # use validate here to match alias for 'json'
+            custom_block = CustomWebhookNotificationBlock.validate(data)
+            await custom_block.notify(body, subject)
+
+            HttpxClientMock.assert_called_once_with(
+                headers={"user-agent": "Prefect Notifications"}
+            )
+            httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
+
+    def _test_notify_sync(
+        self,
+        data: dict,
+        expected_call: dict,
+        body: str = "test",
+        subject: Optional[str] = "subject",
+    ):
+        with patch("httpx.AsyncClient", autospec=True) as HttpxClientMock:
+            reload_modules()
+
+            httpx_instance_mock = HttpxClientMock.return_value
+            httpx_instance_mock.request = AsyncMock()
+
+            custom_block = CustomWebhookNotificationBlock.validate(data)
+            custom_block.notify(body, subject)
+
+            HttpxClientMock.assert_called_once_with(
+                headers={"user-agent": "Prefect Notifications"}
+            )
+            httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
+
+    async def test_notify_async(self):
+        await self._test_notify_async(
+            {
+                "name": "test name",
+                "url": "https://example.com/",
+                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "secrets": {"token": "someSecretToken"},
+            },
+            expected_call={
+                "method": "POST",
+                "url": "https://example.com/",
+                "params": None,
+                "data": None,
+                "json": {"msg": "subject\ntest", "token": "someSecretToken"},
+                "headers": None,
+                "cookies": None,
+                "timeout": 10,
+            },
+        )
+
+    def test_notify_sync(self):
+        self._test_notify_sync(
+            {
+                "name": "test name",
+                "url": "https://example.com/",
+                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "secrets": {"token": "someSecretToken"},
+            },
+            expected_call={
+                "method": "POST",
+                "url": "https://example.com/",
+                "params": None,
+                "data": None,
+                "json": {"msg": "subject\ntest", "token": "someSecretToken"},
+                "headers": None,
+                "cookies": None,
+                "timeout": 10,
+            },
+        )
+
+    def test_subst_nested_list(self):
+        self._test_notify_sync(
+            {
+                "name": "test name",
+                "url": "https://example.com/",
+                "json": {"data": {"sub1": [{"in-list": "${body}"}]}},
+                "secrets": {"token": "someSecretToken"},
+            },
+            expected_call={
+                "method": "POST",
+                "url": "https://example.com/",
+                "params": None,
+                "data": None,
+                "json": {"data": {"sub1": [{"in-list": "test"}]}},
+                "headers": None,
+                "cookies": None,
+                "timeout": 10,
+            },
+        )
+
+    def test_subst_none(self):
+        self._test_notify_sync(
+            {
+                "name": "test name",
+                "url": "https://example.com/",
+                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "secrets": {"token": "someSecretToken"},
+            },
+            expected_call={
+                "method": "POST",
+                "url": "https://example.com/",
+                "params": None,
+                "data": None,
+                "json": {"msg": "null\ntest", "token": "someSecretToken"},
+                "headers": None,
+                "cookies": None,
+                "timeout": 10,
+            },
+            subject=None,
+        )
+
+    def test_is_picklable(self):
+        reload_modules()
+        block = CustomWebhookNotificationBlock.validate(
+            {
+                "name": "test name",
+                "url": "https://example.com/",
+                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "secrets": {"token": "someSecretToken"},
+            }
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, CustomWebhookNotificationBlock)
+
+    def test_invalid_key_raises_validation_error(self):
+        with pytest.raises(KeyError):
+            CustomWebhookNotificationBlock.validate(
+                {
+                    "name": "test name",
+                    "url": "https://example.com/",
+                    "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                    "secrets": {"token2": "someSecretToken"},
+                }
+            )
+
+    def test_provide_both_data_and_json_raises_validation_error(self):
+        with pytest.raises(ValueError):
+            CustomWebhookNotificationBlock.validate(
+                {
+                    "name": "test name",
+                    "url": "https://example.com/",
+                    "data": {"msg": "${subject}\n${body}", "token": "${token}"},
+                    "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                    "secrets": {"token": "someSecretToken"},
+                }
+            )

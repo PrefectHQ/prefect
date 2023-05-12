@@ -37,14 +37,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal[
-        "prefect_default", "info", "success", "warning", "failure"
-    ] = Field(
-        default=PrefectNotifyType.DEFAULT,
-        description=(
-            "The type of notification being performed; the prefect_default "
-            "is a plain notification that does not attach an image."
-        ),
+    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
+        Field(
+            default=PrefectNotifyType.DEFAULT,
+            description=(
+                "The type of notification being performed; the prefect_default "
+                "is a plain notification that does not attach an image."
+            ),
+        )
     )
 
     def _start_apprise_client(self, url: SecretStr):
@@ -505,17 +505,19 @@ class SubstitutionHelper:
         key = m.group(1)
         val = self.data[key]
         if val is None:
-            return 'null'
+            return "null"
         return str(val)
 
     def handle(self, val: Any):
         """Do substitution"""
+        if val is None:
+            return None
         if isinstance(val, dict):
             return {key: self.handle(subval) for key, subval in val.items()}
         if isinstance(val, list):
             return [self.handle(subval) for subval in val]
         if isinstance(val, str):
-            return re.sub(r'\$\{(\w+)\}', self.get, val)
+            return re.sub(r"\$\{(\w+)\}", self.get, val)
         return val
 
 
@@ -568,15 +570,17 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     data: Optional[Dict[str, str]] = Field(
         default=None,
         title="Form data",
-        description="Send form data as payload. Should not be used together with `json`",
+        description=(
+            "Send form data as payload. Should not be used together with `json`"
+        ),
         example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
     )
 
-    headers: Dict[str, str] = Field(default_factory=dict, description="Custom headers")
-    cookies: Dict[str, str] = Field(default_factory=dict, description="Custom cookies")
+    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers")
+    cookies: Optional[Dict[str, str]] = Field(None, description="Custom cookies")
 
     timeout: float = Field(
-        default=10, description='Request timeout in seconds. Defaults to 10.'
+        default=10, description="Request timeout in seconds. Defaults to 10."
     )
 
     secrets: SecretDict = Field(
@@ -586,25 +590,33 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         example='{"tokenFromSecrets":"SomeSecretToken"}',
     )
 
+    def _build_request_args(self, body: str, subject: Optional[str]):
+        """Build kwargs for httpx.AsyncClient.request"""
+        # prepare SubstitutionHelper
+        ctx = SubstitutionHelper(self.secrets.get_secret_value())
+        ctx.data.update({"subject": subject, "body": body, "name": self.name})
+        # do substution
+        return {
+            "method": self.method,
+            "url": ctx.handle(self.url),
+            "params": ctx.handle(self.params),
+            "data": ctx.handle(self.data),
+            "json": ctx.handle(self.json_data),
+            "headers": ctx.handle(self.headers),
+            "cookies": ctx.handle(self.cookies),
+            "timeout": self.timeout,
+        }
+
+    def block_initialization(self) -> None:
+        # test substitution to raise a type error early
+        if self.data is not None and self.json_data is not None:
+            raise ValueError("both `data` and `json` provided")
+        self._build_request_args("test", "subject")
+
     @sync_compatible
     @instrument_instance_method_call()
     async def notify(self, body: str, subject: Optional[str] = None):
-        # prepare SubstitutionHelper
-        ctx = SubstitutionHelper(self.secrets.get_secret_value())
-        ctx.data.update({'subject': subject, 'body': body, 'name': self.name})
-        # set default user-agent
-        headers = {k.lower(): v for k, v in self.headers.items()}
-        headers.setdefault('user-agent', 'Prefect Notifications')
         # make request with httpx
-        client = httpx.AsyncClient()
-        resp = await client.request(
-            self.method,
-            ctx.handle(self.url),
-            params=ctx.handle(self.params),
-            data=ctx.handle(self.data),
-            json=ctx.handle(self.json_data),
-            headers=ctx.handle(self.headers),
-            cookies=ctx.handle(self.cookies),
-            timeout=self.timeout,
-        )
+        client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
+        resp = await client.request(**self._build_request_args(body, subject))
         resp.raise_for_status()
