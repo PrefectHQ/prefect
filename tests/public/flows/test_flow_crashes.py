@@ -12,6 +12,7 @@ import os
 
 import signal
 from unittest.mock import MagicMock, ANY
+from prefect.testing.utilities import AsyncMock
 
 import anyio
 import pytest
@@ -262,6 +263,44 @@ async def test_sigterm_crashes_flow(orion_client, mock_sigterm_handler):
     await assert_flow_run_crashed(
         flow_run,
         expected_message="Execution was aborted by a termination signal",
+    )
+
+    handler, mock = mock_sigterm_handler
+    # The original signal handler should be restored
+    assert signal.getsignal(signal.SIGTERM) == handler
+
+    # The original signal handler should be called too
+    mock.assert_called_once_with(signal.SIGTERM, ANY)
+
+
+def test_sigterm_crashes_deployed_flow(
+    orion_client, mock_sigterm_handler, monkeypatch, flow_run
+):
+    # This is not a part of our public API and generally we should not write tests like
+    # this here, but we do not have robust testing utilities for deployed runs yet.
+    from prefect.engine import enter_flow_run_engine_from_subprocess
+
+    @prefect.flow
+    async def my_flow():
+        assert prefect.context.get_run_context().flow_run.id == flow_run.id
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    # Patch `load_flow_from_flow_run` to bypass all deployment loading logic and use
+    # our test flow
+    monkeypatch.setattr(
+        "prefect.engine.load_flow_from_flow_run", AsyncMock(return_value=my_flow)
+    )
+
+    # The signal should be reraised as an exception
+    with pytest.raises(prefect.exceptions.TerminationSignal):
+        enter_flow_run_engine_from_subprocess(flow_run.id)
+
+    flow_run = asyncio.run(orion_client.read_flow_run(flow_run.id))
+    asyncio.run(
+        assert_flow_run_crashed(
+            flow_run,
+            expected_message="Execution was aborted by a termination signal",
+        )
     )
 
     handler, mock = mock_sigterm_handler
