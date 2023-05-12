@@ -40,7 +40,7 @@ def parse_response(response: Response, include=None):
 @pytest.fixture(autouse=True, scope="module")
 async def clear_db(db):
     """Prevent automatic database-clearing behavior after every test"""
-    pass  # noqa
+    yield  # noqa
     async with db.session_context(begin_transaction=True) as session:
         await session.execute(db.Agent.__table__.delete())
         # work pool has a circular dependency on pool queue; delete it first
