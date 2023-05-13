@@ -213,7 +213,9 @@ import requests
 from prefect import task, flow
 
 @task(retries=2, retry_delay_seconds=5)
-def get_data(url: str = "https://api.brittle-service.com/endpoint") -> dict:
+def get_data(
+    url: str = "https://api.brittle-service.com/endpoint"
+) -> dict:
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
