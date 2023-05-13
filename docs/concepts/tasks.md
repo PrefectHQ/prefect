@@ -204,18 +204,24 @@ def my_flow():
 
 ## Retries
 
-Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task. This task will retry up to 3 times, waiting 60 seconds between each retry:
+Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task.
+
+For example, let's say we need to retrieve data from a brittle API:
 
 ```python hl_lines="4"
 import requests
 from prefect import task, flow
 
-@task(retries=3, retry_delay_seconds=60)
-def get_page(url):
-    page = requests.get(url)
+@task(retries=2, retry_delay_seconds=5)
+def get_data(url: str = "https://api.brittle-service.com/endpoint") -> dict:
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 ```
 
-When configuring task retries, you can configure a specific delay for each retry. The `retry_delay_seconds` option accepts a list of delays for custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
+If we get bad response, `get_data` will automatically retry twice, waiting 5 seconds in between retries.
+
+The `retry_delay_seconds` option accepts a list of delays for more custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
 
 ```python
 from prefect import task, flow
