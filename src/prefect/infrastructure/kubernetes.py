@@ -25,9 +25,17 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
+    import kubernetes.client.configuration
     import kubernetes.client.exceptions
     import kubernetes.config
-    from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
+    from kubernetes.client import (
+        ApiClient,
+        BatchV1Api,
+        Configuration,
+        CoreV1Api,
+        V1Job,
+        V1Pod,
+    )
 else:
     kubernetes = lazy_import("kubernetes")
 
@@ -58,6 +66,7 @@ class KubernetesJob(Infrastructure):
     For more information, including examples for customizing the resulting manifest, see [`KubernetesJob` infrastructure concepts](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob).
 
     Attributes:
+        client_configuration: An optional dict customizing Kubernetes client used for this job.
         cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
@@ -116,6 +125,14 @@ class KubernetesJob(Infrastructure):
     # connection to a cluster
     cluster_config: Optional[KubernetesClusterConfig] = Field(
         default=None, description="The Kubernetes cluster config to use for this job."
+    )
+
+    client_configuration: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Kubernetes client configuration to use for this job."
+            " See kubernetes.client.configuration.Configuration for modifiable values."
+        ),
     )
 
     # settings allowing full customization of the Job
@@ -359,9 +376,26 @@ class KubernetesJob(Infrastructure):
         job_manifest = self.customizations.apply(job_manifest)
         return job_manifest
 
+    def _get_client_configuration_instance(self) -> "Configuration":
+        cfg = kubernetes.client.configuration.Configuration.get_default_copy()
+        for field, value in self.client_configuration.items():
+            if not hasattr(cfg, field):
+                raise ValueError(
+                    f"Unsupported field {field} passed for Kubernetes client"
+                    " configuration."
+                )
+            cfg.__setattr__(field, value)
+        return cfg
+
+    @contextmanager
+    def get_api_client(self) -> Generator["ApiClient", None, None]:
+        yield kubernetes.client.ApiClient(
+            configuration=self._get_client_configuration_instance()
+        )
+
     @contextmanager
     def get_batch_client(self) -> Generator["BatchV1Api", None, None]:
-        with kubernetes.client.ApiClient() as client:
+        with self.get_api_client() as client:
             try:
                 yield kubernetes.client.BatchV1Api(api_client=client)
             finally:
@@ -369,7 +403,7 @@ class KubernetesJob(Infrastructure):
 
     @contextmanager
     def get_client(self) -> Generator["CoreV1Api", None, None]:
-        with kubernetes.client.ApiClient() as client:
+        with self.get_api_client() as client:
             try:
                 yield kubernetes.client.CoreV1Api(api_client=client)
             finally:

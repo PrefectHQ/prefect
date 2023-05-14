@@ -608,6 +608,22 @@ def test_allows_namespace_setting_from_manifest(
     assert namespace == "test"
 
 
+def test_uses_specified_client_configuration():
+    job = KubernetesJob(client_configuration={"ssl_ca_cert": "cert_location"})
+    with job.get_api_client() as client:
+        assert getattr(client.configuration, "ssl_ca_cert") == "cert_location"
+
+
+def test_unsupported_client_configuration_raises():
+    job = KubernetesJob(client_configuration={"missing_field": "value"})
+    with pytest.raises(
+        ValueError,
+        match=r"Unsupported field .* passed for Kubernetes client configuration\.",
+    ):
+        with job.get_api_client():
+            pass
+
+
 def test_uses_service_account_name_setting(
     mock_k8s_client,
     mock_watch,
