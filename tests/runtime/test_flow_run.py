@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 
+import dateparser
 import pendulum
 import pytest
 
@@ -27,6 +28,15 @@ class TestAttributeAccessPatterns:
     async def test_attribute_override_via_env_var(self, monkeypatch):
         monkeypatch.setenv(name="PREFECT__RUNTIME__FLOW_RUN__NEW_KEY", value="foobar")
         assert flow_run.new_key == "foobar"
+
+    async def test_scheduled_start_time_override_via_env_var(self, monkeypatch):
+        # this env var must be converted to pendulum.DateTime
+        dt = "2023-05-13 20:00:00"
+        monkeypatch.setenv(
+            name="PREFECT__RUNTIME__FLOW_RUN__SCHEDULED_START_TIME", value=dt
+        )
+        assert isinstance(flow_run.scheduled_start_time, pendulum.DateTime)
+        assert flow_run.scheduled_start_time == pendulum.instance(dateparser.parse(dt))
 
 
 class TestID:

@@ -27,6 +27,9 @@ Available attributes:
 import os
 from typing import Any, List, Optional
 
+import dateparser
+import pendulum
+
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
@@ -44,14 +47,36 @@ def __getattr__(name: str) -> Any:
 
         from prefect.runtime.flow_run import id
     """
-    env_key = f"PREFECT__RUNTIME__DEPLOYMENT__{name.upper()}"
-    if env_key in os.environ:
-        return os.environ[env_key]
+
     func = FIELDS.get(name)
-    if func is None:
-        raise AttributeError(f"{__name__} has no attribute {name!r}")
+
+    # if `name` is an attribute but it is mocked through environment variable, the mocked type will be str,
+    # which might be different from original one. For consistency, cast env var to the same type
+    env_key = f"PREFECT__RUNTIME__DEPLOYMENT__{name.upper()}"
+
+    if func is not None:
+        real_value = func()
+        if env_key in os.environ:
+            mocked_value = os.environ[env_key]
+            # cast `mocked_value` to the same type than `real_value`
+            if isinstance(real_value, bool):
+                return bool(mocked_value)
+            elif isinstance(real_value, int):
+                return int(mocked_value)
+            elif isinstance(real_value, float):
+                return float(mocked_value)
+            elif isinstance(real_value, pendulum.DateTime):
+                return pendulum.instance(dateparser.parse(mocked_value))
+            else:
+                # default str
+                return mocked_value
+        else:
+            return real_value
     else:
-        return func()
+        if env_key in os.environ:
+            return os.environ[env_key]
+        else:
+            raise AttributeError(f"{__name__} has no attribute {name!r}")
 
 
 def __dir__() -> List[str]:
