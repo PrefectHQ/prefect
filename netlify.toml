@@ -330,6 +330,12 @@ from = "/tutorials/developing-a-new-worker-type/"
 to = "/guides/deployment/developing-a-new-worker-type/"
 status = 301
 
+[[redirects]]
+from = "/api-ref/rest-api-overview/"
+to = "/api-ref/rest-api/"
+status = 301
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
