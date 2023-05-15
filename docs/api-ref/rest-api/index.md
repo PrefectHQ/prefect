@@ -3,20 +3,22 @@ description: Prefect REST API for interacting with the orchestration engine and 
 tags:
     - REST API
     - Prefect Cloud
+    - Prefect Server
 ---
 
-Both Prefect Cloud and locally run Prefect servers host a REST API that gives you access to many observability, coordination, and account management functions of the platform.
+# REST API
 
-Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
+The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
 
-The Prefect REST API documentation for locally run open-source Prefect servers is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
+Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
-!!! note "Prefect REST API interactive documentation"
-    If you are running a local instance of the Prefect server with `prefect server start`, the Prefect REST API documentation for your instance is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
+- Interactive Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
+- Interactive REST API documentation for a locally hosted open-source Prefect server is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
+- The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
 ## REST Guidelines
 
-The Prefect REST API adheres to the following guidelines:
+The REST APIs adhere to the following guidelines:
 
 - Collection names are pluralized (for example, `/flows` or `/runs`).
 - We indicate variable placeholders with colons: `GET /flows/:id`.
