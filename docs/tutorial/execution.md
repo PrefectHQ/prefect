@@ -188,7 +188,7 @@ If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package instal
 
     This means the only way to _force_ Dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-Read more about using Dask in the [Dask task runner tutorial](/dask-ray-task-runners/#running-parallel-tasks-with-dask).
+Read more about using Dask in the [Dask task runner tutorial](/guides/dask-ray-task-runners/#running-parallel-tasks-with-dask).
 
 ## Asynchronous execution
 

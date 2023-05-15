@@ -106,7 +106,7 @@ def call_api(url: str = "http://time.jsontest.com/"):
     return resp
 ```
 
-You can experiment by importing and running this flow in your favorite REPL; let's now elevate this flow to a [deployment](deployments/) via the `prefect deploy` CLI command:
+You can experiment by importing and running this flow in your favorite REPL; let's now elevate this flow to a [deployment](/deployments/) via the `prefect deploy` CLI command:
 
 <div class="terminal">
 ```bash

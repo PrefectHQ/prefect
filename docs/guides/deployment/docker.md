@@ -48,7 +48,7 @@ Use these base blocks to create your own infrastructure blocks containing the se
 
 For this guide, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
-![Viewing a list of infrastructure block types in the Prefect UI](/img/guides/docker-infrastructure.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorial/docker-infrastructure.png)
 
 To configure this Docker Container block to run the `log_flow.py` deployment, we just need to add two pieces of information.
 
