@@ -1,5 +1,6 @@
 import datetime
-from typing import Any, Dict, List, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing_extensions import Literal
 from uuid import UUID
 
 from pydantic import Field

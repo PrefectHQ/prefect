@@ -6,12 +6,12 @@ from typing import (
     Dict,
     Generic,
     List,
-    Literal,
     Optional,
     TypeVar,
     Union,
     overload,
 )
+from typing_extensions import Literal
 from uuid import UUID
 
 import pendulum
