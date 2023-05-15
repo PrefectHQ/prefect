@@ -2304,7 +2304,6 @@ class PrefectClient:
             "/artifacts/",
             json=artifact.dict(json_compatible=True, exclude_unset=True),
         )
-
         return pydantic.parse_obj_as(Artifact, response.json())
 
     async def read_artifacts(
