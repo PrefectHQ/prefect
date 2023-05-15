@@ -124,7 +124,25 @@ async def create_table_artifact(
     Returns:
         - The table artifact ID.
     """
-    formatted_table = json.dumps(table) if isinstance(table, list) else table
+    if isinstance(table, dict):
+        for _, v in table.items():
+            if isinstance(v, list):
+                if any(isinstance(x, float) and x != x for x in v):
+                    raise ValueError(
+                        "`create_table_artifact` does not support NaN values in `table`"
+                        " argument."
+                    )
+        formatted_table = table
+    else:
+        try:
+            formatted_table = (
+                json.dumps(table, allow_nan=False) if isinstance(table, list) else table
+            )
+        except ValueError:
+            raise ValueError(
+                "`create_table_artifact` does not support NaN values in `table`"
+                " argument."
+            )
 
     artifact = await _create_artifact(
         key=key,

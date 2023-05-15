@@ -403,3 +403,59 @@ class TestCreateArtifacts:
 
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
+
+    async def test_create_dict_table_artifact_with_none_succeeds(self):
+        my_table = {"a": [1, 3], "b": [2, None]}
+
+        await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+    async def test_create_dict_table_artifact_with_nan_raises(self):
+        my_table = {"a": [1, 3], "b": [2, float("nan")]}
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "`create_table_artifact` does not support NaN values in `table`"
+                " argument."
+            ),
+        ):
+            await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
+
+    async def test_create_list_table_artifact_with_none_succeeds(self):
+        my_table = [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": None},
+        ]
+
+        await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+    async def test_create_list_table_artifact_with_nan_raises(self):
+        my_table = [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": float("nan")},
+        ]
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "`create_table_artifact` does not support NaN values in `table`"
+                " argument"
+            ),
+        ):
+            await create_table_artifact(
+                key="swiss-table",
+                table=my_table,
+                description="my-artifact-description",
+            )
