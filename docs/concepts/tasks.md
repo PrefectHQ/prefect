@@ -204,23 +204,33 @@ def my_flow():
 
 ## Retries
 
-Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task. This task will retry up to 3 times, waiting 60 seconds between each retry:
+Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task.
+
+For example, let's say you need to retrieve data from a brittle API:
 
 ```python hl_lines="4"
-import requests
+import httpx
 from prefect import task, flow
 
-@task(retries=3, retry_delay_seconds=60)
-def get_page(url):
-    page = requests.get(url)
+@task(retries=2, retry_delay_seconds=5)
+def get_data(
+    url: str = "https://api.brittle-service.com/endpoint"
+) -> dict:
+    response = httpx.get(url)
+    response.raise_for_status()
+    return response.json()
 ```
 
-When configuring task retries, you can configure a specific delay for each retry. The `retry_delay_seconds` option accepts a list of delays for custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
+If your task gets a bad response, `get_data` will automatically retry twice, waiting 5 seconds in between retries.
+
+The `retry_delay_seconds` option accepts a list of delays for more custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
 
 ```python
 from prefect import task, flow
 
 @task(retries=3, retry_delay_seconds=[1, 10, 100])
+def some_task_with_manual_backoff_retries():
+   ...
 ```
 
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an [`exponential_backoff`](/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
@@ -230,6 +240,8 @@ from prefect import task, flow
 from prefect.tasks import exponential_backoff
 
 @task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
+def some_task_with_exponential_backoff_retries():
+   ...
 ```
 
 While using exponential backoff you may also want to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will be allowed to delay up to 15 seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
@@ -243,6 +255,8 @@ from prefect.tasks import exponential_backoff
     retry_delay_seconds=exponential_backoff(backoff_factor=10),
     retry_jitter_factor=1,
 )
+def some_task_with_exponential_backoff_retries():
+   ...
 ```
 
 You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator. 
