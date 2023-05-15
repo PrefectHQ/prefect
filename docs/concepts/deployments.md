@@ -384,6 +384,7 @@ deployment = Deployment.build_from_flow(
     name="example-deployment", 
     version=1, 
     work_queue_name="demo",
+    work_pool_name="default-agent-pool",
 )
 deployment.apply()
 ```
@@ -402,6 +403,7 @@ deployment = Deployment.build_from_flow(
     name="s3-example",
     version=2,
     work_queue_name="aws",
+    work_pool_name="default-agent-pool",
     storage=storage,
     infra_overrides={
         "env": {
