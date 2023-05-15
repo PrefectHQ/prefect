@@ -4,6 +4,7 @@ import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
+from unittest.mock import Mock
 
 import pytest
 from packaging.version import Version
@@ -862,6 +863,17 @@ class TestAPICompatibility:
         assert my_block._block_type_id == block_document.block_type_id
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
+
+    async def test_block_load_pulls_collections(
+        self, test_block, block_document, monkeypatch
+    ):
+        mock_load_prefect_collections = Mock()
+        monkeypatch.setattr(
+            prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
+        )
+
+        await test_block.load(block_document.name)
+        mock_load_prefect_collections.assert_called_once()
 
     async def test_load_from_block_base_class(self):
         class Custom(Block):
