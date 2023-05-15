@@ -1435,6 +1435,19 @@ class TestClientWorkQueues:
         assert lookup.name == "foo"
         assert lookup.id == queue.id
 
+    async def test_create_queue_with_settings(self, orion_client):
+        queue = await orion_client.create_work_queue(
+            name="foo",
+            concurrency_limit=1,
+            is_paused=True,
+            priority=2,
+            description="such queue",
+        )
+        assert queue.concurrency_limit == 1
+        assert queue.is_paused is True
+        assert queue.priority == 2
+        assert queue.description == "such queue"
+
     async def test_create_then_match_work_queues(self, orion_client):
         await orion_client.create_work_queue(
             name="one of these things is not like the other"

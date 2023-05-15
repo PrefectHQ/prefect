@@ -11,6 +11,10 @@ tags:
 ---
 # Tutorial Overview
 
+These tutorials provide examples of Prefect core concepts and step-by-step instructions on how to use them. For specific examples of how to perform more advanced tasks, check out our [guides](/guides/).
+
+If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](/tutorials/first-steps/#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
+
 ### Prerequisites
 
 Before you start, install Prefect:
@@ -32,7 +36,3 @@ If you've never used Prefect before, let's start by exploring the core concepts:
 4. [Orchestration](/tutorial/orchestration/) - the components of Prefect that enable coordination and orchestration of your flow and task runs.
 5. [Deployments](/tutorial/deployments/) - enable remote flow run execution.
 6. [Storage & Infrastructure](/tutorial/storage/) - specify where your flow code is stored and how to configure the execution environment.
-
-If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](/tutorial/first-steps/#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
-
-

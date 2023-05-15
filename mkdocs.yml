@@ -178,6 +178,7 @@ nav:
     - API References:
         - api-ref/index.md
         - Python SDK API:
+            - api-ref/python/index.md
             - 'prefect.agent': api-ref/prefect/agent.md
             - 'prefect.artifacts': api-ref/prefect/artifacts.md
             # - 'prefect.client': api-ref/prefect/client.md
@@ -239,7 +240,12 @@ nav:
             - 'Workers':
                 - 'prefect.workers.base': api-ref/prefect/workers/base.md
                 - 'prefect.workers.process': api-ref/prefect/workers/process.md
+        - REST API: 
+            - api-ref/rest-api/index.md
+            - Prefect Cloud REST API Reference: https://app.prefect.cloud/api/docs
+            - Prefect Server REST API Reference: api-ref/rest-api-reference.md
         - Server API:
+            - api-ref/server/index.md
             - 'API':
                 - 'server.api.admin': api-ref/server/api/admin.md
                 - 'server.api.dependencies': api-ref/server/api/dependencies.md
@@ -281,9 +287,6 @@ nav:
                 - 'server.utilities.database': api-ref/server/utilities/database.md
                 - 'server.utilities.schemas': api-ref/server/utilities/schemas.md
                 - 'server.utilities.server': api-ref/server/utilities/server.md
-        - REST API:
-            - Prefect REST API Overview: api-ref/rest-api.md
-            - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Community:
         - community/index.md
         - Contributing: contributing/overview.md
