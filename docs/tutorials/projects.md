@@ -34,7 +34,7 @@ The main components of a project are 3 files:
     - **Local**: `prefect worker start -t process -p local-work`
     - **Docker**: `prefect worker start -t docker -p docker-work`
 
-    Each command will automatically create an appropriately typed work pool with default settings.
+    Each command will automatically create an appropriately typed work pool with default settings. For each type of worker you will need to insall the specific worker from the repo.  For example to start the docker worker you will need to pip install prefect-docker.  
 
 ## Initializing a project
 
