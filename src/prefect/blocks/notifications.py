@@ -1,12 +1,6 @@
 from abc import ABC
 from typing import Dict, List, Optional
 
-import apprise
-from apprise import Apprise, AppriseAsset, NotifyType
-from apprise.plugins.NotifyMattermost import NotifyMattermost
-from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
-from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
-from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
@@ -15,18 +9,7 @@ from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
 
 
-class PrefectNotifyType(NotifyType):
-    """
-    A mapping of Prefect notification types for use with Apprise.
-
-    Attributes:
-        DEFAULT: A plain notification that does not insert any notification type images.
-    """
-
-    DEFAULT = "prefect_default"
-
-
-apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
+PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
 
 class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
@@ -36,7 +19,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
 
     notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
         Field(
-            default=PrefectNotifyType.DEFAULT,
+            default=PREFECT_NOTIFY_TYPE_DEFAULT,
             description=(
                 "The type of notification being performed; the prefect_default "
                 "is a plain notification that does not attach an image."
@@ -44,7 +27,17 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         )
     )
 
+    def __init__(self, *args, **kwargs):
+        import apprise
+
+        if PREFECT_NOTIFY_TYPE_DEFAULT not in apprise.NOTIFY_TYPES:
+            apprise.NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)
+
+        super().__init__(*args, **kwargs)
+
     def _start_apprise_client(self, url: SecretStr):
+        from apprise import Apprise, AppriseAsset
+
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -226,6 +219,8 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
+
         url = SecretStr(
             NotifyPagerDuty(
                 apikey=self.api_key.get_secret_value(),
@@ -292,6 +287,8 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyTwilio import NotifyTwilio
+
         url = SecretStr(
             NotifyTwilio(
                 account_sid=self.account_sid,
@@ -388,6 +385,8 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
+
         targets = []
         if self.target_user:
             [targets.append(f"@{x}") for x in self.target_user]
@@ -474,6 +473,8 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyMattermost import NotifyMattermost
+
         url = SecretStr(
             NotifyMattermost(
                 token=self.token.get_secret_value(),
