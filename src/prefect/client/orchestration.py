@@ -128,7 +128,7 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     api = PREFECT_API_URL.value()
     if not api:
         # create an ephemeral API if none was provided
-        from prefect.client.schemas.objects.api.server import create_app
+        from prefect.server.api.server import create_app
 
         api = create_app(ctx.settings, ephemeral=True)
 
@@ -181,7 +181,7 @@ class PrefectClient:
 
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
-            from prefect.client.schemas.objects.api.server import SERVER_API_VERSION
+            from prefect.server.api.server import SERVER_API_VERSION
 
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
