@@ -221,7 +221,7 @@ def get_data(
     return response.json()
 ```
 
-If we get bad response, `get_data` will automatically retry twice, waiting 5 seconds in between retries.
+If your task gets a bad response, `get_data` will automatically retry twice, waiting 5 seconds in between retries.
 
 The `retry_delay_seconds` option accepts a list of delays for more custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
 
