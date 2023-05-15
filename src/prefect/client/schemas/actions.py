@@ -30,7 +30,8 @@ def validate_block_type_slug(value):
 
 
 def validate_block_document_name(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
     return value
 
 
@@ -40,7 +41,8 @@ def validate_artifact_key(value):
 
 
 def validate_variable_name(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Variable name")
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Variable name")
     return value
 
 

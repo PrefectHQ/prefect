@@ -492,6 +492,10 @@ class FlowRun(ObjectBaseModel):
             )
         return super().__eq__(other)
 
+    @validator("name", pre=True)
+    def set_default_name(cls, name):
+        return name or generate_slug(2)
+
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields
 
@@ -695,6 +699,10 @@ class TaskRun(ObjectBaseModel):
         description="The state of the flow run.",
         example=State(type=StateType.COMPLETED),
     )
+
+    @validator("name", pre=True)
+    def set_default_name(cls, name):
+        return name or generate_slug(2)
 
 
 class Workspace(PrefectBaseModel):
