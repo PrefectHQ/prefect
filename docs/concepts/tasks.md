@@ -206,7 +206,7 @@ def my_flow():
 
 Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task.
 
-For example, let's say we need to retrieve data from a brittle API:
+For example, let's say you need to retrieve data from a brittle API:
 
 ```python hl_lines="4"
 import httpx
