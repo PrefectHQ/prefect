@@ -133,16 +133,19 @@ async def create_table_artifact(
                         " argument."
                     )
         formatted_table = table
-    else:
+    elif isinstance(table, list):
         try:
-            formatted_table = (
-                json.dumps(table, allow_nan=False) if isinstance(table, list) else table
-            )
+            formatted_table = json.dumps(table, allow_nan=False)
         except ValueError:
             raise ValueError(
                 "`create_table_artifact` does not support NaN values in `table`"
                 " argument."
             )
+    else:
+        raise TypeError(
+            "`create_table_artifact` requires a `table` argument of type `dict` or"
+            " `list`."
+        )
 
     artifact = await _create_artifact(
         key=key,
