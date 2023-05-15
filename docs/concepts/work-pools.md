@@ -342,7 +342,6 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`process`](/api-ref/prefect/workers/process/) | Executes flow runs in subprocesses. | |
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs. | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers. | `prefect-docker` |
-
 If you don’t see a worker type that meets your needs, consider [developing a new worker type](/guides/deployment/developing-a-new-worker-type/)!
 
 ### Worker Options
