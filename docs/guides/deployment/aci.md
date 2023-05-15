@@ -17,7 +17,7 @@ To follow this quickstart, you'll need the following:
 
 - A [Prefect Cloud account](/ui/cloud-quickstart/)
 - A Prefect Cloud [API key](/ui/cloud-api-keys/) (Prefect Cloud organizations may use a [service account](/ui/service-accounts/) API key)
-- A [storage block](/concepts/storage/) for storing deployed flow code (see the [Storage and Infrastructure tutorial](/docs/tutorial/storage/) for instructions)
+- A [storage block](/concepts/storage/) for storing deployed flow code (see the [Storage and Infrastructure tutorial](/tutorial/storage/) for instructions)
 - A [Microsoft Azure account](https://portal.azure.com/)
 - Azure CLI [installed](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticated](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli)
 
@@ -79,7 +79,7 @@ You can also build custom images and push them to a public container registry so
 
 ## Create a deployment
 
-Following the example of the [Flow deployments](/tutorial/deployments/) tutorial, let's create a deployment that can be executed by the agent on this container instance. You'll also need a storage block configured to save your flow code as described in the [Storage and Infrastructure](/docs/tutorial/storage/) tutorial.
+Following the example of the [Flow deployments](/tutorial/deployments/) tutorial, let's create a deployment that can be executed by the agent on this container instance. You'll also need a storage block configured to save your flow code as described in the [Storage and Infrastructure](/tutorial/storage/) tutorial.
 
 In an environment where you have [installed Prefect](/getting-started/installation/), create a new folder called `health_test`, and within it create a new file called `health_flow.py` containing the following code.
 

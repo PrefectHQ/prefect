@@ -147,7 +147,7 @@ Congratulations! You successfully ran a local flow and, because you're logged in
 
 ## Next steps
 
-If you're new to Prefect, learn more about writing and running flows in the [Prefect Flows First Steps](/tutorial/first-steps/) tutorial. If you're already familiar with Prefect flows and want to try creating deployments and kicking off flow runs with Prefect Cloud, check out the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/docs/tutorial/storage/) tutorials.
+If you're new to Prefect, learn more about writing and running flows in the [Prefect Flows First Steps](/tutorial/first-steps/) tutorial. If you're already familiar with Prefect flows and want to try creating deployments and kicking off flow runs with Prefect Cloud, check out the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/tutorial/storage/) tutorials.
 
 Want to learn more about the features available in Prefect Cloud? Start with the [Prefect Cloud Overview](/ui/cloud/).
 

@@ -22,7 +22,7 @@ Leading up to this section, you've been able to explore Prefect capabilities lik
     See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect server.
 
 !!! tip "Projects: An improved experience"
-    Prefect Deployments are getting even easier with the introduction of [Projects](/projects/), currently in beta.
+    Prefect Deployments are getting even easier with the introduction of [Projects](/concepts/projects/), currently in beta.
 
 ## Components of a deployment
 
@@ -654,4 +654,4 @@ To terminate the agent, simply go to the terminal session where it's running and
 You can pause or delete a work pool on the Prefect UI **Work pools** page.
 
 !!! tip "Next steps: Storage and infrastructure"
-    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/docs/tutorial/storage/), which is covered in our next tutorial.
+    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorial/storage/), which is covered in our next tutorial.
