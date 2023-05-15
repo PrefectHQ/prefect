@@ -611,6 +611,10 @@ class Block(BaseModel, ABC):
                 "Unable to determine block schema for provided block document"
             )
 
+        # Ensure collections are imported and have the opportunity to register types
+        # before loading the block class
+        prefect.plugins.load_prefect_collections()
+
         block_cls = (
             cls
             if cls.__name__ != "Block"

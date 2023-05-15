@@ -11,7 +11,6 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-import prefect.plugins
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
@@ -627,10 +626,6 @@ class PrefectAgent:
 
     async def start(self):
         self.started = True
-
-        # Ensure collections are imported and have the opportunity to register types
-        prefect.plugins.load_prefect_collections()
-
         self.task_group = anyio.create_task_group()
         self.limiter = (
             anyio.CapacityLimiter(self.limit) if self.limit is not None else None
