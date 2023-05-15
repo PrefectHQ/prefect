@@ -11,7 +11,7 @@ from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.server.database
-import prefect.server.schemas as schemas
+from prefect.server.schemas import states, schedules
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
@@ -194,7 +194,7 @@ class FlowRun(ORMBaseModel):
         ),
     )
 
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current flow run state."
     )
     state_name: Optional[str] = Field(
@@ -255,7 +255,7 @@ class FlowRun(ORMBaseModel):
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current state of the flow run."
     )
     # parent_task_run: "TaskRun" = None
@@ -419,7 +419,7 @@ class TaskRun(ORMBaseModel):
             "Tracks the source of inputs to a task run. Used for internal bookkeeping."
         ),
     )
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
     state_name: Optional[str] = Field(
@@ -471,7 +471,7 @@ class TaskRun(ORMBaseModel):
     # relationships
     # flow_run: FlowRun = None
     # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current task run state."
     )
 
@@ -502,7 +502,7 @@ class Deployment(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[schedules.SCHEDULE_TYPES] = Field(
         default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(

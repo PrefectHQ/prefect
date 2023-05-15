@@ -1,5 +1,5 @@
-from . import artifacts  # Server relies on all of the above routes
 from . import (
+    artifacts,
     admin,
     block_capabilities,
     block_documents,
@@ -17,7 +17,6 @@ from . import (
     root,
     run_history,
     saved_searches,
-    server,
     task_run_states,
     task_runs,
     ui,
@@ -25,3 +24,4 @@ from . import (
     work_queues,
     workers,
 )
+from . import server  # Server relies on all of the above routes
