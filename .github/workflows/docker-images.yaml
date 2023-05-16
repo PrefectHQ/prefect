@@ -94,8 +94,6 @@ jobs:
 
       - name: Build and push image
         uses: docker/build-push-action@v4
-        env:
-          CACHE_TO_STRING: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -108,6 +106,3 @@ jobs:
           push: true
           pull: true
           provenance: false
-          # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
-          cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}
-          cache-to: ${{ ( github.event_name == 'push' && env.CACHE_TO_STRING ) || '' }}
