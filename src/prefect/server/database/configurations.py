@@ -216,7 +216,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
-            sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
+            sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
+            sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
 
             self.ENGINES[cache_key] = engine
             await self.schedule_engine_disposal(cache_key)
@@ -246,32 +247,51 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
         await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
-    def setup_sqlite(self, conn, named=True):
+    def setup_sqlite(self, conn, record):
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
         duration of the connection. See https://www.sqlite.org/pragma.html for more info.
         """
-        # enable foreign keys
-        conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
+        # workaround sqlite transaction behavior
+        self.begin_sqlite_conn(conn, record)
+
+        cursor = conn.cursor()
 
         # write to a write-ahead-log instead and regularly
         # commit the changes
         # this allows multiple concurrent readers even during
         # a write transaction
-        conn.execute(sa.text("PRAGMA journal_mode = WAL;"))
+        cursor.execute("PRAGMA journal_mode = WAL;")
+
+        # enable foreign keys
+        # cursor.execute("PRAGMA foreign_keys = ON;")
 
         # when using the WAL, we do need to sync changes on every write. sqlite
         # recommends using 'normal' mode which is much faster
-        conn.execute(sa.text("PRAGMA synchronous = NORMAL;"))
+        cursor.execute("PRAGMA synchronous = NORMAL;")
 
         # a higher cache size (default of 2000) for more aggressive performance
-        conn.execute(sa.text("PRAGMA cache_size = 20000;"))
+        cursor.execute("PRAGMA cache_size = 20000;")
 
         # wait for this amount of time while a table is locked
         # before returning and rasing an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
-        conn.commit()
+        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+
+        cursor.close()
+
+    def begin_sqlite_conn(self, conn, record):
+        # disable pysqlite's emitting of the BEGIN statement entirely.
+        # also stops it from emitting COMMIT before any DDL.
+        # requires `begin_sqlite_stmt`
+        # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
+        conn.isolation_level = None
+
+    def begin_sqlite_stmt(self, conn):
+        # emit our own BEGIN
+        # requires `begin_sqlite_conn`
+        # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
+        conn.exec_driver_sql("BEGIN")
 
     async def session(self, engine: AsyncEngine) -> AsyncSession:
         """

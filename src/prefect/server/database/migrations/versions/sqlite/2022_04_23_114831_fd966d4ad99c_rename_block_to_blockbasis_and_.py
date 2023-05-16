@@ -15,10 +15,7 @@ depends_on = None
 
 
 def upgrade():
-    op.rename_table("block_spec", "block_schema")
-    op.rename_table("block", "block_document")
-
-    with op.batch_alter_table("block_document", schema=None) as batch_op:
+    with op.batch_alter_table("block", schema=None) as batch_op:
         batch_op.drop_index("ix_block__is_default_storage_block")
         batch_op.drop_index("ix_block__name")
         batch_op.drop_index("ix_block__updated")
@@ -31,7 +28,7 @@ def upgrade():
         batch_op.drop_constraint("fk_block__block_spec_id__block_spec")
         batch_op.drop_constraint("pk_block_data")
 
-    with op.batch_alter_table("block_document", schema=None) as batch_op:
+    with op.batch_alter_table("block", schema=None) as batch_op:
         batch_op.create_index(
             batch_op.f("ix_block_document__is_default_storage_block_document"),
             ["is_default_storage_block_document"],
@@ -47,7 +44,7 @@ def upgrade():
             "uq_block__schema_id_name", ["block_schema_id", "name"], unique=True
         )
 
-    with op.batch_alter_table("block_schema", schema=None) as batch_op:
+    with op.batch_alter_table("block_spec", schema=None) as batch_op:
         batch_op.drop_index("ix_block_spec__type")
         batch_op.drop_index("ix_block_spec__updated")
         batch_op.drop_index("uq_block_spec__name_version")
@@ -61,7 +58,7 @@ def upgrade():
         batch_op.drop_constraint("pk_block_spec")
         batch_op.create_primary_key("pk_block_schema", ["id"])
 
-    with op.batch_alter_table("block_document", schema=None) as batch_op:
+    with op.batch_alter_table("block", schema=None) as batch_op:
         batch_op.create_primary_key("pk_block_document", ["id"])
         batch_op.create_foreign_key(
             batch_op.f("fk_block__block_schema_id__block_schema"),
@@ -71,12 +68,12 @@ def upgrade():
             ondelete="cascade",
         )
 
+    op.rename_table("block_spec", "block_schema")
+    op.rename_table("block", "block_document")
+
 
 def downgrade():
-    op.rename_table("block_schema", "block_spec")
-    op.rename_table("block_document", "block")
-
-    with op.batch_alter_table("block", schema=None) as batch_op:
+    with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.drop_index("ix_block_document__is_default_storage_block_document")
         batch_op.drop_index("ix_block_document__name")
         batch_op.drop_index("ix_block_document__updated")
@@ -84,14 +81,14 @@ def downgrade():
         batch_op.drop_constraint("fk_block__block_schema_id__block_schema")
         batch_op.drop_constraint("pk_block_document")
 
-    with op.batch_alter_table("block", schema=None) as batch_op:
+    with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.alter_column("block_schema_id", new_column_name="block_spec_id")
         batch_op.alter_column(
             "is_default_storage_block_document",
             new_column_name="is_default_storage_block",
         )
 
-    with op.batch_alter_table("block", schema=None) as batch_op:
+    with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.create_index(
             batch_op.f("ix_block__is_default_storage_block"),
             ["is_default_storage_block"],
@@ -105,7 +102,7 @@ def downgrade():
             "uq_block__spec_id_name", ["block_spec_id", "name"], unique=True
         )
 
-    with op.batch_alter_table("block_spec", schema=None) as batch_op:
+    with op.batch_alter_table("block_schema", schema=None) as batch_op:
         batch_op.drop_index("ix_block_schema__type")
         batch_op.drop_index("ix_block_schema__updated")
         batch_op.drop_index("uq_block_schema__name_version")
@@ -119,7 +116,7 @@ def downgrade():
         batch_op.drop_constraint("pk_block_schema")
         batch_op.create_primary_key("pk_block_spec", ["id"])
 
-    with op.batch_alter_table("block", schema=None) as batch_op:
+    with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.create_primary_key("pk_block_data", ["id"])
         batch_op.create_foreign_key(
             batch_op.f("fk_block__block_spec_id__block_spec"),
@@ -128,3 +125,6 @@ def downgrade():
             ["id"],
             ondelete="cascade",
         )
+
+    op.rename_table("block_schema", "block_spec")
+    op.rename_table("block_document", "block")
