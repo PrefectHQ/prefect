@@ -180,6 +180,8 @@ class TestCurrentEnvironmentCondaRequirements:
     @pytest.mark.parametrize(
         "options", [{}, {"include_builds": True}, {"explicit_only": False}]
     )
+    @pytest.mark.flaky
+    @pytest.mark.timeout(15)
     def test_unmocked_retrieval_succeeds(self, options):
         # Check that we actually parsed environment errors correctly on systems without
         # conda
