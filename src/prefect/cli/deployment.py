@@ -10,7 +10,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import dateparser
 import pendulum
 import typer
 import yaml
@@ -503,6 +502,8 @@ async def run(
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until an agent starts.
     """
+    import dateparser
+
     now = pendulum.now("UTC")
 
     multi_params = {}
