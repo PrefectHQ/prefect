@@ -118,8 +118,10 @@ async def version():
     server_type: str
 
     try:
-        async with prefect.get_client() as client:
-            server_type = client.server_type.value
+        # We do not context manage the client because when using an ephemeral app we do not
+        # want to create the database or run migrations
+        client = prefect.get_client()
+        server_type = client.server_type.value
     except Exception:
         server_type = "<client error>"
 
