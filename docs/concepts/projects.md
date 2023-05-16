@@ -95,7 +95,7 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
 
-    For an example, [check out the project tutorial](/concepts/projects/#dockerized-deployment).
+    For an example, [check out the project tutorial](/tutorial/projects/#dockerized-deployment).
 
 ### Working With Multiple Deployments
 
