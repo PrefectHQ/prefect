@@ -39,7 +39,7 @@ If you're ready to dive in and learn Prefect, check out the Prefect [concepts](/
 
 For deeper dives on specific topics, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
 
-[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorials](/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
+[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorials](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
 <p>Or, read on for a quick sample of Prefect.</p>
