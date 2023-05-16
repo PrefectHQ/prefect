@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
 Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors. 
 
-Now run `dask_flow.py`. If you get warning about accepting incoming network connections, that's okay. Everythign is local in this example.
+Now run `dask_flow.py`. If you get a warning about accepting incoming network connections, that's okay - everything is local in this example.
 
 <div class="terminal">
 ```bash
