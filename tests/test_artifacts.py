@@ -416,21 +416,19 @@ class TestCreateArtifacts:
             description="my-artifact-description",
         )
 
-    async def test_create_dict_table_artifact_with_nan_raises(self):
+    async def test_create_dict_table_artifact_with_nan_raises(self, client):
         my_table = {"a": [1, 3], "b": [2, float("nan")]}
 
-        with pytest.raises(
-            ValueError,
-            match=(
-                "`create_table_artifact` does not support NaN values in `table`"
-                " argument."
-            ),
-        ):
-            await create_table_artifact(
-                key="swiss-table",
-                table=my_table,
-                description="my-artifact-description",
-            )
+        artifact_id = await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_data = json.loads(my_artifact.data)
+        assert my_data == {"a": [1, 3], "b": [2, None]}
 
     async def test_create_list_table_artifact_with_none_succeeds(self):
         my_table = [
@@ -444,21 +442,22 @@ class TestCreateArtifacts:
             description="my-artifact-description",
         )
 
-    async def test_create_list_table_artifact_with_nan_raises(self):
+    async def test_create_list_table_artifact_with_nan_succeeds(self, client):
         my_table = [
             {"a": 1, "b": 2},
             {"a": 3, "b": float("nan")},
         ]
 
-        with pytest.raises(
-            ValueError,
-            match=(
-                "`create_table_artifact` does not support NaN values in `table`"
-                " argument"
-            ),
-        ):
-            await create_table_artifact(
-                key="swiss-table",
-                table=my_table,
-                description="my-artifact-description",
-            )
+        artifact_id = await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_data = json.loads(my_artifact.data)
+        assert my_data == [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": None},
+        ]
