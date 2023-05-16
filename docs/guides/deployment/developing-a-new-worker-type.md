@@ -425,7 +425,7 @@ Most of the execution logic is omitted from the example above, but it shows that
     3. Monitor the execution
     4. Get the execution's final status from the infrastructure and return a `BaseWorkerResult` object
 
-To see other examples of worker implementations, see the [`ProcessWorker`]((/api-ref/prefect/workers/process/)) and [`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
+To see other examples of worker implementations, see the [`ProcessWorker`](/api-ref/prefect/workers/process/) and [`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
 
 ### Integrating with the Prefect CLI
 
