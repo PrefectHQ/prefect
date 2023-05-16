@@ -416,7 +416,7 @@ class TestCreateArtifacts:
             description="my-artifact-description",
         )
 
-    async def test_create_dict_table_artifact_with_nan_raises(self, client):
+    async def test_create_dict_table_artifact_with_nan_succeeds(self, client):
         my_table = {"a": [1, 3], "b": [2, float("nan")]}
 
         artifact_id = await create_table_artifact(
