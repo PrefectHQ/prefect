@@ -1,6 +1,6 @@
 # Artifacts
 
-Artifacts are persisted outputs such as tables, files, or links. Artifacts are stored on the server can be published via the Prefect SDK or API. Artifacts be rendered and managed in the Prefect UI, making it easy to track and monitor the objects that your flows produce and update over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
+Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect server as well as rendered and managed in the Prefect UI, making it easy to track and monitor the objects that your flows produce and update over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
 
 ## Artifacts Overview
 
