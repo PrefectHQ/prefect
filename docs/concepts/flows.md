@@ -793,7 +793,7 @@ While the cancellation process is robust, there are a few issues than can occur:
 - If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
 - If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
 - If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
-- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occured. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
+- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
 
 ### Cancel via the CLI
 
