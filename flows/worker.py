@@ -1,6 +1,7 @@
 import subprocess
 
 
+# Checks to make sure that collections are loaded prior to attempting to start a worker
 def main():
     subprocess.check_call(["python", "-m", "pip", "install", "prefect-kubernetes"])
     subprocess.check_call(
