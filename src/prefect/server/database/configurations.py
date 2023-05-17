@@ -162,8 +162,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         return AsyncSession(engine, expire_on_commit=False)
 
     @asynccontextmanager
-    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
-        # `locking` is for SQLite only. For Postgres, lock the row on read
+    async def begin_transaction(
+        self, session: AsyncSession, with_for_update: bool = False
+    ):
+        # `with_for_update` is for SQLite only. For Postgres, lock the row on read
         # for update instead.
         async with session.begin() as transaction:
             yield transaction
