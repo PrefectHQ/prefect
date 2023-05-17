@@ -122,7 +122,7 @@ class Flow(Generic[P, R]):
             loaded from the parent flow.
         on_failure: An optional list of callables to run when the flow enters a failed state.
         on_completion: An optional list of callables to run when the flow enters a completed state.
-        on_cancellation: An optional list of callables to run when the flow enters a cancelled state.
+        on_cancellation: An optional list of callables to run when the flow enters a cancelling state.
         on_crashed: An optional list of callables to run when the flow enters a crashed state.
     """
 
@@ -310,7 +310,7 @@ class Flow(Generic[P, R]):
                 be cached in memory.
             on_failure: A new list of callables to run when the flow enters a failed state.
             on_completion: A new list of callables to run when the flow enters a completed state.
-            on_cancellation: A new list of callables to run when the flow enters a cancelled state.
+            on_cancellation: A new list of callables to run when the flow enters a cancelling state.
             on_crashed: A new list of callables to run when the flow enters a crashed state.
 
         Returns:
