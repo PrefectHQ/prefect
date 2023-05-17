@@ -263,7 +263,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         cursor.execute("PRAGMA journal_mode = WAL;")
 
         # enable foreign keys
-        # cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute("PRAGMA foreign_keys = ON;")
 
         # when using the WAL, we do need to sync changes on every write. sqlite
         # recommends using 'normal' mode which is much faster
