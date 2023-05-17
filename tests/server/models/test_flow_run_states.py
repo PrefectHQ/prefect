@@ -2,6 +2,7 @@ import datetime
 from uuid import uuid4
 
 import pendulum
+import anyio
 import pytest
 
 from prefect.server import models, schemas
@@ -16,8 +17,12 @@ from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
+    OrchestrationContext,
 )
-from prefect.server.schemas.states import Running, Scheduled, StateType
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.server.utilities.database import get_dialect
+from prefect.server.orchestration.core_policy import PreventPendingTransitions
+from prefect.server.schemas.states import Running, Scheduled, StateType, Pending
 
 
 class TestSetFlowRunState:
@@ -28,6 +33,102 @@ class TestSetFlowRunState:
                 flow_run_id=uuid4(),
                 state=StateType.CANCELLED,
             )
+
+    async def test_locks_row_for_update(self, db, flow_run):
+        """
+        Session 1:
+
+            - Set to SCHEDULED
+            - Set to PENDING
+                - Before commiting, wait for session 2 to set state
+
+        Session 2:
+
+            - Set to PENDING
+            - PENDING -> PENDING transition should be blocked if locked correctly
+            - If not locked correctly, session 2 will see SCHEDULED -> PENDING
+
+        """
+        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+        dialect = get_dialect(connection_url)
+
+        if dialect.name == "sqlite":
+            pytest.skip("SQLite does not support row-level locking")
+
+        event_1 = anyio.Event()
+        event_2 = anyio.Event()
+
+        class TestRule1(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(
+                self, initial_state, proposed_state, context: OrchestrationContext
+            ):
+                print("Session 1:", initial_state, proposed_state)
+                event_2.set()
+                await event_1.wait()
+                assert initial_state.type == StateType.SCHEDULED
+
+        class TestRule2(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(
+                self, initial_state, proposed_state, context: OrchestrationContext
+            ):
+                print("Session 2:", initial_state, proposed_state)
+                assert initial_state.type == StateType.PENDING, (
+                    "The second transition should use the result of the first"
+                    f" transition as its initial state. Got {initial_state.type}."
+                )
+
+        class TestPolicy1(BaseOrchestrationPolicy):
+            def priority():
+                return [
+                    TestRule1,
+                    PreventPendingTransitions,
+                ]
+
+        class TestPolicy2(BaseOrchestrationPolicy):
+            def priority():
+                return [
+                    TestRule2,
+                    PreventPendingTransitions,
+                ]
+
+        async def session_1():
+            async with db.session_context(begin_transaction=True) as session1:
+                await models.flow_runs.set_flow_run_state(
+                    session=session1,
+                    flow_run_id=flow_run.id,
+                    state=Pending(),
+                    flow_policy=TestPolicy1(),
+                )
+
+        async def session_2():
+            async with db.session_context(begin_transaction=True) as session2:
+                await event_2.wait()
+                event_1.set()
+
+                await models.flow_runs.set_flow_run_state(
+                    session=session2,
+                    flow_run_id=flow_run.id,
+                    state=Pending(),
+                    flow_policy=TestPolicy2(),
+                )
+
+        # Start in a scheduled state
+        async with db.session_context(begin_transaction=True) as session:
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=Scheduled(),
+            )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(session_1)
+            tg.start_soon(session_2)
 
 
 class TestCreateFlowRunState:
