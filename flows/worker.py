@@ -15,6 +15,9 @@ def main():
             "--run-once",
         ]
     )
+    subprocess.check_call(
+        ["python", "-m", "pip", "uninstall", "prefect-kubernetes", "-y"]
+    )
 
 
 if __name__ == "__main__":
