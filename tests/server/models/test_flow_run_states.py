@@ -19,8 +19,6 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
 )
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
-from prefect.server.utilities.database import get_dialect
 from prefect.server.orchestration.core_policy import PreventPendingTransitions
 from prefect.server.schemas.states import Running, Scheduled, StateType, Pending
 
@@ -49,12 +47,6 @@ class TestSetFlowRunState:
             - If not locked correctly, session 2 will see SCHEDULED -> PENDING
 
         """
-        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
-        dialect = get_dialect(connection_url)
-
-        if dialect.name == "sqlite":
-            pytest.skip("SQLite does not support row-level locking")
-
         event_1 = anyio.Event()
         event_2 = anyio.Event()
 
