@@ -142,7 +142,10 @@ async def update_flow_run(
 
 @inject_db
 async def read_flow_run(
-    session: AsyncSession, flow_run_id: UUID, db: PrefectDBInterface
+    session: AsyncSession,
+    flow_run_id: UUID,
+    db: PrefectDBInterface,
+    for_update: bool = False,
 ):
     """
     Reads a flow run by id.
@@ -154,14 +157,18 @@ async def read_flow_run(
     Returns:
         db.FlowRun: the flow run
     """
-
-    result = await session.execute(
+    select = (
         sa.select(db.FlowRun)
         .where(db.FlowRun.id == flow_run_id)
         .options(
             selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
         )
     )
+
+    if for_update:
+        select = select.with_for_update()
+
+    result = await session.execute(select)
     return result.scalar()
 
 
@@ -453,6 +460,8 @@ async def set_flow_run_state(
     run = await models.flow_runs.read_flow_run(
         session=session,
         flow_run_id=flow_run_id,
+        # Lock the row to prevent orchestration race conditions
+        for_update=True,
     )
 
     if not run:
