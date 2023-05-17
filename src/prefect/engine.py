@@ -1773,7 +1773,6 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
                 state=state,
                 flow_run_id=flow_run.id,
             )
-
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
