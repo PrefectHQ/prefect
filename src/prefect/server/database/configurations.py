@@ -74,7 +74,9 @@ class BaseDatabaseConfiguration(ABC):
         """Returns true if database is run in memory"""
 
     @abstractmethod
-    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
+    async def begin_transaction(
+        self, session: AsyncSession, with_for_update: bool = False
+    ):
         """Enter a transaction for a session"""
         pass
 
@@ -320,22 +322,24 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # requires `begin_sqlite_conn`
         # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
         mode = SQLITE_BEGIN_MODE.get()
-        if mode is None:
-            conn.exec_driver_sql("BEGIN")
-        else:
+        if mode is not None:
             conn.exec_driver_sql(f"BEGIN {mode}")
 
+        # Note this is intentionally a no-op if there is no BEGIN MODE set
+        # This allows us to use SQLite's default behavior for reads which do not need
+        # to be wrapped in a long-running transaction
+
     @asynccontextmanager
-    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
-        if locking:
-            token = SQLITE_BEGIN_MODE.set("IMMEDIATE")
+    async def begin_transaction(
+        self, session: AsyncSession, with_for_update: bool = False
+    ):
+        token = SQLITE_BEGIN_MODE.set("IMMEDIATE" if with_for_update else "DEFERRED")
 
         try:
             async with session.begin() as transaction:
                 yield transaction
         finally:
-            if locking:
-                SQLITE_BEGIN_MODE.reset(token)
+            SQLITE_BEGIN_MODE.reset(token)
 
     async def session(self, engine: AsyncEngine) -> AsyncSession:
         """

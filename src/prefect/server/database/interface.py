@@ -87,7 +87,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
 
     @asynccontextmanager
     async def session_context(
-        self, begin_transaction: bool = False, locking_transaction: bool = False
+        self, begin_transaction: bool = False, with_for_update: bool = False
     ):
         """
         Provides a SQLAlchemy session and a context manager for opening/closing
@@ -101,7 +101,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         async with session:
             if begin_transaction:
                 async with self.database_config.begin_transaction(
-                    session, locking=locking_transaction
+                    session, with_for_update=with_for_update
                 ):
                     yield session
             else:
