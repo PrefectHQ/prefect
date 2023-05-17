@@ -248,7 +248,7 @@ def test_load_extra_entrypoints_missing_attribute(capsys):
     )
 
 
-def test_plugins_load_on_prefect_package_init(monkeypatch):
+def test_plugin_load_on_prefect_package_init(monkeypatch):
     mock_load_prefect_collections = Mock()
     mock_load_extra_entrypoints = Mock()
 
@@ -261,5 +261,5 @@ def test_plugins_load_on_prefect_package_init(monkeypatch):
 
     importlib.reload(prefect)
 
-    mock_load_prefect_collections.assert_called_once()
+    mock_load_prefect_collections.assert_not_called()  # We no longer load collections on import due to high performance cost
     mock_load_extra_entrypoints.assert_called_once()
