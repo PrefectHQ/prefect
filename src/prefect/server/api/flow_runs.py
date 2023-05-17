@@ -335,7 +335,9 @@ async def set_flow_run_state(
     now = pendulum.now()
 
     # create the state
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, locking_transaction=True
+    ) as session:
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,

@@ -2,7 +2,9 @@ import sqlite3
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
-from typing import Dict, Hashable, Tuple
+from typing import Dict, Hashable, Tuple, Optional
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -14,6 +16,11 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
+
+
+SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
+    "SQLITE_BEGIN_MODE", default=None
+)
 
 
 class BaseDatabaseConfiguration(ABC):
@@ -65,6 +72,11 @@ class BaseDatabaseConfiguration(ABC):
     @abstractmethod
     def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
+
+    @abstractmethod
+    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
+        """Enter a transaction for a session"""
+        pass
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
@@ -146,6 +158,13 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             engine: a sqlalchemy engine
         """
         return AsyncSession(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
+        # `locking` is for SQLite only. For Postgres, lock the row on read
+        # for update instead.
+        async with session.begin() as transaction:
+            yield transaction
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
@@ -256,10 +275,13 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
         cursor = conn.cursor()
 
-        # write to a write-ahead-log instead and regularly
-        # commit the changes
-        # this allows multiple concurrent readers even during
-        # a write transaction
+        # write to a write-ahead-log instead and regularly commit the changes
+        # this allows multiple concurrent readers even during a write transaction
+        # even with the WAL we can get busy errors if we have transactions that:
+        #  - t1 reads from a database
+        #  - t2 inserts to the database
+        #  - t1 tries to insert to the database
+        # this can be resolved by using the IMMEDIATE transaction mode in t1
         cursor.execute("PRAGMA journal_mode = WAL;")
 
         # enable foreign keys
@@ -297,7 +319,23 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # emit our own BEGIN
         # requires `begin_sqlite_conn`
         # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
-        conn.exec_driver_sql("BEGIN")
+        mode = SQLITE_BEGIN_MODE.get()
+        if mode is None:
+            conn.exec_driver_sql("BEGIN")
+        else:
+            conn.exec_driver_sql(f"BEGIN {mode}")
+
+    @asynccontextmanager
+    async def begin_transaction(self, session: AsyncSession, locking: bool = False):
+        if locking:
+            token = SQLITE_BEGIN_MODE.set("IMMEDIATE")
+
+        try:
+            async with session.begin() as transaction:
+                yield transaction
+        finally:
+            if locking:
+                SQLITE_BEGIN_MODE.reset(token)
 
     async def session(self, engine: AsyncEngine) -> AsyncSession:
         """
