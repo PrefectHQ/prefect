@@ -61,7 +61,7 @@ Values that you place within your `deployment.yaml` file can reference dynamic v
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `deployment.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
 - **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
-- **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
+- **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
 
 As an example, consider the following `deployment.yaml` file:
 
@@ -247,11 +247,11 @@ Below are fields that can be added to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                       |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                        |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                   |
-| `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this sections are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                          |
+| `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                           |
 | `flow_name`                                | The name of a flow that has been registered in the current project's [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                      |
 | `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your project) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                         |
-| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this sections are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                  |
+| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                   |
 
 #### Schedule Fields
 
@@ -407,7 +407,7 @@ Anytime you run `prefect deploy`, this `push` section will be executed upon succ
 
 ### The Pull Section
 
-The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing this project for a deployment run.  These instructions will be executed each time a deployment created wthin this project is run via a worker.
+The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing this project for a deployment run.  These instructions will be executed each time a deployment created within this project is run via a worker.
 
 There are three main types of steps that typically show up in a `pull` section:
 
@@ -423,7 +423,7 @@ There are three main types of steps that typically show up in a `pull` section:
 In general this directory doesn't need to be altered or inspected by users (hence the fact that it is hidden); its only use case right now is storing the existence of known workflows within your project in the `flows.json` file.  Workflows get registered into `.prefect/flows.json` through two mechanisms:
 
 - running `prefect deploy` with an entrypoint (e.g., `prefect deploy ./path/to/file.py:flow_func`) will automatically register this flow within this project
-- explicity running `prefect project register-flow ./path/to/file.py:flow_func` allows users to register flows explicitly themselves
+- explicitly running `prefect project register-flow ./path/to/file.py:flow_func` allows users to register flows explicitly themselves
 
 Registration of flows allows you to to deploy based on flow name reference using the `--flow` or `-f` flag of `prefect deploy`:
 

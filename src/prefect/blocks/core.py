@@ -669,6 +669,10 @@ class Block(BaseModel, ABC):
         """
         Retieve the block class implementation given a schema.
         """
+        # Ensure collections are imported and have the opportunity to register types
+        # before looking up the block class
+        prefect.plugins.load_prefect_collections()
+
         return lookup_type(cls, block_schema_to_key(schema))
 
     def _define_metadata_on_nested_blocks(
