@@ -669,11 +669,18 @@ class Block(BaseModel, ABC):
         """
         Retieve the block class implementation given a schema.
         """
+        return cls.get_block_class_from_key(block_schema_to_key(schema))
+
+    @classmethod
+    def get_block_class_from_key(cls: Type[Self], key: str) -> Type[Self]:
+        """
+        Retieve the block class implementation given a key.
+        """
         # Ensure collections are imported and have the opportunity to register types
         # before looking up the block class
         prefect.plugins.load_prefect_collections()
 
-        return lookup_type(cls, block_schema_to_key(schema))
+        return lookup_type(cls, key)
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: Dict[str, Dict[str, Any]]
