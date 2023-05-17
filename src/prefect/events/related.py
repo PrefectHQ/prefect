@@ -1,15 +1,31 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
+import asyncio
+import pendulum
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 from uuid import UUID
+from pendulum.datetime import DateTime
 
 from .schemas import RelatedResource
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
+    from prefect.server.utilities.schemas import ORMBaseModel
 
+ResourceCacheEntry = Dict[str, Union[str, "ORMBaseModel", None]]
+RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
 
-ObjectDict = Dict[str, Union["Flow", "FlowRun"]]
-related_resource_cache: Dict[UUID, ObjectDict] = {}
+MAX_CACHE_SIZE = 100
+RESOURCE_CACHE: RelatedResourceCache = {}
 
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
@@ -57,32 +73,91 @@ async def related_resources_from_run_context(
         else task_run_context.task_run.flow_run_id
     )
 
-    objects = related_resource_cache.get(flow_run_id, {})
+    related_objects: list[ResourceCacheEntry] = []
 
     async with get_client() as client:
-        if "flow-run" not in objects:
-            flow_run = await client.read_flow_run(flow_run_id)
-            if flow_run:
-                objects["flow-run"] = flow_run
 
-        if "flow" not in objects and "flow-run" in objects:
-            flow = await client.read_flow(objects["flow-run"].flow_id)
-            if flow:
-                objects["flow"] = flow
+        async def dummy_read():
+            return {}
 
-        related_resource_cache[flow_run_id] = objects
+        related_objects = [
+            await _get_and_cache_related_object(
+                kind="flow-run",
+                role="flow-run",
+                client_method=client.read_flow_run,
+                obj_id=flow_run_id,
+                cache=RESOURCE_CACHE,
+            )
+        ]
+
+        flow_run = related_objects[0]["object"]
+
+        if flow_run:
+            related_objects += list(
+                await asyncio.gather(
+                    _get_and_cache_related_object(
+                        kind="flow",
+                        role="flow",
+                        client_method=client.read_flow,
+                        obj_id=flow_run.flow_id,
+                        cache=RESOURCE_CACHE,
+                    ),
+                    (
+                        _get_and_cache_related_object(
+                            kind="deployment",
+                            role="deployment",
+                            client_method=client.read_deployment,
+                            obj_id=flow_run.deployment_id,
+                            cache=RESOURCE_CACHE,
+                        )
+                        if flow_run.deployment_id
+                        else dummy_read()
+                    ),
+                    (
+                        _get_and_cache_related_object(
+                            kind="work-queue",
+                            role="work-queue",
+                            client_method=client.read_work_queue,
+                            obj_id=flow_run.work_queue_id,
+                            cache=RESOURCE_CACHE,
+                        )
+                        if flow_run.work_queue_id
+                        else dummy_read()
+                    ),
+                    (
+                        _get_and_cache_related_object(
+                            kind="work-pool",
+                            role="work-pool",
+                            client_method=client.read_work_pool,
+                            obj_id=flow_run.work_pool_name,
+                            cache=RESOURCE_CACHE,
+                        )
+                        if flow_run.work_pool_name
+                        else dummy_read()
+                    ),
+                )
+            )
 
     related = []
     tags = set()
 
-    for kind, obj in objects.items():
-        resource = object_as_related_resource(kind=kind, role=kind, object=obj)
+    for entry in related_objects:
+        obj_ = entry.get("object")
+        if obj_ is None:
+            continue
+
+        assert isinstance(entry["kind"], str) and isinstance(entry["role"], str)
+
+        resource = object_as_related_resource(
+            kind=entry["kind"], role=entry["kind"], object=obj_
+        )
 
         if resource.id in exclude:
             continue
 
         related.append(resource)
-        tags |= set(obj.tags)
+        if hasattr(obj_, "tags"):
+            tags |= set(obj_.tags)
 
     related += [
         resource
@@ -91,3 +166,43 @@ async def related_resources_from_run_context(
     ]
 
     return related
+
+
+async def _get_and_cache_related_object(
+    kind: str,
+    role: str,
+    client_method: Callable[[Union[UUID, str]], Awaitable[Optional["ORMBaseModel"]]],
+    obj_id: Union[UUID, str],
+    cache: RelatedResourceCache,
+) -> ResourceCacheEntry:
+    cache_key = f"{kind}.{obj_id}"
+    entry = None
+
+    if cache_key in cache:
+        entry, _ = cache[cache_key]
+    else:
+        obj_ = await client_method(obj_id)
+        entry = {
+            "kind": kind,
+            "object": obj_,
+        }
+
+    cache[cache_key] = (entry, pendulum.now("UTC"))
+
+    # In the case of a worker or agent this cache could be long-lived. To keep
+    # from running out of memory only keep `MAX_CACHE_SIZE` entries in the
+    # cache.
+    if len(cache) > MAX_CACHE_SIZE:
+        oldest_key = sorted(
+            [(key, timestamp) for key, (_, timestamp) in cache.items()],
+            key=lambda k: k[1],
+        )[0][0]
+
+        if oldest_key:
+            del cache[oldest_key]
+
+    # Because the role is event specific and can change depending on the
+    # type of event being emitted, this adds the role from the args to the
+    # entry before returning it rather than storing it in the cache.
+    entry["role"] = role
+    return entry

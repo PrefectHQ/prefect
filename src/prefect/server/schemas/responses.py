@@ -165,6 +165,7 @@ class FlowRunResponse(ORMBaseModel):
     flow_id: UUID = FieldFrom(schemas.core.FlowRun)
     state_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    work_queue_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
     flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parameters: dict = FieldFrom(schemas.core.FlowRun)
@@ -187,6 +188,10 @@ class FlowRunResponse(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
     created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
+    work_pool_id: Optional[UUID] = Field(
+        default=None,
+        description="The id of the flow run's work pool.",
+    )
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
@@ -198,8 +203,10 @@ class FlowRunResponse(ORMBaseModel):
     def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
         if orm_flow_run.work_queue:
+            response.work_queue_id = orm_flow_run.work_queue.id
             response.work_queue_name = orm_flow_run.work_queue.name
             if orm_flow_run.work_queue.work_pool:
+                response.work_pool_id = orm_flow_run.work_queue.work_pool.id
                 response.work_pool_name = orm_flow_run.work_queue.work_pool.name
 
         return response
