@@ -1769,9 +1769,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exc)
-            orchestration_result = await propose_state(
-                client, state, flow_run_id=flow_run.id
-            )
+            flow_state = await propose_state(client, state, flow_run_id=flow_run.id)
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
@@ -1782,7 +1780,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
             await _run_flow_hooks(
                 flow=flow,
                 flow_run=flow_run,
-                state=orchestration_result,
+                state=flow_state,
             )
 
         # Reraise the exception
