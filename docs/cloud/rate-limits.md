@@ -17,7 +17,6 @@ Prefect Cloud enforces the following rate limits:
 
 - Flow and task creation rate limits
 - Log service rate limits
-- Service-wide rate limits (applicable to all requests)
 
 ## Flow and task creation rate limits
 
@@ -34,15 +33,6 @@ Prefect Cloud limits the number of logs accepted:
 
 - 700 logs per minute for personal accounts
 - 10,000 logs per minute for organization accounts
-
-## Service-wide rate limits
-
-Prefect Cloud also enforces service-wide rate limiting for all API routes. This is intended to protect against high request volumes that may degrade service for all users.
-
-Service-wide rate limits include: 
-
-- 5,000 requests per minute per API key 
-- 10,000 requests per minute per client IP
 
 The Prefect Cloud API will return a `429` response if these limits are triggered.
 
