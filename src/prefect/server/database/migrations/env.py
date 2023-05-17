@@ -2,6 +2,7 @@
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
 
 import sqlalchemy
+import contextlib
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -126,7 +127,26 @@ def do_run_migrations(connection: AsyncEngine) -> None:
     )
 
     with context.begin_transaction():
-        context.run_migrations()
+        with disable_sqlite_foreign_keys(context):
+            context.run_migrations()
+
+
+@contextlib.contextmanager
+def disable_sqlite_foreign_keys(context):
+    """
+    Disable foreign key constraints on sqlite.
+    """
+    if dialect.name == "sqlite":
+        context.execute("COMMIT")
+        context.execute("PRAGMA foreign_keys=OFF")
+        context.execute("BEGIN")
+
+    yield
+
+    if dialect.name == "sqlite":
+        context.execute("END")
+        context.execute("PRAGMA foreign_keys=ON")
+        context.execute("BEGIN")
 
 
 @sync_compatible
