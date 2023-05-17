@@ -336,7 +336,7 @@ async def set_flow_run_state(
 
     # create the state
     async with db.session_context(
-        begin_transaction=True, locking_transaction=True
+        begin_transaction=True, with_for_update=True
     ) as session:
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
