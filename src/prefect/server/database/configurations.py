@@ -265,6 +265,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # enable foreign keys
         cursor.execute("PRAGMA foreign_keys = ON;")
 
+        # disable legacy alter table behavior as it will cause problems during
+        # migrations when tables are renamed as references would otherwise be retained
+        # in some locations
+        # https://www.sqlite.org/pragma.html#pragma_legacy_alter_table
+        cursor.execute("PRAGMA legacy_alter_table=OFF")
+
         # when using the WAL, we do need to sync changes on every write. sqlite
         # recommends using 'normal' mode which is much faster
         cursor.execute("PRAGMA synchronous = NORMAL;")
