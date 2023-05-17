@@ -38,7 +38,7 @@ class TestSetFlowRunState:
 
             - Set to SCHEDULED
             - Set to PENDING
-                - Before commiting, wait for session 2 to set state
+                - Before commiting, wait for session 2 to begin orchestrating
 
         Session 2:
 
@@ -47,8 +47,8 @@ class TestSetFlowRunState:
             - If not locked correctly, session 2 will see SCHEDULED -> PENDING
 
         """
-        event_1 = anyio.Event()
-        event_2 = anyio.Event()
+        orchestrating_1 = anyio.Event()
+        orchestrating_2 = anyio.Event()
 
         class TestRule1(BaseOrchestrationRule):
             FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -57,9 +57,15 @@ class TestSetFlowRunState:
             async def before_transition(
                 self, initial_state, proposed_state, context: OrchestrationContext
             ):
+                orchestrating_1.set()
+
+                # If we implement this correctly, this will actually deadlock as 2
+                # will not be set until after 1 exits its transaction so we will not
+                # wait forever. Some wait here is necessary for a reproduction.
+                with anyio.move_on_after(1):
+                    await orchestrating_2.wait()
+
                 print("Session 1:", initial_state, proposed_state)
-                event_2.set()
-                await event_1.wait()
                 assert initial_state.type == StateType.SCHEDULED
 
         class TestRule2(BaseOrchestrationRule):
@@ -69,6 +75,7 @@ class TestSetFlowRunState:
             async def before_transition(
                 self, initial_state, proposed_state, context: OrchestrationContext
             ):
+                orchestrating_2.set()
                 print("Session 2:", initial_state, proposed_state)
                 assert initial_state.type == StateType.PENDING, (
                     "The second transition should use the result of the first"
@@ -90,7 +97,12 @@ class TestSetFlowRunState:
                 ]
 
         async def session_1():
-            async with db.session_context(begin_transaction=True) as session1:
+            async with db.session_context(
+                # Postgres locks the table in the `set_flow_run_state` call but
+                #  SQLite requires the lock to be set when creating the transaction
+                begin_transaction=True,
+                with_for_update=True,
+            ) as session1:
                 await models.flow_runs.set_flow_run_state(
                     session=session1,
                     flow_run_id=flow_run.id,
@@ -99,10 +111,12 @@ class TestSetFlowRunState:
                 )
 
         async def session_2():
-            async with db.session_context(begin_transaction=True) as session2:
-                await event_2.wait()
-                event_1.set()
+            # Do not start until we are orchestrating in session 1
+            await orchestrating_1.wait()
 
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session2:
                 await models.flow_runs.set_flow_run_state(
                     session=session2,
                     flow_run_id=flow_run.id,
