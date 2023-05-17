@@ -1,8 +1,10 @@
 import enum
 import inspect
+import os
 import sys
 import asyncio
 import time
+import signal
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -12,7 +14,9 @@ import pydantic
 import pytest
 
 from prefect import flow, get_run_logger, tags, task
-from prefect.client.orchestration import PrefectClient
+from prefect import runtime
+import prefect
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
     CancelledRun,
@@ -38,6 +42,21 @@ from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
+import prefect.exceptions
+
+
+@pytest.fixture
+def mock_sigterm_handler():
+    mock = MagicMock()
+
+    def handler(*args, **kwargs):
+        mock(*args, **kwargs)
+
+    prev_handler = signal.signal(signal.SIGTERM, handler)
+    try:
+        yield handler, mock
+    finally:
+        signal.signal(signal.SIGTERM, prev_handler)
 
 
 class TestFlow:
@@ -2531,6 +2550,49 @@ class TestFlowHooksOnCancellation:
         my_flow._run()
         assert my_mock.mock_calls == [call(), call()]
 
+    async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def cancelled(flow, flow_run, state):
+            my_mock("cancelled")
+
+        @task
+        async def cancel_parent():
+            async with get_client() as client:
+                await client.set_flow_run_state(
+                    runtime.flow_run.id, State(type=StateType.CANCELLING), force=True
+                )
+
+        @flow(on_cancellation=[cancelled])
+        async def my_flow():
+            # simulate user cancelling flow run from UI
+            await cancel_parent()
+            # simulate worker cancellation of flow run
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == [call("cancelled")]
+
+    async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def cancelled(flow, flow_run, state):
+            my_mock("cancelled")
+
+        @flow(on_cancellation=[cancelled])
+        def my_flow():
+            # terminate process with SIGTERM
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == []
+
 
 class TestFlowHooksOnCrashed:
     def test_on_crashed_hooks_run_on_crashed_state(self):
@@ -2642,3 +2704,46 @@ class TestFlowHooksOnCrashed:
 
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
+
+    async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def crashed(flow, flow_run, state):
+            my_mock("crashed")
+
+        @flow(on_crashed=[crashed])
+        def my_flow():
+            # terminate process with SIGTERM
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == [call("crashed")]
+
+    async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def crashed(flow, flow_run, state):
+            my_mock("crashed")
+
+        @task
+        async def cancel_parent():
+            async with get_client() as client:
+                await client.set_flow_run_state(
+                    runtime.flow_run.id, State(type=StateType.CANCELLING), force=True
+                )
+
+        @flow(on_crashed=[crashed])
+        async def my_flow():
+            # simulate user cancelling flow run from UI
+            await cancel_parent()
+            # simulate worker cancellation of flow run
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == []
