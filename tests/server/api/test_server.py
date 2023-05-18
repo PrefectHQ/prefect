@@ -1,7 +1,6 @@
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-from contextlib import nullcontext
 import pytest
 import sqlalchemy as sa
 import toml
@@ -13,7 +12,6 @@ from prefect.server.api.server import (
     SERVER_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
-    create_app,
     db_locked_exception_handler,
     method_paths_from_routes,
 )
@@ -80,27 +78,6 @@ async def test_db_locked_exception_handler():
 
         response = await client.get("/other_sql_error")
         assert response.status_code == 500
-
-
-@pytest.mark.parametrize("ephemeral", [True, False])
-async def test_server_error_raise_on_client(ephemeral):
-    async def raise_error():
-        raise ValueError("test")
-
-    app = create_app(ephemeral=ephemeral)
-    app.api_app.add_api_route("/raise_error", raise_error)
-
-    expect_error = (
-        pytest.raises(ValueError, match="test") if not ephemeral else nullcontext()
-    )
-
-    async with AsyncClient(
-        app=app,
-        base_url="https://test",
-    ) as client:
-        with expect_error:
-            response = await client.get("/api/raise_error")
-            assert response.status_code == 500
 
 
 async def test_health_check_route(client):

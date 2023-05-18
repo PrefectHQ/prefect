@@ -1787,3 +1787,17 @@ class TestVariables:
         res = await orion_client.read_variables(limit=1)
         assert len(res) == 1
         assert res[0].name == variables[0].name
+
+
+async def test_server_error_does_not_raise_on_client():
+    async def raise_error():
+        raise ValueError("test")
+
+    app = create_app(ephemeral=True)
+    app.api_app.add_api_route("/raise_error", raise_error)
+
+    async with PrefectClient(
+        api=app,
+    ) as client:
+        with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
+            await client._client.get("/raise_error")
