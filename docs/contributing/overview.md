@@ -224,6 +224,13 @@ mkdocs --help
 
 We us the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
 
+Internal developers can install the production theme by running:
+
+```bash
+pip install -e git+https://github.com/PrefectHQ/mkdocs-material-insiders.git#egg=mkdocs-material
+mkdocs build # or mkdocs build --config-file mkdocs.insiders.yml if needed
+```
+
 ### Kubernetes development
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
