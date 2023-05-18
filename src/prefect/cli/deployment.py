@@ -1028,7 +1028,7 @@ async def build(
         infrastructure = await Block.load(infra_block)
     elif infra_type:
         # Create an instance of the given type
-        infrastructure = Block.get_block_class_from_key(infra_type.value)()
+        infrastructure = Block.get_block_class_from_key(infra_type)()
     else:
         # will reset to a default of Process is no infra is present on the
         # server-side definition of this deployment
