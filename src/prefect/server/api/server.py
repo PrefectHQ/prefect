@@ -310,6 +310,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     """
     import toml
 
+    import prefect.plugins
     from prefect.blocks.core import Block
     from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
@@ -319,6 +320,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
             await fn(*args, **kwargs)
             return
+
+        # Ensure collections are imported and have the opportunity to register types
+        # before loading the registry
+        prefect.plugins.load_prefect_collections()
 
         blocks_registry = get_registry_for_type(Block)
         collection_blocks_data = await _load_collection_blocks_data()
