@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 import pytest
 import sqlalchemy as sa
+import asyncio
+import asyncpg
 import toml
 from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
@@ -74,7 +76,7 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
             Exception,
         )
 
-    app = create_app(ephemeral=ephemeral)
+    app = create_app(ephemeral=ephemeral, ignore_cache=True)
     app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
@@ -83,6 +85,42 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
         base_url="https://test",
     ) as client:
         response = await client.get("/api/raise_busy_error")
+        assert response.status_code == 503
+
+        # Following https://github.com/PrefectHQ/prefect/pull/9633 a 503 is expected
+        # for all operational errors regardless of the SQLite internal error message
+        response = await client.get("/api/raise_other_error")
+        assert response.status_code == 503
+
+
+@pytest.mark.parametrize(
+    "exc",
+    (
+        sa.exc.DBAPIError("statement", {"params": 0}, ValueError("orig")),
+        asyncio.exceptions.TimeoutError(),
+        asyncpg.exceptions.QueryCanceledError(),
+        asyncpg.exceptions.ConnectionDoesNotExistError(),
+        asyncpg.exceptions.CannotConnectNowError(),
+        sa.exc.InvalidRequestError(),
+        sa.orm.exc.DetachedInstanceError(),
+    ),
+)
+async def test_retryable_exception_handler(exc):
+    async def raise_retryable_error():
+        raise exc
+
+    async def raise_other_error():
+        raise ValueError()
+
+    app = create_app(ephemeral=True, ignore_cache=True)
+    app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
+    app.api_app.add_api_route("/raise_other_error", raise_other_error)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://test",
+    ) as client:
+        response = await client.get("/api/raise_retryable_error")
         assert response.status_code == 503
 
         response = await client.get("/api/raise_other_error")
