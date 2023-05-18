@@ -1,7 +1,6 @@
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-
 import pytest
 import sqlalchemy as sa
 import toml
