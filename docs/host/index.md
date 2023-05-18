@@ -30,7 +30,7 @@ $ prefect server start
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. 
 
-![Viewing the orchestrated flow runs in the Prefect UI.](../img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Prefect UI.](/img/tutorial/first-steps-ui.png)
 
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 

@@ -10,7 +10,7 @@ tags:
 
 # Running flows with Docker
 
-In the [Deployments](/tutorials/deployments/) and [Storage and Infrastructure](/tutorials/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
+In the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/tutorial/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
 In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
@@ -24,15 +24,15 @@ In this guide we'll:
 
 To run a deployed flow in a Docker container, you'll need the following:
 
-- We'll use the flow script and deployment from the [Deployments](/tutorials/deployments/) tutorial. 
-- We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
+- We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
+- We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorial/storage/) tutorial.
 - You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
 !!! note "Run a Prefect server"
-    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorials/deployments/) tutorial.
+    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorial/deployments/) tutorial.
     
     If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
@@ -42,13 +42,13 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../../img/tutorials/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorial/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
 For this guide, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
-![Viewing a list of infrastructure block types in the Prefect UI](../../img/tutorials/docker-infrastructure.png)
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorial/docker-infrastructure.png)
 
 To configure this Docker Container block to run the `log_flow.py` deployment, we just need to add two pieces of information.
 
@@ -56,7 +56,7 @@ First, give the block a **Block Name**. We used "log-tutorial".
 
 Second, we need to make sure the container includes any additional files, libraries, or configuration to run `log_flow.py`. By default, Prefect uses a preconfigured container that includes installations of Python and Prefect.
 
-In the [Storage and Infrastructure](/tutorials/storage/) tutorial, recall that we needed to `pip install s3fs` the library for an S3 storage block. You'll need to include the same command in the configuration of the Docker Container infrastructure block. When the agent spins up a container for a flow run, it will know to install the `s3fs` package before starting the flow run.
+In the [Storage and Infrastructure](/tutorial/storage/) tutorial, recall that we needed to `pip install s3fs` the library for an S3 storage block. You'll need to include the same command in the configuration of the Docker Container infrastructure block. When the agent spins up a container for a flow run, it will know to install the `s3fs` package before starting the flow run.
 
 As a convenience, Prefect base images check the [`EXTRA_PIP_PACKAGES` environment variable](/concepts/infrastructure/#installing-extra-dependencies-at-runtime) to install dependencies at runtime. If defined, `pip install ${EXTRA_PIP_PACKAGES}` is executed before the flow run starts.
 
@@ -67,9 +67,9 @@ In the **Env (Optional)** box, enter the following to specify that the `s3fs` pa
   "EXTRA_PIP_PACKAGES": "s3fs"
 }
 ```
-If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/tutorials/storage/#prerequisites) for details.
+If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/tutorial/storage/#prerequisites) for details.
 
-![Configuring a new Docker Container infrastructure block in the Prefect UI](../../img/tutorials/docker-tutorial-block.png)
+![Configuring a new Docker Container infrastructure block in the Prefect UI](/img/guides/docker-tutorial-block.png)
 
 ## Using infrastructure blocks with deployments
 
@@ -82,9 +82,9 @@ The `prefect deployment build` command also supports specifying a built-in infra
 
 ## Build a deployment with Docker infrastructure
 
-To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
+To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
 
-- Use the storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
+- Use the storage block created in the [Storage and Infrastructure](/tutorial/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
 - Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--infra-block docker-container/log-tutorial`.
 
 <div class="terminal">
@@ -126,7 +126,7 @@ $ prefect agent start -q 'test'
 
 Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect server instance, including the new `log-flow/log-flow-docker` deployment.
 
-![Viewing the new Docker deployment in the Prefect UI](../../img/tutorials/docker-deployment.png)
+![Viewing the new Docker deployment in the Prefect UI](/img/guides/docker-deployment.png)
 
 ## Edit the deployment in the UI
 
@@ -134,13 +134,13 @@ Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and sele
 
 Instead, let's edit the deployment through the Prefect UI. Select **log-flow/log-flow-docker** to see the deployment's details.
 
-![Viewing the Docker deployment details in the Prefect UI](../../img/tutorials/docker-deployment-details.png)
+![Viewing the Docker deployment details in the Prefect UI](/img/guides/docker-deployment-details.png)
 
 Select the menu next to **Run**, then select **Edit** to edit the deployment.
 
 Scroll down to the **Parameters** section and provide a value for the `name` parameter. We used "Ford Prefect" here. 
 
-![Editing the Docker deployment details in the Prefect UI](../../img/tutorials/edit-docker-deployment.png)
+![Editing the Docker deployment details in the Prefect UI](/img/guides/edit-docker-deployment.png)
 
 Select **Save** to save these changes to the deployment.
 
@@ -151,8 +151,8 @@ When you create flow runs from this deployment, the agent pulls the default Pref
 Let's create a flow run for this deployment. The flow run will execute in a Docker container on your local machine.
 
 !!! note "Run a Prefect agent"
-    This guide assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-pools) tutorial.
-    
+    This guide assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorial/deployments/#agents-and-work-pools) tutorial.
+
     If you shut down the agent, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 
     Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect server or Prefect Cloud.
@@ -180,7 +180,7 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
 
 On the deployment details page, select **Run**, then select **Now with defaults**. This creates a new flow run using the default parameters and other settings.
 
-![Running the Docker deployment from the Prefect UI](../../img/tutorials/run-docker-deployment.png)
+![Running the Docker deployment from the Prefect UI](/img/guides/run-docker-deployment.png)
 
 Go to the terminal session running the Prefect agent. You should see logged output showing:
 
@@ -213,7 +213,7 @@ Collecting s3fs
 
 In the Prefect UI, go to the **Flow Runs** page and select the flow run. You should see the "Hello Ford Prefect!" log message created by the flow running in the Docker container!
 
-![Log messages from the deployment flow run.](../../img/tutorials/docker-flow-log.png)
+![Log messages from the deployment flow run.](/img/guides/docker-flow-log.png)
 
 ## Cleaning up
 

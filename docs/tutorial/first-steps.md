@@ -15,11 +15,12 @@ Let's start with the basics, defining the central components of Prefect workflow
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.se
 
-Some important things to know about flows:
+Some important points about flows:
+
 1. All Prefect workflows are defined within the context of a flow.
-2. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow.
+2. Every Prefect workflow must contain at least one `flow` function that serves as the entrypoint for execution of the flow.
 3. Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
 ## Run a basic flow
@@ -86,7 +87,7 @@ Let's run the `call_api()` flow, passing a valid URL as a parameter. In this cas
 
 ## Run a basic flow with tasks
 
-Let's now add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level.
+Let's add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level.
 
 A task is a function that represents a distinct piece of work executed within a flow. You don't have to use tasks &mdash; you can include all of the logic of your workflow within the flow itself. However, encapsulating your business logic into smaller task units gives you more granular observability, control over how specific tasks are run (potentially taking advantage of parallel execution), and the ability to reuse tasks across flows and subflows.
 
@@ -217,7 +218,7 @@ $ prefect server start
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
-![Viewing the orchestrated flow runs in the Prefect UI.](../img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Prefect UI.](/img/tutorial/first-steps-ui.png)
 
 The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 
@@ -285,8 +286,10 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 !!! note "Parameter validation can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your `@flow` decorator and Prefect will passively accept whatever input values you provide.
 
-    Flow configuration is covered in more detail in the [Flow and task configuration](/tutorials/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
+    Flow configuration is covered in more detail in the [Flow and task configuration](/tutorial/flow-task-config/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
 
 !!! tip "Next steps: Flow and task configuration"
-    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
+    Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorial/flow-task-config/) with options such as parameters, retries, caching, and task runners.
+
+[def]: #flows-and-tasks
