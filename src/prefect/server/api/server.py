@@ -4,6 +4,7 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import mimetypes
+import sqlite3
 import asyncpg
 import os
 from contextlib import asynccontextmanager
@@ -149,13 +150,17 @@ async def integrity_exception_handler(request: Request, exc: Exception):
 
 
 def is_client_retryable_exception(exc: Exception):
-    if isinstance(exc, sqlalchemy.exc.OperationalError):
-        # Database locked errors
+    if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
+        exc.orig, sqlite3.OperationalError
+    ):
         if getattr(exc.orig, "sqlite_errorname", None) in {
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
         }:
             return True
+        else:
+            # Avoid falling through to the generic `DBAPIError` case below
+            return False
 
     if isinstance(
         exc,

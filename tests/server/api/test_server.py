@@ -87,10 +87,8 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
         response = await client.get("/api/raise_busy_error")
         assert response.status_code == 503
 
-        # Following https://github.com/PrefectHQ/prefect/pull/9633 a 503 is expected
-        # for all operational errors regardless of the SQLite internal error message
         response = await client.get("/api/raise_other_error")
-        assert response.status_code == 503
+        assert response.status_code == 500
 
 
 @pytest.mark.parametrize(
