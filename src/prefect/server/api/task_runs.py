@@ -223,7 +223,9 @@ async def set_task_run_state(
     now = pendulum.now()
 
     # create the state
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         orchestration_result = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_id,
