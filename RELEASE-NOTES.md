@@ -27,7 +27,6 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Add docstrings for all schema filters — https://github.com/PrefectHQ/prefect/pull/9572
 
 ## New Contributors
-- @seanpwlms made their first contribution in https://github.com/PrefectHQ/prefect/pull/9608
 
 ## Release 2.10.9
 
