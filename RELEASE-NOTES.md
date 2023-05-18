@@ -23,7 +23,7 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Clarify the retry on tasks concept page — https://github.com/PrefectHQ/prefect/pull/9560
 - Improve the navigation structure and clarity of the API docs — https://github.com/PrefectHQ/prefect/pull/9574
 - Add `work_pool_name` to `Deployment.build_from_flow` on deployments concept page — https://github.com/PrefectHQ/prefect/pull/9581
-- Add Additional Worker Types to Work Pools, Workers & Agents Concept page — https://github.com/PrefectHQ/prefect/pull/9580
+- Add additional worker types to work pools, workers & agents concept page — https://github.com/PrefectHQ/prefect/pull/9580
 - Add docstrings for all schema filters — https://github.com/PrefectHQ/prefect/pull/9572
 
 ## New Contributors
