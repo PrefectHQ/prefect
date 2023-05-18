@@ -204,9 +204,8 @@ def my_flow():
 
 ## Retries
 
-Prefect can automatically retry tasks on failure. In Prefect, a task _fails_ 
-if it returns a value that is not a `State` object, or if it raises an
-exception.
+Prefect can automatically retry tasks on failure. In Prefect, a task _fails_ if
+its Python function raises an exception.
 
 To enable retries, pass `retries` and `retry_delay_seconds` parameters to your
 task. If the task fails, Prefect will retry it up to `retries` times, waiting
@@ -251,11 +250,11 @@ request.
 import requests
 import httpx
 
-from prefect import task
+from prefect import flow, task
 
 
 @task(retries=2, retry_delay_seconds=5)
-def get_data(
+def get_data_task(
     url: str = "https://api.brittle-service.com/endpoint"
 ) -> dict:
     response = httpx.get(url)
@@ -266,6 +265,11 @@ def get_data(
     response.raise_for_status()
     
     return response.json()
+    
+
+@flow
+def get_data_flow():
+    get_data_task()
 ```
 
 In this task, if the HTTP request to the brittle API receives any status code
