@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 import pytest
 import sqlalchemy as sa
-import asyncio
 import asyncpg
 import toml
 from fastapi import APIRouter, status, testclient
@@ -95,7 +94,6 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
     "exc",
     (
         sa.exc.DBAPIError("statement", {"params": 0}, ValueError("orig")),
-        asyncio.exceptions.TimeoutError(),
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),

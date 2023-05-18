@@ -166,7 +166,6 @@ def is_client_retryable_exception(exc: Exception):
         exc,
         (
             sqlalchemy.exc.DBAPIError,
-            asyncio.exceptions.TimeoutError,
             asyncpg.exceptions.QueryCanceledError,
             asyncpg.exceptions.ConnectionDoesNotExistError,
             asyncpg.exceptions.CannotConnectNowError,
