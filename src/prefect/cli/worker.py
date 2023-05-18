@@ -20,6 +20,7 @@ from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
+from prefect.plugins import load_prefect_collections
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -85,6 +86,8 @@ async def start(
                 f"Discovered worker type {worker_type!r} for work pool"
                 f" {work_pool.name!r}."
             )
+
+        load_prefect_collections()
         worker_cls = lookup_type(BaseWorker, worker_type)
     except KeyError:
         # TODO: Use collection registry info to direct users on how to install the worker type

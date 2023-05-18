@@ -30,14 +30,9 @@ See the [install guide](/getting-started/installation/) for more detailed instru
 ### Tutorials
 If you've never used Prefect before, let's start by exploring the core concepts:
 
-1. [Flows & tasks](/tutorials/first-steps/) - the core elements of Prefect.
-2. [Configuration](/tutorials/flow-task-config/) - enhance your flows and tasks with parameters, retries, caching, and task runners.
-3. [Execution](/tutorials/execution/) - configure how your flows and tasks run.
-4. [Orchestration](/tutorials/orchestration/) - the components of Prefect that enable coordination and orchestration of your flow and task runs.
-5. [Projects](/tutorials/projects/) - create and manage deployments and code, and make them easily portable.
-6. [Deployments](/tutorials/deployments/) - enable remote flow run execution.
-7. [Storage & Infrastructure](/tutorials/storage/) - specify where your flow code is stored and how to configure the execution environment.
-
-
-
-
+1. [Flows & tasks](/tutorial/first-steps/) - the core elements of Prefect.
+2. [Configuration](/tutorial/flow-task-config/) - enhance your flows and tasks with parameters, retries, caching, and task runners.
+3. [Execution](/tutorial/execution/) - configure how your flows and tasks run.
+4. [Orchestration](/tutorial/orchestration/) - the components of Prefect that enable coordination and orchestration of your flow and task runs.
+5. [Deployments](/tutorial/deployments/) - enable remote flow run execution.
+6. [Storage & Infrastructure](/tutorial/storage/) - specify where your flow code is stored and how to configure the execution environment.
