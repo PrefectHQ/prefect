@@ -1,6 +1,7 @@
 from functools import partial
 from typing import List, Optional
 
+import os
 import anyio
 import typer
 
@@ -15,6 +16,7 @@ from prefect.settings import (
     PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
+from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
@@ -102,6 +104,11 @@ async def start(
             style="yellow",
         )
         worker_cls = ProcessWorker
+
+    worker_process_id = os.getpid()
+    setup_signal_handlers_worker(
+        worker_process_id, f"the {worker_type} worker", app.console.print
+    )
 
     async with worker_cls(
         name=worker_name,
