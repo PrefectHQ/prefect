@@ -563,6 +563,7 @@ def create_app(
         ),
         name="static",
     )
+    app.api_app = api_app
     app.mount("/api", app=api_app, name="api")
     app.mount("/", app=ui_app, name="ui")
 
