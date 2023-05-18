@@ -17,18 +17,18 @@ def main():
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
+
         try:
-            subprocess.check_call(
+            subprocess.check_output(
                 ["prefect", "work-pool", "create", "test-pool", "-t", "nonsense"],
-                stdout=sys.stdout,
-                stderr=sys.stderr,
             )
         except subprocess.CalledProcessError as e:
             # Check that the error message contains kubernetes worker type
-            assert all(
-                type in str(e.output)
-                for type in ["process", "prefect-agent", "kubernetes"]
-            )
+            for type in ["process", "prefect-agent", "kubernetes"]:
+                assert type in str(
+                    e.output
+                ), f"Worker type {type!r} missing from output {e.output}"
+
         subprocess.check_call(
             ["prefect", "work-pool", "create", "test-pool", "-t", "kubernetes"],
             stdout=sys.stdout,
