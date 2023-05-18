@@ -2,9 +2,11 @@
 
 ## Release 2.10.10
 
-### The need for (CLI & import) speed
+### The need for (CLI) speed
 
-We wanted the CLI to be as fast as the rest of Prefect. Through a series of enhancements, we've sped up CLI performance by as much as 4x on some systems! See the following pull requests for more information on how we sped up the CLI prefect import:
+We wanted the CLI to be as fast as the rest of Prefect. Through a series of enhancements, we've sped up CLI performance by as much as 4x on some systems!
+
+See the following pull requests for implementation details:
 
 - Delay `apprise` imports — https://github.com/PrefectHQ/prefect/pull/9557
 - Defer import of `dateparser` — https://github.com/PrefectHQ/prefect/pull/9582
@@ -12,7 +14,6 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Add `Block.get_block_class_from_key` and replace external uses of `lookup_type` — https://github.com/PrefectHQ/prefect/pull/9621
 - Load collections before auto-registering block types on the server — https://github.com/PrefectHQ/prefect/pull/9626
 - Do not restrict deployment build infrastructure types to types known at import time — https://github.com/PrefectHQ/prefect/pull/9625
-
 
 ### Enhancements
 - Handle `SIGTERM` received by workers gracefully — https://github.com/PrefectHQ/prefect/pull/9530
