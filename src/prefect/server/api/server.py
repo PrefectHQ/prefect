@@ -510,12 +510,14 @@ def create_app(
     api_app = create_orion_api(
         fast_api_app_kwargs={
             "exception_handlers": {
+                # NOTE: FastAPI special cases the generic `Exception` handler and
+                #       registers it as a separate middleware from the others
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
-        }
+        },
     )
     ui_app = create_ui_app(ephemeral)
 
@@ -548,6 +550,7 @@ def create_app(
         ),
         name="static",
     )
+    app.api_app = api_app
     app.mount("/api", app=api_app, name="api")
     app.mount("/", app=ui_app, name="ui")
 
