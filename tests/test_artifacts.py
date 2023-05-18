@@ -275,8 +275,8 @@ class TestCreateArtifacts:
 
         response = await client.get(f"/artifacts/{artifact_id}")
         result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
-
-        assert result.data == my_table
+        result_data = json.loads(result.data)
+        assert result_data == my_table
 
     async def test_create_and_read_list_of_dict_table_artifact_succeeds(
         self, artifact, client
@@ -323,7 +323,8 @@ class TestCreateArtifacts:
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id == task_run_id
-        assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
+        result_data = json.loads(my_table_artifact.data)
+        assert result_data == {"a": [1, 3], "b": [2, 4]}
 
     async def test_create_table_artifact_in_flow_succeeds(self, client):
         @flow
@@ -348,7 +349,8 @@ class TestCreateArtifacts:
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id is None
-        assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
+        result_data = json.loads(my_table_artifact.data)
+        assert result_data == {"a": [1, 3], "b": [2, 4]}
 
     async def test_create_table_artifact_in_subflow_succeeds(self, client):
         @flow
@@ -376,7 +378,8 @@ class TestCreateArtifacts:
         )
 
         assert my_table_artifact.flow_run_id == flow_run_id
-        assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
+        result_data = json.loads(my_table_artifact.data)
+        assert result_data == {"a": [1, 3], "b": [2, 4]}
         assert my_table_artifact.task_run_id is None
 
     async def test_create_table_artifact_using_map_succeeds(self):
@@ -403,3 +406,58 @@ class TestCreateArtifacts:
 
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
+
+    async def test_create_dict_table_artifact_with_none_succeeds(self):
+        my_table = {"a": [1, 3], "b": [2, None]}
+
+        await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+    async def test_create_dict_table_artifact_with_nan_succeeds(self, client):
+        my_table = {"a": [1, 3], "b": [2, float("nan")]}
+
+        artifact_id = await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_data = json.loads(my_artifact.data)
+        assert my_data == {"a": [1, 3], "b": [2, None]}
+
+    async def test_create_list_table_artifact_with_none_succeeds(self):
+        my_table = [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": None},
+        ]
+
+        await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+    async def test_create_list_table_artifact_with_nan_succeeds(self, client):
+        my_table = [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": float("nan")},
+        ]
+
+        artifact_id = await create_table_artifact(
+            key="swiss-table",
+            table=my_table,
+            description="my-artifact-description",
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_data = json.loads(my_artifact.data)
+        assert my_data == [
+            {"a": 1, "b": 2},
+            {"a": 3, "b": None},
+        ]
