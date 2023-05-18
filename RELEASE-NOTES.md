@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.10.11
+## Release 2.10.10
 
 ### The Need for (CLI & import) Speed
 
