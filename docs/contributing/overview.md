@@ -194,6 +194,36 @@ prefect dev build-ui
 ```
 </div>
 
+### Docs Development
+
+Prefect users [mkdocs](https://www.mkdocs.org/) for the docs website and the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme.
+
+To build the docs:
+
+<div class="terminal">
+```bash
+mkdocs build
+```
+</div>
+
+To serve the docs locally at <http://127.0.0.1:8000/>:
+
+<div class="terminal">
+```bash
+mkdocs serve
+```
+</div>
+
+For additional mkdocs help and options:
+
+<div class="terminal">
+```bash
+mkdocs --help
+```
+</div>
+
+We us the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
+
 ### Kubernetes development
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
