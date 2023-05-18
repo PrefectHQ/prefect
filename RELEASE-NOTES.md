@@ -1,5 +1,34 @@
 # Prefect Release Notes
 
+## Release 2.10.11
+
+### The Need for (CLI & import) Speed
+
+We wanted the CLI to be as fast as the rest of Prefect. Through a series of enhancements, we've sped up CLI performanace by as much as 4x on some systems! See the following pull requests for more information on how we sped up the CLI prefect import:
+- Delay `apprise` imports — https://github.com/PrefectHQ/prefect/pull/9557
+- Defer import of `dateparser` — https://github.com/PrefectHQ/prefect/pull/9582
+- Defer loading of prefect collections until necessary — https://github.com/PrefectHQ/prefect/pull/9571
+- Add `Block.get_block_class_from_key` and replace external uses of `lookup_type` — https://github.com/PrefectHQ/prefect/pull/9621
+
+### Enhancements
+- Add ability to view table artifacts with NaN values in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/9585
+- Update `prefect version` command to avoid creating the database if it does not exist — https://github.com/PrefectHQ/prefect/pull/9586
+
+### Fixes
+- Fix bug where `SIGTERM` was not properly captured as a flow run crash for flow runs created by a deployment — https://github.com/PrefectHQ/prefect/pull/9543
+- Fix deadlock when logging is overriden from an asynchronous context — https://github.com/PrefectHQ/prefect/pull/9602
+- Fix orchestration race conditions by adding lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
+
+### Documentation
+- Clarify the retry on tasks concept page — https://github.com/PrefectHQ/prefect/pull/9560
+- Improve the navigation structure and clarity of the API docs — https://github.com/PrefectHQ/prefect/pull/9574
+- Add `work_pool_name` to `Deployment.build_from_flow` on deployments concept page — https://github.com/PrefectHQ/prefect/pull/9581
+- Add Additional Worker Types to Work Pools, Workers & Agents Concept page — https://github.com/PrefectHQ/prefect/pull/9580
+- Add docstrings for all schema filters — https://github.com/PrefectHQ/prefect/pull/9572
+
+## New Contributors
+- @seanpwlms made their first contribution in https://github.com/PrefectHQ/prefect/pull/9608
+
 ## Release 2.10.9
 
 ### Worker logs can now be seen on the flow run page
