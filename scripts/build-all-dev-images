@@ -21,7 +21,7 @@ for python in 3.8 3.9 3.10 3.11; do
 
         echo
         echo "---- expecting Python $python$flavor_desc ----"
-        docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short HEAD)-python$python$flavor_tag python --version
+        docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short=7 HEAD)-python$python$flavor_tag python --version
         echo "---- expecting Prefect $expected_prefect ----"
         docker run --rm prefecthq/prefect-dev:sha-$(git rev-parse --short HEAD)-python$python$flavor_tag prefect --version
 
