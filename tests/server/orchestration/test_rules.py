@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import sqlite3
 
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import provide_database_interface
@@ -1607,9 +1608,9 @@ class TestOrchestrationContext:
 
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        class SQLiteBusy:
-            sqlite_errorname = "SQLITE_BUSY"
-            sqlite_errorcode = 5
+        orig = sqlite3.OperationalError("database locked")
+        setattr(orig, "sqlite_errorname", "SQLITE_BUSY")
+        setattr(orig, "sqlite_errorcode", 5)
 
         # Bypass pydantic mutation protection, inject an error
         object.__setattr__(
@@ -1619,7 +1620,7 @@ class TestOrchestrationContext:
                 side_effect=sqlalchemy.exc.OperationalError(
                     "statement",
                     {"params": 1},
-                    SQLiteBusy(),
+                    orig,
                     Exception,
                 )
             ),
