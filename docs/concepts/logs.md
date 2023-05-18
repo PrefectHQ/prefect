@@ -46,7 +46,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](../img/ui/flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](/img/ui/flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -368,17 +368,17 @@ log_email_flow()
 
 Logged events are also persisted to the Prefect database. A log record includes the following data:
 
-| Column | Description |
-| --- | --- |
-| id | Primary key ID of the log record. |
-| created | Timestamp specifying when the record was created. |
-| updated | Timestamp specifying when the record was updated. |
-| name | String specifying the name of the logger. |
-| level | Integer representation of the logging level. |
-| flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. | 
-| task_run_id | ID of the task run associated with the log record. Null if logging a flow run event. |
-| message | Log message. |
-| timestamp | The client-side timestamp of this logged statement. |
+| Column      | Description                                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| id          | Primary key ID of the log record.                                                                                            |
+| created     | Timestamp specifying when the record was created.                                                                            |
+| updated     | Timestamp specifying when the record was updated.                                                                            |
+| name        | String specifying the name of the logger.                                                                                    |
+| level       | Integer representation of the logging level.                                                                                 |
+| flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. |
+| task_run_id | ID of the task run associated with the log record. Null if logging a flow run event.                                         |
+| message     | Log message.                                                                                                                 |
+| timestamp   | The client-side timestamp of this logged statement.                                                                          |
 
 For more information, see [Log schema](/api-ref/server/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.
 

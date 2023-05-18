@@ -36,7 +36,7 @@ You can see all the variables in your Prefect Server instance or Prefect Cloud w
 
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
-![variables-ui](../img/concepts/variables-ui.png)
+![variables-ui](/img/concepts/variables-ui.png)
 
 ### Via the REST API
 

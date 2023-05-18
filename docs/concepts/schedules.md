@@ -28,15 +28,15 @@ There are four recommended ways to create a schedule for a deployment:
 
 You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview/). 
 
-![Deployment edit button](../img/concepts/edit-schedule-callout.png)
+![Deployment edit button](/img/concepts/edit-schedule-callout.png)
 
 To create a schedule from the UI, select **Add**. 
 
-![Prefect UI with Add button called out under Scheduling heading](../img/concepts/add-schedule-callout.png)
+![Prefect UI with Add button called out under Scheduling heading](/img/concepts/add-schedule-callout.png)
 
 Then select **Interval** or **Cron** to create a schedule.
 
-![Prefect UI with Interval button selected](../img/concepts/interval-schedule.png)
+![Prefect UI with Interval button selected](/img/concepts/interval-schedule.png)
 
 ## Schedule types
 
@@ -97,10 +97,10 @@ A schedule may be specified with a [`cron`](https://en.wikipedia.org/wiki/Cron) 
 
 `Cron` properties include:
 
-| Property | Description |
-| --- | --- |
-| cron | A valid `cron` string. (Required) |
-| day_or | Boolean indicating how `croniter` handles `day` and `day_of_week` entries. Default is `True`. |
+| Property | Description                                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| cron     | A valid `cron` string. (Required)                                                                                      |
+| day_or   | Boolean indicating how `croniter` handles `day` and `day_of_week` entries. Default is `True`.                          |
 | timezone | String name of a time zone. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 
 The `day_or` property defaults to `True`, matching `cron`, which connects those values using `OR`. If `False`, the values are connected using `AND`. This behaves like `fcron` and enables you to, for example, define a job that executes each 2nd Friday of a month by setting the days of month and the weekday.
@@ -132,11 +132,11 @@ schedule:
 
 `Interval` properties include:
 
-| Property | Description |
-| --- | --- |
-| interval | `datetime.timedelta` indicating the time between flow runs. (Required) |
-| anchor_date | `datetime.datetime` indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used.
-| timezone | String name of a time zone, used to enforce localization behaviors like DST boundaries. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
+| Property    | Description                                                                                                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| interval    | `datetime.timedelta` indicating the time between flow runs. (Required)                                                                                                             |
+| anchor_date | `datetime.datetime` indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used.                                 |
+| timezone    | String name of a time zone, used to enforce localization behaviors like DST boundaries. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 
 Note that the `anchor_date` does not indicate a "start time" for the schedule, but rather a fixed point in time from which to compute intervals. If the anchor date is in the future, then schedule dates are computed by subtracting the `interval` from it. Note that in this example, we import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation. Pendulum isn’t required, but it’s a useful tool for specifying dates.
 
@@ -164,10 +164,10 @@ RRules are appropriate for any kind of calendar-date manipulation, including sim
 
 `RRule` properties include:
 
-| Property | Description |
-| --- | --- |
-| rrule | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. |
-| timezone | String name of a time zone. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones. |
+| Property | Description                                                                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| rrule    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. |
+| timezone | String name of a time zone. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.                                          |
 
 You may find it useful to use an RRule string generator such as the [iCalendar.org RRule Tool](https://icalendar.org/rrule-tool.html) to help create valid RRules.
 

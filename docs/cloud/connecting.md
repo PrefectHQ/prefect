@@ -98,7 +98,7 @@ In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the de
 !!! note "Environment variables"
     You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
 
-See the [Flow orchestration with Prefect](/tutorials/orchestration/) tutorial for examples.
+See the [Flow orchestration with Prefect](/tutorial/orchestration/) tutorial for examples.
 
 ## Install requirements in execution environments
 
