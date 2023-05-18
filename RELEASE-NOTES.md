@@ -29,9 +29,8 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Add additional worker types to work pools, workers & agents concept page — https://github.com/PrefectHQ/prefect/pull/9580
 - Add docstrings for all schema filters — https://github.com/PrefectHQ/prefect/pull/9572
 
-## New Contributors
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.9...2.10.10
+
 ## Release 2.10.9
 
 ### Worker logs can now be seen on the flow run page
