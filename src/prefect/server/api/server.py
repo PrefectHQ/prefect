@@ -22,6 +22,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
+from starlette.middleware.exceptions import ExceptionMiddleware
 
 import prefect
 import prefect.server.api as api
@@ -194,6 +195,7 @@ def create_orion_api(
     version_check_path: str = "/version",
     fast_api_app_kwargs: dict = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
+    ephemeral: bool = False,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Prefect REST API
@@ -213,6 +215,22 @@ def create_orion_api(
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
     api_app.add_middleware(GZipMiddleware)
+
+    # FastAPI treats exception handlers that capture `Exception` as `ServerErrorMiddleware`
+    # instead of `ExceptionMiddleware`. The key difference here is that `ServerErrorMiddleware`
+    # will always raise an encountered exception after returning the response. When
+    # using an ephemeral server, this causes server-side exceptions to be raised
+    # client-side breaking all of our response error code handling. To work around this,
+    # we insert our exception handler directly as middleware to bypass FastAPI's logic.
+    # refs:
+    # - https://github.com/encode/starlette/blob/d3a11205ed35f8e5a58a711db0ff59c86fa7bb31/starlette/middleware/errors.py#L184
+    # - https://github.com/tiangolo/fastapi/blob/8cc967a7605d3883bd04ceb5d25cc94ae079612f/fastapi/applications.py#L163-L164
+    if ephemeral:
+        api_app.add_middleware(
+            ExceptionMiddleware, handlers={Exception: custom_internal_exception_handler}
+        )
+    else:
+        api_app.add_exception_handler(Exception, custom_internal_exception_handler)
 
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
@@ -505,12 +523,14 @@ def create_app(
     api_app = create_orion_api(
         fast_api_app_kwargs={
             "exception_handlers": {
-                Exception: custom_internal_exception_handler,
+                # The generic "Exception" handler is set in `create_orion_api` instead
+                # because FastAPI special cases it
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
-        }
+        },
+        ephemeral=ephemeral,
     )
     ui_app = create_ui_app(ephemeral)
 
