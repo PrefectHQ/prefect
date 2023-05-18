@@ -149,10 +149,10 @@ async def integrity_exception_handler(request: Request, exc: Exception):
 def is_client_retryable_exception(exc: Exception):
     if isinstance(exc, sqlalchemy.exc.OperationalError):
         # Database locked errors
-        if (
-            getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
-            and getattr(exc.orig, "sqlite_errorcode", None) == 5
-        ):
+        if getattr(exc.orig, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        }:
             return True
 
     return False
