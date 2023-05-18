@@ -28,6 +28,7 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Fix orchestration race conditions by adding lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
 - Fix date range filter on flow runs page — https://github.com/PrefectHQ/prefect/pull/9636
 - Fix bug where ephemeral server raised exceptions client-side — https://github.com/PrefectHQ/prefect/pull/9637
+- Fix bug where ARM64 Docker images had a corrupt database — https://github.com/PrefectHQ/prefect/pull/9587
 
 ### Documentation
 - Clarify the retry on tasks concept page — https://github.com/PrefectHQ/prefect/pull/9560
