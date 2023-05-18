@@ -146,32 +146,32 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     )
 
 
-async def db_locked_exception_handler(
-    request: Request, exc: sqlalchemy.exc.OperationalError
-):
+def is_client_retryable_exception(exc: Exception):
+    if isinstance(exc, sqlalchemy.exc.OperationalError):
+        # Database locked errors
+        if (
+            getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
+            and getattr(exc.orig, "sqlite_errorcode", None) == 5
+        ):
+            return True
+
+    return False
+
+
+async def custom_internal_exception_handler(request: Request, exc: Exception):
     """
-    Catch all sqlalchemy.exc.OperationalError. Return a 503 if it's a db locked error
-    to retry, otherwise log the error and return 500.
+    Log a detailed exception for internal server errors before returning.
+
+    Send 503 for errors clients can retry on.
     """
-    if (
-        getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
-        and getattr(exc.orig, "sqlite_errorcode", None) == 5
-    ):
+    logger.error("Encountered exception in request:", exc_info=True)
+
+    if is_client_retryable_exception(exc):
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    logger.error("Encountered exception in request:", exc_info=True)
-    return JSONResponse(
-        content={"exception_message": "Internal Server Error"},
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )
-
-
-async def custom_internal_exception_handler(request: Request, exc: Exception):
-    """Log a detailed exception for internal server errors before returning."""
-    logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -530,9 +530,6 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
-        api_app.add_exception_handler(
-            sqlalchemy.exc.OperationalError, db_locked_exception_handler
-        )
 
     api_app.mount(
         "/static",
