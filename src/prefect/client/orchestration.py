@@ -196,7 +196,21 @@ class PrefectClient:
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
-            httpx_settings.setdefault("app", self._ephemeral_app)
+
+            # When using an ephemeral server, server-side exceptions can be raised
+            # client-side breaking all of our response error code handling. To work
+            # around this, we create an ASGI transport with application exceptions
+            # disabled instead of using the application directly.
+            # refs:
+            # - https://github.com/PrefectHQ/prefect/pull/9637
+            # - https://github.com/encode/starlette/blob/d3a11205ed35f8e5a58a711db0ff59c86fa7bb31/starlette/middleware/errors.py#L184
+            # - https://github.com/tiangolo/fastapi/blob/8cc967a7605d3883bd04ceb5d25cc94ae079612f/fastapi/applications.py#L163-L164
+            httpx_settings.setdefault(
+                "transport",
+                httpx.ASGITransport(
+                    app=self._ephemeral_app, raise_app_exceptions=False
+                ),
+            )
             httpx_settings.setdefault("base_url", "http://ephemeral-prefect/api")
 
         else:
