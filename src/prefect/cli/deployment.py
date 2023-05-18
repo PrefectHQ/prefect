@@ -6,7 +6,6 @@ import sys
 import textwrap
 import warnings
 from datetime import datetime, timedelta
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -804,14 +803,11 @@ async def delete(
             exit_with_error("Must provide a deployment name or id")
 
 
-InfrastructureSlugs = Enum(
-    "InfastructureSlugs",
-    {
-        slug: slug
-        for slug, block in get_registry_for_type(Block).items()
-        if "run-infrastructure" in block.get_block_capabilities()
-    },
-)
+builtin_infrastructure_types = [
+    slug
+    for slug, block in get_registry_for_type(Block).items()
+    if "run-infrastructure" in block.get_block_capabilities()
+]
 
 
 @deployment_app.command()
@@ -873,11 +869,12 @@ async def build(
             " deployment's runs"
         ),
     ),
-    infra_type: InfrastructureSlugs = typer.Option(
+    infra_type: str = typer.Option(
         None,
         "--infra",
         "-i",
-        help="The infrastructure type to use, prepopulated with defaults.",
+        help="The infrastructure type to use, prepopulated with defaults. For example: "
+        + listrepr(builtin_infrastructure_types, sep=", "),
     ),
     infra_block: str = typer.Option(
         None,
@@ -1031,7 +1028,7 @@ async def build(
         infrastructure = await Block.load(infra_block)
     elif infra_type:
         # Create an instance of the given type
-        infrastructure = Block.get_block_class_from_key(infra_type.value)()
+        infrastructure = Block.get_block_class_from_key(infra_type)()
     else:
         # will reset to a default of Process is no infra is present on the
         # server-side definition of this deployment
