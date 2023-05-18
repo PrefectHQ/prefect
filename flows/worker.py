@@ -12,6 +12,16 @@ def main():
         TEST_SERVER_VERSION
     ) >= Version("2.8"):
         subprocess.check_call(["python", "-m", "pip", "install", "prefect-kubernetes"])
+        try:
+            subprocess.check_output(
+                ["prefect", "work-pool", "create", "test-pool", "-t", "nonsense"]
+            )
+        except subprocess.CalledProcessError as e:
+            # Check that the error message contains kubernetes worker type
+            assert all(
+                type in str(e.output)
+                for type in ["process", "prefect-agent", "kubernetes"]
+            )
         subprocess.check_call(
             ["prefect", "work-pool", "create", "test-pool", "-t", "kubernetes"]
         )
