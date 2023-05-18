@@ -1190,7 +1190,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
     mock.assert_called_once_with(
         headers=ANY,
         verify=False,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
@@ -1204,7 +1204,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
     mock.assert_called_once_with(
         headers=ANY,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
@@ -1216,7 +1216,7 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
