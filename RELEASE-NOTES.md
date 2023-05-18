@@ -11,21 +11,16 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Add `Block.get_block_class_from_key` and replace external uses of `lookup_type` — https://github.com/PrefectHQ/prefect/pull/9621
 
 ### Enhancements
-- Add SIGTERM handling for workers — https://github.com/PrefectHQ/prefect/pull/9530
+- Handle SIGTERM received by workers gracefully — https://github.com/PrefectHQ/prefect/pull/9530
 - Add ability to view table artifacts with NaN values in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/9585
 - Update `prefect version` command to avoid creating the database if it does not exist — https://github.com/PrefectHQ/prefect/pull/9586
-- Use "eager" upgrade strategy when upgrading requirements in Docker images — https://github.com/PrefectHQ/prefect/pull/9640
 - Allow client retries when server SQLite database is busy — https://github.com/PrefectHQ/prefect/pull/9632
-- Add lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
 
 ### Fixes
 - Fix bug where `SIGTERM` was not properly captured as a flow run crash for flow runs created by a deployment — https://github.com/PrefectHQ/prefect/pull/9543
 - Fix deadlock when logging is overriden from an asynchronous context — https://github.com/PrefectHQ/prefect/pull/9602
 - Fix orchestration race conditions by adding lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
-- Load collections before auto-registering block types on the server — https://github.com/PrefectHQ/prefect/pull/9626
-- Date Range filter not responsive on flow runs page — https://github.com/PrefectHQ/prefect/pull/9636
-- Remove image layer caching during builds — https://github.com/PrefectHQ/prefect/pull/9587
-- Update `prefect version` command to avoid creating the database if it does not exist — https://github.com/PrefectHQ/prefect/pull/9586
+- Fix date range filter on flow runs page — https://github.com/PrefectHQ/prefect/pull/9636
 
 ### Documentation
 - Clarify the retry on tasks concept page — https://github.com/PrefectHQ/prefect/pull/9560
