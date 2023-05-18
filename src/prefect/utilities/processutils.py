@@ -381,3 +381,21 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable)
         setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
         # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+
+
+def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable):
+    """Handle interrupts of workers gracefully."""
+    setup_handler = partial(
+        forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
+    )
+    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
+    if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
+    else:
+        # forward first SIGINT directly, send SIGKILL on subsequent interrupt
+        setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
+        # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
+        setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
