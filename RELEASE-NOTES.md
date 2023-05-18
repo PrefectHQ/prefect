@@ -11,7 +11,7 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 - Add `Block.get_block_class_from_key` and replace external uses of `lookup_type` — https://github.com/PrefectHQ/prefect/pull/9621
 
 ### Enhancements
-- Handle SIGTERM received by workers gracefully — https://github.com/PrefectHQ/prefect/pull/9530
+- Handle `SIGTERM` received by workers gracefully — https://github.com/PrefectHQ/prefect/pull/9530
 - Add ability to view table artifacts with NaN values in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/9585
 - Update `prefect version` command to avoid creating the database if it does not exist — https://github.com/PrefectHQ/prefect/pull/9586
 - Allow client retries when server SQLite database is busy — https://github.com/PrefectHQ/prefect/pull/9632
