@@ -380,7 +380,6 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable)
         # forward first SIGINT directly, send SIGKILL on subsequent interrupt
         setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
         # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
-        # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
 
 

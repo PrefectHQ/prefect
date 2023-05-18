@@ -370,7 +370,7 @@ class TestWorkerSignalForwarding:
     )
     async def test_sigint_sends_sigterm_then_sigkill(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.01)  # some time needed for the recursive signal handler
+        await anyio.sleep(0.1)  # some time needed for the recursive signal handler
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
         worker_process.out.seek(0)
@@ -394,7 +394,7 @@ class TestWorkerSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_then_sigkill(self, worker_process):
         worker_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.01)  # some time needed for the recursive signal handler
+        await anyio.sleep(0.1)  # some time needed for the recursive signal handler
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)
         worker_process.out.seek(0)
