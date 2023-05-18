@@ -2,7 +2,7 @@
 
 ## Release 2.10.10
 
-### The Need for (CLI & import) Speed
+### The need for (CLI & import) speed
 
 We wanted the CLI to be as fast as the rest of Prefect. Through a series of enhancements, we've sped up CLI performance by as much as 4x on some systems! See the following pull requests for more information on how we sped up the CLI prefect import:
 - Delay `apprise` imports — https://github.com/PrefectHQ/prefect/pull/9557
