@@ -262,26 +262,6 @@ The `--autogenerate` flag will automatically generate a migration file based on 
     Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
     remove extra statements that were included and not related to your change.
 
-When adding a migration for SQLite, it's important to include the following `PRAGMA` statements for both upgrade and downgrade:
-
-```python
-def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
-    
-    # migration code here
-    
-    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
-
-
-def downgrade():
-    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
-
-    # migration code here
-    
-    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
-
-```
-
 The new migration can be found in the `src/prefect/server/database/migrations/versions/` directory. Each database type
 has its own subdirectory. For example, the SQLite migrations are stored in `src/prefect/server/database/migrations/versions/sqlite/`.
 

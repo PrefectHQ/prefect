@@ -86,7 +86,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return await self.database_config.session(engine)
 
     @asynccontextmanager
-    async def session_context(self, begin_transaction: bool = False):
+    async def session_context(
+        self, begin_transaction: bool = False, with_for_update: bool = False
+    ):
         """
         Provides a SQLAlchemy session and a context manager for opening/closing
         the underlying connection.
@@ -98,7 +100,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         session = await self.session()
         async with session:
             if begin_transaction:
-                async with session.begin():
+                async with self.database_config.begin_transaction(
+                    session, with_for_update=with_for_update
+                ):
                     yield session
             else:
                 yield session
