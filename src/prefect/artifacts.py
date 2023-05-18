@@ -3,6 +3,7 @@ Interface for creating and reading artifacts.
 """
 
 import json
+import math
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -11,6 +12,12 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.server.schemas.actions import ArtifactCreate
 from prefect.utilities.asyncutils import sync_compatible
+
+
+INVALID_TABLE_TYPE_ERROR = (
+    "`create_table_artifact` requires a `table` argument of type `dict[list]` or"
+    " `list[dict]`."
+)
 
 
 @inject_client
@@ -124,7 +131,31 @@ async def create_table_artifact(
     Returns:
         - The table artifact ID.
     """
-    formatted_table = json.dumps(table) if isinstance(table, list) else table
+
+    def _sanitize_nan_values(container):
+        if isinstance(container, list):
+            for i, val in enumerate(container):
+                if isinstance(val, float) and math.isnan(val):
+                    container[i] = None
+        elif isinstance(container, dict):
+            for k, v in container.items():
+                if isinstance(v, float) and math.isnan(v):
+                    container[k] = None
+
+    if isinstance(table, dict):
+        for _, row in table.items():
+            if not isinstance(row, list):
+                raise TypeError(INVALID_TABLE_TYPE_ERROR)
+            _sanitize_nan_values(row)
+    elif isinstance(table, list):
+        for row in table:
+            if not isinstance(row, dict):
+                raise TypeError(INVALID_TABLE_TYPE_ERROR)
+            _sanitize_nan_values(row)
+    else:
+        raise TypeError(INVALID_TABLE_TYPE_ERROR)
+
+    formatted_table = json.dumps(table)
 
     artifact = await _create_artifact(
         key=key,
