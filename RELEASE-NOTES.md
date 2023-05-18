@@ -28,6 +28,7 @@ We wanted the CLI to be as fast as the rest of Prefect. Through a series of enha
 
 ## New Contributors
 
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.9...2.10.10
 ## Release 2.10.9
 
 ### Worker logs can now be seen on the flow run page
