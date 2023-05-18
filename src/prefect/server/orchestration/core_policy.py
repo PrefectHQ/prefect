@@ -176,7 +176,7 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
-        if context.validated_state.type not in [
+        if context.validated_state and context.validated_state.type not in [
             states.StateType.RUNNING,
             states.StateType.CANCELLING,
         ]:
