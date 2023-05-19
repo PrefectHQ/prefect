@@ -434,7 +434,9 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "S3"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+    _logo_url = (
+        "https://upload.wikimedia.org/wikipedia/commons/b/bc/Amazon-S3-Logo.svg?h=250"
+    )
     _documentation_url = "https://docs.prefect.io/concepts/filesystems/#s3"
 
     bucket_path: str = Field(
