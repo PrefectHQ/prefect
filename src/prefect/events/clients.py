@@ -101,7 +101,12 @@ class PrefectCloudEventsClient(EventsClient):
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
         """
-        socket_url = api_url.replace("https://", "wss://").replace("http://", "ws://")
+        socket_url = (
+            api_url.replace("https://", "wss://")
+            .replace("http://", "ws://")
+            .rstrip("/")
+        )
+
         self._connect = connect(
             socket_url + "/events/in",
             extra_headers={"Authorization": f"bearer {api_key}"},
