@@ -9,8 +9,10 @@ import typer
 import typer.core
 import yaml
 from rich.panel import Panel
+from prefect.cli._utilities import prompt_select_from_list
 
 import prefect
+from prefect.client.utilities import inject_client
 import prefect.context
 import prefect.settings
 from prefect.cli._utilities import exit_with_error
@@ -28,6 +30,9 @@ from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
+from rich.table import Table
+from rich.live import Live
+import readchar
 
 
 @app.command()
@@ -172,7 +177,9 @@ async def deploy(
     try:
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
-            if base_deploy.get("deployments"):
+            if base_deploy is None:
+                deployments = []
+            elif base_deploy.get("deployments"):
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
@@ -185,6 +192,20 @@ async def deploy(
 
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
+
+    needs_a_name = (
+        not names
+        and not deploy_all
+        and (not deployments or not deployments[0].get("name"))
+    )
+
+    if needs_a_name:
+        prompt_result = typer.prompt(
+            "What would you like to name this flow deployment?",
+            default="default",
+            type=str,
+        )
+        names = [prompt_result]
 
     try:
         if len(deployments) > 1:
@@ -239,7 +260,7 @@ async def deploy(
             else:
                 options["name"] = names[0] if names else None
                 await _run_single_deploy(
-                    base_deploy=deployments[0],
+                    base_deploy=deployments[0] if deployments else None,
                     project=project,
                     options=options,
                 )
@@ -248,7 +269,7 @@ async def deploy(
 
 
 async def _run_single_deploy(
-    base_deploy: Dict, project: Dict, options: Optional[Dict] = None
+    base_deploy: Optional[Dict], project: Dict, options: Optional[Dict] = None
 ):
     base_deploy = deepcopy(base_deploy) if base_deploy else {}
     project = deepcopy(project) if project else {}
@@ -434,7 +455,11 @@ async def _run_single_deploy(
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
-        if base_deploy["work_pool"]:
+        read_work_pools = await client.read_work_pools()
+        available_work_pools = [
+            (wp.name, wp.type) for wp in read_work_pools if wp.type != "prefect-agent"
+        ]
+        if base_deploy["work_pool"]["name"]:
             try:
                 work_pool = await client.read_work_pool(
                     base_deploy["work_pool"]["name"]
@@ -442,8 +467,13 @@ async def _run_single_deploy(
 
                 # dont allow submitting to prefect-agent typed work pools
                 if work_pool.type == "prefect-agent":
-                    exit_with_error(
-                        "Cannot deploy project with work pool of type 'prefect-agent'."
+                    base_deploy["work_pool"]["name"] = prompt_select_from_list(
+                        app.console,
+                        (
+                            "Cannot deploy project to work pool of type"
+                            " 'prefect-agent'. Please select a different work pool."
+                        ),
+                        available_work_pools,
                     )
             except ObjectNotFound:
                 app.console.print(
@@ -454,6 +484,10 @@ async def _run_single_deploy(
                     ),
                     style="red",
                 )
+        else:
+            base_deploy["work_pool"]["name"] = await _prompt_for_work_pool(
+                console=app.console
+            )
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
@@ -586,3 +620,65 @@ def _merge_with_default_deployment(base_deploy: Dict):
                     base_deploy[key][k] = v
 
     return base_deploy
+
+
+@inject_client
+async def _prompt_for_work_pool(
+    console, prompt="Please select a work pool to deploy this flow to", client=None
+):
+    current_idx = 0
+    selected_option = None
+    first_run = True
+
+    read_work_pools = await client.read_work_pools()
+    available_work_pools = [wp for wp in read_work_pools if wp.type != "prefect-agent"]
+
+    def build_table() -> Table:
+        """
+        Generate a table of options. The `current_idx` will be highlighted.
+        """
+        nonlocal first_run
+        if first_run:
+            console.print(
+                f"{prompt} [bright_blue][Use arrows to move; enter to select]"
+            )
+        table = Table()
+        table.add_column("")
+        table.add_column("Name")
+        table.add_column("Infrastructure Type")
+        table.add_column("Description")
+
+        for i, wp in enumerate(available_work_pools):
+            if i == current_idx:
+                # Use blue for selected options
+                table.add_row(
+                    "[bold][blue]>", f"[bold][blue]{wp.name}", wp.type, wp.description
+                )
+            else:
+                table.add_row("", wp.name, wp.type, wp.description)
+        first_run = False
+        return table
+
+    with Live(build_table(), auto_refresh=False, console=console) as live:
+        while selected_option is None:
+            key = readchar.readkey()
+
+            if key == readchar.key.UP:
+                current_idx = current_idx - 1
+                # wrap to bottom if at the top
+                if current_idx < 0:
+                    current_idx = len(available_work_pools) - 1
+            elif key == readchar.key.DOWN:
+                current_idx = current_idx + 1
+                # wrap to top if at the bottom
+                if current_idx >= len(available_work_pools):
+                    current_idx = 0
+            elif key == readchar.key.CTRL_C:
+                # gracefully exit with no message
+                exit_with_error("")
+            elif key == readchar.key.ENTER or key == readchar.key.CR:
+                selected_option = available_work_pools[current_idx].name
+
+            live.update(build_table(), refresh=True)
+
+        return selected_option
