@@ -160,4 +160,4 @@ async def run_history(
         for r in records:
             r["states"] = json.loads(r["states"])
 
-    return pydantic.parse_obj_as(List[schemas.responses.HistoryResponse], records)
+    return pydantic.parse_obj_as(List[schemas.responses.HistoryResponse], list(records))
