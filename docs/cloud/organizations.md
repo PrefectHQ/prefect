@@ -110,7 +110,7 @@ Within a workspace, select **Workspace Sharing**, then select the **+** icon to 
 Members and service accounts must already be configured for the organization. An Admin or Owner may configure a different role for the user or service account as needed.
 
 !!! note "Default workspace role"
-    You may make a workspace available to any user in an organization by settings a default role for "Anyone at...". Users in the organization may access the workspace with the specified default role permissions. Default workspace roles do not apply to service accounts.
+    You may make a workspace available to any user in an organization by setting a default role for "Anyone at...". Users in the organization may access the workspace with the specified default role permissions. Default workspace roles do not apply to service accounts.
 
     The role given to users specifically added to the workspace is the union of workspace scopes given by the default workspace role and that users' role in the workspace.
     
@@ -125,7 +125,7 @@ Prefect Cloud enables you to configure both [organization and workspace roles](/
 - Organization roles apply to users across an organization. These roles are Admin and Member.
 - Workspace roles apply to users within a specific workspace.
 
-Select **Roles** within an organziation to see the configured workspace roles for your organization. 
+Select **Roles** within an organization to see the configured workspace roles for your organization. 
 
 ![Organization roles in Prefect Cloud.](/img/ui/org-roles.png)
 
