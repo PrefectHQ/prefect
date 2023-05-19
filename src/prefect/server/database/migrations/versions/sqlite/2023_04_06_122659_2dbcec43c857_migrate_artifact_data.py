@@ -55,8 +55,8 @@ def upgrade():
             if not selected_artifact_collections:
                 break
 
-            for row in selected_artifact_collections.mappings():
-                id_to_update = row["id"]
+            for row in selected_artifact_collections:
+                id_to_update = row[0]
                 conn.execute(
                     sa.text(update_artifact_collection_table), {"id": id_to_update}
                 )
