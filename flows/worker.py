@@ -24,7 +24,7 @@ def main():
             )
         except subprocess.CalledProcessError as e:
             # Check that the error message contains kubernetes worker type
-            for type in ["process", "prefect-agent", "kubernetes"]:
+            for type in ["process", "kubernetes"]:
                 assert type in str(
                     e.output
                 ), f"Worker type {type!r} missing from output {e.output}"
