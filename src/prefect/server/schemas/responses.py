@@ -267,3 +267,18 @@ class DeploymentResponse(ORMBaseModel):
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
         return response
+
+
+class WorkQueueResponse(schemas.core.WorkQueue.subclass()):
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the work pool the work pool resides within.",
+    )
+
+    @classmethod
+    def from_orm(cls, orm_work_queue):
+        response = super().from_orm(orm_work_queue)
+        if orm_work_queue.work_pool:
+            response.work_pool_name = orm_work_queue.work_pool.name
+
+        return response

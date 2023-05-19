@@ -17,7 +17,9 @@ import prefect.exceptions
 import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, WorkQueue
+from prefect.deprecated.data_documents import DataDocument
+from prefect.logging import get_logger
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -75,7 +77,6 @@ from prefect.client.schemas.objects import (
     Variable,
     Worker,
     WorkPool,
-    WorkQueue,
 )
 from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -841,7 +842,7 @@ class PrefectClient:
             httpx.RequestError: If request fails
 
         Returns:
-            UUID: The UUID of the newly created workflow
+            The created work queue
         """
         if tags:
             warnings.warn(
