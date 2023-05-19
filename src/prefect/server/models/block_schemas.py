@@ -579,7 +579,7 @@ async def read_block_schemas(
     """
     # schemas are ordered by `created DESC` to get the most recently created
     # ones first (and to facilitate getting the newest one with `limit=1`).
-    filtered_block_schemas_query = select([db.BlockSchema.id]).order_by(
+    filtered_block_schemas_query = select(db.BlockSchema.id).order_by(
         db.BlockSchema.created.desc()
     )
 
@@ -622,11 +622,9 @@ async def read_block_schemas(
 
     nested_block_schemas_query = (
         sa.select(
-            [
-                db.BlockSchema,
-                recursive_block_schema_references_cte.c.name,
-                recursive_block_schema_references_cte.c.parent_block_schema_id,
-            ]
+            db.BlockSchema,
+            recursive_block_schema_references_cte.c.name,
+            recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
         .select_from(db.BlockSchema)
         # in order to reconstruct nested block schemas efficiently, we need to visit them
@@ -729,11 +727,9 @@ async def read_block_schema_by_checksum(
     )
     nested_block_schemas_query = (
         sa.select(
-            [
-                db.BlockSchema,
-                recursive_block_schema_references_cte.c.name,
-                recursive_block_schema_references_cte.c.parent_block_schema_id,
-            ]
+            db.BlockSchema,
+            recursive_block_schema_references_cte.c.name,
+            recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
         .select_from(db.BlockSchema)
         .join(
