@@ -17,8 +17,14 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.logging.loggers import get_logger
 from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_DEBUG_MODE,
+)
 from prefect.workers.base import BaseWorker
 
 work_pool_app = PrefectTyper(
@@ -409,6 +415,11 @@ async def get_available_work_pool_types() -> Set[str]:
             for worker in collection.values():
                 work_pool_types.append(worker.get("type"))
     except Exception:
+        if PREFECT_DEBUG_MODE:
+            get_logger().warning(
+                "Unable to get worker metadata from the collections registry",
+                exc_info=True,
+            )
         # Return only work pool types from the local type registry if
         # the request to the collections registry fails.
         pass
