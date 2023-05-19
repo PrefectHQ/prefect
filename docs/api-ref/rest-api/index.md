@@ -16,6 +16,59 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 - Interactive REST API documentation for a locally hosted open-source Prefect server is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
 - The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
+## Interacting with the REST API
+
+You have many options to interact with Prefect REST API
+- create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
+- use your favorite Python HTTP library such as [requests](https://requests.readthedocs.io/en/latest/) or [httpx](https://www.python-httpx.org/)
+- use an HTTP library in your language of choice
+- use [CURL](https://curl.se/) from the command line 
+
+Here's an example of using `PrefectClient` with a locally hosted Prefect server:
+
+```python
+import asyncio
+from prefect.client import get_client
+
+async def get_flows():
+    client = get_client()
+    r = await client.read_flows(limit=5)
+    return r
+
+r = asyncio.run(get_flows())
+
+for flow in r:
+    print(flow.name, flow.id)
+
+if __name__ == "__main__":
+    asyncio.run(get_flows())
+```
+
+Output:
+
+<div class="terminal">
+```bash
+cat-facts 58ed68b1-0201-4f37-adef-0ea24bd2a022
+dog-facts e7c0403d-44e7-45cf-a6c8-79117b7f3766
+sloth-facts 771c0574-f5bf-4f59-a69d-3be3e061a62d
+capybara-facts fbadaf8b-584f-48b9-b092-07d351edd424
+lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
+```
+
+Here's an example of using CURL to create a flow run with Prefect Cloud:
+
+```bash
+ACCOUNT="my_cloud_account_can_be_found_in_my_prefect_cloud_url"
+WORKSPACE="my_cloud_workspace_can_be_found_in_my_prefect_cloud_url"
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT/workspaces/$WORKSPACE"
+PREFECT_API_KEY="my_api_key_goes_here"
+DEPLOYMENT="my-deployment"
+
+curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT/create_flow_run' \
+    --header 'Content-Type: application/json' \
+    --header "Authorization: Bearer $PREFECT_API_KEY"
+```
+
 ## REST Guidelines
 
 The REST APIs adhere to the following guidelines:
