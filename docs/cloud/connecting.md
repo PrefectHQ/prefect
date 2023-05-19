@@ -120,7 +120,7 @@ See the [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-
 
 ## Prefect Cloud access via API
 
-If the Prefect Cloud API key, environment variable settings, or account login for your execution environment are not configured correctly, you may experience errors or unexexpected flow run results when using Prefect CLI commands, running flows, or observing flow run results in Prefect Cloud.
+If the Prefect Cloud API key, environment variable settings, or account login for your execution environment are not configured correctly, you may experience errors or unexpected flow run results when using Prefect CLI commands, running flows, or observing flow run results in Prefect Cloud.
 
 Use the `prefect config view` CLI command to make sure your execution environment is correctly configured to access Prefect Cloud.
 
