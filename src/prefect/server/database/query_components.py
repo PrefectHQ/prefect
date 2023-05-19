@@ -254,7 +254,8 @@ class BaseQueryComponents(ABC):
             .lateral("scheduled_flow_runs")
         )
 
-        join_criteria = True
+        # Perform a cross-join
+        join_criteria = sa.literal(True)
 
         return scheduled_flow_runs, join_criteria
 
