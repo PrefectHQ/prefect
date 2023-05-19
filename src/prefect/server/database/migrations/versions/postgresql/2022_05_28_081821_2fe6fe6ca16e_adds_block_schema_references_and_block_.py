@@ -153,7 +153,7 @@ def upgrade():
 
     block_schemas = connection.execute(
         sa.select(
-            [BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields, BLOCK_SCHEMA.c.block_type_id]
+            BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields, BLOCK_SCHEMA.c.block_type_id
         )
     )
 

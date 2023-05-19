@@ -316,11 +316,9 @@ async def read_block_schema(
     )
     nested_block_schemas_query = (
         sa.select(
-            [
-                db.BlockSchema,
-                recursive_block_schema_references_cte.c.name,
-                recursive_block_schema_references_cte.c.parent_block_schema_id,
-            ]
+            db.BlockSchema,
+            recursive_block_schema_references_cte.c.name,
+            recursive_block_schema_references_cte.c.parent_block_schema_id,
         )
         .select_from(db.BlockSchema)
         .join(
