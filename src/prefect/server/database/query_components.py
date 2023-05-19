@@ -108,8 +108,10 @@ class BaseQueryComponents(ABC):
         """Database-specific implementation of queueing notifications for a flow run"""
         # insert a <policy, state> pair into the notification queue
         stmt = (await db.insert(db.FlowRunNotificationQueue)).from_select(
-            db.FlowRunNotificationQueue.flow_run_notification_policy_id,
-            db.FlowRunNotificationQueue.flow_run_state_id,
+            [
+                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                db.FlowRunNotificationQueue.flow_run_state_id,
+            ],
             # ... by selecting from any notification policy that matches the criteria
             sa.select(
                 db.FlowRunNotificationPolicy.id,
