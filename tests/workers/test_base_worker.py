@@ -1695,3 +1695,27 @@ class TestCancellation:
             in caplog.text
         )
         assert "Cancellation cannot be guaranteed." in caplog.text
+
+
+async def test_get_flow_run_logger(
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id
+    )
+
+    async with WorkerTestImpl(
+        name="test", work_pool_name="test-work-pool", create_pool_if_not_found=False
+    ) as worker:
+        await worker.sync_with_backend()
+        logger = worker.get_flow_run_logger(flow_run)
+
+        assert logger.name == "prefect.flow_runs.worker"
+        assert logger.extra == {
+            "flow_run_name": flow_run.name,
+            "flow_run_id": str(flow_run.id),
+            "flow_name": "<unknown>",
+            "worker_name": "test",
+            "work_pool_name": "test-work-pool",
+            "work_pool_id": str(work_pool.id),
+        }

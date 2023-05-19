@@ -75,8 +75,8 @@ body:
       description: >
         Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
         If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
-        Please do not just write "2.0". The command provides additional context such as your operating system, Prefect API type, Python version, etc. that we need to diagnose your problem.
-      placeholder: "# Copy output of the `prefect version` command here"
+        **Please do not just include your Prefect version number**. The command provides additional context such as your operating system, Prefect API type, Python version, etc. that we need to diagnose your problem.
+      placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
       render: Text
     validations:
       required: true

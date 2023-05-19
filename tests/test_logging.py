@@ -23,6 +23,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -32,6 +33,7 @@ from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
+    PrefectLogAdapter,
     disable_logger,
     disable_run_logger,
     flow_run_logger,
@@ -266,22 +268,58 @@ class TestAPILogHandler:
         yield logger
         logger.removeHandler(handler)
 
-    def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
+    def test_worker_is_not_flushed_on_handler_close(self, mock_log_worker):
         handler = APILogHandler()
         handler.close()
-        mock_log_worker.drain_all.assert_called_once()
+        mock_log_worker.drain_all.assert_not_called()
 
     @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, orion_client
     ):
-        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        await handler.flush()
+        await handler.aflush()
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    @pytest.mark.flaky
+    async def test_logs_can_still_be_sent_after_flush(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        await handler.aflush()
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        await handler.aflush()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    @pytest.mark.flaky
+    async def test_sync_flush_from_async_context(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
+
+        # Yield to the worker thread
+        time.sleep(2)
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
+
+    @pytest.mark.flaky
+    def test_sync_flush_from_global_event_loop(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        with pytest.raises(RuntimeError, match="would block"):
+            from_sync.call_soon_in_loop_thread(create_call(handler.flush)).result()
+
+    @pytest.mark.flaky
+    def test_sync_flush_from_sync_context(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
@@ -1327,3 +1365,12 @@ def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow
     assert record.name == "prefect.flow_runs"
     assert record.flow_run_id == str(flow_run.id)
     assert record.flow_name == my_flow.name
+
+
+def test_log_adapter_get_child(flow_run):
+    logger = PrefectLogAdapter(get_logger("prefect.parent"), {"hello": "world"})
+    assert logger.extra == {"hello": "world"}
+
+    child_logger = logger.getChild("child", {"goodnight": "moon"})
+    assert child_logger.logger.name == "prefect.parent.child"
+    assert child_logger.extra == {"hello": "world", "goodnight": "moon"}

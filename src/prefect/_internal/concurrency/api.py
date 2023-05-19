@@ -4,12 +4,25 @@ Primary developer-facing API for concurrency management.
 import abc
 import asyncio
 import concurrent.futures
-from typing import Awaitable, Callable, Iterable, Optional, TypeVar, Union
+import contextlib
+from typing import (
+    Awaitable,
+    Callable,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+    ContextManager,
+)
 
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
+from prefect._internal.concurrency.threads import (
+    WorkerThread,
+    get_global_loop,
+    in_global_loop,
+)
 from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter
 
 P = ParamSpec("P")
@@ -34,11 +47,11 @@ class _base(abc.ABC):
         __call: Union[Callable[[], T], Call[T]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
-    ) -> Call[T]:
+    ) -> T:
         """
-        Schedule a function in the global worker thread.
+        Schedule a function in the global worker thread and wait for completion.
 
-        Returns a waiter.
+        Returns the result of the call.
         """
         raise NotImplementedError()
 
@@ -47,11 +60,11 @@ class _base(abc.ABC):
         __call: Union[Callable[[], T], Call[T]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
-    ) -> Call[T]:
+    ) -> T:
         """
         Schedule a function in a new worker thread.
 
-        Returns a waiter.
+        Returns the result of the call.
         """
         raise NotImplementedError()
 
@@ -105,6 +118,40 @@ class _base(abc.ABC):
         current_call.add_waiting_callback(call)
         return call
 
+    @staticmethod
+    def call_in_waiter_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> T:
+        """
+        Run a call in the thread that is waiting for the current call.
+
+        Returns the result of the call.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def call_in_new_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> T:
+        """
+        Run a call in a new worker thread.
+
+        Returns the result of the call.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def call_in_loop_thread(
+        __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
+        timeout: Optional[float] = None,
+    ) -> T:
+        """
+        Run a call in the global event loop thread.
+
+        Returns the result of the call.
+        """
+        raise NotImplementedError()
+
 
 class from_async(_base):
     @staticmethod
@@ -112,14 +159,18 @@ class from_async(_base):
         __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
+        contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call)
         for callback in done_callbacks or []:
             waiter.add_done_callback(callback)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
-        await waiter.wait()
-        return call.result()
+        with contextlib.ExitStack() as stack:
+            for context in contexts or []:
+                stack.enter_context(context)
+            await waiter.wait()
+            return call.result()
 
     @staticmethod
     async def wait_for_call_in_new_thread(
@@ -135,6 +186,28 @@ class from_async(_base):
         await waiter.wait()
         return call.result()
 
+    @staticmethod
+    def call_in_waiter_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> Awaitable[T]:
+        call = _base.call_soon_in_waiter_thread(__call, timeout=timeout)
+        return call.aresult()
+
+    @staticmethod
+    def call_in_new_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> Awaitable[T]:
+        call = _base.call_soon_in_new_thread(__call, timeout=timeout)
+        return call.aresult()
+
+    @staticmethod
+    def call_in_loop_thread(
+        __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
+        timeout: Optional[float] = None,
+    ) -> Awaitable[T]:
+        call = _base.call_soon_in_loop_thread(__call, timeout=timeout)
+        return call.aresult()
+
 
 class from_sync(_base):
     @staticmethod
@@ -145,14 +218,18 @@ class from_sync(_base):
         ],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
+        contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = SyncWaiter(call)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
         for callback in done_callbacks or []:
             waiter.add_done_callback(callback)
-        waiter.wait()
-        return call.result()
+        with contextlib.ExitStack() as stack:
+            for context in contexts or []:
+                stack.enter_context(context)
+            waiter.wait()
+            return call.result()
 
     @staticmethod
     def wait_for_call_in_new_thread(
@@ -166,4 +243,32 @@ class from_sync(_base):
             waiter.add_done_callback(callback)
         _base.call_soon_in_new_thread(call, timeout=timeout)
         waiter.wait()
+        return call.result()
+
+    @staticmethod
+    def call_in_waiter_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> T:
+        call = _base.call_soon_in_waiter_thread(__call, timeout=timeout)
+        return call.result()
+
+    @staticmethod
+    def call_in_new_thread(
+        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+    ) -> T:
+        call = _base.call_soon_in_new_thread(__call, timeout=timeout)
+        return call.result()
+
+    @staticmethod
+    def call_in_loop_thread(
+        __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
+        timeout: Optional[float] = None,
+    ) -> T:
+        if in_global_loop():
+            # Avoid deadlock where the call is submitted to the loop then the loop is
+            # blocked waiting for the call
+            call = _cast_to_call(__call)
+            return call()
+
+        call = _base.call_soon_in_loop_thread(__call, timeout=timeout)
         return call.result()

@@ -39,7 +39,6 @@ from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
-from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
 
@@ -494,7 +493,7 @@ class Deployment(BaseModel):
     @validator("storage", pre=True)
     def storage_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
             block = block_type(**value)
         elif value is None:
             return value
@@ -786,7 +785,8 @@ class Deployment(BaseModel):
         deployment.parameter_openapi_schema = parameter_schema(flow)
 
         # ensure the ignore file exists
-        Path(ignore_file).touch()
+        if not Path(ignore_file).exists():
+            Path(ignore_file).touch()
 
         if not deployment.version:
             deployment.version = flow.version
