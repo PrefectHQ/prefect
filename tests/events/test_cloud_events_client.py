@@ -109,3 +109,20 @@ async def test_giving_up_after_negative_one_tries_is_a_noop(
 
     assert recorder.connections == 1
     assert recorder.events == []
+
+
+async def test_handles_api_url_with_trailing_slash(
+    events_api_url: str, example_event_1: Event, recorder: Recorder
+):
+    # Regression test for https://github.com/PrefectHQ/prefect/issues/9662
+    # where a configuration that has a trailing slash on the PREFECT_API_URL
+    # would cause the client to fail to connect with a 403 as the path would
+    # contain a double slash, ie: `wss:api.prefect.cloud/...//events/in`
+
+    events_api_url += "/"
+    async with PrefectCloudEventsClient(events_api_url, "my-token") as client:
+        await client.emit(example_event_1)
+
+    assert recorder.connections == 1
+    assert recorder.path == "/accounts/A/workspaces/W/events/in"
+    assert recorder.events == [example_event_1]
