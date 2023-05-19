@@ -152,7 +152,7 @@ async def run_history(
 
     # issue the query
     result = await session.execute(query)
-    records = result.all()
+    records = result.mappings()
 
     # load and parse the record if the database returns JSON as strings
     if db.uses_json_strings:
