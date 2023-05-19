@@ -20,6 +20,18 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
+if sys.version_info < (3, 8):
+    warnings.warn(
+        (
+            "Prefect will drop support for Python 3.7 when it reaches end-of-life on 27"
+            " Jun 2023. To use new versions of Prefect after that date, you will need"
+            " to upgrade to Python 3.8+. See https://devguide.python.org/versions/ for "
+            " more details."
+        ),
+        FutureWarning,
+        stacklevel=2,
+    )
+
 
 # Import user-facing API
 from prefect.states import State
@@ -61,10 +73,7 @@ prefect.client.schemas.State.update_forward_refs(
     BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
 )
 
-# Ensure collections are imported and have the opportunity to register types
-import prefect.plugins
 
-prefect.plugins.load_prefect_collections()
 prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
