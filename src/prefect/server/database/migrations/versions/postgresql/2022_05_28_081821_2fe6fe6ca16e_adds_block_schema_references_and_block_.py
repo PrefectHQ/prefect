@@ -146,8 +146,8 @@ def upgrade():
 
     # Update existing schemas to account for block schema references
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
+    meta_data = sa.MetaData()
+    meta_data.reflect(connection)
     BLOCK_SCHEMA = meta_data.tables["block_schema"]
     BLOCK_TYPE = meta_data.tables["block_type"]
 
@@ -159,7 +159,7 @@ def upgrade():
 
     for id, fields, block_type_id in block_schemas:
         block_type_result = connection.execute(
-            sa.select([BLOCK_TYPE.c.name]).where(BLOCK_TYPE.c.id == block_type_id)
+            sa.select(BLOCK_TYPE.c.name).where(BLOCK_TYPE.c.id == block_type_id)
         ).first()
         block_type_name = block_type_result[0]
         updated_fields = {
