@@ -4,7 +4,7 @@ tags:
     - REST API
     - Prefect Cloud
     - Prefect Server
-    - CURL
+    - curl
     - PrefectClient
 ---
 
@@ -25,7 +25,7 @@ You have many options to interact with the Prefect REST API:
 - create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
 - use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - use an HTTP library in your language of choice
-- use [CURL](https://curl.se/) from the command line 
+- use [curl]](https://curl.se/) from the command line 
 
 ### PrefectClient with Prefect server
 Here's an example that uses `PrefectClient` with a locally hosted Prefect server:
@@ -67,7 +67,7 @@ Here's an example that uses the Requests library with Prefect Cloud to return th
 ```python
 import requests
 
-PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here"
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc-my-cloud-account-id-is-here/workspaces/123-my-workspace-id-is-here"
 PREFECT_API_KEY="123abc_my_api_key_goes_here"
 data = {
     "sort": "CREATED_DESC",
@@ -88,21 +88,26 @@ for artifact in response.json():
     print(artifact)
 ```
 
-### CURL with Prefect Cloud
+### curl with Prefect Cloud
 
-Here's an example that uses CURL with Prefect Cloud to create a flow run:
+Here's an example that uses curl with Prefect Cloud to create a flow run:
 
 ```bash
-ACCOUNT="my_cloud_account_id"
-WORKSPACE="my_cloud_workspace_id"
-PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT/workspaces/$WORKSPACE"
-PREFECT_API_KEY="my_api_key_goes_here"
-DEPLOYMENT="my-deployment"
+ACCOUNT_ID="abc-my-cloud-account-id-goes-here"
+WORKSPACE_ID="123-my-workspace-id-goes-here"
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORKSPACE_ID""
+PREFECT_API_KEY="123abc_my_api_key_goes_here"
+DEPLOYMENT_ID="my_deployment_id"
 
-curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT/create_flow_run' \
-    --header 'Content-Type: application/json' \
-    --header "Authorization: Bearer $PREFECT_API_KEY"
+curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT_ID/create_flow_run" \
+  --header "Content-Type: application/json" \
+  --header "Authorization: Bearer $PREFECT_API_KEY" \
+  --header "X-PREFECT-API-VERSION: 0.8.4" \
+  --data-raw "{}"
 ```
+
+Note that in this example `--data-raw "{}"` is required and is where you can specify other aspects of the flow run such as the state. Windows users substitute `^` for `\` for line multi-line commands.
+
 
 ## Finding your Prefect Cloud details
 
@@ -198,7 +203,7 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 The Prefect REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing REST APIs.
 
-To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
+To generate Prefect server's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
 from prefect.server.api.server import create_app
