@@ -1,4 +1,6 @@
 import pytest
+from httpx import AsyncClient
+from asynctest import AsyncMock
 
 from prefect.blocks.webhook import Webhook
 from prefect.testing.utilities import AsyncMock
@@ -38,6 +40,8 @@ class TestWebhook:
         send_mock.assert_called_with(
             method="GET", url="http://google.com", headers={"foo": "bar"}, json=None
         )
+    
+
 
     async def test_save_and_load_webhook(self):
         await Webhook(
@@ -48,3 +52,19 @@ class TestWebhook:
         assert webhook.url.get_secret_value() == "http://google.com"
         assert webhook.method == "GET"
         assert webhook.headers.get_secret_value() == {"foo": "bar"}
+        
+        
+        
+   async def send_discord_notification(webhook_url):
+        send_mock = AsyncMock()
+        async with AsyncClient() as client:
+        monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
+        await Webhook(
+            method="GET", url="http://discord.com", headers={"foo": "bar"}
+        ).call(payload=None)
+
+        send_mock.assert_called_with(
+            method="GET", url="http://discord.com", headers={"foo": "bar"}, json=None
+        )
+    await send_discord_notification("https://discord.com/api/webhooks/your_webhook_url")
+
