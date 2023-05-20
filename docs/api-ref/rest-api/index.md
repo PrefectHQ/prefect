@@ -4,6 +4,8 @@ tags:
     - REST API
     - Prefect Cloud
     - Prefect Server
+    - CURL
+    - PrefectClient
 ---
 
 # REST API
@@ -18,14 +20,15 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
 ## Interacting with the REST API
 
-You have many options to interact with Prefect REST API:
+You have many options to interact with the Prefect REST API:
 
 - create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
 - use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - use an HTTP library in your language of choice
 - use [CURL](https://curl.se/) from the command line 
 
-Here's an example of using `PrefectClient` with a locally hosted Prefect server:
+### PrefectClient with Prefect server
+Here's an example that uses `PrefectClient` with a locally hosted Prefect server:
 
 ```python
 import asyncio
@@ -57,11 +60,41 @@ lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 ```
 </div>
 
-Here's an example of using CURL to create a flow run with Prefect Cloud:
+### Requests with Prefect
+
+Here's an example that uses the Requests library with Prefect Cloud to return the five newest artifacts.
+
+```python
+import requests
+
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here"
+PREFECT_API_KEY="123abc_my_api_key_goes_here"
+data = {
+    "sort": "CREATED_DESC",
+    "limit": 5,
+    "artifacts": {
+        "key": {
+            "exists_": True
+        }
+    }
+}
+
+headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
+endpoint = f"{PREFECT_API_URL}/artifacts/filter"
+
+response = requests.post(endpoint, headers=headers, json=data)
+assert response.status_code == 200
+for artifact in response.json():
+    print(artifact)
+```
+
+### CURL with Prefect Cloud
+
+Here's an example that uses CURL with Prefect Cloud to create a flow run:
 
 ```bash
-ACCOUNT="my_cloud_account_can_be_found_in_my_prefect_cloud_url"
-WORKSPACE="my_cloud_workspace_can_be_found_in_my_prefect_cloud_url"
+ACCOUNT="my_cloud_account_id"
+WORKSPACE="my_cloud_workspace_id"
 PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT/workspaces/$WORKSPACE"
 PREFECT_API_KEY="my_api_key_goes_here"
 DEPLOYMENT="my-deployment"
@@ -70,6 +103,20 @@ curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT/create_
     --header 'Content-Type: application/json' \
     --header "Authorization: Bearer $PREFECT_API_KEY"
 ```
+
+## Finding your Prefect Cloud details
+
+When working with the Prefect Cloud REST API you will need your Account ID and often need the Workspace ID for the [workspace](/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/concepts/settings/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/cloud/users/api-keys/), as shown below:
+
+<div class="terminal">
+```bash
+PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here'
+PREFECT_API_KEY='123abc_my_api_key_is_here'
+```
+</div>
+
+Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`. 
+
 
 ## REST Guidelines
 
