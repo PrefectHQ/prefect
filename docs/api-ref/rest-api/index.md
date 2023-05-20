@@ -18,7 +18,8 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
 ## Interacting with the REST API
 
-You have many options to interact with Prefect REST API
+You have many options to interact with Prefect REST API:
+
 - create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
 - use your favorite Python HTTP library such as [requests](https://requests.readthedocs.io/en/latest/) or [httpx](https://www.python-httpx.org/)
 - use an HTTP library in your language of choice
