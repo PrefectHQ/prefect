@@ -84,7 +84,7 @@ In the above example, the `create_link_artifact` method is used within a flow to
 
 ### Creating Markdown Artifacts
 
-To create a markdown artifact, you can use the `create_markdown_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_markdown_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. The intent of keys is to allow you to view the history of your artifact over time.
+To create a markdown artifact, you can use the `create_markdown_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_markdown_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. Keys allow you to view the history of your artifact over time.
 
 ```python
 from prefect import flow, task
