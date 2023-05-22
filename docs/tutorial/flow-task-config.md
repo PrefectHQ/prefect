@@ -13,7 +13,7 @@ tags:
 
 Now that you've written some [basic flows and tasks](/tutorial/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
-Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine.
+Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by Prefect.
 
 ## Attaching metadata to flows
 
