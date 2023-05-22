@@ -14,6 +14,10 @@ from prefect.client.collections import get_collections_metadata_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.cli._utilities import prompt_select_from_table
+from prefect.workers.utilities import (
+    get_available_work_pool_types,
+    get_default_base_job_template_for_infrastructure_type,
+)
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
@@ -57,14 +61,14 @@ async def create(
                 ],
             )
             type = worker["type"]
-        base_job_template = (
-            await collections_client.get_default_base_job_template_for_type(type)
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            type
         )
         if base_job_template is None:
             exit_with_error(
                 f"Unknown work pool type {type!r}. "
                 "Please choose from"
-                f" {', '.join(await collections_client.get_available_work_pool_types())}."
+                f" {', '.join(await get_available_work_pool_types())}."
             )
     async with get_client() as client:
         try:

@@ -68,7 +68,7 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
-def get_client(httpx_settings: dict = None) -> "PrefectClient":
+def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -2441,6 +2441,12 @@ class PrefectClient:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
         return pydantic.parse_obj_as(List[schemas.core.Variable], response.json())
+
+    async def read_worker_metadata(self) -> Dict[str, Any]:
+        """Reads worker metadata stored in Prefect collection registry."""
+        response = await self._client.get("collections/views/aggregate-worker-metadata")
+        response.raise_for_status()
+        return response.json()
 
     async def __aenter__(self):
         """

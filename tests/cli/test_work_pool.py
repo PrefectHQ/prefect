@@ -56,7 +56,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         assert f"Created work pool {pool_name!r}" in res.output
@@ -69,7 +69,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
@@ -79,7 +79,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
@@ -89,7 +89,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} --paused",
+            f"work-pool create {pool_name} --paused -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
