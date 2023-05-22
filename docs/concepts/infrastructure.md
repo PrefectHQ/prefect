@@ -102,7 +102,7 @@ infrastructure:
   - python
   - -m
   - prefect.engine
-  image: prefecthq/prefect:dev-python3.9
+  image: prefecthq/prefect:2-latest
   image_pull_policy: null
   networks: []
   network_mode: null
