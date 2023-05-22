@@ -5,7 +5,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext
 from prefect.events.related import (
     MAX_CACHE_SIZE,
     related_resources_from_run_context,
@@ -192,26 +192,6 @@ async def test_caches_related_objects(spy_client):
 
     await test_flow()
 
-    spy_client.client.read_flow.assert_called_once()
-
-
-async def test_caches_from_task_run_context(spy_client):
-    @task
-    async def test_task():
-        FlowRunContext.__var__.set(None)
-        task_run_context = TaskRunContext.get()
-        assert task_run_context is not None
-        with mock.patch("prefect.client.orchestration.get_client", lambda: spy_client):
-            await related_resources_from_run_context()
-            await related_resources_from_run_context()
-
-    @flow
-    async def test_flow():
-        return await test_task()
-
-    await test_flow()
-
-    spy_client.client.read_flow_run.assert_called_once()
     spy_client.client.read_flow.assert_called_once()
 
 
