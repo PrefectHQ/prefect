@@ -4,6 +4,7 @@ from typing import List, Optional
 import os
 import anyio
 import typer
+import uvicorn
 
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
@@ -155,6 +156,10 @@ async def start(
             )
 
             started_event = await worker._emit_worker_started_event()
+
+            config = uvicorn.Config("prefect.workers.server.app", port=8080, log_level="error")
+            server = uvicorn.Server(config)
+            await server.serve()
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")
