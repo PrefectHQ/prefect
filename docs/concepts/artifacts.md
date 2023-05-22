@@ -25,7 +25,9 @@ Creating artifacts allows you to publish data from task and flow runs or outside
 
 ### Creating Link Artifacts
 
-To create a link artifact, use the `create_link_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_link_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. Keys allow you to view the history of your artifact over time.
+To create a link artifact, use the `create_link_artifact()` function. To create multiple versions of the same artifact and/or see them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track and view an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+
+
 
 ```python
 from prefect import flow, task
@@ -84,7 +86,7 @@ In the above example, the `create_link_artifact` method is used within a flow to
 
 ### Creating Markdown Artifacts
 
-To create a markdown artifact, you can use the `create_markdown_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_markdown_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. Keys allow you to view the history of your artifact over time.
+To create a markdown artifact, you can use the `create_markdown_artifact()` function. To create multiple versions of the same artifact and/or see them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track and view an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect import flow, task
@@ -141,7 +143,7 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 
 ### Create Table Artifacts
 
-You can create a table artifact by calling `create_table_artifact()`. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_table_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. Keys allow you to view the history of your artifact over time.
+You can create a table artifact by calling `create_table_artifact()`. To create multiple versions of the same artifact and/or see them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track and view an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect.artifacts import create_table_artifact
