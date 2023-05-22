@@ -158,7 +158,7 @@ async def start(
             started_event = await worker._emit_worker_started_event()
 
             config = uvicorn.Config(
-                "prefect.workers.server.app",
+                "prefect.workers.server:app",
                 port=8080,
                 log_level="error",
             )
