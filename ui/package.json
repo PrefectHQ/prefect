@@ -29,7 +29,7 @@
     "@vitejs/plugin-vue": "4.2.3",
     "autoprefixer": "10.4.14",
     "dotenv": "16.0.3",
-    "eslint": "^8.40.0",
+    "eslint": "^8.41.0",
     "ts-node": "10.9.1",
     "typescript": "^5.0.4",
     "vite": "4.3.7",
