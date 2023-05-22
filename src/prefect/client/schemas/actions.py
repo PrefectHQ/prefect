@@ -12,7 +12,10 @@ from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.transformations import FieldFrom, copy_model_fields
-from prefect._internal.schemas.validators import raise_on_name_alphanumeric_dashes_only
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_alphanumeric_underscores_only,
+)
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.utilities.pydantic import get_class_fields_only
@@ -42,7 +45,7 @@ def validate_artifact_key(value):
 
 def validate_variable_name(value):
     if value is not None:
-        raise_on_name_alphanumeric_dashes_only(value, field_name="Variable name")
+        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 

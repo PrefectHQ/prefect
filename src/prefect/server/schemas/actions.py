@@ -11,7 +11,10 @@ from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
-from prefect._internal.schemas.validators import raise_on_name_alphanumeric_dashes_only
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_alphanumeric_underscores_only,
+)
 from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -40,7 +43,7 @@ def validate_artifact_key(value):
 
 
 def validate_variable_name(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Variable name")
+    raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 

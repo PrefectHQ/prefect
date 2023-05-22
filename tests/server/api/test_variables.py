@@ -90,7 +90,8 @@ class TestCreateVariable:
         assert res.status_code == 422
         assert (
             res.json()["exception_detail"][0]["msg"]
-            == "name must only contain lowercase letters, numbers, and underscores"
+            == "Variable name must only contain lowercase letters, numbers, and"
+            " underscores."
         )
 
     async def test_name_unique(
