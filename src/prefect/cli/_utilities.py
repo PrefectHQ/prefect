@@ -60,18 +60,20 @@ def prompt_select_from_table(
     console, prompt: str, columns: List, data: List, table_kwargs: Optional[Dict] = None
 ) -> Dict:
     """
-        Given a list of columns and some data, display options to user in a table
-        and prompt them to select one.
+    Given a list of columns and some data, display options to user in a table
+    and prompt them to select one.
 
-        Args:
-            prompt: A prompt to display to the user before the table.
-            columns: A list of dicts with keys `header` and `key` to display in
-                the table. The `header` value will be displayed in the table header
-                and the `key` value will be used to lookup the value for each row
-                in the provided data.
-    wqweqweqweqweqwe
-        Returns:
-            dict: Data representation of the selected row
+    Args:
+        prompt: A prompt to display to the user before the table.
+        columns: A list of dicts with keys `header` and `key` to display in
+            the table. The `header` value will be displayed in the table header
+            and the `key` value will be used to lookup the value for each row
+            in the provided data.
+        data: A list of dicts with keys corresponding to the `key` values in
+            the `columns` argument.
+        table_kwargs: Additional kwargs to pass to the `rich.Table` constructor.
+    Returns:
+        dict: Data representation of the selected row
     """
     current_idx = 0
     selected_row = None
