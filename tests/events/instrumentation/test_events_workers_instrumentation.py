@@ -47,7 +47,7 @@ async def test_worker_emits_submitted_event(
         worker.run = AsyncMock()
         await worker.get_and_submit_flow_runs()
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
@@ -125,7 +125,7 @@ async def test_worker_emits_executed_event(
         worker.run = run_flow_fn
         await worker.get_and_submit_flow_runs()
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
@@ -277,7 +277,7 @@ async def test_worker_emits_cancelled_event(
         await worker.sync_with_backend()
         await worker.check_for_cancelled_flow_runs()
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
