@@ -2318,7 +2318,7 @@ class TestFlowHooksOnCompletion:
 
         state = my_flow._run()
         assert state.type == StateType.FAILED
-        assert my_mock.call_args_list == []
+        my_mock.assert_not_called()
 
     def test_other_completion_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
@@ -2396,7 +2396,7 @@ class TestFlowHooksOnFailure:
 
         state = my_flow._run()
         assert state.type == StateType.COMPLETED
-        assert my_mock.call_args_list == []
+        my_mock.assert_not_called()
 
     def test_other_failure_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
@@ -2472,7 +2472,7 @@ class TestFlowHooksOnCancellation:
             return State(type=StateType.COMPLETED)
 
         my_flow._run()
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_are_ignored_if_terminal_state_failed(self):
         my_mock = MagicMock()
@@ -2488,7 +2488,7 @@ class TestFlowHooksOnCancellation:
             return State(type=StateType.FAILED)
 
         my_flow._run()
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
@@ -2591,7 +2591,7 @@ class TestFlowHooksOnCancellation:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow._run()
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
 
 class TestFlowHooksOnCrashed:
@@ -2626,7 +2626,7 @@ class TestFlowHooksOnCrashed:
 
         state = my_passing_flow._run()
         assert state.type == StateType.COMPLETED
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_on_crashed_hooks_are_ignored_if_terminal_state_failed(self):
         my_mock = MagicMock()
@@ -2643,7 +2643,7 @@ class TestFlowHooksOnCrashed:
 
         state = my_failing_flow._run()
         assert state.type == StateType.FAILED
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_other_crashed_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
@@ -2746,4 +2746,4 @@ class TestFlowHooksOnCrashed:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow._run()
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
