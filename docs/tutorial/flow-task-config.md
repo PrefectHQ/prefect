@@ -20,7 +20,7 @@ Simply decorating functions as flows and tasks lets you take advantage of the or
 You can attach a `name`, `description`, `version` and other metadata to a flow via [decorator keyword arguments](/api-ref/prefect/flows/#prefect.flows.Flow).
 
 
-You can provide a human-readable `name` for your flow to determine how it should appear in the logs and the UI - if not provided, Prefect will use the name of the flow function.
+You can provide a human-readable `name` for your flow to determine how it should appear in the logs and the UI. If a name isn't provided, Prefect will use the name of the flow function.
 
 ```python
 from prefect import flow
