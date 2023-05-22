@@ -130,7 +130,7 @@ class FlowRunNotifications(LoopService):
         )
 
         # create a dict from the sqlalchemy object for templating
-        notification_dict = dict(notification)
+        notification_dict = dict(notification._mapping)
         # add the flow run url to the info
         notification_dict["flow_run_url"] = self.get_ui_url_for_flow_run_id(
             flow_run_id=notification_dict["flow_run_id"]

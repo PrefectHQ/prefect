@@ -4,6 +4,7 @@ from typing import List
 import pendulum
 import pydantic
 import pytest
+import sqlalchemy as sa
 from fastapi import Response, status
 
 from prefect.server import models
@@ -785,7 +786,7 @@ async def test_last_bin_contains_end_date(client, route):
 
 @pytest.mark.flaky(max_runs=3)
 async def test_flow_run_lateness(client, session):
-    await session.execute("delete from flow where true;")
+    await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
 
