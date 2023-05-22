@@ -25,7 +25,7 @@ Creating artifacts allows you to publish data from task and flow runs or outside
 
 ### Creating Link Artifacts
 
-To create a link artifact, use the `create_link_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_link_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. The intent of keys is to allow you to view the history of your artifact over time.
+To create a link artifact, use the `create_link_artifact()` function. For artifacts to appear in the Artifacts page of the Prefect UI, provide a name to `create_link_artifact()` in the `key` field. Without a `key`, artifacts will only be visible in the artifacts tab of the associated flow run or task run. Keys allow you to view the history of your artifact over time.
 
 ```python
 from prefect import flow, task
