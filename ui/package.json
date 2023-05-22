@@ -21,7 +21,7 @@
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.3.2",
     "vue": "3.2.47",
-    "vue-router": "4.2.0"
+    "vue-router": "4.2.1"
   },
   "devDependencies": {
     "@playwright/test": "1.33.0",
