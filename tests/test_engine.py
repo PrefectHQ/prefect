@@ -288,9 +288,7 @@ class TestNonblockingPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
         flow_run_id = None
 
         @task
@@ -323,9 +321,7 @@ class TestNonblockingPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
 
         @task
         async def foo():
@@ -347,9 +343,7 @@ class TestNonblockingPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
         flow_run_id = None
 
         @task
@@ -381,9 +375,7 @@ class TestNonblockingPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
 
         @task
         async def foo():
@@ -432,9 +424,7 @@ class TestOutOfProcessPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
 
         @task
         async def foo():
@@ -474,9 +464,7 @@ class TestOutOfProcessPause:
         self, prefect_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
+        monkeypatch.setattr("prefect.client.schemas.actions.FlowRunCreate", frc)
 
         @task
         async def foo():
