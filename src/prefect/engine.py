@@ -329,7 +329,7 @@ async def retrieve_flow_then_begin_flow_run(
             await propose_state(
                 client,
                 state=failed_state,
-                flow_run_id=flow_run_id,
+                flow_run=flow_run,
             )
             return failed_state
     else:
@@ -544,7 +544,7 @@ async def create_and_begin_subflow_run(
                     state=await exception_to_failed_state(
                         message=message, result_factory=result_factory
                     ),
-                    flow_run_id=flow_run.id,
+                    flow_run=flow_run,
                 )
 
         if terminal_state is None or not terminal_state.is_final():
@@ -643,13 +643,13 @@ async def orchestrate_flow_run(
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
-            flow_run_id=flow_run.id,
+            flow_run=flow_run,
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=flow_run.state.is_pending(),
         )
 
-    state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+    state = await propose_state(client, Running(), flow_run=flow_run)
 
     # flag to ensure we only update the flow run name once
     run_name_set = False
@@ -777,7 +777,7 @@ async def orchestrate_flow_run(
         state = await propose_state(
             client,
             state=terminal_state,
-            flow_run_id=flow_run.id,
+            flow_run=flow_run,
         )
 
         await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
@@ -800,7 +800,7 @@ async def orchestrate_flow_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+            state = await propose_state(client, Running(), flow_run=flow_run)
 
     return state
 
@@ -885,7 +885,7 @@ async def _in_process_pause(
             state=Paused(
                 timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
             ),
-            flow_run_id=context.flow_run.id,
+            flow_run=context.flow_run,
         )
     except Abort as exc:
         # Aborted pause requests mean the pause is not allowed
@@ -1511,7 +1511,7 @@ async def orchestrate_task_run(
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
-            task_run_id=task_run.id,
+            task_run=task_run,
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name
             force=task_run.state.is_pending(),
@@ -1544,7 +1544,7 @@ async def orchestrate_task_run(
         Running(
             state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
         ),
-        task_run_id=task_run.id,
+        task_run=task_run,
     )
 
     # flag to ensure we only update the task run name once
@@ -1637,7 +1637,7 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
-            state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+            state = await propose_state(client, terminal_state, task_run=task_run)
 
             await _run_task_hooks(
                 task=task,
@@ -1664,7 +1664,7 @@ async def orchestrate_task_run(
                     extra={"send_to_orion": False},
                 )
                 # Attempt to enter a running state again
-                state = await propose_state(client, Running(), task_run_id=task_run.id)
+                state = await propose_state(client, Running(), task_run=task_run)
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -1944,8 +1944,8 @@ async def propose_state(
     client: PrefectClient,
     state: State,
     force: bool = False,
-    task_run_id: UUID = None,
-    flow_run_id: UUID = None,
+    task_run: Optional[TaskRun] = None,
+    flow_run: Optional[FlowRun] = None,
 ) -> State:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
@@ -1964,8 +1964,8 @@ async def propose_state(
 
     Args:
         state: a new state for the task or flow run
-        task_run_id: an optional task run id, used when proposing task run states
-        flow_run_id: an optional flow run id, used when proposing flow run states
+        task_run: an optional task run, used when proposing task run states
+        flow_run: an optional flow run, used when proposing flow run states
 
     Returns:
         a [State model][prefect.server.schemas.states] representation of the flow or task run
@@ -1978,8 +1978,8 @@ async def propose_state(
     """
 
     # Determine if working with a task run or flow run
-    if not task_run_id and not flow_run_id:
-        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+    if not task_run and not flow_run:
+        raise ValueError("You must provide either a `task_run` or `flow_run`")
 
     # Handle task and sub-flow tracing
     if state.is_final():
@@ -2006,11 +2006,11 @@ async def propose_state(
         return response
 
     # Attempt to set the state
-    if task_run_id:
-        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+    if task_run:
+        set_state = partial(client.set_task_run_state, task_run.id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
-    elif flow_run_id:
-        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+    elif flow_run:
+        set_state = partial(client.set_flow_run_state, flow_run.id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
     else:
         raise ValueError(

@@ -547,7 +547,7 @@ class TestOrchestrateTaskRun:
 
         with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
             await propose_state(
-                orion_client, State(type=StateType.RUNNING), task_run_id=task_run.id
+                orion_client, State(type=StateType.RUNNING), task_run=task_run
             )
 
     async def test_waits_until_scheduled_start_time(
@@ -1108,7 +1108,7 @@ class TestOrchestrateFlowRun:
 
         with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
             await propose_state(
-                orion_client, State(type=StateType.RUNNING), flow_run_id=flow_run.id
+                orion_client, State(type=StateType.RUNNING), flow_run=flow_run
             )
 
     async def test_waits_until_scheduled_start_time(

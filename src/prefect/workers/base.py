@@ -873,9 +873,7 @@ class BaseWorker(abc.ABC):
         run_logger = self.get_flow_run_logger(flow_run)
         state = flow_run.state
         try:
-            state = await propose_state(
-                self._client, Pending(), flow_run_id=flow_run.id
-            )
+            state = await propose_state(self._client, Pending(), flow_run=flow_run)
         except Abort as exc:
             run_logger.info(
                 (
@@ -907,7 +905,7 @@ class BaseWorker(abc.ABC):
             await propose_state(
                 self._client,
                 await exception_to_failed_state(message="Submission failed.", exc=exc),
-                flow_run_id=flow_run.id,
+                flow_run=flow_run,
             )
         except Abort:
             # We've already failed, no need to note the abort but we don't want it to
@@ -925,7 +923,7 @@ class BaseWorker(abc.ABC):
             state = await propose_state(
                 self._client,
                 Crashed(message=message),
-                flow_run_id=flow_run.id,
+                flow_run=flow_run,
             )
         except Abort:
             # Flow run already marked as failed

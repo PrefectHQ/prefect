@@ -532,7 +532,7 @@ class PrefectAgent:
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
         try:
-            state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
+            state = await propose_state(self.client, Pending(), flow_run=flow_run)
         except Abort as exc:
             self.logger.info(
                 (
@@ -564,7 +564,7 @@ class PrefectAgent:
             await propose_state(
                 self.client,
                 await exception_to_failed_state(message="Submission failed.", exc=exc),
-                flow_run_id=flow_run.id,
+                flow_run=flow_run,
             )
         except Abort:
             # We've already failed, no need to note the abort but we don't want it to
@@ -581,7 +581,7 @@ class PrefectAgent:
             state = await propose_state(
                 self.client,
                 Crashed(message=message),
-                flow_run_id=flow_run.id,
+                flow_run=flow_run,
             )
         except Abort:
             # Flow run already marked as failed
