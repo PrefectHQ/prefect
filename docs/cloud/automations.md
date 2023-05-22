@@ -49,6 +49,7 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
 
 - Flow run state change
+    -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work queue health
 - [Custom event](#automations-api) triggers
 
