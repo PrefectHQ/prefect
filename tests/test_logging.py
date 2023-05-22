@@ -33,6 +33,7 @@ from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
+    PrefectLogAdapter,
     disable_logger,
     disable_run_logger,
     flow_run_logger,
@@ -302,6 +303,9 @@ class TestAPILogHandler:
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.flush()
+
+        # Yield to the worker thread
+        time.sleep(2)
 
         logs = await orion_client.read_logs()
         assert len(logs) == 1
@@ -1361,3 +1365,12 @@ def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow
     assert record.name == "prefect.flow_runs"
     assert record.flow_run_id == str(flow_run.id)
     assert record.flow_name == my_flow.name
+
+
+def test_log_adapter_get_child(flow_run):
+    logger = PrefectLogAdapter(get_logger("prefect.parent"), {"hello": "world"})
+    assert logger.extra == {"hello": "world"}
+
+    child_logger = logger.getChild("child", {"goodnight": "moon"})
+    assert child_logger.logger.name == "prefect.parent.child"
+    assert child_logger.extra == {"hello": "world", "goodnight": "moon"}

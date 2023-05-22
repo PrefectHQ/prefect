@@ -17,9 +17,14 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.logging.loggers import get_logger
 from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
-from prefect.utilities.dispatch import get_registry_for_type
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_DEBUG_MODE,
+)
 from prefect.workers.base import BaseWorker
 
 work_pool_app = PrefectTyper(
@@ -384,11 +389,9 @@ async def preview(
 async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str, Any]]:
     # Attempt to get the default base job template for the worker type
     # from the local type registry first.
-    worker_registry = get_registry_for_type(BaseWorker)
-    if worker_registry is not None:
-        worker_cls = worker_registry.get(type)
-        if worker_cls is not None:
-            return worker_cls.get_default_base_job_template()
+    worker_cls = BaseWorker.get_worker_class_from_type(type)
+    if worker_cls is not None:
+        return worker_cls.get_default_base_job_template()
 
     # If the worker type is not found in the local type registry, attempt to
     # get the default base job template from the collections registry.
@@ -404,10 +407,7 @@ async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str
 
 
 async def get_available_work_pool_types() -> Set[str]:
-    work_pool_types = []
-    worker_registry = get_registry_for_type(BaseWorker)
-    if worker_registry is not None:
-        work_pool_types.extend(worker_registry.keys())
+    work_pool_types = BaseWorker.get_all_available_worker_types()
 
     try:
         worker_metadata = await _get_worker_metadata()
@@ -415,6 +415,11 @@ async def get_available_work_pool_types() -> Set[str]:
             for worker in collection.values():
                 work_pool_types.append(worker.get("type"))
     except Exception:
+        if PREFECT_DEBUG_MODE:
+            get_logger().warning(
+                "Unable to get worker metadata from the collections registry",
+                exc_info=True,
+            )
         # Return only work pool types from the local type registry if
         # the request to the collections registry fails.
         pass

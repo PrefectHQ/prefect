@@ -1,11 +1,11 @@
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-
 import pytest
 import sqlalchemy as sa
+import asyncpg
 import toml
-from fastapi import APIRouter, FastAPI, status, testclient
+from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.server.api.server import (
@@ -13,7 +13,7 @@ from prefect.server.api.server import (
     SERVER_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
-    db_locked_exception_handler,
+    create_app,
     method_paths_from_routes,
 )
 from prefect.settings import (
@@ -52,32 +52,74 @@ async def test_validation_error_handler_409(client):
     assert "Data integrity conflict" in response.json()["detail"]
 
 
-async def test_db_locked_exception_handler():
-    app = FastAPI()
-
-    @app.get("/raise_db_locked")
-    async def raise_db_locked():
-        """A route that raises a sqlite db locked error"""
+@pytest.mark.parametrize("ephemeral", [True, False])
+@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT"])
+async def test_sqlite_database_locked_handler(errorname, ephemeral):
+    async def raise_busy_error():
         orig = sqlite3.OperationalError("database locked")
-        setattr(orig, "sqlite_errorname", "SQLITE_BUSY")
-        setattr(orig, "sqlite_errorcode", 5)
-        raise sa.exc.OperationalError("", "", orig=orig)
+        setattr(orig, "sqlite_errorname", errorname)
+        raise sa.exc.OperationalError(
+            "statement",
+            {"params": 1},
+            orig,
+            Exception,
+        )
 
-    @app.get("/other_sql_error")
-    async def raise_other_sql_error():
-        """A route that raises a different OperationalError"""
-        raise sa.exc.OperationalError("", "", orig=ValueError("something else"))
+    async def raise_other_error():
+        orig = sqlite3.OperationalError("database locked")
+        setattr(orig, "sqlite_errorname", "FOO")
+        raise sa.exc.OperationalError(
+            "statement",
+            {"params": 1},
+            orig,
+            Exception,
+        )
 
-    app.add_exception_handler(sa.exc.OperationalError, db_locked_exception_handler)
+    app = create_app(ephemeral=ephemeral, ignore_cache=True)
+    app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
+    app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
     async with AsyncClient(
         transport=ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
-        response = await client.get("/raise_db_locked")
+        response = await client.get("/api/raise_busy_error")
         assert response.status_code == 503
 
-        response = await client.get("/other_sql_error")
+        response = await client.get("/api/raise_other_error")
+        assert response.status_code == 500
+
+
+@pytest.mark.parametrize(
+    "exc",
+    (
+        sa.exc.DBAPIError("statement", {"params": 0}, ValueError("orig")),
+        asyncpg.exceptions.QueryCanceledError(),
+        asyncpg.exceptions.ConnectionDoesNotExistError(),
+        asyncpg.exceptions.CannotConnectNowError(),
+        sa.exc.InvalidRequestError(),
+        sa.orm.exc.DetachedInstanceError(),
+    ),
+)
+async def test_retryable_exception_handler(exc):
+    async def raise_retryable_error():
+        raise exc
+
+    async def raise_other_error():
+        raise ValueError()
+
+    app = create_app(ephemeral=True, ignore_cache=True)
+    app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
+    app.api_app.add_api_route("/raise_other_error", raise_other_error)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://test",
+    ) as client:
+        response = await client.get("/api/raise_retryable_error")
+        assert response.status_code == 503
+
+        response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
 
 

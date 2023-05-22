@@ -22,7 +22,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import PrefectLogAdapter, get_logger, flow_run_logger
 from prefect.server import schemas
 from prefect.server.schemas.actions import WorkPoolUpdate
 from prefect.server.schemas.filters import (
@@ -39,9 +39,10 @@ from prefect.server.schemas.filters import (
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import apply_values, resolve_block_document_references
+from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
@@ -387,8 +388,42 @@ class BaseWorker(abc.ABC):
             "variables": variables_schema,
         }
 
+    @staticmethod
+    def get_worker_class_from_type(type: str) -> Optional[Type["BaseWorker"]]:
+        """
+        Returns the worker class for a given worker type. If the worker type
+        is not recognized, returns None.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return worker_registry.get(type)
+
+    @staticmethod
+    def get_all_available_worker_types() -> List[str]:
+        """
+        Returns all worker types available in the local registry.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return list(worker_registry.keys())
+        return []
+
     def get_name_slug(self):
         return slugify(self.name)
+
+    def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
+        return flow_run_logger(flow_run=flow_run).getChild(
+            "worker",
+            extra={
+                "worker_name": self.name,
+                "work_pool_name": (
+                    self._work_pool_name if self._work_pool else "<unknown>"
+                ),
+                "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
+            },
+        )
 
     @abc.abstractmethod
     async def run(
@@ -512,8 +547,10 @@ class BaseWorker(abc.ABC):
         return cancelling_flow_runs
 
     async def cancel_run(self, flow_run: "FlowRun"):
+        run_logger = self.get_flow_run_logger(flow_run)
+
         if not flow_run.infrastructure_pid:
-            self._logger.error(
+            run_logger.error(
                 f"Flow run '{flow_run.id}' does not have an infrastructure pid"
                 " attached. Cancellation cannot be guaranteed."
             )
@@ -546,7 +583,7 @@ class BaseWorker(abc.ABC):
         except InfrastructureNotAvailable as exc:
             self._logger.warning(f"{exc} Flow run cannot be cancelled by this worker.")
         except Exception:
-            self._logger.exception(
+            run_logger.exception(
                 "Encountered exception while killing infrastructure for flow run "
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
@@ -558,7 +595,7 @@ class BaseWorker(abc.ABC):
                 flow_run=flow_run, configuration=configuration
             )
             await self._mark_flow_run_as_cancelled(flow_run)
-            self._logger.info(f"Cancelled flow run '{flow_run.id}'!")
+            run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def _update_local_work_pool_info(self):
         try:
@@ -663,7 +700,10 @@ class BaseWorker(abc.ABC):
                 )
                 break
             else:
-                self._logger.info(f"Submitting flow run '{flow_run.id}'")
+                run_logger = self.get_flow_run_logger(flow_run)
+                run_logger.info(
+                    f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
+                )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
@@ -696,6 +736,8 @@ class BaseWorker(abc.ABC):
         """
         Submits a given flow run for execution by the worker.
         """
+        run_logger = self.get_flow_run_logger(flow_run)
+
         try:
             await self._check_flow_run(flow_run)
         except ValueError:
@@ -723,13 +765,13 @@ class BaseWorker(abc.ABC):
                         infrastructure_pid=str(readiness_result),
                     )
                 except Exception:
-                    self._logger.exception(
+                    run_logger.exception(
                         "An error occurred while setting the `infrastructure_pid` on "
                         f"flow run {flow_run.id!r}. The flow run will "
                         "not be cancellable."
                     )
 
-            self._logger.info(f"Completed submission of flow run '{flow_run.id}'")
+            run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         else:
             # If the run is not ready to submit, release the concurrency slot
@@ -741,6 +783,8 @@ class BaseWorker(abc.ABC):
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
     ) -> Union[BaseWorkerResult, Exception]:
+        run_logger = self.get_flow_run_logger(flow_run)
+
         try:
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
@@ -759,7 +803,7 @@ class BaseWorker(abc.ABC):
                 task_status.started(exc)
                 await self._propose_failed_state(flow_run, exc)
             else:
-                self._logger.exception(
+                run_logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
@@ -770,7 +814,7 @@ class BaseWorker(abc.ABC):
                 self._limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
-            self._logger.error(
+            run_logger.error(
                 f"Infrastructure returned without reporting flow run '{flow_run.id}' "
                 "as started or raising an error. This behavior is not expected and "
                 "generally indicates improper implementation of infrastructure. The "
@@ -826,13 +870,14 @@ class BaseWorker(abc.ABC):
         return configuration
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
+        run_logger = self.get_flow_run_logger(flow_run)
         state = flow_run.state
         try:
             state = await propose_state(
                 self._client, Pending(), flow_run_id=flow_run.id
             )
         except Abort as exc:
-            self._logger.info(
+            run_logger.info(
                 (
                     f"Aborted submission of flow run '{flow_run.id}'. "
                     f"Server sent an abort signal: {exc}"
@@ -840,13 +885,13 @@ class BaseWorker(abc.ABC):
             )
             return False
         except Exception:
-            self._logger.exception(
+            run_logger.exception(
                 f"Failed to update state of flow run '{flow_run.id}'",
             )
             return False
 
         if not state.is_pending():
-            self._logger.info(
+            run_logger.info(
                 (
                     f"Aborted submission of flow run '{flow_run.id}': "
                     f"Server returned a non-pending state {state.type.value!r}"
@@ -857,6 +902,7 @@ class BaseWorker(abc.ABC):
         return True
 
     async def _propose_failed_state(self, flow_run: "FlowRun", exc: Exception) -> None:
+        run_logger = self.get_flow_run_logger(flow_run)
         try:
             await propose_state(
                 self._client,
@@ -868,12 +914,13 @@ class BaseWorker(abc.ABC):
             # raise in the agent process
             pass
         except Exception:
-            self._logger.error(
+            run_logger.error(
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,
             )
 
     async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
+        run_logger = self.get_flow_run_logger(flow_run)
         try:
             state = await propose_state(
                 self._client,
@@ -884,12 +931,10 @@ class BaseWorker(abc.ABC):
             # Flow run already marked as failed
             pass
         except Exception:
-            self._logger.exception(
-                f"Failed to update state of flow run '{flow_run.id}'"
-            )
+            run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
         else:
             if state.is_crashed():
-                self._logger.info(
+                run_logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
 
@@ -968,7 +1013,9 @@ class BaseWorker(abc.ABC):
         }
 
     def _event_related_resources(
-        self, configuration: Optional[BaseJobConfiguration] = None
+        self,
+        configuration: Optional[BaseJobConfiguration] = None,
+        include_self: bool = False,
     ) -> List[RelatedResource]:
         related = []
         if configuration:
@@ -980,6 +1027,11 @@ class BaseWorker(abc.ABC):
                     kind="work-pool", role="work-pool", object=self._work_pool
                 )
             )
+
+        if include_self:
+            worker_resource = self._event_resource()
+            worker_resource["prefect.resource.role"] = "worker"
+            related.append(RelatedResource(__root__=worker_resource))
 
         return related
 

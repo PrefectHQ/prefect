@@ -3,23 +3,33 @@ from unittest import mock
 
 import pytest
 
-from prefect import flow, tags, task
+from prefect import flow, task
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.events.related import related_resources_from_run_context
+from prefect.events.related import (
+    MAX_CACHE_SIZE,
+    related_resources_from_run_context,
+    _get_and_cache_related_object,
+)
 from prefect.events.schemas import RelatedResource
+from prefect.states import Running
 
 
 @pytest.fixture
 async def spy_client(test_database_connection_url):
     async with get_client() as client:
         exit_stack = ExitStack()
-        exit_stack.enter_context(
-            mock.patch.object(client, "read_flow", wraps=client.read_flow),
-        )
-        exit_stack.enter_context(
-            mock.patch.object(client, "read_flow_run", wraps=client.read_flow_run),
-        )
+
+        for method in [
+            "read_flow",
+            "read_flow_run",
+            "read_deployment",
+            "read_work_queue",
+            "read_work_pool",
+        ]:
+            exit_stack.enter_context(
+                mock.patch.object(client, method, wraps=getattr(client, method)),
+            )
 
         class NoOpClientWrapper:
             def __init__(self, client):
@@ -41,18 +51,20 @@ async def test_gracefully_handles_missing_context():
     assert related == []
 
 
-async def test_gets_related_from_run_context(orion_client):
-    @flow
-    async def test_flow():
-        return await related_resources_from_run_context()
+async def test_gets_related_from_run_context(
+    orion_client, work_queue_1, worker_deployment_wq1
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Running(),
+        tags=["flow-run-one"],
+    )
 
-    with tags("testing"):
-        state = await test_flow._run()
+    with FlowRunContext.construct(flow_run=flow_run):
+        related = await related_resources_from_run_context()
 
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    work_pool = work_queue_1.work_pool
     db_flow = await orion_client.read_flow(flow_run.flow_id)
-
-    related = await state.result()
 
     assert related == [
         RelatedResource(
@@ -71,7 +83,34 @@ async def test_gets_related_from_run_context(orion_client):
         ),
         RelatedResource(
             __root__={
-                "prefect.resource.id": "prefect.tag.testing",
+                "prefect.resource.id": f"prefect.deployment.{worker_deployment_wq1.id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": worker_deployment_wq1.name,
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
+                "prefect.resource.role": "work-queue",
+                "prefect.resource.name": work_queue_1.name,
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.role": "work-pool",
+                "prefect.resource.name": work_pool.name,
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": "prefect.tag.flow-run-one",
+                "prefect.resource.role": "tag",
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": "prefect.tag.test",
                 "prefect.resource.role": "tag",
             }
         ),
@@ -165,3 +204,38 @@ async def test_caches_from_task_run_context(spy_client):
 
     spy_client.client.read_flow_run.assert_called_once()
     spy_client.client.read_flow.assert_called_once()
+
+
+async def test_lru_cache_evicts_oldest():
+    cache = {}
+
+    async def fetch(obj_id):
+        return obj_id
+
+    await _get_and_cache_related_object("flow-run", "flow-run", fetch, "👴", cache)
+    assert "flow-run.👴" in cache
+
+    await _get_and_cache_related_object("flow-run", "flow-run", fetch, "👩", cache)
+    assert "flow-run.👴" in cache
+
+    for i in range(MAX_CACHE_SIZE):
+        await _get_and_cache_related_object(
+            "flow-run", "flow-run", fetch, f"👶 {i}", cache
+        )
+
+    assert "flow-run.👴" not in cache
+
+
+async def test_lru_cache_timestamp_updated():
+    cache = {}
+
+    async def fetch(obj_id):
+        return obj_id
+
+    await _get_and_cache_related_object("flow-run", "flow-run", fetch, "👴", cache)
+    _, timestamp = cache["flow-run.👴"]
+
+    await _get_and_cache_related_object("flow-run", "flow-run", fetch, "👴", cache)
+    _, next_timestamp = cache["flow-run.👴"]
+
+    assert next_timestamp > timestamp

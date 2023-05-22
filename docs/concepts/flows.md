@@ -47,7 +47,7 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](../img/ui/prefect-dashboard.png)
+![Prefect UI](/img/ui/prefect-dashboard.png)
 
 ## Writing flows
 
@@ -98,17 +98,17 @@ def hello_world(name="world"):
 
 Flows allow a great deal of configuration by passing arguments to the decorator. Flows accept the following optional settings.
 
-| Argument | Description |
-| --- | --- |
-| `description` | An optional string description for the flow. If not provided, the description will be pulled from the docstring for the decorated function. |
-| `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
-| `retries` | An optional number of times to retry on flow run failure. |
-| <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
-| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; this name can also be provided as a function that returns a string. |
-| `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
-| `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
-| `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
-| `version` | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. |
+| Argument                                           | Description                                                                                                                                                                                                          |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `description`                                      | An optional string description for the flow. If not provided, the description will be pulled from the docstring for the decorated function.                                                                          |
+| `name`                                             | An optional name for the flow. If not provided, the name will be inferred from the function.                                                                                                                         |
+| `retries`                                          | An optional number of times to retry on flow run failure.                                                                                                                                                            |
+| <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero.                                                                                       |
+| `flow_run_name`                                    | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; this name can also be provided as a function that returns a string.       |
+| `task_runner`                                      | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used.         |
+| `timeout_seconds`                                  | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called.                   |
+| `validate_parameters`                              | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.                                                                                                                  |
+| `version`                                          | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. |
 
 For example, you can provide a `name` value for the flow. Here we've also used the optional `description` argument and specified a non-default task runner.
 
@@ -793,7 +793,7 @@ While the cancellation process is robust, there are a few issues than can occur:
 - If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
 - If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
 - If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
-- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occured. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
+- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
 
 ### Cancel via the CLI
 
@@ -809,7 +809,7 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
-![Prefect UI](../img/ui/flow-run-cancellation-ui.png)
+![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
 
 
 <!--
@@ -820,7 +820,7 @@ A [flow](/concepts/flows/) contains the instructions for workflow logic, includi
 
 The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect server, or the Prefect ephemeral API in your local development environment.
 
-![View a list of flows observed by Prefect in the Prefect UI.](../img/ui/flows.png)
+![View a list of flows observed by Prefect in the Prefect UI.](/img/ui/flows.png)
 
 For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
 
@@ -830,7 +830,7 @@ You can see additional details about the flow by [selecting the flow name](#insp
 
 If you select the name of a flow on the **Flows** page, the UI displays details about the flow.
 
-![Details for a flow in the Prefect UI](../img/ui/flow-details.png)
+![Details for a flow in the Prefect UI](/img/ui/flow-details.png)
 
 If deployments have been created for the flow, you'll see them here. Select the deployment name to see further details about the deployment.
 
@@ -868,3 +868,33 @@ $ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
 --> 
+
+## Configure a state hook
+To run a client-side hook upon a flow run entering a certain state (like `Failed`), you can configure a state hook:
+
+For example, to send a Slack notification when a flow run fails, we can use the `on_failure` hook:
+
+```python
+from prefect import flow
+from prefect.blocks.core import Block
+from prefect.settings import PREFECT_API_URL
+
+def notify_slack(flow, flow_run, state):
+    slack_webhook_block = Block.load("slack-webhook/my-slack-webhook")
+            
+    slack_webhook_block.notify(
+        f"Your job {flow_run.name} entered {state.name} with message:\n\n>{state.message}\n\n"
+        f"See <https://{PREFECT_API_URL.value()}/flow-runs/flow-run/{flow_run.id}|the flow run in the UI>\n\n"
+        f"Tags: {flow_run.tags}\n\n"
+        f"Scheduled start time = {flow_run.expected_start_time}\n"
+    )
+
+@flow(on_failure=[notify_slack], retries=1)
+def noisy_flow():
+    raise ValueError("oops!")
+
+if __name__ == "__main__":
+    noisy_flow()
+```
+
+Note that the `on_failure` hook will not run until all `retries` have completed, when the flow run finally enters a `Failed` state.

@@ -5,13 +5,12 @@
 #
 # “command” is your build command,
 #
-
 [build]
 base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@dc2fd1973cbe73933f270829520bd6626510de5c \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@master \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -27,6 +26,11 @@ status = 301
 [[redirects]]
 from = "/api-ref/orion/*"
 to = "/api-ref/server/:splat"
+status = 301
+
+[[redirects]]
+from = "/tutorials/*"
+to = "/tutorial/:splat"
 status = 301
 
 # redirect v1 traffic to docs-v1.prefect.io
@@ -330,6 +334,12 @@ from = "/tutorials/developing-a-new-worker-type/"
 to = "/guides/deployment/developing-a-new-worker-type/"
 status = 301
 
+[[redirects]]
+from = "/api-ref/rest-api-overview/"
+to = "/api-ref/rest-api/"
+status = 301
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
@@ -368,6 +378,7 @@ Strict-Transport-Security = """
 #   'self' - all images from current origin are permitted
 #   data: - images embedded inline are permitted
 #   https://avatars.githubusercontent.com - embed user images from GitHub
+#   https://cdn.redoc.ly - Redocly adds a logo at the bottom of the page
 #   https://img.shields.io - embed badges from shields.io
 # media-src
 #   'none' - no audio or video files are permitted
@@ -376,13 +387,17 @@ Strict-Transport-Security = """
 #            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
 # script-src
 #   'self' - all resources from current origin are permitted
+# script-src-elem
+#   'self' - all resources from current origin are permitted
 #   'unsafe-inline' - required for scripts loaded in partials
+#   https://unpkg.com - required for Swagger rendering plugin
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
 # style-src
 #   'self' - all styles from current origin are permitted
 #   'unsafe-inline' - required for styles loaded in partials
 # worker-src
 #   'self' - allow web workers from current origin
+#   blob: - required by Redocly for a generated Worker
 Content-Security-Policy = """\
       default-src \
         'none' \
@@ -400,9 +415,11 @@ Content-Security-Policy = """\
       frame-src 
         https://www.youtube.com \
         ; \
-      img-src 'self' \
+      img-src \
+        'self' \
         data: \
         https://avatars.githubusercontent.com \
+        https://cdn.redoc.ly \
         https://img.shields.io \
         ; \
       media-src \
@@ -413,9 +430,12 @@ Content-Security-Policy = """\
         ; \
       script-src \
         'self' \
+      ; \
+      script-src-elem \
+        'self' \
         'unsafe-inline' \
-        https://www.googletagmanager.com \
         https://unpkg.com \
+        https://www.googletagmanager.com \
         ; \
       style-src \
         'self' \
@@ -423,7 +443,8 @@ Content-Security-Policy = """\
         https://fonts.googleapis.com/ \
         ; \
       worker-src \
-      'self' \
+        'self' \
+        blob: \
         ; \
       """
 
@@ -473,5 +494,5 @@ Permissions-Policy = """\
       """
 
 [[edge_functions]]
-  path = "/2/httpapi"
-  function = "amplitude"
+path = "/2/httpapi"
+function = "amplitude"

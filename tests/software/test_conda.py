@@ -1,5 +1,6 @@
 import subprocess
 from contextlib import nullcontext
+import os
 from textwrap import dedent
 from unittest.mock import MagicMock
 
@@ -179,6 +180,10 @@ class TestCurrentEnvironmentCondaRequirements:
     @pytest.mark.service("environment")
     @pytest.mark.parametrize(
         "options", [{}, {"include_builds": True}, {"explicit_only": False}]
+    )
+    @pytest.mark.skipif(
+        os.environ.get("CI") is not None,
+        reason="takes >30s to run on GitHub CI machines",
     )
     def test_unmocked_retrieval_succeeds(self, options):
         # Check that we actually parsed environment errors correctly on systems without
