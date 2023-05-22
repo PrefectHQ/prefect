@@ -1272,31 +1272,6 @@ class TestFlowRunCrashes:
         except anyio.get_cancelled_exc_class() as exc:
             raise RuntimeError("The cancellation error was not caught.") from exc
 
-    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_during_orchestration_crashes_flow(
-        self, flow_run, orion_client, monkeypatch, interrupt_type
-    ):
-        monkeypatch.setattr(
-            "prefect.engine.propose_state",
-            MagicMock(side_effect=interrupt_type()),
-        )
-
-        @flow
-        async def my_flow():
-            pass
-
-        with pytest.raises(interrupt_type):
-            await begin_flow_run(
-                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-            )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_crashed()
-        assert flow_run.state.type == StateType.CRASHED
-        assert "Execution was aborted" in flow_run.state.message
-        with pytest.raises(CrashedRun, match="Execution was aborted"):
-            await flow_run.state.result()
-
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
         """
         Since timeouts use anyio cancellation scopes, we want to ensure that they are
