@@ -216,33 +216,10 @@ or _failed_ if it returned a string.
 !!! note "Retries don't create new task runs"
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
 
-### A simple example: dividing by zero
-
-For example, this task divides a numerator by a random denominator without 
-checking to ensure that `denominator` is a non-zero number:
-
-```python
-from random import randint
-from prefect import task
-
-@task(retries=3)
-def divide_by_random_denominator(numerator: int) -> float:
-    # Choose a random denominator between 0 and 5, inclusive.
-    denominator = randint(0, 5)
-    
-    # This line raises a ZeroDivisionError exception if `denominator` is zero.
-    # Because the task doesn't handle the exception, Prefect will catch the
-    # exception and will consider the task run failed.   
-    return numerator / denominator
-```
-
-In this example, if `denominator` is zero, the task raises an unhandled
-exception. Prefect handles the exception and retries the task a maximum of
-three times.
 
 ### A real-world example: making an API request
 
-Now consider the real-world problem of making an API request. In this example,
+Consider the real-world problem of making an API request. In this example,
 we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
 request.
 
