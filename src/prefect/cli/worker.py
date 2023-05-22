@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import os
 import anyio
+import threading
 import typer
-import uvicorn
 
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
@@ -21,6 +21,7 @@ from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
+from prefect.workers.server import run_healthcheck_server
 from prefect.plugins import load_prefect_collections
 
 worker_app = PrefectTyper(
@@ -157,13 +158,11 @@ async def start(
 
             started_event = await worker._emit_worker_started_event()
 
-            config = uvicorn.Config(
-                "prefect.workers.server:app",
-                port=8080,
-                log_level="error",
-            )
-            server = uvicorn.Server(config)
-            await server.serve()
+            # start healthcheck ASGI server
+            # in a background thread
+            server_thread = threading.Thread(target=run_healthcheck_server)
+            server_thread.daemon = True
+            server_thread.start()
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")
