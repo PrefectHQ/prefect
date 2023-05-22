@@ -254,7 +254,8 @@ class BaseQueryComponents(ABC):
             .lateral("scheduled_flow_runs")
         )
 
-        join_criteria = True
+        # Perform a cross-join
+        join_criteria = sa.literal(True)
 
         return scheduled_flow_runs, join_criteria
 
@@ -450,11 +451,9 @@ class BaseQueryComponents(ABC):
         all_block_documents_query = sa.union_all(
             # first select the parent block
             sa.select(
-                [
-                    db.BlockDocument,
-                    sa.null().label("reference_name"),
-                    sa.null().label("reference_parent_block_document_id"),
-                ]
+                db.BlockDocument,
+                sa.null().label("reference_name"),
+                sa.null().label("reference_parent_block_document_id"),
             )
             .select_from(db.BlockDocument)
             .where(
@@ -463,11 +462,9 @@ class BaseQueryComponents(ABC):
             #
             # then select any referenced blocks
             sa.select(
-                [
-                    db.BlockDocument,
-                    recursive_block_document_references_cte.c.name,
-                    recursive_block_document_references_cte.c.parent_block_document_id,
-                ]
+                db.BlockDocument,
+                recursive_block_document_references_cte.c.name,
+                recursive_block_document_references_cte.c.parent_block_document_id,
             )
             .select_from(db.BlockDocument)
             .join(

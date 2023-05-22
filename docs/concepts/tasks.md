@@ -82,17 +82,17 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
 Tasks allow a great deal of customization via arguments. Examples include retry behavior, names, tags, caching, and more. Tasks accept the following optional arguments.
 
-| Argument | Description |
-| --- | --- |
-| `name` | An optional name for the task. If not provided, the name will be inferred from the function name. |
-| `description` | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
-| `tags` | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
-| `cache_key_fn` | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
-| `cache_expiration` | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
-| `task_run_name` | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables; this name can also be provided via a function that returns a string. |
-| `retries` | An optional number of times to retry on task run failure. |
-| `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
-| `version` | An optional string specifying the version of this task definition. |
+| Argument              | Description                                                                                                                                                                                                             |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                | An optional name for the task. If not provided, the name will be inferred from the function name.                                                                                                                       |
+| `description`         | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function.                                                                             |
+| `tags`                | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
+| `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
+| `cache_expiration`    | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire.                                                                      |
+| `task_run_name`       | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables; this name can also be provided via a function that returns a string.  |
+| `retries`             | An optional number of times to retry on task run failure.                                                                                                                                                               |
+| `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
+| `version`             | An optional string specifying the version of this task definition.                                                                                                                                                      |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -615,12 +615,12 @@ You can create, list, and remove concurrency limits by using Prefect CLI `concur
 $ prefect concurrency-limit [command] [arguments]
 ```
 
-| Command | Description |
-| --- | --- |
-| create | Create a concurrency limit by specifying a tag and limit. |
-| delete | Delete the concurrency limit set on the specified tag. |
+| Command | Description                                                      |
+| ------- | ---------------------------------------------------------------- |
+| create  | Create a concurrency limit by specifying a tag and limit.        |
+| delete  | Delete the concurrency limit set on the specified tag.           |
 | inspect | View details about a concurrency limit set on the specified tag. |
-| ls     | View all defined concurrency limits. |
+| ls      | View all defined concurrency limits.                             |
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
@@ -670,9 +670,10 @@ async with get_client() as client:
     await client.delete_concurrency_limit_by_tag(tag="small_instance")
 ```
 
-If you wish to query for the currently set limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
+If you wish to query for the currently set limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
 
-To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/api-ref/prefect/client/#prefect.client.PrefectClient.read_concurrency_limits).
+
+To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
 
 ```python
 async with get_client() as client:

@@ -194,6 +194,43 @@ prefect dev build-ui
 ```
 </div>
 
+### Docs Development
+
+Prefect uses [mkdocs](https://www.mkdocs.org/) for the docs website and the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. While we use `mkdocs-material-insiders` for production, builds can still happen without the extra plugins. Deploy previews are available on pull requests, so you'll be able to browse the final look of your changes before merging.
+
+To build the docs:
+
+<div class="terminal">
+```bash
+mkdocs build
+```
+</div>
+
+To serve the docs locally at <http://127.0.0.1:8000/>:
+
+<div class="terminal">
+```bash
+mkdocs serve
+```
+</div>
+
+For additional mkdocs help and options:
+
+<div class="terminal">
+```bash
+mkdocs --help
+```
+</div>
+
+We us the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
+
+Internal developers can install the production theme by running:
+
+```bash
+pip install -e git+https://github.com/PrefectHQ/mkdocs-material-insiders.git#egg=mkdocs-material
+mkdocs build # or mkdocs build --config-file mkdocs.insiders.yml if needed
+```
+
 ### Kubernetes development
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
@@ -261,26 +298,6 @@ The `--autogenerate` flag will automatically generate a migration file based on 
     `--autogenerate` will generate a migration file based on the changes to the models. However, it is not perfect.
     Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
     remove extra statements that were included and not related to your change.
-
-When adding a migration for SQLite, it's important to include the following `PRAGMA` statements for both upgrade and downgrade:
-
-```python
-def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
-    
-    # migration code here
-    
-    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
-
-
-def downgrade():
-    op.execute("PRAGMA foreign_keys=OFF") # <-- add this line
-
-    # migration code here
-    
-    op.execute("PRAGMA foreign_keys=ON") # <-- add this line
-
-```
 
 The new migration can be found in the `src/prefect/server/database/migrations/versions/` directory. Each database type
 has its own subdirectory. For example, the SQLite migrations are stored in `src/prefect/server/database/migrations/versions/sqlite/`.
