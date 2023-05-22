@@ -124,7 +124,7 @@ my_flow(name="marvin")
 
 ## Attaching metadata to tasks
 
-By design, tasks follow a very similar model to flows: you can independently assign tasks their own `name` and `description`.
+Tasks follow a very similar model to flows: you can independently assign tasks their own `name` and `description`.
 
 ```python
 from prefect import flow, task
