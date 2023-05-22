@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import signal
+import prefect.plugins
 import contextlib
 import sys
 import time
@@ -205,11 +206,20 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
+
+    # Ensure collections are imported and have the opportunity to register types before
+    # loading the user code from the deployment
+    prefect.plugins.load_prefect_collections()
+
     setup_logging()
 
-    return from_sync.wait_for_call_in_loop_thread(
-        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    state = from_sync.wait_for_call_in_loop_thread(
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id),
+        contexts=[capture_sigterm()],
     )
+
+    APILogHandler.flush()
+    return state
 
 
 @inject_client

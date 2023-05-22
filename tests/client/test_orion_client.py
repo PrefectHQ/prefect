@@ -1190,7 +1190,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
     mock.assert_called_once_with(
         headers=ANY,
         verify=False,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
@@ -1204,7 +1204,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
     mock.assert_called_once_with(
         headers=ANY,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
@@ -1216,7 +1216,7 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
-        app=ANY,
+        transport=ANY,
         base_url=ANY,
         timeout=ANY,
     )
@@ -1434,6 +1434,19 @@ class TestClientWorkQueues:
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
         assert lookup.id == queue.id
+
+    async def test_create_queue_with_settings(self, orion_client):
+        queue = await orion_client.create_work_queue(
+            name="foo",
+            concurrency_limit=1,
+            is_paused=True,
+            priority=2,
+            description="such queue",
+        )
+        assert queue.concurrency_limit == 1
+        assert queue.is_paused is True
+        assert queue.priority == 2
+        assert queue.description == "such queue"
 
     async def test_create_then_match_work_queues(self, orion_client):
         await orion_client.create_work_queue(
@@ -1774,3 +1787,17 @@ class TestVariables:
         res = await orion_client.read_variables(limit=1)
         assert len(res) == 1
         assert res[0].name == variables[0].name
+
+
+async def test_server_error_does_not_raise_on_client():
+    async def raise_error():
+        raise ValueError("test")
+
+    app = create_app(ephemeral=True)
+    app.api_app.add_api_route("/raise_error", raise_error)
+
+    async with PrefectClient(
+        api=app,
+    ) as client:
+        with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
+            await client._client.get("/raise_error")

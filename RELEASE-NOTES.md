@@ -1,5 +1,82 @@
 # Prefect Release Notes
 
+## Release 2.10.10
+
+### The need for (CLI) speed
+
+We wanted the CLI to be as fast as the rest of Prefect. Through a series of enhancements, we've sped up CLI performance by as much as 4x on some systems!
+
+See the following pull requests for implementation details:
+
+- Delay `apprise` imports — https://github.com/PrefectHQ/prefect/pull/9557
+- Defer import of `dateparser` — https://github.com/PrefectHQ/prefect/pull/9582
+- Defer loading of Prefect integrations until necessary — https://github.com/PrefectHQ/prefect/pull/9571
+- Add `Block.get_block_class_from_key` and replace external uses of `lookup_type` — https://github.com/PrefectHQ/prefect/pull/9621
+- Load collections before auto-registering block types on the server — https://github.com/PrefectHQ/prefect/pull/9626
+- Do not restrict deployment build infrastructure types to types known at import time — https://github.com/PrefectHQ/prefect/pull/9625
+
+### Enhancements
+- Handle `SIGTERM` received by workers gracefully — https://github.com/PrefectHQ/prefect/pull/9530
+- Add ability to view table artifacts with NaN values in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/9585
+- Update `prefect version` command to avoid creating the database if it does not exist — https://github.com/PrefectHQ/prefect/pull/9586
+- Allow client retries when server SQLite database is busy — https://github.com/PrefectHQ/prefect/pull/9632
+- Allow client retries when general database errors are encountered — https://github.com/PrefectHQ/prefect/pull/9633
+- Ensure published Docker images have latest versions of requirements — https://github.com/PrefectHQ/prefect/pull/9640
+
+### Fixes
+- Fix bug where `SIGTERM` was not properly captured as a flow run crash for flow runs created by a deployment — https://github.com/PrefectHQ/prefect/pull/9543
+- Fix deadlock when logging is overriden from an asynchronous context — https://github.com/PrefectHQ/prefect/pull/9602
+- Fix orchestration race conditions by adding lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
+- Fix date range filter on flow runs page — https://github.com/PrefectHQ/prefect/pull/9636
+- Fix bug where ephemeral server raised exceptions client-side — https://github.com/PrefectHQ/prefect/pull/9637
+- Fix bug where ARM64 Docker images had a corrupt database — https://github.com/PrefectHQ/prefect/pull/9587
+
+### Documentation
+- Clarify the retry on tasks concept page — https://github.com/PrefectHQ/prefect/pull/9560
+- Improve the navigation structure and clarity of the API docs — https://github.com/PrefectHQ/prefect/pull/9574
+- Add `work_pool_name` to `Deployment.build_from_flow` on deployments concept page — https://github.com/PrefectHQ/prefect/pull/9581
+- Add additional worker types to work pools, workers & agents concept page — https://github.com/PrefectHQ/prefect/pull/9580
+- Add docstrings for all schema filters — https://github.com/PrefectHQ/prefect/pull/9572
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.9...2.10.10
+
+## Release 2.10.9
+
+### Worker logs can now be seen on the flow run page
+
+Workers now link relevant logs to specific flow runs, allowing you to view infrastructure-related logs on your flow run page.
+
+<img width="1294" alt="Process worker logs" src="https://github.com/PrefectHQ/prefect/assets/2586601/658c2883-69f7-4ee0-abf6-a20ee4723b3a">
+
+
+You'll see generic logs from all worker types. Integration worker implementations such as Kubernetes workers will be updated to send additional rich logs to give you insight into the behavior of flow run infrastructure.
+
+See https://github.com/PrefectHQ/prefect/pull/9496 for details.
+
+### Enhancements
+- Handle `SIGTERM` received by agent gracefully — https://github.com/PrefectHQ/prefect/pull/8691
+- Add global default settings for flow and task retries and retry delay seconds — https://github.com/PrefectHQ/prefect/pull/9171
+- Add support for populating submodules to `git_clone_project` projects step — https://github.com/PrefectHQ/prefect/pull/9504
+- Add wrapper for exceptions encountered while resolving parameter inputs — https://github.com/PrefectHQ/prefect/pull/8584
+- Add flush of logs before exiting deployed flow run processes to ensure messages are not lost — https://github.com/PrefectHQ/prefect/pull/9516
+- Update worker to be able to include itself as a related resource — https://github.com/PrefectHQ/prefect/pull/9531
+
+### Fixes
+- Fix bug where `SIGTERM` was not properly captured as a flow run crash — https://github.com/PrefectHQ/prefect/pull/9498
+- Fix pass of optional parameters to API in `client.create_work_queue` — https://github.com/PrefectHQ/prefect/pull/9521
+
+### Documentation
+- Add tip about flow run level concurrency — https://github.com/PrefectHQ/prefect/pull/9490
+- Add documentation on `on_failure` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9511
+- Update tutorials landing page — https://github.com/PrefectHQ/prefect/pull/9450
+
+
+### Contributors
+* @andrewbrannan made their first contribution in https://github.com/PrefectHQ/prefect/pull/9521
+- @ddelange
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.8...2.10.9
+
 ## Release 2.10.8
 
 ### Flow run orchestration rule updates
@@ -20,7 +97,7 @@ See https://github.com/PrefectHQ/prefect/pull/9447 for details.
 
 ### Fixes
 - Ensure deployment creation does not require write access when a prefectignore file exists — https://github.com/PrefectHQ/prefect/pull/9460
-- Fix bug where `deployment deployment apply` command could hang on exit — https://github.com/PrefectHQ/prefect/pull/9481 
+- Fix bug where `deployment apply` command could hang on exit — https://github.com/PrefectHQ/prefect/pull/9481 
 
 ### Deprecations
 - Add future warning for Python 3.7 EOL — https://github.com/PrefectHQ/prefect/pull/9469

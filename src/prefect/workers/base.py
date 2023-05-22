@@ -39,9 +39,10 @@ from prefect.server.schemas.filters import (
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import apply_values, resolve_block_document_references
+from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
@@ -386,6 +387,28 @@ class BaseWorker(abc.ABC):
             "job_configuration": cls.job_configuration.json_template(),
             "variables": variables_schema,
         }
+
+    @staticmethod
+    def get_worker_class_from_type(type: str) -> Optional[Type["BaseWorker"]]:
+        """
+        Returns the worker class for a given worker type. If the worker type
+        is not recognized, returns None.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return worker_registry.get(type)
+
+    @staticmethod
+    def get_all_available_worker_types() -> List[str]:
+        """
+        Returns all worker types available in the local registry.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return list(worker_registry.keys())
+        return []
 
     def get_name_slug(self):
         return slugify(self.name)

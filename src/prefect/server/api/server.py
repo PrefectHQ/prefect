@@ -4,6 +4,8 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import mimetypes
+import sqlite3
+import asyncpg
 import os
 from contextlib import asynccontextmanager
 from functools import partial, wraps
@@ -13,6 +15,7 @@ from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 import anyio
 import sqlalchemy as sa
 import sqlalchemy.exc
+import sqlalchemy.orm.exc
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -146,32 +149,49 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     )
 
 
-async def db_locked_exception_handler(
-    request: Request, exc: sqlalchemy.exc.OperationalError
-):
-    """
-    Catch all sqlalchemy.exc.OperationalError. Return a 503 if it's a db locked error
-    to retry, otherwise log the error and return 500.
-    """
-    if (
-        getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
-        and getattr(exc.orig, "sqlite_errorcode", None) == 5
+def is_client_retryable_exception(exc: Exception):
+    if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
+        exc.orig, sqlite3.OperationalError
     ):
+        if getattr(exc.orig, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        }:
+            return True
+        else:
+            # Avoid falling through to the generic `DBAPIError` case below
+            return False
+
+    if isinstance(
+        exc,
+        (
+            sqlalchemy.exc.DBAPIError,
+            asyncpg.exceptions.QueryCanceledError,
+            asyncpg.exceptions.ConnectionDoesNotExistError,
+            asyncpg.exceptions.CannotConnectNowError,
+            sqlalchemy.exc.InvalidRequestError,
+            sqlalchemy.orm.exc.DetachedInstanceError,
+        ),
+    ):
+        return True
+
+    return False
+
+
+async def custom_internal_exception_handler(request: Request, exc: Exception):
+    """
+    Log a detailed exception for internal server errors before returning.
+
+    Send 503 for errors clients can retry on.
+    """
+    logger.error("Encountered exception in request:", exc_info=True)
+
+    if is_client_retryable_exception(exc):
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    logger.error("Encountered exception in request:", exc_info=True)
-    return JSONResponse(
-        content={"exception_message": "Internal Server Error"},
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )
-
-
-async def custom_internal_exception_handler(request: Request, exc: Exception):
-    """Log a detailed exception for internal server errors before returning."""
-    logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -310,6 +330,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     """
     import toml
 
+    import prefect.plugins
     from prefect.blocks.core import Block
     from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
@@ -319,6 +340,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
             await fn(*args, **kwargs)
             return
+
+        # Ensure collections are imported and have the opportunity to register types
+        # before loading the registry
+        prefect.plugins.load_prefect_collections()
 
         blocks_registry = get_registry_for_type(Block)
         collection_blocks_data = await _load_collection_blocks_data()
@@ -505,12 +530,14 @@ def create_app(
     api_app = create_orion_api(
         fast_api_app_kwargs={
             "exception_handlers": {
+                # NOTE: FastAPI special cases the generic `Exception` handler and
+                #       registers it as a separate middleware from the others
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
-        }
+        },
     )
     ui_app = create_ui_app(ephemeral)
 
@@ -530,9 +557,6 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
-        api_app.add_exception_handler(
-            sqlalchemy.exc.OperationalError, db_locked_exception_handler
-        )
 
     api_app.mount(
         "/static",
@@ -543,6 +567,7 @@ def create_app(
         ),
         name="static",
     )
+    app.api_app = api_app
     app.mount("/api", app=api_app, name="api")
     app.mount("/", app=ui_app, name="ui")
 
