@@ -12,7 +12,7 @@ tags:
     - SQLite 
 ---
 
-# Hosting a Prefect Server
+# Hosting a Prefect server
 
 After you install Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. You also have an [API server](/api-ref/) backed by a database and a UI. 
 
