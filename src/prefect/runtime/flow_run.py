@@ -24,13 +24,6 @@ from prefect.context import FlowRunContext, TaskRunContext
 __all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name", "parameters"]
 
 
-def type_cast_not_allowed():
-    raise ValueError(
-        "This runtime context attribute cannot be mocked using an environment variable."
-        " Please use monkeypatch instead."
-    )
-
-
 type_cast = {
     bool: bool,
     int: int,

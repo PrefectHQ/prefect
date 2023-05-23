@@ -25,10 +25,7 @@ Available attributes:
         object or those directly provided via API for this run
 """
 import os
-from typing import Any, List, Optional
-
-import dateparser
-import pendulum
+from typing import Any, List, Dict, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
@@ -39,6 +36,16 @@ from .flow_run import _get_flow_run
 __all__ = ["id", "flow_run_id", "name", "parameters", "version"]
 
 CACHED_DEPLOYMENT = {}
+
+
+type_cast = {
+    bool: bool,
+    int: int,
+    float: float,
+    str: str,
+    # for optional defined attributes, when real value is NoneType, use str
+    type(None): str,
+}
 
 
 def __getattr__(name: str) -> Any:
@@ -59,17 +66,14 @@ def __getattr__(name: str) -> Any:
         if env_key in os.environ:
             mocked_value = os.environ[env_key]
             # cast `mocked_value` to the same type than `real_value`
-            if isinstance(real_value, bool):
-                return bool(mocked_value)
-            elif isinstance(real_value, int):
-                return int(mocked_value)
-            elif isinstance(real_value, float):
-                return float(mocked_value)
-            elif isinstance(real_value, pendulum.DateTime):
-                return pendulum.instance(dateparser.parse(mocked_value))
-            else:
-                # default str
-                return mocked_value
+            try:
+                cast_func = type_cast[type(real_value)]
+                return cast_func(mocked_value)
+            except KeyError:
+                raise ValueError(
+                    "This runtime context attribute cannot be mocked using an"
+                    " environment variable. Please use monkeypatch instead."
+                )
         else:
             return real_value
     else:
@@ -110,7 +114,7 @@ def get_id() -> Optional[str]:
         return str(deployment_id)
 
 
-def get_parameters() -> dict:
+def get_parameters() -> Dict:
     run_id = get_flow_run_id()
     if run_id is None:
         return {}
@@ -121,7 +125,7 @@ def get_parameters() -> dict:
     return flow_run.parameters or {}
 
 
-def get_name() -> dict:
+def get_name() -> Optional[Dict]:
     dep_id = get_id()
 
     if dep_id is None:
@@ -133,7 +137,7 @@ def get_name() -> dict:
     return deployment.name
 
 
-def get_version() -> dict:
+def get_version() -> Optional[Dict]:
     dep_id = get_id()
 
     if dep_id is None:

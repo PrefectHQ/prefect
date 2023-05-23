@@ -29,9 +29,45 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(deployment)
         assert "foo" not in dir(deployment)
 
-    async def test_attribute_override_via_env_var(self, monkeypatch):
-        monkeypatch.setenv(name="PREFECT__RUNTIME__DEPLOYMENT__NEW_KEY", value="foobar")
-        assert deployment.new_key == "foobar"
+    @pytest.mark.parametrize(
+        "env_name, env_value, expected_value",
+        [
+            # new user defined env var
+            ("new_key", "foobar", "foobar"),
+            # KNOWN FIELDS
+            # id is of type str
+            ("id", "fake-id", "fake-id"),
+            # flow_run_id is of type str
+            ("flow_run_id", "fake-flow-run-id", "fake-flow-run-id"),
+        ],
+    )
+    async def test_attribute_override_via_env_var(
+        self, monkeypatch, env_name, env_value, expected_value
+    ):
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__DEPLOYMENT__{env_name.upper()}", value=env_value
+        )
+        deployment_attr = getattr(deployment, env_name)
+        # check the type of the flow_run attribute
+        assert isinstance(deployment_attr, type(expected_value))
+        # check the flow_run attribute value is expected_value
+        assert deployment_attr == expected_value
+
+    @pytest.mark.parametrize(
+        "env_name",
+        [
+            # complex types (list and dict) not allowed to be mocked using environment variables
+            "parameters",
+        ],
+    )
+    async def test_attribute_override_via_env_var_not_allowed(
+        self, monkeypatch, env_name
+    ):
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__DEPLOYMENT__{env_name.upper()}", value="foo"
+        )
+        with pytest.raises(ValueError, match="cannot be mocked"):
+            getattr(deployment, env_name)
 
 
 class TestID:
