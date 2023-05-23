@@ -27,4 +27,4 @@ async def peform_readiness_check(
         return is_db_connectable
 
     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    return is_db_connectable
+    return "Database is not available"

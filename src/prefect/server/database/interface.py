@@ -75,7 +75,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         try:
             async with engine.connect():
                 return True
-        except sa.exc.OperationalError:
+        except Exception:
             return False
 
     async def engine(self):
