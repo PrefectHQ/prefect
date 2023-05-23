@@ -7,6 +7,6 @@ tags:
 
 # Server API 
 
-The Prefect Server API is used by the server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Prefect developers.
+The Prefect server API is used by the server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Prefect developers.
 
 Select links in the left navigation menu to explore. 
