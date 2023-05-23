@@ -52,26 +52,26 @@ def __getattr__(name: str) -> Any:
     # which might be different from original one. For consistency, cast env var to the same type
     env_key = f"PREFECT__RUNTIME__FLOW_RUN__{name.upper()}"
 
-    if func is not None:
-        real_value = func()
-        if env_key in os.environ:
-            mocked_value = os.environ[env_key]
-            # cast `mocked_value` to the same type than `real_value`
-            try:
-                cast_func = type_cast[type(real_value)]
-                return cast_func(mocked_value)
-            except KeyError:
-                raise ValueError(
-                    "This runtime context attribute cannot be mocked using an"
-                    " environment variable. Please use monkeypatch instead."
-                )
-        else:
-            return real_value
-    else:
+    if func is None:
         if env_key in os.environ:
             return os.environ[env_key]
         else:
             raise AttributeError(f"{__name__} has no attribute {name!r}")
+
+    real_value = func()
+    if env_key in os.environ:
+        mocked_value = os.environ[env_key]
+        # cast `mocked_value` to the same type than `real_value`
+        try:
+            cast_func = type_cast[type(real_value)]
+            return cast_func(mocked_value)
+        except KeyError:
+            raise ValueError(
+                "This runtime context attribute cannot be mocked using an"
+                " environment variable. Please use monkeypatch instead."
+            )
+    else:
+        return real_value
 
 
 def __dir__() -> List[str]:
