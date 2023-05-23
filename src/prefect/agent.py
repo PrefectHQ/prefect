@@ -21,6 +21,7 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    exception_traceback
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
@@ -442,7 +443,13 @@ class PrefectAgent:
                 self.logger.exception(
                     f"Failed to get infrastructure for flow run '{flow_run.id}'."
                 )
-                await self._propose_failed_state(flow_run, exc)
+                await self._propose_crashed_state(
+                    flow_run,
+                    (
+                        "Flow run could not be submitted to infrastructure"
+                        f" {exception_traceback(exc)}."
+                    ),
+                )
                 if self.limiter:
                     self.limiter.release_on_behalf_of(flow_run.id)
             else:
@@ -496,7 +503,13 @@ class PrefectAgent:
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_failed_state(flow_run, exc)
+                await self._propose_crashed_state(
+                    flow_run,
+                    (
+                        "Flow run could not be submitted to infrastructure"
+                        f" {exception_traceback(exc)}."
+                    ),
+                )
             else:
                 self.logger.exception(
                     f"An error occured while monitoring flow run '{flow_run.id}'. "

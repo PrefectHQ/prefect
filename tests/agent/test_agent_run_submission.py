@@ -662,7 +662,7 @@ class TestInfrastructureIntegration:
             "Server sent an abort signal: message"
         )
 
-    async def test_agent_fails_flow_if_get_infrastructure_fails(
+    async def test_agent_crashes_flow_if_get_infrastructure_fails(
         self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -691,11 +691,13 @@ class TestInfrastructureIntegration:
         ), "The concurrency slot should be released"
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.is_failed()
-        with pytest.raises(FailedRun, match="Submission failed. ValueError: Bad!"):
+        assert state.is_crashed()
+        with pytest.raises(
+                CrashedRun, match="Flow run could not be submitted to infrastructure"
+        ):
             await state.result()
 
-    async def test_agent_fails_flow_if_infrastructure_submission_fails(
+    async def test_agent_crashes_flow_if_infrastructure_submission_fails(
         self, orion_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
@@ -733,8 +735,10 @@ class TestInfrastructureIntegration:
         ), "The concurrency slot should be released"
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.is_failed()
-        with pytest.raises(FailedRun, match="Submission failed. ValueError: Hello!"):
+        assert state.is_crashed()
+        with pytest.raises(
+                CrashedRun, match="Flow run could not be submitted to infrastructure"
+        ):
             await state.result()
 
     async def test_agent_does_not_fail_flow_if_infrastructure_watch_fails(
