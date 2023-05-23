@@ -87,6 +87,23 @@ class TestCreate:
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
 
+    async def test_create_work_pool_name_conflict(
+        self, orion_client, mock_collection_registry
+    ):
+        pool_name = "my-pool"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} -t prefect-agent",
+            expected_code=0,
+            expected_output_contains=[f"Created work pool {pool_name!r}"],
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} -t prefect-agent",
+            expected_code=1,
+            expected_output_contains=[f"Work pool {pool_name!r} already exists."],
+        )
+
     async def test_default_template(self, orion_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(

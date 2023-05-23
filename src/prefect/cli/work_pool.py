@@ -88,7 +88,8 @@ async def create(
             exit_with_success(f"Created work pool {work_pool.name!r}.")
         except ObjectAlreadyExists:
             exit_with_error(
-                f"Work pool {name} already exists. Please choose a different name."
+                f"Work pool named {name!r} already exists. Please try creating your"
+                " work pool again with a different name."
             )
 
 

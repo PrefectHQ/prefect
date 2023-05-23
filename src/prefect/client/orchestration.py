@@ -2187,10 +2187,16 @@ class PrefectClient:
         Returns:
             Information about the newly created work pool.
         """
-        response = await self._client.post(
-            "/work_pools/",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        try:
+            response = await self._client.post(
+                "/work_pools/",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
 
         return pydantic.parse_obj_as(WorkPool, response.json())
 
