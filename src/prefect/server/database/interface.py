@@ -66,6 +66,18 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
+    async def is_db_connectable(self):
+        """
+        Returns boolean indicating if the database is connectable.
+        This method is used to determine if the server is ready to accept requests.
+        """
+        engine = await self.engine()
+        try:
+            async with engine.connect():
+                return True
+        except sa.exc.OperationalError:
+            return False
+
     async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
