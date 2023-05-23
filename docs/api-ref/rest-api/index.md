@@ -90,7 +90,7 @@ for artifact in response.json():
 
 ### curl with Prefect Cloud
 
-Here's an example that uses curl with Prefect Cloud to create a flow run:
+This example uses curl with Prefect Cloud to create a flow run:
 
 ```bash
 ACCOUNT_ID="abc-my-cloud-account-id-goes-here"
