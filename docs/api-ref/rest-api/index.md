@@ -28,7 +28,7 @@ You have many options to interact with the Prefect REST API:
 - use [curl](https://curl.se/) from the command line 
 
 ### PrefectClient with Prefect server
-Here's an example that uses `PrefectClient` with a locally hosted Prefect server:
+This example uses `PrefectClient` with a locally hosted Prefect server:
 
 ```python
 import asyncio
