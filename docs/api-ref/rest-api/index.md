@@ -25,7 +25,7 @@ You have many options to interact with the Prefect REST API:
 - create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
 - use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - use an HTTP library in your language of choice
-- use [curl]](https://curl.se/) from the command line 
+- use [curl](https://curl.se/) from the command line 
 
 ### PrefectClient with Prefect server
 Here's an example that uses `PrefectClient` with a locally hosted Prefect server:
