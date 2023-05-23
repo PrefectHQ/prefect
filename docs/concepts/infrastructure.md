@@ -102,7 +102,7 @@ infrastructure:
   - python
   - -m
   - prefect.engine
-  image: prefecthq/prefect:dev-python3.9
+  image: prefecthq/prefect:2-latest
   image_pull_policy: null
   networks: []
   network_mode: null
@@ -206,7 +206,7 @@ Requirements for `DockerContainer`:
 | auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
 | env	| Environment variables to set for the container. |
-| image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
+| image | An optional string specifying the name of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
 | image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
 | image_registry | A [`DockerRegistry`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) block containing credentials to use if `image` is stored in a private image registry. |
 | labels | An optional dictionary of labels, mapping name to value. |
