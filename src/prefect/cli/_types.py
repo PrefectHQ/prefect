@@ -6,6 +6,7 @@ from typing import List, Optional
 
 import typer
 import typer.core
+import sys
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
@@ -45,7 +46,7 @@ def with_deprecated_message(warning: str):
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            print("WARNING:", warning)
+            print("WARNING:", warning, file=sys.stderr, flush=True)
             return fn(*args, **kwargs)
 
         return wrapper
