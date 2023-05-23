@@ -62,7 +62,7 @@ lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 
 ### Requests with Prefect
 
-Here's an example that uses the Requests library with Prefect Cloud to return the five newest artifacts.
+This example uses the Requests library with Prefect Cloud to return the five newest artifacts.
 
 ```python
 import requests
