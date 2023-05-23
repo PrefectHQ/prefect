@@ -544,7 +544,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
 
-    name: str = Field(description="Name of the webhook")
+    name: str = Field(description="Name of the webhook.")
 
     url: str = Field(
         default=...,
@@ -558,26 +558,26 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     )
 
     params: Optional[Dict[str, str]] = Field(
-        default=None, title="Query params", description="Custom query params"
+        default=None, title="Query params", description="Custom query params."
     )
     json_data: Optional[dict] = Field(
         default=None,
         alias="json",
         title="Json data",
-        description="Send json data as payload",
+        description="Send json data as payload.",
         example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
     )
     data: Optional[Dict[str, str]] = Field(
         default=None,
         title="Form data",
         description=(
-            "Send form data as payload. Should not be used together with `json`"
+            "Send form data as payload. Should not be used together with `json`."
         ),
         example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
     )
 
-    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers")
-    cookies: Optional[Dict[str, str]] = Field(None, description="Custom cookies")
+    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers.")
+    cookies: Optional[Dict[str, str]] = Field(None, description="Custom cookies.")
 
     timeout: float = Field(
         default=10, description="Request timeout in seconds. Defaults to 10."
