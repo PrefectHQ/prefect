@@ -218,22 +218,21 @@ A few important notes on what we're looking at here:
         branch: main
         access_token: null
     ```
+    If pulling from a private repository, your pull step might appear like below.  
+Note that the access_token is a "Secret" type, which will be retrieved and inferred.  
+
+    ```yaml
+    pull:
+    - prefect.projects.steps.git_clone_project:
+        repository: https://github.com/PrivateRepo/test-private-repo.git
+        branch: main
+        access_token: "{{ prefect.blocks.secret.my-github-secret }}"
+    ```
+    
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
     For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
 
-If pulling from a private repository, your pull step might appear like below.  
-Note that the access_token is a "Secret" type, which will be retrieved and inferred.  
-
-<div class="terminal">
-```yaml
-pull:
-- prefect.projects.steps.git_clone_project:
-    repository: https://github.com/PrivateRepo/test-private-repo.git
-    branch: main
-    access_token: "{{ prefect.blocks.secret.my-github-secret }}"
-```
-</div>
 
 ### Dockerized deployment  
 
