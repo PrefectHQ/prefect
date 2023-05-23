@@ -219,8 +219,7 @@ A few important notes on what we're looking at here:
         access_token: null
     ```
     If pulling from a private repository, your pull step might appear like below.  
-Note that the access_token is a "Secret" type, which will be retrieved and inferred.  
-
+Note that the access_token is a "Secret" type, which will be retrieved and inferred.
     ```yaml
     pull:
     - prefect.projects.steps.git_clone_project:
