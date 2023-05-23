@@ -215,6 +215,9 @@ class Task(Generic[P, R]):
                     f" {type(state).__name__} instead."
                 )
 
+        if not callable(fn):
+            raise TypeError("'fn' must be callable")
+
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
