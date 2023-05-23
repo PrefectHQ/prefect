@@ -31,12 +31,13 @@ async def _create_artifact(
     """
     Helper function to create an artifact.
 
-    Args:
+    Arguments:
         - type:  A string identifying the type of artifact.
         - key: A user-provided string identifier. 
           The key must only contain lowercase letters, numbers, and dashes.
         - description: A user-specified description of the artifact.
         - data: A JSON payload that allows for a result to be retrieved.
+        - client: The PrefectClient 
 
     Returns:
         - The table artifact ID.
@@ -75,11 +76,11 @@ async def create_link_artifact(
     """
     Create a link artifact.
 
-    Args:
+    Arguments:
         - link: The link to create.
         - link_text: The link text.
         - key: A user-provided string identifier. 
-          Required to for the artifact to show in the Artifacts tab in the UI. 
+          Required for the artifact to show in the Artifacts tab in the UI. 
           The key must only contain lowercase letters, numbers, and dashes.
         - description: A user-specified description of the artifact.
         
@@ -107,10 +108,10 @@ async def create_markdown_artifact(
     """
     Create a markdown artifact.
 
-    Args:
+    Arguments:
         - markdown: The markdown to create.
         - key: A user-provided string identifier. 
-          Required to for the artifact to show in the Artifacts tab in the UI. 
+          Required for the artifact to show in the Artifacts tab in the UI. 
           The key must only contain lowercase letters, numbers, and dashes.
         - description: A user-specified description of the artifact.
 
@@ -136,17 +137,16 @@ async def create_table_artifact(
     """
     Create a table artifact.
 
-    Args:
+    Arguments:
         - table: The table to create.
         - key: A user-provided string identifier. 
-          Required to for the artifact to show in the Artifacts tab in the UI. 
+          Required for the artifact to show in the Artifacts tab in the UI. 
           The key must only contain lowercase letters, numbers, and dashes.
         - description: A user-specified description of the artifact.
 
     Returns:
         - The table artifact ID.
     """
-
     def _sanitize_nan_values(container):
         if isinstance(container, list):
             for i, val in enumerate(container):
