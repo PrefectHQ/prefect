@@ -51,7 +51,8 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
 
 
-T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
+# Generic type var for capturing the inner return type of async funcs
+T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
@@ -205,8 +206,14 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
-        if not callable(fn):
-            raise TypeError("'fn' must be callable")
+        # Validate states is passed as list
+        states = [on_completion, on_failure]
+        for state in states:
+            if state is not None and not isinstance(state, list):
+                raise TypeError(
+                    f"Expected list of callable for {state}; got"
+                    f" {type(state).__name__} instead."
+                )
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
