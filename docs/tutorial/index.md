@@ -3,6 +3,7 @@ icon: material/graph-outline
 description: Learn the basics of creating and running Prefect flows and tasks.
 tags:
     - tutorial
+    - installation
     - getting started
     - basics
     - tasks
@@ -25,7 +26,7 @@ pip install -U prefect
 ```
 </div>
 
-See the [install guide](/getting-started/installation/) for more detailed instructions.
+See the [install guide](/tutorial/installation/) for more detailed instructions.
 
 ### Tutorials
 If you've never used Prefect before, let's start by exploring the core concepts:

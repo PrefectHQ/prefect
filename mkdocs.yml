@@ -109,10 +109,10 @@ watch:
 nav:
     - Getting Started:
         - index.md
-        - Installation: getting-started/installation.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorial:
         - tutorial/index.md
+        - Installation: tutorial/installation.md
         - Flows & Tasks: tutorial/first-steps.md
         - Flow & Task Configuration: tutorial/flow-task-config.md
         - Execution: tutorial/execution.md
