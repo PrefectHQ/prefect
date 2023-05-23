@@ -16,7 +16,7 @@ async def hello():
 
 
 @router.get("/ready")
-async def get_status(
+async def peform_readiness_check(
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
 ):
