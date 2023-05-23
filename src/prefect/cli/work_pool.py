@@ -64,6 +64,7 @@ async def create(
                     for collection in worker_metadata.values()
                     for worker in collection.values()
                 ],
+                table_kwargs={"show_lines": True},
             )
             type = worker["type"]
         base_job_template = await get_default_base_job_template_for_infrastructure_type(
