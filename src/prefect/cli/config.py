@@ -38,6 +38,13 @@ def set_(settings: List[str]):
         if setting not in prefect.settings.SETTING_VARIABLES:
             exit_with_error(f"Unknown setting name {setting!r}.")
 
+        # Guard against changing settings that tweak config locations
+        if setting in {"PREFECT_HOME", "PREFECT_PROFILES_PATH"}:
+            exit_with_error(
+                f"Setting {setting!r} cannot be changed with this command. "
+                "Use an environment variable instead."
+            )
+
         parsed_settings[setting] = value
 
     try:
