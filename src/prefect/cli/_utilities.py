@@ -57,7 +57,11 @@ def with_cli_exception_handling(fn):
 
 
 def prompt_select_from_table(
-    console, prompt: str, columns: List, data: List, table_kwargs: Optional[Dict] = None
+    console,
+    prompt: str,
+    columns: List[Dict],
+    data: List[Dict],
+    table_kwargs: Optional[Dict] = None,
 ) -> Dict:
     """
     Given a list of columns and some data, display options to user in a table
