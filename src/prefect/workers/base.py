@@ -487,6 +487,7 @@ class BaseWorker(abc.ABC):
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
+        self._emit_worker_heartbeat_event(heartbeat_origin="get_and_submit_flow_runs")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):
@@ -534,6 +535,10 @@ class BaseWorker(abc.ABC):
         )
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
+
+        self._emit_worker_heartbeat_event(
+            heartbeat_origin="check_for_cancelled_flow_runs"
+        )
 
         if cancelling_flow_runs:
             self._logger.info(
@@ -1062,6 +1067,14 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
+        )
+
+    async def _emit_worker_heartbeat_event(self, heartbeat_origin: str) -> Event:
+        return emit_event(
+            "prefect.worker.heartbeat",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
+            payload={"heartbeat_origin": heartbeat_origin},
         )
 
     async def _emit_worker_started_event(self) -> Event:
