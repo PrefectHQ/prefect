@@ -16,14 +16,13 @@ async def get_available_work_pool_types() -> Set[str]:
                 for worker in collection.values():
                     work_pool_types.append(worker.get("type"))
         except Exception:
+            # Return only work pool types from the local type registry if
+            # the request to the collections registry fails.
             if PREFECT_DEBUG_MODE:
                 getLogger().warning(
                     "Unable to get worker metadata from the collections registry",
                     exc_info=True,
                 )
-            # Return only work pool types from the local type registry if
-            # the request to the collections registry fails.
-            pass
 
     return set([infra_type for infra_type in work_pool_types if infra_type is not None])
 
