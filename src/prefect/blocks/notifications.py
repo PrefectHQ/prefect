@@ -37,14 +37,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PrefectNotifyType.DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal[
+        "prefect_default", "info", "success", "warning", "failure"
+    ] = Field(
+        default=PrefectNotifyType.DEFAULT,
+        description=(
+            "The type of notification being performed; the prefect_default "
+            "is a plain notification that does not attach an image."
+        ),
     )
 
     def _start_apprise_client(self, url: SecretStr):
@@ -544,10 +544,9 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
 
-    name: str = Field(description="Name of the webhook.")
+    name: str = Field(title="Name", description="Name of the webhook.")
 
     url: str = Field(
-        default=...,
         title="Webhook URL",
         description="The webhook URL.",
         example="https://hooks.slack.com/XXX",

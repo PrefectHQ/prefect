@@ -1,6 +1,6 @@
 from importlib import reload
 from typing import Optional, Type
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import cloudpickle
 import pytest
@@ -370,6 +370,11 @@ class TestTwilioSMS:
             assert "Dropped invalid phone # (0000000) specified." in caplog.text
 
 
+class HttpxResponseMock:
+    def __init__(self) -> None:
+        self.raise_for_status = Mock()
+
+
 class TestCustomWebhook:
     async def _test_notify_async(
         self,
@@ -382,7 +387,8 @@ class TestCustomWebhook:
             reload_modules()
 
             httpx_instance_mock = HttpxClientMock.return_value
-            httpx_instance_mock.request = AsyncMock()
+            resp_mock = HttpxResponseMock()
+            httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
 
             # use validate here to match alias for 'json'
             custom_block = CustomWebhookNotificationBlock.validate(data)
@@ -392,6 +398,7 @@ class TestCustomWebhook:
                 headers={"user-agent": "Prefect Notifications"}
             )
             httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
+            resp_mock.raise_for_status.assert_called_once()
 
     def _test_notify_sync(
         self,
@@ -404,7 +411,8 @@ class TestCustomWebhook:
             reload_modules()
 
             httpx_instance_mock = HttpxClientMock.return_value
-            httpx_instance_mock.request = AsyncMock()
+            resp_mock = HttpxResponseMock()
+            httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
 
             custom_block = CustomWebhookNotificationBlock.validate(data)
             custom_block.notify(body, subject)
@@ -413,6 +421,7 @@ class TestCustomWebhook:
                 headers={"user-agent": "Prefect Notifications"}
             )
             httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
+            resp_mock.raise_for_status.assert_called_once()
 
     async def test_notify_async(self):
         await self._test_notify_async(
