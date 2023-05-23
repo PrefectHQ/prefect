@@ -17,11 +17,11 @@ Workspaces could be used in any way you like to organize or compartmentalize you
 
 When you first log into Prefect Cloud, you will be prompted to create your own initial workspace. After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-new-workspace.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
 Select the **Workspaces Icon** to see all of the workspaces you can access. 
 
-![Viewing all available workspaces in the Prefect Cloud UI.](../img/ui/all-workspaces.png)
+![Viewing all available workspaces in the Prefect Cloud UI.](/img/ui/all-workspaces.png)
 
 Your list of available workspaces may include:
 
@@ -49,7 +49,7 @@ On the **Workspaces** page, select the **+** icon to create a new workspace. You
 - A handle, or name, for the workspace. This name must be unique within your account or organization.
 - An optional description for the workspace.
 
-![Creating a new workspace in the Prefect Cloud UI.](../img/ui/create-workspace.png)
+![Creating a new workspace in the Prefect Cloud UI.](/img/ui/create-workspace.png)
 
 Select **Create** to actually create the new workspace. The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/). See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users. 
 
@@ -57,7 +57,7 @@ Select **Create** to actually create the new workspace. The number of available 
 
 Within a workspace, select **Workspace Settings** to view or edit workspace details.  
 
-![Managing a workspace in the Prefect Cloud UI.](../img/ui/workspace-settings.png)
+![Managing a workspace in the Prefect Cloud UI.](/img/ui/workspace-settings.png)
 
 The options menu enables you to edit workspace details or delete the workspace.
 
@@ -70,7 +70,7 @@ Personal account users may invite _workspace collaborators_, users who can join,
 
 In your workspace, select **Workspace Collaborators**. If you've previously invited collaborators, you'll see them listed.
 
-![Managing collaborators in a workspace in the Prefect Cloud UI.](../img/ui/workspace-collaborators.png)
+![Managing collaborators in a workspace in the Prefect Cloud UI.](/img/ui/workspace-collaborators.png)
 
 To invite a user to become a workspace collaborator, select the **+** icon. You'll be prompted for the email address of the person you'd like to invite. Add the email address, then select **Send** to initiate the invitation. 
 
@@ -84,7 +84,7 @@ Within a Prefect Cloud [organization](/ui/organizations/), Admins and workspace 
 
 In an organization workspace, select **Workspace Sharing** to manage users and service accounts for the workspace. If you've previously invited users and service accounts, you'll see them listed.
 
-![Managing sharing in a workspace in the Prefect Cloud UI.](../img/ui/workspace-sharing.png)
+![Managing sharing in a workspace in the Prefect Cloud UI.](/img/ui/workspace-sharing.png)
 
 To invite a user to become a workspace collaborator, select the Members **+** icon. You can select from a list of existing organization members. 
 
@@ -113,11 +113,11 @@ Workspace transfer retains existing workspace configuration and flow run history
 
 To transfer a workspace, select **Workspace Settings** within the workspace. Then, from the options menu, select **Transfer** to initiate the workspace transfer process.
 
-![Initiating a workspace transfer in the Prefect Cloud UI.](../img/ui/workspace-transfer.png)
+![Initiating a workspace transfer in the Prefect Cloud UI.](/img/ui/workspace-transfer.png)
 
 The **Transfer Workspace** page shows the workspace to be transferred on the left. Select the target account or organization for the workspace on the right. You may also change the handle of the workspace during the transfer process.
 
-![Selecting a workspace transfer target in the Prefect Cloud UI.](../img/ui/workspace-transfer-options.png)
+![Selecting a workspace transfer target in the Prefect Cloud UI.](/img/ui/workspace-transfer-options.png)
 
 Select **Transfer** to transfer the workspace. 
 

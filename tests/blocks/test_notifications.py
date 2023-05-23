@@ -11,7 +11,7 @@ from prefect.blocks.notifications import (
     MattermostWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
-    PrefectNotifyType,
+    PREFECT_NOTIFY_TYPE_DEFAULT,
     TwilioSMS,
     CustomWebhookNotificationBlock,
 )
@@ -60,7 +60,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
 
-            notify_type = PrefectNotifyType.DEFAULT
+            notify_type = PREFECT_NOTIFY_TYPE_DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
             )
@@ -80,7 +80,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
@@ -112,7 +112,7 @@ class TestMattermostWebhook:
                 "?image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self):
@@ -131,7 +131,7 @@ class TestMattermostWebhook:
                 "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_with_multiple_channels(self):
@@ -156,7 +156,7 @@ class TestMattermostWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self):
@@ -187,7 +187,7 @@ class TestOpsgenieWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def _test_notify_sync(self, targets="", params=None, **kwargs):
@@ -210,7 +210,7 @@ class TestOpsgenieWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync_simple(self):
@@ -321,7 +321,7 @@ class TestTwilioSMS:
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
                 title=None,
-                notify_type=PrefectNotifyType.DEFAULT,
+                notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
             )
 
     def test_twilio_notify_sync(self, valid_apprise_url):
@@ -346,7 +346,7 @@ class TestTwilioSMS:
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
                 title=None,
-                notify_type=PrefectNotifyType.DEFAULT,
+                notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
             )
 
     def test_invalid_from_phone_number_raises_validation_error(self):
