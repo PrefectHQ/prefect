@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from prefect.client.collections import (
     get_collections_metadata_client,
@@ -8,11 +8,13 @@ from prefect.client.orchestration import PrefectClient, ServerType
 
 
 class TestGetCollectionsMetadataClient:
-    @patch("prefect.client.collections.get_client")
-    @patch("prefect.client.collections.get_cloud_client")
-    async def test_returns_cloud_client_when_server_type_is_cloud(
-        self, mock_get_cloud_client, mock_get_client
-    ):
+    async def test_returns_cloud_client_when_server_type_is_cloud(self, monkeypatch):
+        mock_get_client = MagicMock()
+        mock_get_cloud_client = MagicMock()
+        monkeypatch.setattr("prefect.client.collections.get_client", mock_get_client)
+        monkeypatch.setattr(
+            "prefect.client.collections.get_cloud_client", mock_get_cloud_client
+        )
         mock_get_client.return_value.server_type = ServerType.CLOUD
         mock_get_cloud_client.return_value = CloudClient(
             host="test-host", api_key="test-api-key"
@@ -24,10 +26,12 @@ class TestGetCollectionsMetadataClient:
         mock_get_cloud_client.assert_called_once()
         assert isinstance(result, CloudClient)
 
-    @patch("prefect.client.collections.get_client")
     async def test_returns_orchestration_client_when_server_type_is_server(
-        self, mock_get_client
+        self, monkeypatch
     ):
+        mock_get_client = MagicMock()
+        monkeypatch.setattr("prefect.client.collections.get_client", mock_get_client)
+
         mock_get_client.return_value = PrefectClient(api="test-api")
         mock_get_client.return_value.server_type = ServerType.SERVER
 
@@ -36,10 +40,12 @@ class TestGetCollectionsMetadataClient:
         mock_get_client.assert_called_once()
         assert isinstance(result, PrefectClient)
 
-    @patch("prefect.client.collections.get_client")
     async def test_returns_orchestration_client_when_server_type_is_ephemeral(
-        self, mock_get_client
+        self, monkeypatch
     ):
+        mock_get_client = MagicMock()
+        monkeypatch.setattr("prefect.client.collections.get_client", mock_get_client)
+
         mock_get_client.return_value = PrefectClient(api="test-api")
         mock_get_client.return_value.server_type = ServerType.EPHEMERAL
 
