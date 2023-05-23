@@ -19,9 +19,48 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(task_run)
         assert "foo" not in dir(task_run)
 
-    async def test_attribute_override_via_env_var(self, monkeypatch):
-        monkeypatch.setenv(name="PREFECT__RUNTIME__TASK_RUN__NEW_KEY", value="foobar")
-        assert task_run.new_key == "foobar"
+    @pytest.mark.parametrize(
+        "env_name, env_value, expected_value",
+        [
+            # new user defined env var
+            ("new_key", "foobar", "foobar"),
+            # KNOWN FIELDS
+            # id is of type str
+            ("id", "fake-id", "fake-id"),
+            # name is of type str
+            ("name", "fake-name", "fake-name"),
+            # flow_name is of type str
+            ("task_name", "fake-task-name", "fake-task-name"),
+        ],
+    )
+    async def test_attribute_override_via_env_var(
+        self, monkeypatch, env_name, env_value, expected_value
+    ):
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__TASK_RUN__{env_name.upper()}", value=env_value
+        )
+        tasks_run_attr = getattr(task_run, env_name)
+        # check the type of the flow_run attribute
+        assert isinstance(tasks_run_attr, type(expected_value))
+        # check the flow_run attribute value is expected_value
+        assert tasks_run_attr == expected_value
+
+    @pytest.mark.parametrize(
+        "env_name",
+        [
+            # complex types (list and dict) not allowed to be mocked using environment variables
+            "tags",
+            "parameters",
+        ],
+    )
+    async def test_attribute_override_via_env_var_not_allowed(
+        self, monkeypatch, env_name
+    ):
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__TASK_RUN__{env_name.upper()}", value="foo"
+        )
+        with pytest.raises(ValueError, match="cannot be mocked"):
+            getattr(task_run, env_name)
 
 
 class TestID:
