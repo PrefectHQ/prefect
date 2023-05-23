@@ -12,7 +12,7 @@ Available attributes:
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
 """
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import dateparser
 import pendulum
@@ -22,6 +22,28 @@ from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 
 __all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name", "parameters"]
+
+
+def type_cast_not_allowed():
+    raise ValueError(
+        "This runtime context attribute cannot be mocked using an environment variable."
+        " Please use monkeypatch instead."
+    )
+
+
+type_cast = {
+    bool: bool,
+    int: int,
+    float: float,
+    str: str,
+    # use dateparser to cast different formats of date in string, and then instance to pendulum.DateTime
+    # tzinfo is ignored (UTC forced)
+    pendulum.DateTime: lambda x: pendulum.instance(
+        dateparser.parse(x).replace(tzinfo=None), "UTC"
+    ),
+    # for optional defined attributes, when real value is NoneType, use str
+    type(None): str,
+}
 
 
 def __getattr__(name: str) -> Any:
@@ -42,17 +64,14 @@ def __getattr__(name: str) -> Any:
         if env_key in os.environ:
             mocked_value = os.environ[env_key]
             # cast `mocked_value` to the same type than `real_value`
-            if isinstance(real_value, bool):
-                return bool(mocked_value)
-            elif isinstance(real_value, int):
-                return int(mocked_value)
-            elif isinstance(real_value, float):
-                return float(mocked_value)
-            elif isinstance(real_value, pendulum.DateTime):
-                return pendulum.instance(dateparser.parse(mocked_value))
-            else:
-                # default str
-                return mocked_value
+            try:
+                cast_func = type_cast[type(real_value)]
+                return cast_func(mocked_value)
+            except KeyError:
+                raise ValueError(
+                    "This runtime context attribute cannot be mocked using an"
+                    " environment variable. Please use monkeypatch instead."
+                )
         else:
             return real_value
     else:
@@ -88,7 +107,7 @@ def get_id() -> str:
         return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
-def get_tags():
+def get_tags() -> List[str]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
@@ -103,7 +122,7 @@ def get_tags():
         return flow_run_ctx.flow_run.tags
 
 
-def get_name():
+def get_name() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
@@ -118,7 +137,7 @@ def get_name():
         return flow_run_ctx.flow_run.name
 
 
-def get_flow_name():
+def get_flow_name() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
@@ -133,7 +152,7 @@ def get_flow_name():
         return flow_run_ctx.flow.name
 
 
-def get_scheduled_start_time():
+def get_scheduled_start_time() -> pendulum.DateTime:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
