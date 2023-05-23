@@ -3,7 +3,6 @@ from typing import List, Optional
 
 import os
 import anyio
-import threading
 import typer
 
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -156,13 +155,15 @@ async def start(
                 )
             )
 
+            tg.start_soon(run_healthcheck_server)
+
             started_event = await worker._emit_worker_started_event()
 
             # start healthcheck ASGI server
             # in a background thread
-            server_thread = threading.Thread(target=run_healthcheck_server)
-            server_thread.daemon = True
-            server_thread.start()
+            # server_thread = threading.Thread(target=run_healthcheck_server)
+            # server_thread.daemon = True
+            # server_thread.start()
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")
