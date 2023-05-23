@@ -95,7 +95,7 @@ This example uses curl with Prefect Cloud to create a flow run:
 ```bash
 ACCOUNT_ID="abc-my-cloud-account-id-goes-here"
 WORKSPACE_ID="123-my-workspace-id-goes-here"
-PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORKSPACE_ID""
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORKSPACE_ID"
 PREFECT_API_KEY="123abc_my_api_key_goes_here"
 DEPLOYMENT_ID="my_deployment_id"
 
