@@ -51,7 +51,7 @@ async def test_worker_emits_submitted_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.hearbeat' event.
+    # When a worker submits a flow-run, it first dispatches a 'worker.heartbeat' event.
     # it then monitors that flow run until it's complete.
     # When it's complete, it fires a third 'monitored' event, which
     # is covered by the test_worker_emits_monitored_event below.
@@ -134,7 +134,7 @@ async def test_worker_emits_executed_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.hearbeat' event.
+    # When a worker submits a flow-run, it first dispatches a 'worker.heartbeat' event.
     # it then monitors that flow run until it's complete.
     # When it's complete, it fires a third 'sumbitted' event, which
     # is covered by the test_worker_emits_submitted_event below.
