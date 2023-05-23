@@ -32,12 +32,12 @@ async def _create_artifact(
     Helper function to create an artifact.
 
     Arguments:
-        - type:  A string identifying the type of artifact.
-        - key: A user-provided string identifier.
+        type:  A string identifying the type of artifact.
+        key: A user-provided string identifier.
           The key must only contain lowercase letters, numbers, and dashes.
-        - description: A user-specified description of the artifact.
-        - data: A JSON payload that allows for a result to be retrieved.
-        - client: The PrefectClient
+        description: A user-specified description of the artifact.
+        data: A JSON payload that allows for a result to be retrieved.
+        client: The PrefectClient
 
     Returns:
         - The table artifact ID.
@@ -77,16 +77,16 @@ async def create_link_artifact(
     Create a link artifact.
 
     Arguments:
-        - link: The link to create.
-        - link_text: The link text.
-        - key: A user-provided string identifier.
+        link: The link to create.
+        link_text: The link text.
+        key: A user-provided string identifier.
           Required for the artifact to show in the Artifacts tab in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
-        - description: A user-specified description of the artifact.
+        description: A user-specified description of the artifact.
 
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
     formatted_link = f"[{link_text}]({link})" if link_text else f"[{link}]({link})"
     artifact = await _create_artifact(
@@ -109,14 +109,14 @@ async def create_markdown_artifact(
     Create a markdown artifact.
 
     Arguments:
-        - markdown: The markdown to create.
-        - key: A user-provided string identifier.
+        markdown: The markdown to create.
+        key: A user-provided string identifier.
           Required for the artifact to show in the Artifacts tab in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
-        - description: A user-specified description of the artifact.
+        description: A user-specified description of the artifact.
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
     artifact = await _create_artifact(
         key=key,
@@ -138,14 +138,14 @@ async def create_table_artifact(
     Create a table artifact.
 
     Arguments:
-        - table: The table to create.
-        - key: A user-provided string identifier.
+        table: The table to create.
+        key: A user-provided string identifier.
           Required for the artifact to show in the Artifacts tab in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
-        - description: A user-specified description of the artifact.
+        description: A user-specified description of the artifact.
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
 
     def _sanitize_nan_values(container):
