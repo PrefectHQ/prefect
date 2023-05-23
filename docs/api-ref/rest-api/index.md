@@ -3,9 +3,10 @@ description: Prefect REST API for interacting with the orchestration engine and 
 tags:
     - REST API
     - Prefect Cloud
-    - Prefect Server
+    - Prefect server
     - curl
     - PrefectClient
+    - Requests
 ---
 
 # REST API
@@ -22,10 +23,10 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
 You have many options to interact with the Prefect REST API:
 
-- create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
-- use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
-- use an HTTP library in your language of choice
-- use [curl](https://curl.se/) from the command line 
+- Create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
+- Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
+- Use an HTTP library in your language of choice
+- Use [curl](https://curl.se/) from the command line 
 
 ### PrefectClient with Prefect server
 This example uses `PrefectClient` with a locally hosted Prefect server:
