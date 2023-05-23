@@ -101,7 +101,10 @@ class TestCreate:
             invoke_and_assert,
             f"work-pool create {pool_name} -t prefect-agent",
             expected_code=1,
-            expected_output_contains=[f"Work pool {pool_name!r} already exists."],
+            expected_output_contains=[
+                f"Work pool named {pool_name!r} already exists. Please try creating"
+                " your work pool again with a different name."
+            ],
         )
 
     async def test_default_template(self, orion_client):
