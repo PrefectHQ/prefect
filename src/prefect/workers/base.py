@@ -1069,7 +1069,7 @@ class BaseWorker(abc.ABC):
             follows=submitted_event,
         )
 
-    async def _emit_worker_heartbeat_event(self, heartbeat_origin: str) -> Event:
+    def _emit_worker_heartbeat_event(self, heartbeat_origin: str) -> Event:
         return emit_event(
             "prefect.worker.heartbeat",
             resource=self._event_resource(),
