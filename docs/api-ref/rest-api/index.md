@@ -11,13 +11,16 @@ tags:
 
 # REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
+The [Prefect REST API](https://deploy-preview-9661--prefect-docs-preview.netlify.app/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
 
 Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
-- Interactive Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-- Interactive REST API documentation for a locally hosted open-source Prefect server is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
-- The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
+- Prefect Cloud:
+    - Interactive Prefect Cloud REST API documentation is available at https://app.prefect.cloud/api/docs.
+    - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
+- Locally hosted open-source Prefect server:
+    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at http://localhost:4200/docs or the /docs endpoint of the [PREFECT_API_URL](https://deploy-preview-9661--prefect-docs-preview.netlify.app/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with prefect server start to access the interactive documentation.
+    - The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](https://deploy-preview-9661--prefect-docs-preview.netlify.app/api-ref/rest-api-reference/).
 
 ## Interacting with the REST API
 
