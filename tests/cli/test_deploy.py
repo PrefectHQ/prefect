@@ -485,6 +485,23 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
 
+    async def test_project_deploy_with_no_prefect_yaml(self, project_dir):
+        Path(project_dir, "prefect.yaml").unlink()
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "We were unable to find a prefect.yaml file in the current directory.",
+                "To get started deploying flows please initialize a new project:",
+                "prefect project init",
+            ],
+        )
+
     async def test_project_deploy_with_empty_dep_file(self, project_dir, orion_client):
         # delete deployment.yaml and rewrite as empty
         Path(project_dir, "deployment.yaml").unlink()

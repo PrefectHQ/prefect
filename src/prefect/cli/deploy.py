@@ -176,6 +176,21 @@ async def deploy(
     }
 
     try:
+        with open("prefect.yaml", "r") as f:
+            project = yaml.safe_load(f)
+    except FileNotFoundError:
+        app.console.print(
+            "We were unable to find a prefect.yaml file in the current directory.",
+            style="red",
+        )
+        app.console.print(
+            "\nTo get started deploying flows please initialize a new project:",
+            style="red",
+        )
+        app.console.print("\n\t$ prefect project init\n", style="blue")
+        raise typer.Exit(1)
+
+    try:
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
             if not base_deploy:
@@ -189,10 +204,7 @@ async def deploy(
             "No deployment.yaml file found, only provided CLI options will be used.",
             style="yellow",
         )
-        deployments = [{}]
-
-    with open("prefect.yaml", "r") as f:
-        project = yaml.safe_load(f)
+        deployments = []
 
     try:
         if len(deployments) > 1:
@@ -629,6 +641,7 @@ async def _prompt_select_work_pool(
             prompt,
             [
                 {"header": "Work Pool Name", "key": "name"},
+                {"header": "Infrastructure Type", "key": "type"},
                 {"header": "Description", "key": "description"},
             ],
             work_pool_options,
