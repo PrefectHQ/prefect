@@ -2198,6 +2198,15 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, task=task, task_run=task_run, state=state
                     )
+            except TypeError:
+                logger.error(
+                    (
+                        "An error was encountered while running hook"
+                        f" {hook.__name__!r}. Ensure you are passing a task run state"
+                        " change hook rather than a flow run state change hook."
+                    ),
+                    exc_info=True,
+                )
             except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
@@ -2235,6 +2244,15 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     await run_sync_in_worker_thread(
                         hook, flow=flow, flow_run=flow_run, state=state
                     )
+            except TypeError:
+                logger.error(
+                    (
+                        "An error was encountered while running hook"
+                        f" {hook.__name__!r}. Ensure you are passing a flow run state"
+                        " change hook rather than a task run state change hook."
+                    ),
+                    exc_info=True,
+                )
             except Exception:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
