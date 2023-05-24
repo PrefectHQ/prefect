@@ -243,6 +243,9 @@ class State(ObjectBaseModel, Generic[R]):
     def is_cancelled(self) -> bool:
         return self.type == StateType.CANCELLED
 
+    def is_cancelling(self) -> bool:
+        return self.type == StateType.CANCELLING
+
     def is_final(self) -> bool:
         return self.type in {
             StateType.CANCELLED,
