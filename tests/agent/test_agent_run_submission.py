@@ -691,10 +691,8 @@ class TestInfrastructureIntegration:
         ), "The concurrency slot should be released"
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.is_crashed()
-        with pytest.raises(
-                CrashedRun, match="Flow run could not be submitted to infrastructure"
-        ):
+        assert state.is_failed()
+        with pytest.raises(FailedRun, match="Submission failed. ValueError: Bad!"):
             await state.result()
 
     async def test_agent_crashes_flow_if_infrastructure_submission_fails(
