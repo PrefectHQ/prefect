@@ -32,7 +32,7 @@ async def _create_artifact(
     Helper function to create an artifact.
 
     Arguments:
-        type:  A string identifying the type of artifact.
+        type: A string identifying the type of artifact.
         key: A user-provided string identifier.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
