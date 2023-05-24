@@ -2285,6 +2285,52 @@ def create_async_hook(mock_obj):
     return my_hook
 
 
+async def test_task_run_hook_passed_to_flow_raises(caplog):
+    my_mock = MagicMock()
+
+    def my_task_hook(task, task_run, state):
+        my_mock("my_task_hook")
+
+    @flow(on_completion=[my_task_hook])
+    async def my_flow():
+        pass
+
+    await my_flow._run()
+
+    logs = caplog.text
+
+    assert (
+        "An error was encountered while running hook 'my_task_hook'. Ensure you are"
+        " passing a flow run state change hook rather than a task run state change hook"
+        in logs
+    )
+
+
+async def test_flow_run_hook_passed_to_task_raises(caplog):
+    my_mock = MagicMock()
+
+    def my_flow_hook(flow, flow_run, state):
+        my_mock("my_flow_hook")
+
+    @task(on_completion=[my_flow_hook])
+    async def my_task():
+        pass
+
+    @flow
+    async def my_flow():
+        await my_task()
+
+    await my_flow._run()
+
+    logs = caplog.text
+
+    assert (
+        "An error was encountered while running hook 'my_flow_hook'. Ensure you are"
+        " passing a task run state change hook rather than a flow run state change hook"
+        in logs
+    )
+
+
 class TestFlowHooksOnCompletion:
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
