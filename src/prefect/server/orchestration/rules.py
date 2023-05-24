@@ -233,12 +233,21 @@ class FlowOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
+        # (circular import)
+        from prefect.server.api.server import is_client_retryable_exception
+
         try:
             await self._validate_proposed_state()
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
             self.proposed_state = None
+
+            if is_client_retryable_exception(exc):
+                # Do not capture retryable database exceptions, this exception will be
+                # raised as a 503 in the API layer
+                raise
+
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)
@@ -376,12 +385,21 @@ class TaskOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
+        # (circular import)
+        from prefect.server.api.server import is_client_retryable_exception
+
         try:
             await self._validate_proposed_state()
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
             self.proposed_state = None
+
+            if is_client_retryable_exception(exc):
+                # Do not capture retryable database exceptions, this exception will be
+                # raised as a 503 in the API layer
+                raise
+
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)

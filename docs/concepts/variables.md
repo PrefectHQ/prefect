@@ -7,7 +7,7 @@ tags:
 
 # Variables
 
-Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
+Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect server instance or a single workspace in Prefect Cloud.
 
 Variables can be created or modified at any time, but are intended for values with infrequent writes and frequent reads. Variable values may be cached for quicker retrieval.
 
@@ -32,11 +32,11 @@ Optionally, you can add tags to the variable.
 
 ### Via the Prefect UI
 
-You can see all the variables in your Prefect Server instance or Prefect Cloud workspace on the **Variables** page of the Prefect UI. Both the name and value of all variables are visible to anyone with access to the server or workspace.
+You can see all the variables in your Prefect server instance or Prefect Cloud workspace on the **Variables** page of the Prefect UI. Both the name and value of all variables are visible to anyone with access to the server or workspace.
 
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
-![variables-ui](../img/concepts/variables-ui.png)
+![variables-ui](/img/concepts/variables-ui.png)
 
 ### Via the REST API
 

@@ -3,6 +3,7 @@ Interface for creating and reading artifacts.
 """
 
 import json
+import math
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -11,6 +12,12 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.server.schemas.actions import ArtifactCreate
 from prefect.utilities.asyncutils import sync_compatible
+
+
+INVALID_TABLE_TYPE_ERROR = (
+    "`create_table_artifact` requires a `table` argument of type `dict[list]` or"
+    " `list[dict]`."
+)
 
 
 @inject_client
@@ -24,11 +31,13 @@ async def _create_artifact(
     """
     Helper function to create an artifact.
 
-    Args:
-        - type:  A string identifying the type of artifact.
-        - key: A string user-provided identifier.
-        - description: A user-specified description of the artifact.
-        - data: A JSON payload that allows for a result to be retrieved.
+    Arguments:
+        type: A string identifying the type of artifact.
+        key: A user-provided string identifier.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+        data: A JSON payload that allows for a result to be retrieved.
+        client: The PrefectClient
 
     Returns:
         - The table artifact ID.
@@ -67,11 +76,17 @@ async def create_link_artifact(
     """
     Create a link artifact.
 
-    Args:
-        - link: The link to create.
+    Arguments:
+        link: The link to create.
+        link_text: The link text.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
     formatted_link = f"[{link_text}]({link})" if link_text else f"[{link}]({link})"
     artifact = await _create_artifact(
@@ -93,11 +108,15 @@ async def create_markdown_artifact(
     """
     Create a markdown artifact.
 
-    Args:
-        - markdown: The markdown to create.
+    Arguments:
+        markdown: The markdown to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
     artifact = await _create_artifact(
         key=key,
@@ -118,13 +137,41 @@ async def create_table_artifact(
     """
     Create a table artifact.
 
-    Args:
-        - table: The table to create.
+    Arguments:
+        table: The table to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
 
     Returns:
-        - The table artifact ID.
+        The table artifact ID.
     """
-    formatted_table = json.dumps(table) if isinstance(table, list) else table
+
+    def _sanitize_nan_values(container):
+        if isinstance(container, list):
+            for i, val in enumerate(container):
+                if isinstance(val, float) and math.isnan(val):
+                    container[i] = None
+        elif isinstance(container, dict):
+            for k, v in container.items():
+                if isinstance(v, float) and math.isnan(v):
+                    container[k] = None
+
+    if isinstance(table, dict):
+        for _, row in table.items():
+            if not isinstance(row, list):
+                raise TypeError(INVALID_TABLE_TYPE_ERROR)
+            _sanitize_nan_values(row)
+    elif isinstance(table, list):
+        for row in table:
+            if not isinstance(row, dict):
+                raise TypeError(INVALID_TABLE_TYPE_ERROR)
+            _sanitize_nan_values(row)
+    else:
+        raise TypeError(INVALID_TABLE_TYPE_ERROR)
+
+    formatted_table = json.dumps(table)
 
     artifact = await _create_artifact(
         key=key,
