@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
+from rich.console import Console
 
 import typer
 import typer.core
@@ -11,10 +12,14 @@ import yaml
 from rich.panel import Panel
 
 import prefect
+from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import PrefectClient
+from prefect.client.utilities import inject_client
 import prefect.context
+from prefect.server.schemas.actions import WorkPoolCreate
 import prefect.settings
 from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.projects import find_prefect_directory, register_flow
@@ -28,6 +33,7 @@ from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
+from prefect.cli._utilities import prompt_select_from_table
 
 
 @app.command()
@@ -172,7 +178,9 @@ async def deploy(
     try:
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
-            if base_deploy.get("deployments"):
+            if not base_deploy:
+                deployments = []
+            elif base_deploy.get("deployments"):
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
@@ -217,17 +225,36 @@ async def deploy(
                         ),
                         style="yellow",
                     )
-                    options["name"] = None
+                    options["name"] = names[0]
                 await _run_single_deploy(
                     base_deploy=deployment,
                     project=project,
                     options=options,
                 )
             else:
-                exit_with_error(
-                    "Discovered multiple deployments declared in deployment.yaml, "
-                    "but no name was given. Please specify the name of at least one "
-                    "deployment to create or update."
+                if not is_interactive():
+                    exit_with_error(
+                        "Discovered multiple deployments declared in deployment.yaml,"
+                        " but no name was given. Please specify the name of at least"
+                        " one deployment to create or update."
+                    )
+                selected_deployment = prompt_select_from_table(
+                    app.console,
+                    "Which deployment would you like to create or update?",
+                    [
+                        {"header": "Deployment Name", "key": "name"},
+                        {"header": "Description", "key": "description"},
+                    ],
+                    [
+                        deployment
+                        for deployment in deployments
+                        if deployment.get("name")
+                    ],
+                )
+                await _run_single_deploy(
+                    base_deploy=selected_deployment,
+                    project=project,
+                    options=options,
                 )
         elif len(deployments) <= 1:
             if len(names) > 1:
@@ -239,7 +266,7 @@ async def deploy(
             else:
                 options["name"] = names[0] if names else None
                 await _run_single_deploy(
-                    base_deploy=deployments[0],
+                    base_deploy=deployments[0] if deployments else {},
                     project=project,
                     options=options,
                 )
@@ -294,7 +321,9 @@ async def _run_single_deploy(
     if not flow_name and not entrypoint:
         raise ValueError("An entrypoint or flow name must be provided.")
     if not name:
-        raise ValueError("A deployment name must be provided.")
+        if not is_interactive():
+            raise ValueError("A deployment name must be provided.")
+        name = typer.prompt("What would you like to name this deployment?")
     if flow_name and entrypoint:
         raise ValueError("Can only pass an entrypoint or a flow name but not both.")
 
@@ -434,7 +463,7 @@ async def _run_single_deploy(
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
-        if base_deploy["work_pool"]:
+        if base_deploy["work_pool"]["name"]:
             try:
                 work_pool = await client.read_work_pool(
                     base_deploy["work_pool"]["name"]
@@ -442,8 +471,21 @@ async def _run_single_deploy(
 
                 # dont allow submitting to prefect-agent typed work pools
                 if work_pool.type == "prefect-agent":
-                    exit_with_error(
-                        "Cannot deploy project with work pool of type 'prefect-agent'."
+                    if not is_interactive():
+                        raise ValueError(
+                            "Cannot create a project-style deployment with work pool of"
+                            " type 'prefect-agent'. If you wish to use an agent with"
+                            " your deployment, please use the `prefect deployment"
+                            " build` command."
+                        )
+                    app.console.print(
+                        "You've chosen a work pool with type 'prefect-agent' which"
+                        " cannot be used for project-style deployments. Let's pick"
+                        " another work pool to deploy to."
+                    )
+                    base_deploy["work_pool"]["name"] = await _prompt_select_work_pool(
+                        app.console,
+                        client=client,
                     )
             except ObjectNotFound:
                 app.console.print(
@@ -454,6 +496,15 @@ async def _run_single_deploy(
                     ),
                     style="red",
                 )
+        else:
+            if not is_interactive():
+                raise ValueError(
+                    "A work pool is required to deploy this flow. Please specify a work"
+                    " pool name via the '--pool' flag or in your deployment.yaml file."
+                )
+            base_deploy["work_pool"]["name"] = await _prompt_select_work_pool(
+                console=app.console, client=client
+            )
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
@@ -489,13 +540,14 @@ async def _run_single_deploy(
         if base_deploy["work_pool"]["name"] is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start a worker that"
-                f" pulls work from the {base_deploy['work_pool']['name']!r} work pool"
+                f" pulls work from the {base_deploy['work_pool']['name']!r} work pool:"
             )
-        elif base_deploy["work_pool"]["work_queue_name"] is not None:
             app.console.print(
-                "\nTo execute flow runs from this deployment, start a worker that"
-                " pulls work from the"
-                f" {base_deploy['work_pool']['work_queue_name']!r} work queue"
+                (
+                    "\n\t$ prefect worker start --pool"
+                    f" {base_deploy['work_pool']['name']!r}\n"
+                ),
+                style="blue",
             )
         else:
             app.console.print(
@@ -518,10 +570,21 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
         app.console.print("Deploying all deployments for current project...")
         for base_deploy in base_deploys:
             if base_deploy.get("name") is None:
-                app.console.print(
-                    "Discovered deployment with no name. Skipping...", style="yellow"
-                )
-                continue
+                if not is_interactive():
+                    app.console.print(
+                        "Discovered unnamed deployment. Skipping...", style="yellow"
+                    )
+                app.console.print("Discovered unnamed deployment.", style="yellow")
+                app.console.print_json(data=base_deploy)
+                if typer.confirm(
+                    "Would you like to give this deployment a name and deploy it?"
+                ):
+                    base_deploy["name"] = typer.prompt(
+                        "What would you like to name this deployment?"
+                    )
+                else:
+                    app.console.print("Skipping unnamed deployment.", style="yellow")
+                    continue
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
             await _run_single_deploy(base_deploy, project)
     else:
@@ -543,6 +606,77 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
         for base_deploy in picked_base_deploys:
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
             await _run_single_deploy(base_deploy, project)
+
+
+@inject_client
+async def _prompt_select_work_pool(
+    console: Console,
+    prompt: str = "Which work pool would you like to deploy this flow to?",
+    client: PrefectClient = None,
+) -> str:
+    work_pools = await client.read_work_pools()
+    work_pool_options = [
+        work_pool.dict()
+        for work_pool in work_pools
+        if work_pool.type != "prefect-agent"
+    ]
+    if not work_pool_options:
+        work_pool = await _prompt_create_work_pool(console, client=client)
+        return work_pool.name
+    else:
+        selected_work_pool_row = prompt_select_from_table(
+            console,
+            prompt,
+            [
+                {"header": "Work Pool Name", "key": "name"},
+                {"header": "Description", "key": "description"},
+            ],
+            work_pool_options,
+        )
+        return selected_work_pool_row["name"]
+
+
+@inject_client
+async def _prompt_create_work_pool(
+    console: Console,
+    client: PrefectClient = None,
+):
+    if not typer.confirm(
+        (
+            "Looks like you don't have any work pools this flow can be deployed to."
+            " Would you like to create one?"
+        ),
+        default=True,
+    ):
+        raise ValueError(
+            "A work pool is required to deploy this flow. Please specify a work pool"
+            " name via the '--pool' flag or in your deployment.yaml file."
+        )
+    async with get_collections_metadata_client() as collections_client:
+        worker_metadata = await collections_client.read_worker_metadata()
+    selected_worker_row = prompt_select_from_table(
+        console,
+        prompt="What infrastructure type would you like to use for your new work pool?",
+        columns=[
+            {"header": "Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        data=[
+            worker
+            for collection in worker_metadata.values()
+            for worker in collection.values()
+            if worker["type"] != "prefect-agent"
+        ],
+        table_kwargs={"show_lines": True},
+    )
+    work_pool_name = typer.prompt(
+        "What would you like to name your new work pool?", type=str
+    )
+    work_pool = await client.create_work_pool(
+        WorkPoolCreate(name=work_pool_name, type=selected_worker_row["type"])
+    )
+    console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
+    return work_pool
 
 
 DEFAULT_DEPLOYMENT = None

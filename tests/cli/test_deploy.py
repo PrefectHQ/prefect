@@ -6,10 +6,13 @@ from pathlib import Path
 
 import pendulum
 import pytest
+import readchar
+from typer import Exit
 import yaml
 
 import prefect
 from prefect.blocks.system import Secret
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.projects import register_flow
 from prefect.projects.base import create_default_deployment_yaml, initialize_project
@@ -19,6 +22,25 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
@@ -73,6 +95,13 @@ def project_dir_with_single_deployment_format(tmp_path):
 
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
+
+
+@pytest.fixture
+async def default_agent_pool(orion_client):
+    return await orion_client.create_work_pool(
+        WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
+    )
 
 
 class TestProjectDeploySingleDeploymentYAML:
@@ -406,15 +435,18 @@ class TestProjectDeploy:
         await orion_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-name",
+                "prefect worker start --pool 'test-pool'",
+            ],
         )
-        assert result.exit_code == 0
-        assert "An important name/test" in result.output
 
         deployment = await orion_client.read_deployment_by_name(
             "An important name/test-name"
@@ -719,14 +751,155 @@ class TestProjectDeploy:
             expected_output="An entrypoint or flow name must be provided.",
         )
 
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_without_name_interactive(self, work_pool, orion_client):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -p {work_pool.name}",
+            expected_code=0,
+            user_input="test-prompt-name" + readchar.key.ENTER,
+            expected_output_contains=[
+                "What would you like to name this deployment?",
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-prompt-name"
+        )
+        assert deployment.name == "test-prompt-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.entrypoint == "./flows/hello.py:my_flow"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_without_work_pool_non_interactive(self):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name",
+            expected_code=1,
+            expected_output_contains=[
+                "A work pool is required to deploy this flow. Please specify a"
+                " work pool name via the '--pool' flag or in your deployment.yaml file."
+            ],
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_without_work_pool_interactive(self, work_pool, orion_client):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name",
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                "Which work pool would you like to deploy this flow to?",
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.entrypoint == "./flows/hello.py:my_flow"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_prefect_agent_work_pool_non_interactive(
+        self, default_agent_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {default_agent_pool.name}"
+            ),
+            expected_code=1,
+            expected_output=(
+                "Cannot create a project-style deployment with work pool of type"
+                " 'prefect-agent'. If you wish to use an agent with your deployment,"
+                " please use the `prefect deployment build` command."
+            ),
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_prefect_agent_work_pool_interactive(
+        self, work_pool, orion_client, default_agent_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {default_agent_pool.name}"
+            ),
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                (
+                    "You've chosen a work pool with type 'prefect-agent' which cannot"
+                    " be used for project-style deployments. Let's pick another work"
+                    " pool to deploy to."
+                ),
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.entrypoint == "./flows/hello.py:my_flow"
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_no_available_work_pool_interactive(
+        self, orion_client, default_agent_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name",
+            expected_code=0,
+            user_input=(
+                # Accept creating a new work pool
+                readchar.key.ENTER
+                +
+                # Select the first work pool type
+                readchar.key.ENTER
+                +
+                # Enter a name for the new work pool
+                "test-created-via-deploy"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                (
+                    "Looks like you don't have any work pools this flow can be deployed"
+                    " to. Would you like to create one?"
+                ),
+                (
+                    "What infrastructure type would you like to use for your new work"
+                    " pool?"
+                ),
+                "What would you like to name your new work pool?",
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-created-via-deploy"
+        assert deployment.entrypoint == "./flows/hello.py:my_flow"
+
 
 class TestSchedules:
-    async def test_passing_cron_schedules_to_deploy(self, project_dir, orion_client):
+    async def test_passing_cron_schedules_to_deploy(
+        self, project_dir, work_pool, orion_client
+    ):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *'"
-                " --timezone 'Europe/Berlin'"
+                f" --timezone 'Europe/Berlin' --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
@@ -737,7 +910,9 @@ class TestSchedules:
         assert deployment.schedule.cron == "0 4 * * *"
         assert deployment.schedule.timezone == "Europe/Berlin"
 
-    async def test_deployment_yaml_cron_schedule(self, project_dir, orion_client):
+    async def test_deployment_yaml_cron_schedule(
+        self, project_dir, work_pool, orion_client
+    ):
         create_default_deployment_yaml(".")
         with open("deployment.yaml", "r") as f:
             deploy_config = yaml.safe_load(f)
@@ -750,7 +925,9 @@ class TestSchedules:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name",
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
         )
         assert result.exit_code == 0
 
@@ -761,7 +938,7 @@ class TestSchedules:
         assert deployment.schedule.timezone == "America/Chicago"
 
     async def test_deployment_yaml_cron_schedule_timezone_cli(
-        self, project_dir, orion_client
+        self, project_dir, work_pool, orion_client
     ):
         create_default_deployment_yaml(".")
         with open("deployment.yaml", "r") as f:
@@ -777,7 +954,7 @@ class TestSchedules:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name "
-                "--timezone 'Europe/Berlin'"
+                f"--timezone 'Europe/Berlin' --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
@@ -789,13 +966,14 @@ class TestSchedules:
         assert deployment.schedule.timezone == "Europe/Berlin"
 
     async def test_passing_interval_schedules_to_deploy(
-        self, project_dir, orion_client
+        self, project_dir, work_pool, orion_client
     ):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name --interval 42"
-                " --anchor-date 2040-02-02 --timezone 'America/New_York'"
+                " --anchor-date 2040-02-02 --timezone 'America/New_York' --pool"
+                f" {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
@@ -807,7 +985,9 @@ class TestSchedules:
         assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/New_York"
 
-    async def test_interval_schedule_deployment_yaml(self, project_dir, orion_client):
+    async def test_interval_schedule_deployment_yaml(
+        self, project_dir, orion_client, work_pool
+    ):
         create_default_deployment_yaml(".")
         with open("deployment.yaml", "r") as f:
             deploy_config = yaml.safe_load(f)
@@ -821,7 +1001,9 @@ class TestSchedules:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name",
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
         )
         assert result.exit_code == 0
 
@@ -845,14 +1027,14 @@ class TestSchedules:
         )
 
     async def test_parsing_rrule_schedule_string_literal(
-        self, project_dir, orion_client
+        self, project_dir, orion_client, work_pool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name "
-                "--rrule"
+                "deploy ./flows/hello.py:my_flow -n test-name --rrule"
                 " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
+                f" --pool {work_pool.name}"
             ),
             expected_code=0,
         )
@@ -865,7 +1047,7 @@ class TestSchedules:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
-    async def test_rrule_deployment_yaml(self, project_dir, orion_client):
+    async def test_rrule_deployment_yaml(self, project_dir, work_pool, orion_client):
         create_default_deployment_yaml(".")
         with open("deployment.yaml", "r") as f:
             deploy_config = yaml.safe_load(f)
@@ -880,9 +1062,9 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name "
-                "--rrule"
+                "deploy ./flows/hello.py:my_flow -n test-name --rrule"
                 " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
+                f" --pool {work_pool.name}"
             ),
             expected_code=0,
         )
@@ -1215,13 +1397,93 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy --all",
             expected_code=0,
-            expected_output_contains=[
-                "Discovered deployment with no name. Skipping..."
-            ],
+            expected_output_contains=["Discovered unnamed deployment. Skipping..."],
         )
 
         with pytest.raises(ObjectNotFound):
             await orion_client.read_deployment_by_name("An important name/test-name-2")
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_without_name_in_deployment_yaml_interactive(
+        self, orion_client, work_pool
+    ):
+        # Create multiple deployments with one missing a name
+        deployments = {
+            "deployments": [
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "name": "test-name-1",
+                    "work_pool": {"name": work_pool.name},
+                },
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    # Missing name
+                    "work_pool": {"name": work_pool.name},
+                },
+            ]
+        }
+
+        # Save deployments to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployments, f)
+
+        # Attempt to deploy all
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            user_input="y" + readchar.key.ENTER + "test-name-2" + readchar.key.ENTER,
+            expected_output_contains=[
+                "Discovered unnamed deployment.",
+                "Would you like to give this deployment a name and deploy it?",
+                "What would you like to name this deployment?",
+            ],
+        )
+
+        assert await orion_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_without_name_in_deployment_yaml_interactive_user_skips(
+        self, orion_client: PrefectClient, work_pool
+    ):
+        # Create multiple deployments with one missing a name
+        deployments = {
+            "deployments": [
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    "name": "test-name-1",
+                    "work_pool": {"name": work_pool.name},
+                },
+                {
+                    "entrypoint": "./flows/hello.py:my_flow",
+                    # Missing name
+                    "work_pool": {"name": work_pool.name},
+                },
+            ]
+        }
+
+        # Save deployments to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployments, f)
+
+        # Attempt to deploy all
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                "Discovered unnamed deployment.",
+                "Would you like to give this deployment a name and deploy it?",
+                "Skipping unnamed deployment.",
+            ],
+        )
+
+        assert len(await orion_client.read_deployments()) == 1
 
     async def test_deploy_with_name_not_in_deployment_yaml(
         self, project_dir, orion_client, work_pool
@@ -1501,3 +1763,46 @@ class TestMultiDeploy:
                 ),
             ],
         )
+
+    @pytest.mark.usefixtures("interactive_console")
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_select_from_existing_deployments(
+        self, work_pool, orion_client
+    ):
+        deployments = {
+            "deployments": [
+                {
+                    "name": "test-name-1",
+                    "description": "test-description-1",
+                    "work_pool": {"name": work_pool.name},
+                },
+                {
+                    "name": "test-name-2",
+                    "description": "test-description-2",
+                    "work_pool": {"name": work_pool.name},
+                },
+            ]
+        }
+
+        # Save deployments to deployment.yaml
+        with open("deployment.yaml", "w") as f:
+            yaml.dump(deployments, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow",
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                "Which deployment would you like to create or update?",
+                "test-name-1",
+                "test-name-2",
+                "test-description-1",
+                "test-description-2",
+            ],
+        )
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment.name == "test-name-1"
