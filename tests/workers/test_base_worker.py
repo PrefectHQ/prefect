@@ -1,5 +1,6 @@
+import inspect
 import uuid
-from typing import Optional
+from typing import Optional, Generator
 from unittest.mock import MagicMock, call
 
 import anyio
@@ -17,8 +18,10 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    CrashedRun,
 )
 from prefect.flows import flow
+from prefect.infrastructure.base import Infrastructure
 from prefect.server import models
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
@@ -26,6 +29,7 @@ from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dispatch import get_registry_for_type
 from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
@@ -1719,3 +1723,92 @@ async def test_get_flow_run_logger(
             "work_pool_name": "test-work-pool",
             "work_pool_id": str(work_pool.id),
         }
+
+
+class TestInfrastructureIntegration:
+    @pytest.fixture
+    def mock_infrastructure_run(self, monkeypatch) -> Generator[MagicMock, None, None]:
+        """
+        Mocks all subtype implementations of `Infrastructure.run`.
+
+        Yields a mock that is called with `self.dict()` when `run`
+        is awaited. The mock provides a few utilities for testing
+        error handling.
+
+        `pre_start_side_effect` and `post_start_side_effect` may be
+        set to callables to perform actions before or after the
+        task is reported as started.
+
+        `mark_as_started` may be set to `False` to prevent marking the
+        task as started.
+        """
+        mock = MagicMock()
+        mock.pre_start_side_effect = lambda: None
+        mock.post_start_side_effect = lambda: None
+        mock.mark_as_started = True
+        mock.result_status_code = 0
+        mock.result_identifier = "id-1234"
+
+        async def mock_run(self, task_status=None):
+            # Record the call immediately
+            result = mock(self.dict())
+            result.status_code = mock.result_status_code
+            result.identifier = mock.result_identifier
+
+            # Perform side-effects for testing error handling
+
+            pre = mock.pre_start_side_effect()
+            if inspect.iscoroutine(pre):
+                await pre
+
+            if mock.mark_as_started:
+                task_status.started(result.identifier)
+
+            post = mock.post_start_side_effect()
+            if inspect.iscoroutine(post):
+                await post
+
+            return result
+
+        # Patch all infrastructure types
+        types = get_registry_for_type(Block)
+        for t in types.values():
+            if not issubclass(t, Infrastructure):
+                continue
+            monkeypatch.setattr(t, "run", mock_run)
+
+        yield mock
+
+    async def test_agent_crashes_flow_if_infrastructure_submission_fails(
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_infra_wq1,
+        work_pool,
+        mock_infrastructure_run,
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+        await orion_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_infrastructure_run.pre_start_side_effect = raise_value_error
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._logger = MagicMock()
+            worker._work_pool = work_pool
+            await worker.get_and_submit_flow_runs()
+
+        worker._logger.exception.assert_called_once_with(
+            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_crashed()
+        with pytest.raises(
+            CrashedRun, match="Flow run could not be submitted to infrastructure"
+        ):
+            await state.result()
