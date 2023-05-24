@@ -19,7 +19,7 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
     - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
     - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
 - Locally hosted open-source Prefect server:
-    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at http://localhost:4200/docs or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
+    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
     - [Prefect REST API documentation](/api-ref/rest-api-reference/)
 
 ## Interacting with the REST API
