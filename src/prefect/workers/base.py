@@ -536,7 +536,7 @@ class BaseWorker(abc.ABC):
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
-        self._emit_event_worker_poll_cancellation()
+        self._emit_event_worker_poll_cancelled_flow_run()
 
         if cancelling_flow_runs:
             self._logger.info(
@@ -1082,7 +1082,7 @@ class BaseWorker(abc.ABC):
             related=self._event_related_resources(),
         )
 
-    def _emit_event_worker_poll_cancellation(self) -> Event:
+    def _emit_event_worker_poll_cancelled_flow_run(self) -> Event:
         return emit_event(
             "prefect.worker.poll.cancelled-flow-run",
             resource=self._event_resource(),
