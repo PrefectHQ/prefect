@@ -332,13 +332,20 @@ async def _run_single_deploy(
         raise ValueError("Only one schedule type can be provided.")
 
     if not flow_name and not entrypoint:
-        raise ValueError("An entrypoint or flow name must be provided.")
-    if not name:
-        if not is_interactive():
-            raise ValueError("A deployment name must be provided.")
-        name = prompt("Deployment name")
+        raise ValueError(
+            "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
+            " entrypoint:\n\n\t[blue]prefect deploy"
+            " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
+            " name:\n\n\t[blue]prefect project register-flow"
+            " path/to/file.py:flow_function\n\tprefect deploy --flow"
+            " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
+            " name in this project's deployment.yaml file."
+        )
     if flow_name and entrypoint:
-        raise ValueError("Can only pass an entrypoint or a flow name but not both.")
+        raise ValueError(
+            "Received an entrypoint and a flow name for this deployment. Please provide"
+            " either an entrypoint or a flow name."
+        )
 
     # flow-name and entrypoint logic
     flow = None
@@ -373,6 +380,11 @@ async def _run_single_deploy(
 
     base_deploy["flow_name"] = flow_name
     base_deploy["entrypoint"] = entrypoint
+
+    if not name:
+        if not is_interactive():
+            raise ValueError("A deployment name must be provided.")
+        name = prompt("Deployment name")
 
     ## parse parameters
     # minor optimization in case we already loaded the flow
