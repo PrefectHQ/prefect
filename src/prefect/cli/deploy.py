@@ -334,9 +334,9 @@ async def _run_single_deploy(
     if not flow_name and not entrypoint:
         raise ValueError(
             "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
-            " entrypoint:\n\n\t[blue]prefect deploy"
+            " entrypoint:\n\n\t[yellow]prefect deploy"
             " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
-            " name:\n\n\t[blue]prefect project register-flow"
+            " name:\n\n\t[yellow]prefect project register-flow"
             " path/to/file.py:flow_function\n\tprefect deploy --flow"
             " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
             " name in this project's deployment.yaml file."
@@ -350,7 +350,14 @@ async def _run_single_deploy(
     # flow-name and entrypoint logic
     flow = None
     if entrypoint:
-        flow = await register_flow(entrypoint)
+        try:
+            flow = await register_flow(entrypoint)
+        except ModuleNotFoundError:
+            raise ValueError(
+                f"Could not find a flow at {entrypoint}.\n\nPlease ensure your"
+                " entrypoint is in the format path/to/file.py:flow_fn_name and the"
+                " file name and flow function name are correct."
+            )
         flow_name = flow.name
     elif flow_name:
         prefect_dir = find_prefect_directory()
@@ -361,7 +368,7 @@ async def _run_single_deploy(
             )
         if not (prefect_dir / "flows.json").exists():
             raise ValueError(
-                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+                f"Flow {flow_name!r} cannot be found; run\n\t[yellow]prefect project"
                 " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
                 " its location."
             )
@@ -370,7 +377,7 @@ async def _run_single_deploy(
 
         if flow_name not in flows:
             raise ValueError(
-                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+                f"Flow {flow_name!r} cannot be found; run\n\t[yellow]prefect project"
                 " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
                 " its location."
             )
