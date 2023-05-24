@@ -4,7 +4,7 @@
 // const amplitudeKey = process.env.AMPLITUDE_API_KEY;
 // const amplitudeUrl = process.env.AMPLITUDE_URL;
 const amplitudeKey = "8ab9ae57b486baa5d4ab626559fd8106"
-// const amplitudeUrl = "/2/httpapi"
+const amplitudeUrl = "/2/httpapi"
 
 const addUrl = (event) => {
   const deviceId = amplitude.getDeviceId()
@@ -47,7 +47,7 @@ const init = () => {
   amplitude.init(amplitudeKey, undefined, {
     logLevel: 4,
     useBatch: false,
-    // serverUrl: amplitudeUrl,
+    serverUrl: amplitudeUrl,
     attribution: {
       disabled: false,
       trackNewCampaigns: true,
