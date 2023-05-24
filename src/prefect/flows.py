@@ -159,14 +159,24 @@ class Flow(Generic[P, R]):
             List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
-        # Validate states is passed as list
-        states = [on_completion, on_failure, on_cancellation, on_crashed]
-        for state in states:
-            if state is not None and not isinstance(state, list):
-                raise TypeError(
-                    f"Expected list of callable for {state}; got"
-                    f" {type(state).__name__} instead."
-                )
+        # Validate if hooks type is list and hook_type is callable
+        hooks = [on_completion, on_failure, on_cancellation, on_crashed]
+        for hook_types in hooks:
+            if hook_types is not None:
+                try:
+                    hook_types = list(hook_types)
+                except TypeError:
+                    print(
+                        f"Expected list of callable for {hook_types}; got"
+                        f" {type(hook_types).__name__} instead."
+                    )
+
+                for hook_type in hook_types:
+                    if not callable(hook_type):
+                        raise TypeError(
+                            f"Expected callables in {hook_types}; got"
+                            f" {type(hook_type).__name__} instead."
+                        )
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
