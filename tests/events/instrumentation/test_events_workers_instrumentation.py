@@ -51,15 +51,14 @@ async def test_worker_emits_submitted_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.heartbeat' event.
+    # When a worker submits a flow-run, it first dispatches a 'worker.poll.*' event.
     # it then monitors that flow run until it's complete.
     # When it's complete, it fires a third 'monitored' event, which
     # is covered by the test_worker_emits_monitored_event below.
     assert len(asserting_events_worker._client.events) == 3
 
-    heartbeat_event = asserting_events_worker._client.events[0]
-    assert heartbeat_event.event == "prefect.worker.heartbeat"
-    assert heartbeat_event.payload["heartbeat_origin"] == "get_and_submit_flow_runs"
+    flow_run_poll_event = asserting_events_worker._client.events[0]
+    assert flow_run_poll_event.event == "prefect.worker.poll.flow-run"
 
     submit_event = asserting_events_worker._client.events[1]
     assert submit_event.event == "prefect.worker.submitted-flow-run"
@@ -134,15 +133,14 @@ async def test_worker_emits_executed_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.heartbeat' event.
+    # When a worker submits a flow-run, it first dispatches a 'worker.poll.*' event.
     # it then monitors that flow run until it's complete.
     # When it's complete, it fires a third 'sumbitted' event, which
     # is covered by the test_worker_emits_submitted_event below.
     assert len(asserting_events_worker._client.events) == 3
 
-    heartbeat_event = asserting_events_worker._client.events[0]
-    assert heartbeat_event.event == "prefect.worker.heartbeat"
-    assert heartbeat_event.payload["heartbeat_origin"] == "get_and_submit_flow_runs"
+    flow_run_poll_event = asserting_events_worker._client.events[0]
+    assert flow_run_poll_event.event == "prefect.worker.poll.flow-run"
 
     submitted_event = asserting_events_worker._client.events[1]
     executed_event = asserting_events_worker._client.events[2]
@@ -219,9 +217,12 @@ def test_lifecycle_events(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 4
+    assert len(asserting_events_worker._client.events) == 6
 
-    started_event = asserting_events_worker._client.events[0]
+    heartbeat_event = asserting_events_worker._client.events[0]
+    assert heartbeat_event.event == "prefect.worker.heartbeat"
+
+    started_event = asserting_events_worker._client.events[1]
     assert started_event.event == "prefect.worker.started"
 
     assert dict(started_event.resource.items()) == {
@@ -243,20 +244,13 @@ def test_lifecycle_events(
         },
     ]
 
-    # two 'worker.heartbeat' events are dispatched in a lifecycle
+    # two 'worker.poll.*' events are dispatched in a lifecycle
     # one for when scheduled flow runs are checked, and
     # one for when cancelled flow runs are checked
-    first_heartbeat_event = asserting_events_worker._client.events[1]
-    second_heartbeat_event = asserting_events_worker._client.events[2]
-    assert first_heartbeat_event.event == "prefect.worker.heartbeat"
-    assert (
-        first_heartbeat_event.payload["heartbeat_origin"] == "get_and_submit_flow_runs"
-    )
-    assert second_heartbeat_event.event == "prefect.worker.heartbeat"
-    assert (
-        second_heartbeat_event.payload["heartbeat_origin"]
-        == "check_for_cancelled_flow_runs"
-    )
+    flow_run_poll_event = asserting_events_worker._client.events[2]
+    cancellation_poll_event = asserting_events_worker._client.events[3]
+    assert flow_run_poll_event.event == "prefect.worker.poll.flow-run"
+    assert cancellation_poll_event.event == "prefect.worker.poll.cancellation"
 
     # last event should be `prefect.worker.stopped`
     stopped_event = asserting_events_worker._client.events[
@@ -307,15 +301,15 @@ async def test_worker_emits_cancelled_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 2
+    assert len(asserting_events_worker._client.events) == 3
 
     heartbeat_event = asserting_events_worker._client.events[0]
     assert heartbeat_event.event == "prefect.worker.heartbeat"
-    assert (
-        heartbeat_event.payload["heartbeat_origin"] == "check_for_cancelled_flow_runs"
-    )
 
-    cancelled_event = asserting_events_worker._client.events[1]
+    cancellation_poll_event = asserting_events_worker._client.events[1]
+    assert cancellation_poll_event.event == "prefect.worker.poll.cancellation"
+
+    cancelled_event = asserting_events_worker._client.events[2]
     assert cancelled_event.event == "prefect.worker.cancelled-flow-run"
 
     assert dict(cancelled_event.resource.items()) == {
@@ -373,6 +367,7 @@ def test_job_configuration_related_resources_no_objects():
 async def test_worker_can_include_itself_as_related(work_pool):
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
         await worker.sync_with_backend()
+
         related = [dict(r) for r in worker._event_related_resources(include_self=True)]
 
         assert related == [
