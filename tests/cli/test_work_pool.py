@@ -1,5 +1,8 @@
+import sys
 import httpx
 import pytest
+import readchar
+from typer import Exit
 
 from prefect.exceptions import ObjectNotFound
 from prefect.server.schemas.actions import WorkPoolUpdate
@@ -22,6 +25,32 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
         },
     },
 }
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.work_pool.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture(autouse=True)
+def reset_cache():
+    from prefect.server.api.collections import GLOBAL_COLLECTIONS_VIEW_CACHE
+
+    GLOBAL_COLLECTIONS_VIEW_CACHE.clear()
 
 
 class TestCreate:
@@ -56,7 +85,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         assert f"Created work pool {pool_name!r}" in res.output
@@ -65,11 +94,31 @@ class TestCreate:
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
 
+    async def test_create_work_pool_name_conflict(
+        self, orion_client, mock_collection_registry
+    ):
+        pool_name = "my-pool"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} -t prefect-agent",
+            expected_code=0,
+            expected_output_contains=[f"Created work pool {pool_name!r}"],
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} -t prefect-agent",
+            expected_code=1,
+            expected_output_contains=[
+                f"Work pool named {pool_name!r} already exists. Please try creating"
+                " your work pool again with a different name."
+            ],
+        )
+
     async def test_default_template(self, orion_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
@@ -79,7 +128,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name}",
+            f"work-pool create {pool_name} -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
@@ -89,7 +138,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} --paused",
+            f"work-pool create {pool_name} --paused -t prefect-agent",
         )
         assert res.exit_code == 0
         client_res = await orion_client.read_work_pool(pool_name)
@@ -138,6 +187,46 @@ class TestCreate:
                 "fake",
             ],
         )
+
+    def test_create_non_interactive_missing_args(self):
+        invoke_and_assert(
+            ["work-pool", "create", "no-type"],
+            expected_code=1,
+            expected_output=(
+                "When not using an interactive terminal, you must supply a `--type`"
+                " value."
+            ),
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_create_interactive_first_type(self, orion_client):
+        work_pool_name = "test-interactive"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["work-pool", "create", work_pool_name],
+            expected_code=0,
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[f"Created work pool {work_pool_name!r}"],
+        )
+        client_res = await orion_client.read_work_pool(work_pool_name)
+        assert client_res.name == work_pool_name
+        assert client_res.type == "prefect-agent"
+        assert isinstance(client_res, WorkPool)
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_create_interactive_second_type(self, orion_client):
+        work_pool_name = "test-interactive"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["work-pool", "create", work_pool_name],
+            expected_code=0,
+            user_input=readchar.key.DOWN + readchar.key.ENTER,
+            expected_output_contains=[f"Created work pool {work_pool_name!r}"],
+        )
+        client_res = await orion_client.read_work_pool(work_pool_name)
+        assert client_res.name == work_pool_name
+        assert client_res.type == "fake"
+        assert isinstance(client_res, WorkPool)
 
 
 class TestInspect:
