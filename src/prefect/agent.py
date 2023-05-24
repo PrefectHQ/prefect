@@ -378,6 +378,7 @@ class PrefectAgent:
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
+
         flow = await self.client.read_flow(deployment.flow_id)
 
         # overrides only apply when configuring known infra blocks
