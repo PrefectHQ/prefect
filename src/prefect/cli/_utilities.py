@@ -92,7 +92,8 @@ def prompt_select_from_table(
         nonlocal first_run
         if first_run:
             console.print(
-                f"{prompt} [bright_blue][Use arrows to move; enter to select]"
+                f"[bold][green]?[/] {prompt} [bright_blue][Use arrows to move; enter to"
+                " select][/]"
             )
         table = Table(**table_kwargs)
         table.add_column()
