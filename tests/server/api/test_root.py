@@ -1,5 +1,5 @@
 from fastapi import status
-from unittest.mock import AsyncMock
+from prefect.testing.utilities import AsyncMock
 
 
 async def test_hello_world(client):
