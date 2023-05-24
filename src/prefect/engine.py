@@ -36,6 +36,7 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
+from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
@@ -1166,7 +1167,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             # We need to wait for futures to be submitted before we can get the task
             # run id but we want to do so asynchronously
             futures.add(obj)
-        elif isinstance(obj, State):
+        elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         else:
@@ -1883,7 +1884,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             futures.add(expr)
-        if isinstance(expr, State):
+        if is_state(expr):
             states.add(expr)
 
         return expr
@@ -1922,7 +1923,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             state = expr._final_state
-        elif isinstance(expr, State):
+        elif is_state(expr):
             state = expr
         else:
             return expr

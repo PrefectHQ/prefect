@@ -353,7 +353,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif isinstance(result, str):
         return wrapper(result)
 
-    elif isinstance(result, State):
+    elif is_state(result):
         # Return the exception from the inner state
         return await get_state_exception(result)
 
@@ -391,7 +391,9 @@ def is_state(obj: Any) -> TypeGuard[State]:
     """
     # We may want to narrow this to client-side state types but for now this provides
     # backwards compatibility
-    return isinstance(obj, State)
+    from prefect.server.schemas.states import State as State_
+
+    return isinstance(obj, (State, State_))
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
