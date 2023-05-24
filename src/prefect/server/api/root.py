@@ -2,7 +2,6 @@
 Contains the `hello` route for testing and healthcheck purposes.
 """
 from fastapi import Depends, status
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from prefect.server.utilities.server import PrefectRouter
 from prefect.server.database.dependencies import provide_database_interface
@@ -26,10 +25,10 @@ async def perform_readiness_check(
     if is_db_connectable:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content=jsonable_encoder({"status": "OK"}),
+            content={"message": "OK"},
         )
 
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content=jsonable_encoder({"status": "Database is not available"}),
+        content={"message": "Database is not available"},
     )
