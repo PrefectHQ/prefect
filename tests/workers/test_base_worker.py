@@ -1490,6 +1490,32 @@ class TestCancellation:
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
+    async def test_worker_cancel_run_handles_missing_deployment(
+        self,
+        orion_client: PrefectClient,
+        worker_deployment_wq1,
+        cancelling_constructor,
+        work_pool,
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=cancelling_constructor(),
+        )
+
+        await orion_client.delete_deployment(worker_deployment_wq1.id)
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name, prefetch_seconds=10
+        ) as worker:
+            await worker.sync_with_backend()
+            await worker.check_for_cancelled_flow_runs()
+
+        post_flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert post_flow_run.state.type == StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+    )
     async def test_worker_cancel_run_preserves_other_state_properties(
         self,
         orion_client: PrefectClient,
