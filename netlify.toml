@@ -166,6 +166,12 @@ from = "/getting-started/overview/"
 to = "/"
 status = 301
 
+# add a redirect for installation
+[[redirects]]
+from = "/getting-started/installation/"
+to = "/tutorial/installation/"
+status = 301
+
 # add from these locations 
 # I think I can use * or splat - check netlifly docs
 # pages that don't carry over get added above explicitly
