@@ -80,7 +80,7 @@ def my_succeed_or_fail_hook(task, task_run, state):
 ## Example use cases
 
 ### Send a notification when a flow run fails
-State change hooks allow you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state. Let's run a client-side hook upon a flow run entering a `Failed` state.
+State change hooks enable you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state. Let's run a client-side hook upon a flow run entering a `Failed` state.
 
 ```python
 from prefect import flow
