@@ -487,7 +487,7 @@ class BaseWorker(abc.ABC):
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
-        self._emit_worker_heartbeat_event(heartbeat_origin="get_and_submit_flow_runs")
+        self._emit_event_worker_poll_flow_run()
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):
@@ -536,9 +536,7 @@ class BaseWorker(abc.ABC):
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
-        self._emit_worker_heartbeat_event(
-            heartbeat_origin="check_for_cancelled_flow_runs"
-        )
+        self._emit_event_worker_poll_cancellation()
 
         if cancelling_flow_runs:
             self._logger.info(
@@ -596,7 +594,7 @@ class BaseWorker(abc.ABC):
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            self._emit_flow_run_cancelled_event(
+            self._emit_event_flow_run_cancelled(
                 flow_run=flow_run, configuration=configuration
             )
             await self._mark_flow_run_as_cancelled(flow_run)
@@ -643,6 +641,7 @@ class BaseWorker(abc.ABC):
             await self._client.send_worker_heartbeat(
                 work_pool_name=self._work_pool_name, worker_name=self.name
             )
+            self._emit_event_worker_heartbeat()
 
     async def sync_with_backend(self):
         """
@@ -792,7 +791,7 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
-            submitted_event = self._emit_flow_run_submitted_event(configuration)
+            submitted_event = self._emit_event_flow_run_submitted(configuration)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -837,7 +836,7 @@ class BaseWorker(abc.ABC):
                 ),
             )
 
-        self._emit_flow_run_executed_event(result, configuration, submitted_event)
+        self._emit_event_flow_run_executed(result, configuration, submitted_event)
 
         return result
 
@@ -1040,7 +1039,7 @@ class BaseWorker(abc.ABC):
 
         return related
 
-    def _emit_flow_run_submitted_event(
+    def _emit_event_flow_run_submitted(
         self, configuration: BaseJobConfiguration
     ) -> Event:
         return emit_event(
@@ -1049,7 +1048,7 @@ class BaseWorker(abc.ABC):
             related=self._event_related_resources(configuration=configuration),
         )
 
-    def _emit_flow_run_executed_event(
+    def _emit_event_flow_run_executed(
         self,
         result: BaseWorkerResult,
         configuration: BaseJobConfiguration,
@@ -1069,22 +1068,35 @@ class BaseWorker(abc.ABC):
             follows=submitted_event,
         )
 
-    def _emit_worker_heartbeat_event(self, heartbeat_origin: str) -> Event:
+    def _emit_event_worker_heartbeat(self) -> Event:
         return emit_event(
             "prefect.worker.heartbeat",
             resource=self._event_resource(),
             related=self._event_related_resources(),
-            payload={"heartbeat_origin": heartbeat_origin},
         )
 
-    async def _emit_worker_started_event(self) -> Event:
+    def _emit_event_worker_poll_flow_run(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
+        )
+
+    def _emit_event_worker_poll_cancellation(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.cancellation",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
+        )
+
+    async def _emit_event_worker_started(self) -> Event:
         return emit_event(
             "prefect.worker.started",
             resource=self._event_resource(),
             related=self._event_related_resources(),
         )
 
-    async def _emit_worker_stopped_event(self, started_event: Event):
+    async def _emit_event_worker_stopped(self, started_event: Event):
         emit_event(
             "prefect.worker.stopped",
             resource=self._event_resource(),
@@ -1092,7 +1104,7 @@ class BaseWorker(abc.ABC):
             follows=started_event,
         )
 
-    def _emit_flow_run_cancelled_event(
+    def _emit_event_flow_run_cancelled(
         self, flow_run: "FlowRun", configuration: BaseJobConfiguration
     ):
         related = self._event_related_resources(configuration=configuration)
