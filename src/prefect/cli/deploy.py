@@ -18,7 +18,7 @@ from prefect.client.utilities import inject_client
 import prefect.context
 from prefect.server.schemas.actions import WorkPoolCreate
 import prefect.settings
-from prefect.cli._utilities import exit_with_error
+from prefect.cli._utilities import exit_with_error, prompt
 from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
@@ -335,7 +335,7 @@ async def _run_single_deploy(
     if not name:
         if not is_interactive():
             raise ValueError("A deployment name must be provided.")
-        name = typer.prompt("What would you like to name this deployment?")
+        name = prompt("Deployment name")
     if flow_name and entrypoint:
         raise ValueError("Can only pass an entrypoint or a flow name but not both.")
 
@@ -591,9 +591,7 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
                 if typer.confirm(
                     "Would you like to give this deployment a name and deploy it?"
                 ):
-                    base_deploy["name"] = typer.prompt(
-                        "What would you like to name this deployment?"
-                    )
+                    base_deploy["name"] = prompt("Deployment name")
                 else:
                     app.console.print("Skipping unnamed deployment.", style="yellow")
                     continue
@@ -682,9 +680,7 @@ async def _prompt_create_work_pool(
         ],
         table_kwargs={"show_lines": True},
     )
-    work_pool_name = typer.prompt(
-        "What would you like to name your new work pool?", type=str
-    )
+    work_pool_name = prompt("Work pool name")
     work_pool = await client.create_work_pool(
         WorkPoolCreate(name=work_pool_name, type=selected_worker_row["type"])
     )
