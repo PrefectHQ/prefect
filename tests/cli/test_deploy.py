@@ -777,7 +777,7 @@ class TestProjectDeploy:
             expected_code=0,
             user_input="test-prompt-name" + readchar.key.ENTER,
             expected_output_contains=[
-                "What would you like to name this deployment?",
+                "Deployment name",
             ],
         )
 
@@ -896,7 +896,7 @@ class TestProjectDeploy:
                     "What infrastructure type would you like to use for your new work"
                     " pool?"
                 ),
-                "What would you like to name your new work pool?",
+                "Work pool name",
             ],
         )
 
@@ -1454,7 +1454,7 @@ class TestMultiDeploy:
             expected_output_contains=[
                 "Discovered unnamed deployment.",
                 "Would you like to give this deployment a name and deploy it?",
-                "What would you like to name this deployment?",
+                "Deployment name",
             ],
         )
 
