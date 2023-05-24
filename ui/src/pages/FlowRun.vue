@@ -4,7 +4,8 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
-    <FlowRunGraphs v-if="flowRun && !isPending" :flow-run="flowRun" />
+    <!-- key is important because underlying components are not reactive and this needs to reload when the flow run id changes -->
+    <FlowRunGraphs v-if="flowRun && !isPending" :key="flowRun.id" :flow-run="flowRun" />
 
     <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
