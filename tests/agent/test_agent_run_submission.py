@@ -662,7 +662,7 @@ class TestInfrastructureIntegration:
             "Server sent an abort signal: message"
         )
 
-    async def test_agent_crashes_flow_if_get_infrastructure_fails(
+    async def test_agent_fails_flow_if_get_infrastructure_fails(
         self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -735,7 +735,7 @@ class TestInfrastructureIntegration:
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.is_crashed()
         with pytest.raises(
-                CrashedRun, match="Flow run could not be submitted to infrastructure"
+            CrashedRun, match="Flow run could not be submitted to infrastructure"
         ):
             await state.result()
 
