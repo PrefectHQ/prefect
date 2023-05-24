@@ -128,6 +128,7 @@ nav:
             - Results: concepts/results.md
             - Artifacts: concepts/artifacts.md
             - States: concepts/states.md
+            - State Change Hooks: concepts/state-change-hooks.md
             - Blocks: concepts/blocks.md
             - Variables: concepts/variables.md
             - Task Runners: concepts/task-runners.md
