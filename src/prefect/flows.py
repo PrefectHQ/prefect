@@ -166,7 +166,7 @@ class Flow(Generic[P, R]):
                 try:
                     hook_types = list(hook_types)
                 except TypeError:
-                    print(
+                    raise TypeError(
                         f"Expected list of callable for {hook_types}; got"
                         f" {type(hook_types).__name__} instead."
                     )
