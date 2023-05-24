@@ -80,7 +80,7 @@ async def create_link_artifact(
         link: The link to create.
         link_text: The link text.
         key: A user-provided string identifier.
-          Required for the artifact to show in the Artifacts tab in the UI.
+          Required for the artifact to show in the Artifacts page in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
 
@@ -111,7 +111,7 @@ async def create_markdown_artifact(
     Arguments:
         markdown: The markdown to create.
         key: A user-provided string identifier.
-          Required for the artifact to show in the Artifacts tab in the UI.
+          Required for the artifact to show in the Artifacts page in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
 
@@ -140,7 +140,7 @@ async def create_table_artifact(
     Arguments:
         table: The table to create.
         key: A user-provided string identifier.
-          Required for the artifact to show in the Artifacts tab in the UI.
+          Required for the artifact to show in the Artifacts page in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
 
