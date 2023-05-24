@@ -1,8 +1,6 @@
 <script src="https://cdn.amplitude.com/libs/analytics-browser-1.9.1-min.js.gz"></script>
 <script type="text/javascript">
-// TODO figure out how to get this from the environment
-// const amplitudeKey = process.env.AMPLITUDE_API_KEY;
-// const amplitudeUrl = process.env.AMPLITUDE_URL;
+
 const amplitudeKey = "8ab9ae57b486baa5d4ab626559fd8106"
 const amplitudeUrl = "/2/httpapi"
 
@@ -45,7 +43,6 @@ const addDeviceIdToAppLinks = () => {
 
 const init = () => {
   amplitude.init(amplitudeKey, undefined, {
-    logLevel: 4,
     useBatch: false,
     serverUrl: amplitudeUrl,
     attribution: {
