@@ -12,11 +12,11 @@ tags:
     - SQLite 
 ---
 
-# Hosting Prefect Server
+# Hosting a Prefect server
 
 After you install Prefect you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), the platform hosted by Prefect. You also have an [API server](/api-ref/) backed by a database and a UI. 
 
-In this section you'll learn how to host your own Prefect Server.
+In this section you'll learn how to host your own Prefect server.
 
 ![Prefect Server UI](/img/ui/flow-run-page-server.png)
 
@@ -37,7 +37,7 @@ Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the term
 
 ### Differences between Prefect Server and Cloud
 
-Prefect Server and Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
+The self-hosted Prefect server and Prefect Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
 
 - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
@@ -51,7 +51,7 @@ Prefect Server and Cloud share a base of features. Prefect Cloud also includes t
 - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
 
-### Configuring Prefect Server
+### Configuring a Prefect Server
 
 Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
 
@@ -63,7 +63,7 @@ $ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 
 !!! tip "`PREFECT_API_URL` required when running Prefect inside a container"
-    You must set the API Server address to use Prefect within a container, such a a Docker container. 
+    You must set the API server address to use Prefect within a container, such as a Docker container. 
 
     You can save the API server address in a [Prefect profile](/concepts/settings/). Whenever that profile is active, the API endpoint will be be at that address.
 
@@ -229,7 +229,7 @@ See the [contributing docs](/contributing/overview/#adding-database-migrations) 
 
 ## Notifications
 
-When you use [Prefect Cloud](/cloud/) you gain access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect Server.
+When you use [Prefect Cloud](/cloud/) you gain access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect server.
 
 Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 
@@ -247,7 +247,7 @@ Prefect supports sending notifications via:
 
 ### Configure notifications
 
-To configure a notification in Prefect Server, go to the **Notifications** page and select **Create Notification** or the **+** button. 
+To configure a notification in a Prefect server, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
 ![Creating a notification in the Prefect UI](/img/ui/create-slack-notification.png)
 
