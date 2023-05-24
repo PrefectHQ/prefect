@@ -134,6 +134,14 @@ jobs:
           mv requirements-lower.txt requirements.txt
           mv requirements-dev-lower.txt requirements-dev.txt
 
+      - name: Get image tag
+        id: get_image_tag
+        if: ${{ matrix.build-docker-images }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
+          echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
+
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v4
@@ -144,7 +152,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -153,7 +161,7 @@ jobs:
         if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Build Conda flavored test image
         # Not yet supported for 3.11, see note at top
@@ -165,7 +173,7 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             BASE_IMAGE=prefect-conda
             PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
+          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda
           outputs: type=docker,dest=/tmp/image-conda.tar
           cache-from: type=gha
           # We do not cache Conda image layers because they very big and slow to upload
@@ -176,8 +184,8 @@ jobs:
         if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda conda --version
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda prefect version
+          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}-conda conda --version
 
       - name: Install packages
         run: |

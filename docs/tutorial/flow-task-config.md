@@ -13,75 +13,60 @@ tags:
 
 Now that you've written some [basic flows and tasks](/tutorial/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
-Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
+Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by Prefect.
 
-## Basic flow configuration
+## Attaching metadata to flows
 
-Basic flow configuration includes the ability to provide a name, description, and version and other options for the flow via [flow arguments](/concepts/flows/#flow-arguments).
+You can attach a `name`, `description`, `version` and other metadata to a flow via [decorator keyword arguments](/api-ref/prefect/flows/#prefect.flows.Flow).
 
-You specify flow configuration as arguments on the `@flow` decorator.
 
-A flow `name` is a distinguished piece of metadata within Prefect. The name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
-
-```python
-from prefect import flow
-
-@flow(name="My Example Flow")
-def my_flow():
-    # run tasks and subflows
-```
-
-A flow `description` enables you to provide documentation right alongside your flow object. You can also provide a specific `description` string as a flow option.
-
-```python
-from prefect import flow
-
-@flow(name="My Example Flow",
-      description="An example flow for a tutorial.")
-def my_flow():
-    # run tasks and subflows
-```
-
-Prefect can also use the flow function's docstring as a description.
+You can provide a human-readable `name` for your flow to determine how it should appear in the logs and the UI. If a name isn't provided, Prefect will use the name of the flow function.
 
 ```python
 from prefect import flow
 
 @flow(name="My Example Flow")
 def my_flow():
-    """An example flow for a tutorial."""
     # run tasks and subflows
 ```
 
-A flow `version` enables you to associate a given run of your workflow with the version of code or configuration that was used.
+You can attach a `description` to document your flow, and it will be rendered as markdown in the Prefect UI.
 
 ```python
 from prefect import flow
 
-@flow(name="My Example Flow",
-      description="An example flow for a tutorial.",
-      version="tutorial_02")
+@flow(
+    name="My Example Flow", 
+    description="An example flow for a tutorial."
+)
 def my_flow():
     # run tasks and subflows
 ```
 
-If you are using `git` to version control your code, you might use the commit hash as the version.
+If you don't provide one explicitly, the flow function's docstring will be used as the `description`.
+
+You can set a `version` for your flow to distinguish between different versions of the same flow, for example, a git SHA:
 
 ```python
 import os
 from prefect import flow
 
-@flow(name="My Example Flow",
-      description="An example flow for a tutorial.",
-      version=os.getenv("GIT_COMMIT_SHA"))
+@flow(
+    name="My Example Flow", 
+    description="An example flow for a tutorial.",
+    version=os.getenv("GIT_COMMIT_SHA")
+)
 def my_flow():
     # run tasks and subflows
 ```
 
-You don't have to supply a version for your flow. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined to automatically detect when your code changes.  However, this computation is not always possible and so, depending on your setup, you may see that your flow has a version of `None`.
+By default, Prefect will attempt to compute a hash of the `.py` file where the flow is defined to automatically detect when your code changes. If this is not possible, `None` will be used as the `version`.
 
-You can also distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+### Customizing flow run names
 
+You can distinguish runs of a flow by providing a `flow_run_name`; this setting accepts a string that can contain templated references to the parameters of your flow.
+
+The name will be formatted using Python's standard string formatting syntax:
 ```python
 import datetime
 from prefect import flow
@@ -94,7 +79,7 @@ def my_flow(name: str, date: datetime.datetime):
 my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
-Additionally this setting also accepts a function that returns a string for the flow run name:
+Additionally this setting accepts a function that returns a string for the flow run name:
 
 ```python
 import datetime
@@ -137,60 +122,56 @@ my_flow(name="marvin")
 ```
 
 
-## Basic task configuration
+## Attaching metadata to tasks
 
-By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.
+Tasks follow a very similar model to flows: you can independently assign tasks their own `name` and `description`.
 
 ```python
 from prefect import flow, task
 
-@task(name="My Example Task",
-      description="An example task for a tutorial.")
+@task(
+    name="My Example Task", 
+    description="An example task for a tutorial."
+)
 def my_task():
     # do some work
-
-@flow
-def my_flow():
-    my_task()
 ```
 
-Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
+Tasks also accept [tags](/concepts/tasks/#tags) - which you can specify as a list of tag strings:
 
-You specify the tags on a task as a list of tag strings.
-
-```python hl_lines="5"
+```python hl_lines="6"
 from prefect import flow, task
 
-@task(name="My Example Task",
-      description="An example task for a tutorial.",
-      tags=["tutorial","tag-test"])
+@task(
+    name="My Example Task", 
+    description="An example task for a tutorial.",
+    tags=["tutorial", "tag-test"]
+)
 def my_task():
     # do some work
-
-@flow
-def my_flow():
-    my_task()
 ```
 
-You can also distinguish runs of this task by providing a `task_run_name`; this setting accepts a string that can optionally contain templated references to the keyword arguments of your task. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+Note that a `task_run_name` can be configured the same way as a `flow_run_name`:
 
 ```python
 import datetime
 from prefect import flow, task
 
-@task(name="My Example Task",
-      description="An example task for a tutorial.",
-      task_run_name="hello-{name}-on-{date:%A}")
+@task(
+    name="My Example Task", 
+    description="An example task for a tutorial.",
+    task_run_name="hello-{name}-on-{date:%A}"
+)
 def my_task(name, date):
     pass
 
 @flow
 def my_flow():
-    # creates a run with a name like "hello-marvin-on-Thursday"
+    # will have runs named something like "hello-marvin-on-Thursday"
     my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
 
-Additionally this setting also accepts a function that returns a string to be used for the task run name:
+As with flows, you can pass a custom function that returns your desired task run name:
 
 ```python
 import datetime
@@ -200,9 +181,11 @@ def generate_task_name():
     date = datetime.datetime.utcnow()
     return f"{date:%A}-is-a-lovely-day"
 
-@task(name="My Example Task",
-      description="An example task for a tutorial.",
-      task_run_name=generate_task_name)
+@task(
+    name="My Example Task",
+    description="An example task for a tutorial.",
+    task_run_name=generate_task_name
+)
 def my_task(name):
     pass
 
@@ -228,9 +211,11 @@ def generate_task_name():
 
     return f"{flow_name}-{task_name}-with-{name}-and-{limit}"
 
-@task(name="my-example-task",
-      description="An example task for a tutorial.",
-      task_run_name=generate_task_name)
+@task(
+    name="my-example-task",
+    description="An example task for a tutorial.",
+    task_run_name=generate_task_name
+)
 def my_task(name: str, limit: int = 100):
     pass
 
@@ -243,13 +228,13 @@ def my_flow(name: str):
 
 ## Flow and task retries
 
-Prefect includes built-in support for both flow and [task retries](/concepts/tasks/#retries), which you configure on the flow or task. This enables flows and tasks to automatically retry on failure. You can specify how many retries you want to attempt and, optionally, a delay between retry attempts:
+Prefect includes built-in support for both flow and [task retries](/concepts/tasks/#retries), which you can configure when defining the flow or task. This enables flows and tasks to automatically retry on failure. You can specify how many retries you want to attempt and, optionally, a delay between retry attempts:
 
 ```python hl_lines="4"
 from prefect import flow, task
 
 # this tasks runs 3 times before the flow fails
-@task(retries=2, retry_delay_seconds=60)
+@task(retries=2, retry_delay_seconds=5)
 def failure():
     print('running')
     raise ValueError("bad code")
@@ -371,11 +356,11 @@ Why does this happen? Whenever each task run requested to enter a `Running` stat
 
     It's a good practice to set a cache expiration.
 
-### Cache key function
+### Using a custom cache key function
 
 You can also define your own cache key function that returns a string cache key. As long as the cache key remains the same, the Prefect backend identifies that there is a `COMPLETED` state associated with this key and instructs the new run to immediately enter the same `COMPLETED` state, including the same return values.
 
-In this example, you could provide different input, but the cache key remains the same if the sum of the inputs remains the same.
+In this example, you could provide different input, but the cache key remains the same if the `sum` of the inputs remains the same.
 
 ```python hl_lines="5-9"
 from prefect import flow, task

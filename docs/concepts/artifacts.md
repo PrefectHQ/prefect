@@ -25,7 +25,9 @@ Creating artifacts allows you to publish data from task and flow runs or outside
 
 ### Creating Link Artifacts
 
-To create a link artifact, use the `create_link_artifact()` function.
+To create a link artifact, use the `create_link_artifact()` function. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+
+
 
 ```python
 from prefect import flow, task
@@ -81,9 +83,10 @@ if __name__ == "__main__":
     my_flow()
 ```
 In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`. The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link. An optional `description` could also be added for context.
+
 ### Creating Markdown Artifacts
 
-To create a markdown artifact, you can use the `create_markdown_artifact()` function.
+To create a markdown artifact, you can use the `create_markdown_artifact()` function. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect import flow, task
@@ -96,7 +99,8 @@ def markdown_task():
 
 ## Summary
 
-In the past quarter, our company saw a significant increase in sales, with a total revenue of $1,000,000. This represents a 20% increase over the same period last year.
+In the past quarter, our company saw a significant increase in sales, with a total revenue of $1,000,000. 
+This represents a 20% increase over the same period last year.
 
 ## Sales by Region
 
@@ -116,7 +120,9 @@ In the past quarter, our company saw a significant increase in sales, with a tot
 
 ## Conclusion
 
-Overall, these results are very encouraging and demonstrate the success of our sales team in increasing revenue across all regions. However, we still have room for improvement and should focus on further increasing sales in the coming quarter.
+Overall, these results are very encouraging and demonstrate the success of our sales team in increasing revenue 
+across all regions. However, we still have room for improvement and should focus on further increasing sales in 
+the coming quarter.
 """
     create_markdown_artifact(
         key="gtm-report",
@@ -137,7 +143,7 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 
 ### Create Table Artifacts
 
-You can create a table artifact by calling `create_table_artifact()`.
+You can create a table artifact by calling `create_table_artifact()`. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect.artifacts import create_table_artifact

@@ -177,10 +177,12 @@ class TestPydantic:
 
         # write to the field, since it is an arbitrary string
         await session.execute(
-            f"""
+            sa.text(
+                f"""
             UPDATE {SQLPydanticModel.__tablename__}
             SET color = 'GREEN';
             """
+            )
         )
 
         # enum enforced by application
