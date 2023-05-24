@@ -115,7 +115,7 @@ Note that in this example `--data-raw "{}"` is required and is where you can spe
 
 ## Finding your Prefect Cloud details
 
-When working with the Prefect Cloud REST API you will need your Account ID and often need the Workspace ID for the [workspace](/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/concepts/settings/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/cloud/users/api-keys/), as shown below:
+When working with the Prefect Cloud REST API you will need your Account ID and often the Workspace ID for the [workspace](/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/concepts/settings/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/cloud/users/api-keys/), as shown below:
 
 <div class="terminal">
 ```bash
