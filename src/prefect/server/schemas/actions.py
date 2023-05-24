@@ -644,7 +644,7 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The value of the variable",
         example="my-value",
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
 
