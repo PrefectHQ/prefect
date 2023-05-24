@@ -3,13 +3,12 @@
     <template #header>
       <PageHeadingWorkPoolCreate />
     </template>
-
-    <WorkPoolCreateForm />
+    <WorkPoolCreateWizard />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingWorkPoolCreate, WorkPoolCreateForm } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingWorkPoolCreate, WorkPoolCreateWizard } from '@prefecthq/prefect-ui-library'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   usePageTitle('Create Work Pool')
