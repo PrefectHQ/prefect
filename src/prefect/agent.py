@@ -498,11 +498,7 @@ class PrefectAgent:
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
                 await self._propose_crashed_state(
-                    flow_run,
-                    (
-                        "Flow run could not be submitted to infrastructure"
-                        f" {exception_traceback(exc)}."
-                    ),
+                    flow_run, "Flow run could not be submitted to infrastructure"
                 )
             else:
                 self.logger.exception(
