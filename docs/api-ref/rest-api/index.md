@@ -7,11 +7,12 @@ tags:
     - curl
     - PrefectClient
     - Requests
+    - API reference
 ---
 
 # REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
+The Prefect REST API is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
 
 Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
