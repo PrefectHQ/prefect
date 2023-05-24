@@ -250,7 +250,7 @@ def test_lifecycle_events(
     flow_run_poll_event = asserting_events_worker._client.events[2]
     cancellation_poll_event = asserting_events_worker._client.events[3]
     assert flow_run_poll_event.event == "prefect.worker.poll.flow-run"
-    assert cancellation_poll_event.event == "prefect.worker.poll.cancellation"
+    assert cancellation_poll_event.event == "prefect.worker.poll.cancelled-flow-run"
 
     # last event should be `prefect.worker.stopped`
     stopped_event = asserting_events_worker._client.events[
@@ -307,7 +307,7 @@ async def test_worker_emits_cancelled_event(
     assert heartbeat_event.event == "prefect.worker.heartbeat"
 
     cancellation_poll_event = asserting_events_worker._client.events[1]
-    assert cancellation_poll_event.event == "prefect.worker.poll.cancellation"
+    assert cancellation_poll_event.event == "prefect.worker.poll.cancelled-flow-run"
 
     cancelled_event = asserting_events_worker._client.events[2]
     assert cancelled_event.event == "prefect.worker.cancelled-flow-run"

@@ -1084,7 +1084,7 @@ class BaseWorker(abc.ABC):
 
     def _emit_event_worker_poll_cancellation(self) -> Event:
         return emit_event(
-            "prefect.worker.poll.cancellation",
+            "prefect.worker.poll.cancelled-flow-run",
             resource=self._event_resource(),
             related=self._event_related_resources(),
         )
