@@ -641,7 +641,6 @@ class BaseWorker(abc.ABC):
             await self._client.send_worker_heartbeat(
                 work_pool_name=self._work_pool_name, worker_name=self.name
             )
-            self._emit_event_worker_heartbeat()
 
     async def sync_with_backend(self):
         """
@@ -1066,13 +1065,6 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
-        )
-
-    def _emit_event_worker_heartbeat(self) -> Event:
-        return emit_event(
-            "prefect.worker.heartbeat",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
         )
 
     def _emit_event_worker_poll_flow_run(self) -> Event:

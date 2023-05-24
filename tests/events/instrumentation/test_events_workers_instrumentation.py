@@ -217,12 +217,9 @@ def test_lifecycle_events(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 6
+    assert len(asserting_events_worker._client.events) == 4
 
-    heartbeat_event = asserting_events_worker._client.events[0]
-    assert heartbeat_event.event == "prefect.worker.heartbeat"
-
-    started_event = asserting_events_worker._client.events[1]
+    started_event = asserting_events_worker._client.events[0]
     assert started_event.event == "prefect.worker.started"
 
     assert dict(started_event.resource.items()) == {
@@ -247,8 +244,8 @@ def test_lifecycle_events(
     # two 'worker.poll.*' events are dispatched in a lifecycle
     # one for when scheduled flow runs are checked, and
     # one for when cancelled flow runs are checked
-    flow_run_poll_event = asserting_events_worker._client.events[2]
-    cancellation_poll_event = asserting_events_worker._client.events[3]
+    flow_run_poll_event = asserting_events_worker._client.events[1]
+    cancellation_poll_event = asserting_events_worker._client.events[2]
     assert flow_run_poll_event.event == "prefect.worker.poll.flow-run"
     assert cancellation_poll_event.event == "prefect.worker.poll.cancelled-flow-run"
 
@@ -301,15 +298,12 @@ async def test_worker_emits_cancelled_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 3
+    assert len(asserting_events_worker._client.events) == 2
 
-    heartbeat_event = asserting_events_worker._client.events[0]
-    assert heartbeat_event.event == "prefect.worker.heartbeat"
-
-    cancellation_poll_event = asserting_events_worker._client.events[1]
+    cancellation_poll_event = asserting_events_worker._client.events[0]
     assert cancellation_poll_event.event == "prefect.worker.poll.cancelled-flow-run"
 
-    cancelled_event = asserting_events_worker._client.events[2]
+    cancelled_event = asserting_events_worker._client.events[1]
     assert cancelled_event.event == "prefect.worker.cancelled-flow-run"
 
     assert dict(cancelled_event.resource.items()) == {
