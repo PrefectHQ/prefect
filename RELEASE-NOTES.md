@@ -11,6 +11,7 @@
 - Improve SQLite database transaction behavior — https://github.com/PrefectHQ/prefect/pull/9594
 - Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
 - Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
+- Improve cancellation cleanup service iteration over subflow runs - https://github.com/PrefectHQ/prefect/pull/9731
 - Add an `/api/ready check` endpoint to Prefect server — https://github.com/PrefectHQ/prefect/pull/9701
 - Guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
@@ -35,6 +36,7 @@
 
 ### Documentation
 - Create examples of working with Prefect REST APIs — https://github.com/PrefectHQ/prefect/pull/9661
+- Add state change hook documentation - https://github.com/PrefectHQ/prefect/pull/9721
 - Add tip about private repositories in projects documentation — https://github.com/PrefectHQ/prefect/pull/9685
 - Improve runtime context documentation — https://github.com/PrefectHQ/prefect/pull/9652
 - Simplify the flow and task configuration documentation — https://github.com/PrefectHQ/prefect/pull/9420
