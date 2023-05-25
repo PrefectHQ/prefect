@@ -15,7 +15,6 @@ tags:
 * [Results](results.md)
 * [Artifacts](artifacts.md)
 * [States](states.md)
-* [State Change Hooks](state-change-hooks.md)
 * [Blocks](blocks.md)
 * [Variables](variables.md)
 * [Task Runners](task-runners.md)
