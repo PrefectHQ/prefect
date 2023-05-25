@@ -13,7 +13,7 @@ tags:
 
 | Keyword                                     | Description                                                                                                                                                                        |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| __[Flows](/concepts/flows)__                       | The most basic Prefect objects.                                                                                                                                                    |
+| __[Flows](/concepts/flows)__                       | A Prefect workflow, modeled as a Python function.                                                                                                                                               |
 | __[Tasks](/concepts/tasks)__                       | Discrete units of work in a Prefect workflow.                                                                                                                                      |
 | __[Results](/concepts/results)__                   | The data returned by a flow or a task.                                                                                                                                             |
 | __[Artifacts](/concepts/artifacts)__               | Persisted outputs for human viewing such as tables or links.                                                                                                                       |
