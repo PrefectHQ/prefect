@@ -12,7 +12,7 @@
 - Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
 - Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
 - Improve cancellation cleanup service iteration over subflow runs - https://github.com/PrefectHQ/prefect/pull/9731
-- Add an `/api/ready check` endpoint to Prefect server — https://github.com/PrefectHQ/prefect/pull/9701
+- Add an `/api/ready` endpoint to the Prefect server to check database connectivity — https://github.com/PrefectHQ/prefect/pull/9701
 - Add guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
