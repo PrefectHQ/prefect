@@ -35,7 +35,7 @@ Check out these pull requests for more details:
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
 - Emit worker event when a flow run is scheduled to run or cancel — https://github.com/PrefectHQ/prefect/pull/9702
-- Add ability in the Prefect UI to filter Task Runs tab for `Retrying` state — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
+- Add ability to filter for `Retrying` state in the Task Runs tab of the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
 
 ### Fixes
 - Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
