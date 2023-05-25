@@ -35,6 +35,6 @@ tags:
 | __[Infrastructure](infrastructure.md)__           | are [Blocks](blocks.md) which specify infrastructure for flow runs created by the deployment at runtime. |
 | __[Schedules](schedules.md)__                     | tell the Prefect API how to create new flow runs for you automatically on a specified cadence.           |
 __[Logging](logs.md)__
-Prefect enables you to log a variety of useful information about your flow and task runs
+Log a variety of useful information about your flow and task runs on the server.
 
 Features specific to [Prefect Cloud](../cloud/) are in their own subheading.
