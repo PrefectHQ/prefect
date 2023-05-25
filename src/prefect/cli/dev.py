@@ -206,6 +206,8 @@ async def api(
     server_env["PREFECT_UI_API_URL"] = f"http://{host}:{port}/api"
 
     command = [
+        sys.executable,
+        "-m",
         "uvicorn",
         "--factory",
         "prefect.server.api.server:create_app",
