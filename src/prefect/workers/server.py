@@ -7,14 +7,14 @@ from prefect.workers.process import ProcessWorker
 
 def start_healthcheck_server(
     worker: BaseWorker | ProcessWorker, run_once: bool, log_level: str = "error"
-):
+) -> None:
     """
     Run a healthcheck FastAPI server for a worker.
 
     Args:
-        - worker (BaseWorker): the worker to check health for
-        - run_once (bool): if True, skip starting the webserver
-        - log_level (str): the log level to use for the server
+        worker (BaseWorker | ProcessWorker): the worker to check health for
+        run_once (bool): if True, skip starting the webserver
+        log_level (str): the log level to use for the server
     """
     if not run_once:
         webserver = FastAPI()
