@@ -8,10 +8,10 @@ from fastapi import status
 
 import prefect.context
 import prefect.settings
+from prefect.client.base import PrefectHttpxClient
 from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
 from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
-
 
 def get_cloud_client(
     host: Optional[str] = None,
@@ -56,7 +56,7 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
-        self._client = httpx.AsyncClient(**httpx_settings)
+        self._client = PrefectHttpxClient(**httpx_settings)
 
     async def api_healthcheck(self):
         """
