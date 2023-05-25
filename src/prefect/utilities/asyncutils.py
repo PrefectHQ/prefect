@@ -316,6 +316,9 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     asyncio does not provided _any_ other way to clean up a resource when the event
     loop is about to close.
     """
+    # EVENT_LOOP_GC_REFS can randomly become `None` (no idea why)
+    # See: https://github.com/PrefectHQ/prefect/issues/7709#issuecomment-1560021109
+    local_event_loop_gc_refs = EVENT_LOOP_GC_REFS
 
     async def on_shutdown(key):
         try:
@@ -323,7 +326,7 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
         except GeneratorExit:
             await coroutine_fn()
             # Remove self from the garbage collection set
-            EVENT_LOOP_GC_REFS.pop(key)
+            local_event_loop_gc_refs.pop(key)
 
     # Create the iterator and store it in a global variable so it is not garbage
     # collected. If the iterator is garbage collected before the event loop closes, the
@@ -331,10 +334,10 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     # loop that is calling it, a reference with global scope is necessary to ensure
     # garbage collection does not occur until after event loop closure.
     key = id(on_shutdown)
-    EVENT_LOOP_GC_REFS[key] = on_shutdown(key)
+    local_event_loop_gc_refs[key] = on_shutdown(key)
 
     # Begin iterating so it will be cleaned up as an incomplete generator
-    await EVENT_LOOP_GC_REFS[key].__anext__()
+    await local_event_loop_gc_refs[key].__anext__()
 
 
 class GatherIncomplete(RuntimeError):
