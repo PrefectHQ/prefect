@@ -1,32 +1,25 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 import uvicorn
-from types import FrameType
-import signal
 
-app = FastAPI()
-
-
-# This is a hack to make sure that the server shuts down when the main process is killed
-# as running uvicorn in an async task group appears to prevent SIGINTs from being propagated
-# leading to hung processes
-# https://github.com/encode/uvicorn/issues/1579
-@app.on_event("startup")
-async def on_webserver_startup() -> None:
-    default_sigint_handler = signal.getsignal(signal.SIGINT)
-
-    def terminate_now(signum: int, frame: FrameType = None):
-        default_sigint_handler(signum, frame)
-        exit()
-
-    signal.signal(signal.SIGINT, terminate_now)
+from prefect.workers.base import BaseWorker
+from prefect.workers.process import ProcessWorker
 
 
-@app.get("/health")
-async def check_health():
-    return {"status": "OK"}
+def start_healthcheck_server(
+    worker: BaseWorker | ProcessWorker, run_once: bool, log_level: str = "error"
+):
+    """
+    Run a healthcheck FastAPI server for a worker.
 
+    Args:
+        - worker (BaseWorker): the worker to check health for
+        - run_once (bool): if True, skip starting the webserver
+        - log_level (str): the log level to use for the server
+    """
+    if not run_once:
+        webserver = FastAPI()
+        router = APIRouter()
+        router.add_api_route("/health", worker.check_worker_health, methods=["GET"])
+        webserver.include_router(router)
 
-async def run_healthcheck_server():
-    config = uvicorn.Config(app, port=5000, log_level="info")
-    server = uvicorn.Server(config)
-    await server.serve()
+        uvicorn.run(webserver, host="0.0.0.0", port=8080, log_level=log_level)
