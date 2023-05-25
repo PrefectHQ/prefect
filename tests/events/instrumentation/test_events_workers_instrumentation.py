@@ -273,8 +273,9 @@ def test_lifecycle_events(
     # two 'worker.poll.*' events are dispatched in a lifecycle
     # one for when scheduled flow runs are checked, and
     # one for when cancelled flow runs are checked
-    # NOTE: here, we'll do a count check, as the order of these events
-    # is non-deterministic / guaranteed
+
+    # NOTE: here, we'll do count checks for non-starting/ending events,
+    # as the order of these events is non-deterministic / non-guaranteed
     flow_run_poll_events = list(
         filter(
             lambda e: e.event == "prefect.worker.poll.flow-run",
