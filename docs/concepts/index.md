@@ -27,12 +27,12 @@ tags:
 ## Deploy
 | Keyword                                           | Description                                                                                           |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| __[Deployments](deployments.md)__                 | are a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API |
-| __[Projects](projects.md)__                       | are a minimally opinionated set of files that describe how to prepare one or more flow deployments    |
-| __[Work Pools, Workers & Agents](work-pools.md)__ | bridge the Prefect orchestration environment with your execution environment                          |
+| __[Deployments](deployments.md)__                 | A server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. |
+| __[Projects](projects.md)__                       | Aminimally opinionated set of files that describe how to prepare one or more flow deployments.    |
+| __[Work Pools, Workers & Agents](work-pools.md)__ | Bridge the Prefect orchestration environment with your execution environment.                          |
 | __[Storage](storage.md)__                         | Lets you configure how flow code for deployments is persisted and retrieved by Prefect agents.        |
 | __[Filesystems](filesystems.md)__                 | [Blocks](/concepts/blocks/) that allow you to read and write data from paths.                         |
-| __[Infrastructure](infrastructure.md)__           | [Blocks](blocks.md) that specify infrastructure for flow runs created by the deployment.              |
+| __[Infrastructure](infrastructure.md)__           | [Blocks](/concepts/blocks/) that specify infrastructure for flow runs created by the deployment.              |
 | __[Schedules](schedules.md)__                     | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.        |
 | __[Logging](logs.md)__                            | Log a variety of useful information about your flow and task runs on the server.                      |
 
