@@ -53,8 +53,9 @@ const init = () => {
     },
     defaultTracking: {
       pageViews: {
-        trackOn: true,
-        eventType: "Page View: Docs"
+        trackOn: function() { return true},
+        eventType: "Page View: Docs",
+        trackHistoryChanges: "all",
       },
       sessions: true,
       formInteractions: true,
@@ -63,15 +64,21 @@ const init = () => {
   })
 }
 
-const track = amplitude.track
+function trackPageView() {
+  amplitude.track(
+    'Page View: Docs',
+    {
+      'url': window.href,
+      'title': document.title,
+      'referrer': document.referrer,
+      'path': window.location.pathname
+    }
+  )
+}
 
 document.addEventListener("DOMContentLoaded", function() {
     init()
     setTimeout(addDeviceIdToAppLinks)
-
-    document.addEventListener("load", function() {
-      setTimeout(addDeviceIdToAppLinks)  
-    })
-
+    setTimeout(trackPageView)
 });
 </script>
