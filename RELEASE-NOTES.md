@@ -21,7 +21,7 @@
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
 - Emit worker event when a flow run is scheduled to run or cancel — https://github.com/PrefectHQ/prefect/pull/9702
 - Add "Retrying" to ui states select — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
-- Update docs links in ui to concepts when possible — https://github.com/PrefectHQ/prefect-ui-library/pull/1351
+- Update docs links in UI to concepts when possible — https://github.com/PrefectHQ/prefect-ui-library/pull/1351
 
 ### Fixes
 - Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
