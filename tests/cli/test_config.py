@@ -74,6 +74,19 @@ def test_set_with_unknown_setting():
     )
 
 
+@pytest.mark.parametrize("setting", ["PREFECT_HOME", "PREFECT_PROFILES_PATH"])
+def test_set_with_disallowed_setting(setting):
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", f"{setting}=BAR"],
+        expected_output=f"""                
+            Setting {setting!r} cannot be changed with this command. Use an environment variable instead.
+            """,
+        expected_code=1,
+    )
+
+
 def test_set_with_invalid_value_type():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 

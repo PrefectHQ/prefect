@@ -68,7 +68,7 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
-def get_client(httpx_settings: dict = None) -> "PrefectClient":
+def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -1497,7 +1497,13 @@ class PrefectClient:
         Returns:
             a [Deployment model][prefect.server.schemas.core.Deployment] representation of the deployment
         """
-        response = await self._client.get(f"/deployments/{deployment_id}")
+        try:
+            response = await self._client.get(f"/deployments/{deployment_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return schemas.responses.DeploymentResponse.parse_obj(response.json())
 
     async def read_deployment_by_name(
@@ -2187,10 +2193,16 @@ class PrefectClient:
         Returns:
             Information about the newly created work pool.
         """
-        response = await self._client.post(
-            "/work_pools/",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        try:
+            response = await self._client.post(
+                "/work_pools/",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
 
         return pydantic.parse_obj_as(WorkPool, response.json())
 
@@ -2441,6 +2453,12 @@ class PrefectClient:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
         return pydantic.parse_obj_as(List[schemas.core.Variable], response.json())
+
+    async def read_worker_metadata(self) -> Dict[str, Any]:
+        """Reads worker metadata stored in Prefect collection registry."""
+        response = await self._client.get("collections/views/aggregate-worker-metadata")
+        response.raise_for_status()
+        return response.json()
 
     async def __aenter__(self):
         """

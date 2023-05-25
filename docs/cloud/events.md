@@ -20,7 +20,7 @@ Events enable observability into your data stack via the [event feed](/ui/events
 
 ![Prefect UI](/img/ui/event-feed.png)
 
-## Event Specificiation
+## Event Specification
 
 Events adhere to a structured [specification](https://app.prefect.cloud/api/docs#tag/Events).
 
