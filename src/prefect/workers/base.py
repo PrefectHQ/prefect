@@ -370,17 +370,18 @@ class BaseWorker(abc.ABC):
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
 
-    async def start_webserver(self):
-        print("YOOOOO WE STARTED")
-        cmd = [
-            "uvicorn",
-            "prefect.workers.base:app",
-            "--port",
-            "8080",
-            "--log-level",
-            "info",
-        ]
-        await run_process(cmd)
+    async def start_webserver(self, run_once: bool):
+        if not run_once:
+            print("YOOOOO WE STARTED")
+            cmd = [
+                "uvicorn",
+                "prefect.workers.base:app",
+                "--port",
+                "8080",
+                "--log-level",
+                "info",
+            ]
+            await run_process(cmd)
 
     @classmethod
     def get_documentation_url(cls) -> str:
