@@ -16,11 +16,11 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import asyncio
+import contextlib
 import logging
 import os
 import signal
 import prefect.plugins
-import contextlib
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
@@ -35,12 +35,22 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+import prefect.plugins
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect._internal.concurrency.timeouts import get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.objects import (
+    StateDetails,
+    StateType,
+    TaskRunInput,
+    TaskRunResult,
+)
+from prefect.client.schemas.responses import SetStateStatus
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -73,11 +83,6 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.results import BaseResult, ResultFactory
-from prefect.server.schemas.core import TaskRunInput, TaskRunResult
-from prefect.server.schemas.filters import FlowRunFilter
-from prefect.server.schemas.responses import SetStateStatus
-from prefect.server.schemas.sorting import FlowRunSort
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -1992,8 +1997,8 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.server.schemas.states] representation of the flow or task run
-            state
+        a [State model][prefect.client.schemas.objects.State] representation of the
+            flow or task run state
 
     Raises:
         ValueError: if neither task_run_id or flow_run_id is provided

@@ -12,6 +12,7 @@ import pendulum
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
+from prefect.client.schemas import StateDetails, StateType
 from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
@@ -20,14 +21,12 @@ from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
     FailedRun,
-    UnfinishedRun,
     MissingResult,
-    TerminationSignal,
     PausedRun,
+    TerminationSignal,
+    UnfinishedRun,
 )
 from prefect.results import BaseResult, R, ResultFactory
-from prefect.server import schemas
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -386,13 +385,13 @@ async def raise_state_exception(state: State) -> None:
     raise await get_state_exception(state)
 
 
-def is_state(obj: Any) -> TypeGuard[schemas.states.State]:
+def is_state(obj: Any) -> TypeGuard[State]:
     """
     Check if the given object is a state instance
     """
     # We may want to narrow this to client-side state types but for now this provides
     # backwards compatibility
-    return isinstance(obj, schemas.states.State)
+    return isinstance(obj, State)
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
@@ -475,7 +474,14 @@ def Scheduled(
     Returns:
         State: a Scheduled state
     """
-    return schemas.states.Scheduled(cls=cls, scheduled_time=scheduled_time, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
+    elif state_details.scheduled_time:
+        raise ValueError("An extra scheduled_time was provided in state_details")
+    state_details.scheduled_time = scheduled_time
+
+    return cls(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
 def Completed(cls: Type[State] = State, **kwargs) -> State:
@@ -484,7 +490,7 @@ def Completed(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Completed state
     """
-    return schemas.states.Completed(cls=cls, **kwargs)
+    return cls(type=StateType.COMPLETED, **kwargs)
 
 
 def Running(cls: Type[State] = State, **kwargs) -> State:
@@ -493,7 +499,7 @@ def Running(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Running state
     """
-    return schemas.states.Running(cls=cls, **kwargs)
+    return cls(type=StateType.RUNNING, **kwargs)
 
 
 def Failed(cls: Type[State] = State, **kwargs) -> State:
@@ -502,7 +508,7 @@ def Failed(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Failed state
     """
-    return schemas.states.Failed(cls=cls, **kwargs)
+    return cls(type=StateType.FAILED, **kwargs)
 
 
 def Crashed(cls: Type[State] = State, **kwargs) -> State:
@@ -511,7 +517,7 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Crashed state
     """
-    return schemas.states.Crashed(cls=cls, **kwargs)
+    return cls(type=StateType.CRASHED, **kwargs)
 
 
 def Cancelling(cls: Type[State] = State, **kwargs) -> State:
@@ -520,7 +526,7 @@ def Cancelling(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Cancelling state
     """
-    return schemas.states.Cancelling(cls=cls, **kwargs)
+    return cls(type=StateType.CANCELLING, **kwargs)
 
 
 def Cancelled(cls: Type[State] = State, **kwargs) -> State:
@@ -529,7 +535,7 @@ def Cancelled(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Cancelled state
     """
-    return schemas.states.Cancelled(cls=cls, **kwargs)
+    return cls(type=StateType.CANCELLED, **kwargs)
 
 
 def Pending(cls: Type[State] = State, **kwargs) -> State:
@@ -538,7 +544,7 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Pending state
     """
-    return schemas.states.Pending(cls=cls, **kwargs)
+    return cls(type=StateType.PENDING, **kwargs)
 
 
 def Paused(
@@ -585,8 +591,8 @@ def AwaitingRetry(
     Returns:
         State: a AwaitingRetry state
     """
-    return schemas.states.AwaitingRetry(
-        cls=cls, scheduled_time=scheduled_time, **kwargs
+    return Scheduled(
+        cls=cls, scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs
     )
 
 
@@ -596,7 +602,7 @@ def Retrying(cls: Type[State] = State, **kwargs) -> State:
     Returns:
         State: a Retrying state
     """
-    return schemas.states.Retrying(cls=cls, **kwargs)
+    return cls(type=StateType.RUNNING, name="Retrying", **kwargs)
 
 
 def Late(
@@ -607,4 +613,4 @@ def Late(
     Returns:
         State: a Late state
     """
-    return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
+    return Scheduled(cls=cls, scheduled_time=scheduled_time, name="Late", **kwargs)

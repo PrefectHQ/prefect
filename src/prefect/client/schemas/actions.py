@@ -1,25 +1,27 @@
-"""
-Reduced schemas for accepting API actions.
-"""
 import warnings
 from copy import copy, deepcopy
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
 import jsonschema
 from pydantic import Field, root_validator, validator
 
-import prefect.server.schemas as schemas
+import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.experimental import experimental_field
+from prefect._internal.schemas.bases import ActionBaseModel
+from prefect._internal.schemas.fields import DateTimeTZ
+from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
+from prefect._internal.schemas.transformations import FieldFrom, copy_model_fields
 from prefect._internal.schemas.validators import raise_on_name_alphanumeric_dashes_only
-from prefect.server.utilities.schemas import (
-    DateTimeTZ,
-    FieldFrom,
-    PrefectBaseModel,
-    copy_model_fields,
-    orjson_dumps_extra_compatible,
-)
+from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.utilities.pydantic import get_class_fields_only
+
+if TYPE_CHECKING:
+    from prefect.deprecated.data_documents import DataDocument
+    from prefect.results import BaseResult
+
+R = TypeVar("R")
 
 
 def validate_block_type_slug(value):
@@ -42,40 +44,31 @@ def validate_variable_name(value):
     return value
 
 
-class ActionBaseModel(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
+class StateCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create a new state."""
 
-    def __iter__(self):
-        # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
-        # instead  of going through `_iter`. We want tor retain our custom logic in
-        # `_iter` during `dict(model)` calls which is what Pydantic uses for
-        # `parse_obj(model)`
-        yield from self._iter(to_dict=True)
-
-    def _iter(self, *args, **kwargs) -> Generator[tuple, None, None]:
-        # Drop fields that are marked as `ignored` from json and dictionary outputs
-        exclude = kwargs.pop("exclude", None) or set()
-        for name, field in self.__fields__.items():
-            if field.field_info.extra.get("ignored"):
-                exclude.add(name)
-
-        return super()._iter(*args, **kwargs, exclude=exclude)
+    type: StateType
+    name: Optional[str] = Field(default=None)
+    message: Optional[str] = Field(default=None, example="Run started")
+    state_details: StateDetails = Field(default_factory=StateDetails)
+    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+        default=None,
+    )
 
 
 @copy_model_fields
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = FieldFrom(schemas.core.Flow)
-    tags: List[str] = FieldFrom(schemas.core.Flow)
+    name: str = FieldFrom(objects.Flow)
+    tags: List[str] = FieldFrom(objects.Flow)
 
 
 @copy_model_fields
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = FieldFrom(schemas.core.Flow)
+    tags: List[str] = FieldFrom(objects.Flow)
 
 
 @experimental_field(
@@ -120,33 +113,29 @@ class DeploymentCreate(ActionBaseModel):
             )
         return values_copy
 
-    name: str = FieldFrom(schemas.core.Deployment)
-    flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
+    name: str = FieldFrom(objects.Deployment)
+    flow_id: UUID = FieldFrom(objects.Deployment)
+    is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
+    parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
+    tags: List[str] = FieldFrom(objects.Deployment)
+    pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
 
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    manifest_path: Optional[str] = FieldFrom(objects.Deployment)
+    work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
-    )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
-    )
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
+    schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
+    description: Optional[str] = FieldFrom(objects.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
+    path: Optional[str] = FieldFrom(objects.Deployment)
+    version: Optional[str] = FieldFrom(objects.Deployment)
+    entrypoint: Optional[str] = FieldFrom(objects.Deployment)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -210,26 +199,24 @@ class DeploymentUpdate(ActionBaseModel):
             )
         return values_copy
 
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
-        schemas.core.Deployment
-    )
-    description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    tags: List[str] = FieldFrom(schemas.core.Deployment)
-    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    version: Optional[str] = FieldFrom(objects.Deployment)
+    schedule: Optional[SCHEDULE_TYPES] = FieldFrom(objects.Deployment)
+    description: Optional[str] = FieldFrom(objects.Deployment)
+    is_schedule_active: bool = FieldFrom(objects.Deployment)
+    parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
+    tags: List[str] = FieldFrom(objects.Deployment)
+    work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
-    path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
-    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
-    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
-    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    path: Optional[str] = FieldFrom(objects.Deployment)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
+    entrypoint: Optional[str] = FieldFrom(objects.Deployment)
+    manifest_path: Optional[str] = FieldFrom(objects.Deployment)
+    storage_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.Deployment)
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
@@ -256,32 +243,12 @@ class DeploymentUpdate(ActionBaseModel):
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
-
-
-@copy_model_fields
-class StateCreate(ActionBaseModel):
-    """Data used by the Prefect REST API to create a new state."""
-
-    type: schemas.states.StateType = FieldFrom(schemas.states.State)
-    name: Optional[str] = FieldFrom(schemas.states.State)
-    message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[Any] = FieldFrom(schemas.states.State)
-    state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
-
-    # DEPRECATED
-
-    timestamp: Optional[schemas.core.DateTimeTZ] = Field(
-        default=None,
-        repr=False,
-        ignored=True,
-    )
-    id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
+    name: Optional[str] = FieldFrom(objects.FlowRun)
+    flow_version: Optional[str] = FieldFrom(objects.FlowRun)
+    parameters: dict = FieldFrom(objects.FlowRun)
+    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
+    tags: List[str] = FieldFrom(objects.FlowRun)
+    infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
@@ -293,34 +260,32 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = FieldFrom(schemas.core.TaskRun)
-    flow_run_id: UUID = FieldFrom(schemas.core.TaskRun)
-    task_key: str = FieldFrom(schemas.core.TaskRun)
-    dynamic_key: str = FieldFrom(schemas.core.TaskRun)
-    cache_key: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    cache_expiration: Optional[schemas.core.DateTimeTZ] = FieldFrom(
-        schemas.core.TaskRun
-    )
-    task_version: Optional[str] = FieldFrom(schemas.core.TaskRun)
-    empirical_policy: schemas.core.TaskRunPolicy = FieldFrom(schemas.core.TaskRun)
-    tags: List[str] = FieldFrom(schemas.core.TaskRun)
+    name: str = FieldFrom(objects.TaskRun)
+    flow_run_id: UUID = FieldFrom(objects.TaskRun)
+    task_key: str = FieldFrom(objects.TaskRun)
+    dynamic_key: str = FieldFrom(objects.TaskRun)
+    cache_key: Optional[str] = FieldFrom(objects.TaskRun)
+    cache_expiration: Optional[objects.DateTimeTZ] = FieldFrom(objects.TaskRun)
+    task_version: Optional[str] = FieldFrom(objects.TaskRun)
+    empirical_policy: objects.TaskRunPolicy = FieldFrom(objects.TaskRun)
+    tags: List[str] = FieldFrom(objects.TaskRun)
     task_inputs: Dict[
         str,
         List[
             Union[
-                schemas.core.TaskRunResult,
-                schemas.core.Parameter,
-                schemas.core.Constant,
+                objects.TaskRunResult,
+                objects.Parameter,
+                objects.Constant,
             ]
         ],
-    ] = FieldFrom(schemas.core.TaskRun)
+    ] = FieldFrom(objects.TaskRun)
 
 
 @copy_model_fields
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = FieldFrom(schemas.core.TaskRun)
+    name: str = FieldFrom(objects.TaskRun)
 
 
 @copy_model_fields
@@ -332,17 +297,17 @@ class FlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: str = FieldFrom(schemas.core.FlowRun)
-    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    name: str = FieldFrom(objects.FlowRun)
+    flow_id: UUID = FieldFrom(objects.FlowRun)
+    deployment_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    flow_version: Optional[str] = FieldFrom(objects.FlowRun)
+    parameters: dict = FieldFrom(objects.FlowRun)
+    context: dict = FieldFrom(objects.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
+    tags: List[str] = FieldFrom(objects.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
@@ -357,44 +322,42 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default=None, description="The state of the flow run to create"
     )
 
-    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parameters: dict = FieldFrom(schemas.core.FlowRun)
-    context: dict = FieldFrom(schemas.core.FlowRun)
-    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
-    tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    name: Optional[str] = FieldFrom(objects.FlowRun)
+    parameters: dict = FieldFrom(objects.FlowRun)
+    context: dict = FieldFrom(objects.FlowRun)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    empirical_policy: objects.FlowRunPolicy = FieldFrom(objects.FlowRun)
+    tags: List[str] = FieldFrom(objects.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
-    name: str = FieldFrom(schemas.core.SavedSearch)
-    filters: List[schemas.core.SavedSearchFilter] = FieldFrom(schemas.core.SavedSearch)
+    name: str = FieldFrom(objects.SavedSearch)
+    filters: List[objects.SavedSearchFilter] = FieldFrom(objects.SavedSearch)
 
 
 @copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a concurrency limit."""
 
-    tag: str = FieldFrom(schemas.core.ConcurrencyLimit)
-    concurrency_limit: int = FieldFrom(schemas.core.ConcurrencyLimit)
+    tag: str = FieldFrom(objects.ConcurrencyLimit)
+    concurrency_limit: int = FieldFrom(objects.ConcurrencyLimit)
 
 
 @copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = FieldFrom(schemas.core.BlockType)
-    slug: str = FieldFrom(schemas.core.BlockType)
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
-    )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    name: str = FieldFrom(objects.BlockType)
+    slug: str = FieldFrom(objects.BlockType)
+    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
+    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
+    description: Optional[str] = FieldFrom(objects.BlockType)
+    code_example: Optional[str] = FieldFrom(objects.BlockType)
 
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
@@ -406,12 +369,10 @@ class BlockTypeCreate(ActionBaseModel):
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
-    documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
-        schemas.core.BlockType
-    )
-    description: Optional[str] = FieldFrom(schemas.core.BlockType)
-    code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+    logo_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
+    documentation_url: Optional[objects.HttpUrl] = FieldFrom(objects.BlockType)
+    description: Optional[str] = FieldFrom(objects.BlockType)
+    code_example: Optional[str] = FieldFrom(objects.BlockType)
 
     @classmethod
     def updatable_fields(cls) -> set:
@@ -422,21 +383,21 @@ class BlockTypeUpdate(ActionBaseModel):
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: dict = FieldFrom(schemas.core.BlockSchema)
-    block_type_id: Optional[UUID] = FieldFrom(schemas.core.BlockSchema)
-    capabilities: List[str] = FieldFrom(schemas.core.BlockSchema)
-    version: str = FieldFrom(schemas.core.BlockSchema)
+    fields: dict = FieldFrom(objects.BlockSchema)
+    block_type_id: Optional[UUID] = FieldFrom(objects.BlockSchema)
+    capabilities: List[str] = FieldFrom(objects.BlockSchema)
+    version: str = FieldFrom(objects.BlockSchema)
 
 
 @copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = FieldFrom(schemas.core.BlockDocument)
-    data: dict = FieldFrom(schemas.core.BlockDocument)
-    block_schema_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    block_type_id: UUID = FieldFrom(schemas.core.BlockDocument)
-    is_anonymous: bool = FieldFrom(schemas.core.BlockDocument)
+    name: Optional[str] = FieldFrom(objects.BlockDocument)
+    data: dict = FieldFrom(objects.BlockDocument)
+    block_schema_id: UUID = FieldFrom(objects.BlockDocument)
+    block_type_id: UUID = FieldFrom(objects.BlockDocument)
+    is_anonymous: bool = FieldFrom(objects.BlockDocument)
 
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
@@ -457,7 +418,7 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: dict = FieldFrom(schemas.core.BlockDocument)
+    data: dict = FieldFrom(objects.BlockDocument)
     merge_existing_data: bool = True
 
 
@@ -465,54 +426,54 @@ class BlockDocumentUpdate(ActionBaseModel):
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
-    id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    parent_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    reference_block_document_id: UUID = FieldFrom(schemas.core.BlockDocumentReference)
-    name: str = FieldFrom(schemas.core.BlockDocumentReference)
+    id: UUID = FieldFrom(objects.BlockDocumentReference)
+    parent_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
+    reference_block_document_id: UUID = FieldFrom(objects.BlockDocumentReference)
+    name: str = FieldFrom(objects.BlockDocumentReference)
 
 
 @copy_model_fields
 class LogCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a log."""
 
-    name: str = FieldFrom(schemas.core.Log)
-    level: int = FieldFrom(schemas.core.Log)
-    message: str = FieldFrom(schemas.core.Log)
-    timestamp: schemas.core.DateTimeTZ = FieldFrom(schemas.core.Log)
-    flow_run_id: UUID = FieldFrom(schemas.core.Log)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
+    name: str = FieldFrom(objects.Log)
+    level: int = FieldFrom(objects.Log)
+    message: str = FieldFrom(objects.Log)
+    timestamp: objects.DateTimeTZ = FieldFrom(objects.Log)
+    flow_run_id: UUID = FieldFrom(objects.Log)
+    task_run_id: Optional[UUID] = FieldFrom(objects.Log)
 
 
 @copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = FieldFrom(schemas.core.WorkPool)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    name: str = FieldFrom(objects.WorkPool)
+    description: Optional[str] = FieldFrom(objects.WorkPool)
     type: str = Field(description="The work pool type.", default="prefect-agent")
-    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    base_job_template: Dict[str, Any] = FieldFrom(objects.WorkPool)
+    is_paused: bool = FieldFrom(objects.WorkPool)
+    concurrency_limit: Optional[int] = FieldFrom(objects.WorkPool)
 
 
 @copy_model_fields
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
-    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+    description: Optional[str] = FieldFrom(objects.WorkPool)
+    is_paused: Optional[bool] = FieldFrom(objects.WorkPool)
+    base_job_template: Optional[Dict[str, Any]] = FieldFrom(objects.WorkPool)
+    concurrency_limit: Optional[int] = FieldFrom(objects.WorkPool)
 
 
 @copy_model_fields
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    name: str = FieldFrom(objects.WorkQueue)
+    description: Optional[str] = FieldFrom(objects.WorkQueue)
+    is_paused: bool = FieldFrom(objects.WorkQueue)
+    concurrency_limit: Optional[int] = FieldFrom(objects.WorkQueue)
     priority: Optional[int] = Field(
         default=None,
         description=(
@@ -522,7 +483,7 @@ class WorkQueueCreate(ActionBaseModel):
 
     # DEPRECATED
 
-    filter: Optional[schemas.core.QueueFilter] = Field(
+    filter: Optional[objects.QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
@@ -533,16 +494,16 @@ class WorkQueueCreate(ActionBaseModel):
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
 
-    name: str = FieldFrom(schemas.core.WorkQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
+    name: str = FieldFrom(objects.WorkQueue)
+    description: Optional[str] = FieldFrom(objects.WorkQueue)
+    is_paused: bool = FieldFrom(objects.WorkQueue)
+    concurrency_limit: Optional[int] = FieldFrom(objects.WorkQueue)
+    priority: Optional[int] = FieldFrom(objects.WorkQueue)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(objects.WorkQueue)
 
     # DEPRECATED
 
-    filter: Optional[schemas.core.QueueFilter] = Field(
+    filter: Optional[objects.QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
@@ -553,37 +514,35 @@ class WorkQueueUpdate(ActionBaseModel):
 class FlowRunNotificationPolicyCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run notification policy."""
 
-    is_active: bool = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: UUID = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: bool = FieldFrom(objects.FlowRunNotificationPolicy)
+    state_names: List[str] = FieldFrom(objects.FlowRunNotificationPolicy)
+    tags: List[str] = FieldFrom(objects.FlowRunNotificationPolicy)
+    block_document_id: UUID = FieldFrom(objects.FlowRunNotificationPolicy)
+    message_template: Optional[str] = FieldFrom(objects.FlowRunNotificationPolicy)
 
 
 @copy_model_fields
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    state_names: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    block_document_id: Optional[UUID] = FieldFrom(
-        schemas.core.FlowRunNotificationPolicy
-    )
-    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    is_active: Optional[bool] = FieldFrom(objects.FlowRunNotificationPolicy)
+    state_names: Optional[List[str]] = FieldFrom(objects.FlowRunNotificationPolicy)
+    tags: Optional[List[str]] = FieldFrom(objects.FlowRunNotificationPolicy)
+    block_document_id: Optional[UUID] = FieldFrom(objects.FlowRunNotificationPolicy)
+    message_template: Optional[str] = FieldFrom(objects.FlowRunNotificationPolicy)
 
 
 @copy_model_fields
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = FieldFrom(schemas.core.Artifact)
-    type: Optional[str] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
-    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
-    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    key: Optional[str] = FieldFrom(objects.Artifact)
+    type: Optional[str] = FieldFrom(objects.Artifact)
+    description: Optional[str] = FieldFrom(objects.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(objects.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(objects.Artifact)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.Artifact)
+    task_run_id: Optional[UUID] = FieldFrom(objects.Artifact)
 
     _validate_artifact_format = validator("key", allow_reuse=True)(
         validate_artifact_key
@@ -594,18 +553,18 @@ class ArtifactCreate(ActionBaseModel):
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
-    description: Optional[str] = FieldFrom(schemas.core.Artifact)
-    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(objects.Artifact)
+    description: Optional[str] = FieldFrom(objects.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(objects.Artifact)
 
 
 @copy_model_fields
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: str = FieldFrom(schemas.core.Variable)
-    value: str = FieldFrom(schemas.core.Variable)
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    name: str = FieldFrom(objects.Variable)
+    value: str = FieldFrom(objects.Variable)
+    tags: Optional[List[str]] = FieldFrom(objects.Variable)
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
@@ -619,15 +578,15 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The name of the variable",
         example="my_variable",
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     value: Optional[str] = Field(
         default=None,
         description="The value of the variable",
         example="my-value",
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+    tags: Optional[List[str]] = FieldFrom(objects.Variable)
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)

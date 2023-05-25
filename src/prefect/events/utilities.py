@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pendulum
 
-from prefect.server.utilities.schemas import DateTimeTZ
+from prefect._internal.schemas.fields import DateTimeTZ
 
 from .schemas import Event, RelatedResource
 from .worker import EventsWorker

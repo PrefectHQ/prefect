@@ -1,25 +1,40 @@
-"""
-Full schemas of Prefect REST API objects.
-"""
 import datetime
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 from uuid import UUID
 
 import pendulum
 from pydantic import Field, HttpUrl, conint, root_validator, validator
-from typing_extensions import Literal
 
-import prefect.server.database
-import prefect.server.schemas as schemas
-from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
+from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
+from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
-from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
-from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
-from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
-from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.settings import PREFECT_CLOUD_API_URL
+from prefect.utilities.collections import AutoEnum, listrepr
+from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
+if TYPE_CHECKING:
+    from prefect.deprecated.data_documents import DataDocument
+    from prefect.results import BaseResult
+
+R = TypeVar("R")
+
+
+DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
+DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
     "flow_id",
@@ -33,65 +48,274 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_timestamp",
     "flow_run_state_message",
 ]
-
-DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
-
 MAX_VARIABLE_NAME_LENGTH = 255
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
-class Flow(ORMBaseModel):
-    """An ORM representation of flow data."""
+class StateType(AutoEnum):
+    """Enumeration of state types."""
 
-    name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
-    )
-    tags: List[str] = Field(
-        default_factory=list,
-        description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+    SCHEDULED = AutoEnum.auto()
+    PENDING = AutoEnum.auto()
+    RUNNING = AutoEnum.auto()
+    COMPLETED = AutoEnum.auto()
+    FAILED = AutoEnum.auto()
+    CANCELLED = AutoEnum.auto()
+    CRASHED = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+    CANCELLING = AutoEnum.auto()
+
+
+class StateDetails(PrefectBaseModel):
+    flow_run_id: UUID = None
+    task_run_id: UUID = None
+    # for task runs that represent subflows, the subflow's run ID
+    child_flow_run_id: UUID = None
+    scheduled_time: DateTimeTZ = None
+    cache_key: str = None
+    cache_expiration: DateTimeTZ = None
+    untrackable_result: bool = False
+    pause_timeout: DateTimeTZ = None
+    pause_reschedule: bool = False
+    pause_key: str = None
+    refresh_cache: bool = None
+
+
+class State(ObjectBaseModel, Generic[R]):
+    """
+    The state of a run.
+    """
+
+    type: StateType
+    name: Optional[str] = Field(default=None)
+    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    message: Optional[str] = Field(default=None, example="Run started")
+    state_details: StateDetails = Field(default_factory=StateDetails)
+    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+        default=None,
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
+    @overload
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
+        ...
+
+    @overload
+    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
+        ...
+
+    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
+        """
+        Retrieve the result attached to this state.
+
+        Args:
+            raise_on_failure: a boolean specifying whether to raise an exception
+                if the state is of type `FAILED` and the underlying data is an exception
+            fetch: a boolean specifying whether to resolve references to persisted
+                results into data. For synchronous users, this defaults to `True`.
+                For asynchronous users, this defaults to `False` for backwards
+                compatibility.
+
+        Raises:
+            TypeError: If the state is failed but the result is not an exception.
+
+        Returns:
+            The result of the run
+
+        Examples:
+            >>> from prefect import flow, task
+            >>> @task
+            >>> def my_task(x):
+            >>>     return x
+
+            Get the result from a task future in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     future = my_task("hello")
+            >>>     state = future.wait()
+            >>>     result = state.result()
+            >>>     print(result)
+            >>> my_flow()
+            hello
+
+            Get the result from a flow state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     return "hello"
+            >>> my_flow(return_state=True).result()
+            hello
+
+            Get the result from a failed state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
+            >>> state.result()  # Raises `ValueError`
+
+            Get the result from a failed state without erroring
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow(return_state=True)
+            >>> result = state.result(raise_on_failure=False)
+            >>> print(result)
+            ValueError("oh no!")
+
+
+            Get the result from a flow state in an async context
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     return "hello"
+            >>> state = await my_flow(return_state=True)
+            >>> await state.result()
+            hello
+        """
+        from prefect.states import get_state_result
+
+        return get_state_result(self, raise_on_failure=raise_on_failure, fetch=fetch)
+
+    def to_state_create(self):
+        """
+        Convert this state to a `StateCreate` type which can be used to set the state of
+        a run in the API.
+
+        This method will drop this state's `data` if it is not a result type. Only
+        results should be sent to the API. Other data is only available locally.
+        """
+        from prefect.client.schemas.actions import StateCreate
+        from prefect.results import BaseResult
+
+        return StateCreate(
+            type=self.type,
+            name=self.name,
+            message=self.message,
+            data=self.data if isinstance(self.data, BaseResult) else None,
+            state_details=self.state_details,
+        )
+
+    @validator("name", always=True)
+    def default_name_from_type(cls, v, *, values, **kwargs):
+        """If a name is not provided, use the type"""
+
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
+        if v is None and values.get("type"):
+            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
         return v
 
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        """
+        TODO: This should throw an error instead of setting a default but is out of
+              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
+              into work refactoring state initialization
+        """
+        if values.get("type") == StateType.SCHEDULED:
+            state_details = values.setdefault(
+                "state_details", cls.__fields__["state_details"].get_default()
+            )
+            if not state_details.scheduled_time:
+                state_details.scheduled_time = pendulum.now("utc")
+        return values
 
-class FlowRunnerSettings(PrefectBaseModel):
-    """
-    An API schema for passing details about the flow runner.
+    def is_scheduled(self) -> bool:
+        return self.type == StateType.SCHEDULED
 
-    This schema is agnostic to the types and configuration provided by clients
-    """
+    def is_pending(self) -> bool:
+        return self.type == StateType.PENDING
 
-    type: Optional[str] = Field(
-        default=None,
-        description=(
-            "The type of the flow runner which can be used by the client for"
-            " dispatching."
-        ),
-    )
-    config: Optional[dict] = Field(
-        default=None, description="The configuration for the given flow runner type."
-    )
+    def is_running(self) -> bool:
+        return self.type == StateType.RUNNING
 
-    # The following is required for composite compatibility in the ORM
+    def is_completed(self) -> bool:
+        return self.type == StateType.COMPLETED
 
-    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
-        # Pydantic does not support positional arguments so they must be converted to
-        # keyword arguments
-        super().__init__(type=type, config=config, **kwargs)
+    def is_failed(self) -> bool:
+        return self.type == StateType.FAILED
 
-    def __composite_values__(self):
-        return self.type, self.config
+    def is_crashed(self) -> bool:
+        return self.type == StateType.CRASHED
+
+    def is_cancelled(self) -> bool:
+        return self.type == StateType.CANCELLED
+
+    def is_final(self) -> bool:
+        return self.type in {
+            StateType.CANCELLED,
+            StateType.FAILED,
+            StateType.COMPLETED,
+            StateType.CRASHED,
+        }
+
+    def is_paused(self) -> bool:
+        return self.type == StateType.PAUSED
+
+    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+        """
+        Copying API models should return an object that could be inserted into the
+        database again. The 'timestamp' is reset using the default factory.
+        """
+        update = update or {}
+        update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
+        return super().copy(reset_fields=reset_fields, update=update, **kwargs)
+
+    def __repr__(self) -> str:
+        """
+        Generates a complete state representation appropriate for introspection
+        and debugging, including the result:
+
+        `MyCompletedState(message="my message", type=COMPLETED, result=...)`
+        """
+        from prefect.deprecated.data_documents import DataDocument
+
+        if isinstance(self.data, DataDocument):
+            result = self.data.decode()
+        else:
+            result = self.data
+
+        display = dict(
+            message=repr(self.message),
+            type=str(self.type.value),
+            result=repr(result),
+        )
+
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
+
+    def __str__(self) -> str:
+        """
+        Generates a simple state representation appropriate for logging:
+
+        `MyCompletedState("my message", type=COMPLETED)`
+        """
+
+        display = []
+
+        if self.message:
+            display.append(repr(self.message))
+
+        if self.type.value.lower() != self.name.lower():
+            display.append(f"type={self.type.value}")
+
+        return f"{self.name}({', '.join(display)})"
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                getattr(self.state_details, "flow_run_id", None),
+                getattr(self.state_details, "task_run_id", None),
+                self.timestamp,
+                self.type,
+            )
+        )
 
 
 class FlowRunPolicy(PrefectBaseModel):
-    """Defines of how a flow run should retry."""
+    """Defines of how a flow run should be orchestrated."""
 
-    # TODO: Determine how to separate between infrastructure and within-process level
-    #       retries
     max_retries: int = Field(
         default=0,
         description=(
@@ -135,9 +359,7 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-class FlowRun(ORMBaseModel):
-    """An ORM representation of flow run data."""
-
+class FlowRun(ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
         description=(
@@ -193,13 +415,6 @@ class FlowRun(ORMBaseModel):
             " flow used to track subflow state."
         ),
     )
-
-    state_type: Optional[schemas.states.StateType] = Field(
-        default=None, description="The type of the current flow run state."
-    )
-    state_name: Optional[str] = Field(
-        default=None, description="The name of the current flow run state."
-    )
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
@@ -252,17 +467,16 @@ class FlowRun(ORMBaseModel):
         default=None, description="The id of the run's work pool queue."
     )
 
-    # relationships
-    # flow: Flow = None
-    # task_runs: List["TaskRun"] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
-        default=None, description="The current state of the flow run."
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the flow run's work pool.",
+        example="my-work-pool",
     )
-    # parent_task_run: "TaskRun" = None
-
-    @validator("name", pre=True)
-    def set_name(cls, name):
-        return name or generate_slug(2)
+    state: Optional[State] = Field(
+        default=None,
+        description="The state of the flow run.",
+        example=State(type=StateType.COMPLETED),
+    )
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -277,6 +491,16 @@ class FlowRun(ORMBaseModel):
                 exclude=exclude_fields
             )
         return super().__eq__(other)
+
+    # These are server-side optimizations and should not be present on client models
+    # TODO: Deprecate these fields
+
+    state_type: Optional[StateType] = Field(
+        default=None, description="The type of the current flow run state."
+    )
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current flow run state."
+    )
 
 
 class TaskRunPolicy(PrefectBaseModel):
@@ -371,9 +595,7 @@ class Constant(TaskRunInput):
     type: str
 
 
-class TaskRun(ORMBaseModel):
-    """An ORM representation of task run data."""
-
+class TaskRun(ObjectBaseModel):
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
     flow_run_id: UUID = Field(
         default=..., description="The flow run id of the task run."
@@ -419,7 +641,7 @@ class TaskRun(ORMBaseModel):
             "Tracks the source of inputs to a task run. Used for internal bookkeeping."
         ),
     )
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[StateType] = Field(
         default=None, description="The type of the current task run state."
     )
     state_name: Optional[str] = Field(
@@ -468,28 +690,196 @@ class TaskRun(ORMBaseModel):
         description="The difference between actual and expected start time.",
     )
 
-    # relationships
-    # flow_run: FlowRun = None
-    # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
-        default=None, description="The current task run state."
+    state: Optional[State] = Field(
+        default=None,
+        description="The state of the flow run.",
+        example=State(type=StateType.COMPLETED),
     )
 
-    @validator("name", pre=True)
-    def set_name(cls, name):
-        return name or generate_slug(2)
 
-    @validator("cache_key")
-    def validate_cache_key_length(cls, cache_key):
-        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
-            raise ValueError(
-                "Cache key exceeded maximum allowed length of"
-                f" {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
-            )
-        return cache_key
+class Workspace(PrefectBaseModel):
+    """
+    A Prefect Cloud workspace.
+
+    Expected payload for each workspace returned by the `me/workspaces` route.
+    """
+
+    account_id: UUID = Field(..., description="The account id of the workspace.")
+    account_name: str = Field(..., description="The account name.")
+    account_handle: str = Field(..., description="The account's unique handle.")
+    workspace_id: UUID = Field(..., description="The workspace id.")
+    workspace_name: str = Field(..., description="The workspace name.")
+    workspace_description: str = Field(..., description="Description of the workspace.")
+    workspace_handle: str = Field(..., description="The workspace's unique handle.")
+
+    class Config:
+        extra = "ignore"
+
+    @property
+    def handle(self) -> str:
+        """
+        The full handle of the workspace as `account_handle` / `workspace_handle`
+        """
+        return self.account_handle + "/" + self.workspace_handle
+
+    def api_url(self) -> str:
+        """
+        Generate the API URL for accessing this workspace
+        """
+        return (
+            f"{PREFECT_CLOUD_API_URL.value()}"
+            f"/accounts/{self.account_id}"
+            f"/workspaces/{self.workspace_id}"
+        )
+
+    def __hash__(self):
+        return hash(self.handle)
 
 
-class Deployment(ORMBaseModel):
+class BlockType(ObjectBaseModel):
+    """An ORM representation of a block type"""
+
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
+    logo_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's logo"
+    )
+    documentation_url: Optional[HttpUrl] = Field(
+        default=None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
+    )
+    code_example: Optional[str] = Field(
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
+    )
+    is_protected: bool = Field(
+        default=False, description="Protected block types cannot be modified via API."
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_with_banned_characters(v)
+        return v
+
+
+class BlockSchema(ObjectBaseModel):
+    """A representation of a block schema."""
+
+    checksum: str = Field(default=..., description="The block schema's unique checksum")
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        default=None, description="The associated block type"
+    )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+    version: str = Field(
+        default=DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
+    )
+
+
+class BlockDocument(ObjectBaseModel):
+    """An ORM representation of a block document."""
+
+    name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The block document's name. Not required for anonymous block documents."
+        ),
+    )
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(default=..., description="A block schema ID")
+    block_schema: Optional[BlockSchema] = Field(
+        default=None, description="The associated block schema"
+    )
+    block_type_id: UUID = Field(default=..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        default=None, description="The associated block type"
+    )
+    block_document_references: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="Record of the block document's references"
+    )
+    is_anonymous: bool = Field(
+        default=False,
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        # the BlockDocumentCreate subclass allows name=None
+        # and will inherit this validator
+        if v is not None:
+            raise_on_name_with_banned_characters(v)
+        return v
+
+    @root_validator
+    def validate_name_is_present_if_not_anonymous(cls, values):
+        # anonymous blocks may have no name prior to actually being
+        # stored in the database
+        if not values.get("is_anonymous") and not values.get("name"):
+            raise ValueError("Names must be provided for block documents.")
+        return values
+
+
+class Flow(ObjectBaseModel):
+    """An ORM representation of flow data."""
+
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of flow tags",
+        example=["tag-1", "tag-2"],
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_with_banned_characters(v)
+        return v
+
+
+class FlowRunnerSettings(PrefectBaseModel):
+    """
+    An API schema for passing details about the flow runner.
+
+    This schema is agnostic to the types and configuration provided by clients
+    """
+
+    type: Optional[str] = Field(
+        default=None,
+        description=(
+            "The type of the flow runner which can be used by the client for"
+            " dispatching."
+        ),
+    )
+    config: Optional[dict] = Field(
+        default=None, description="The configuration for the given flow runner type."
+    )
+
+    # The following is required for composite compatibility in the ORM
+
+    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
+        # Pydantic does not support positional arguments so they must be converted to
+        # keyword arguments
+        super().__init__(type=type, config=config, **kwargs)
+
+    def __composite_values__(self):
+        return self.type, self.config
+
+
+class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -502,7 +892,7 @@ class Deployment(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[SCHEDULE_TYPES] = Field(
         default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(
@@ -584,7 +974,7 @@ class Deployment(ORMBaseModel):
         return v
 
 
-class ConcurrencyLimit(ORMBaseModel):
+class ConcurrencyLimit(ObjectBaseModel):
     """An ORM representation of a concurrency limit."""
 
     tag: str = Field(
@@ -597,36 +987,7 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockType(ORMBaseModel):
-    """An ORM representation of a block type"""
-
-    name: str = Field(default=..., description="A block type's name")
-    slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[HttpUrl] = Field(
-        default=None, description="Web URL for the block type's logo"
-    )
-    documentation_url: Optional[HttpUrl] = Field(
-        default=None, description="Web URL for the block type's documentation"
-    )
-    description: Optional[str] = Field(
-        default=None,
-        description="A short blurb about the corresponding block's intended use",
-    )
-    code_example: Optional[str] = Field(
-        default=None,
-        description="A code snippet demonstrating use of the corresponding block",
-    )
-    is_protected: bool = Field(
-        default=False, description="Protected block types cannot be modified via API."
-    )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
-
-
-class BlockSchema(ORMBaseModel):
+class BlockSchema(ObjectBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
@@ -647,7 +1008,7 @@ class BlockSchema(ORMBaseModel):
     )
 
 
-class BlockSchemaReference(ORMBaseModel):
+class BlockSchemaReference(ObjectBaseModel):
     """An ORM representation of a block schema reference."""
 
     parent_block_schema_id: UUID = Field(
@@ -667,100 +1028,7 @@ class BlockSchemaReference(ORMBaseModel):
     )
 
 
-class BlockDocument(ORMBaseModel):
-    """An ORM representation of a block document."""
-
-    name: Optional[str] = Field(
-        default=None,
-        description=(
-            "The block document's name. Not required for anonymous block documents."
-        ),
-    )
-    data: dict = Field(default_factory=dict, description="The block document's data")
-    block_schema_id: UUID = Field(default=..., description="A block schema ID")
-    block_schema: Optional[BlockSchema] = Field(
-        default=None, description="The associated block schema"
-    )
-    block_type_id: UUID = Field(default=..., description="A block type ID")
-    block_type: Optional[BlockType] = Field(
-        default=None, description="The associated block type"
-    )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
-        default_factory=dict, description="Record of the block document's references"
-    )
-    is_anonymous: bool = Field(
-        default=False,
-        description=(
-            "Whether the block is anonymous (anonymous blocks are usually created by"
-            " Prefect automatically)"
-        ),
-    )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        # the BlockDocumentCreate subclass allows name=None
-        # and will inherit this validator
-        if v is not None:
-            raise_on_name_with_banned_characters(v)
-        return v
-
-    @root_validator
-    def validate_name_is_present_if_not_anonymous(cls, values):
-        # anonymous blocks may have no name prior to actually being
-        # stored in the database
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
-
-    @classmethod
-    async def from_orm_model(
-        cls,
-        session,
-        orm_block_document: "prefect.server.database.orm_models.ORMBlockDocument",
-        include_secrets: bool = False,
-    ):
-        data = await orm_block_document.decrypt_data(session=session)
-        # if secrets are not included, obfuscate them based on the schema's
-        # `secret_fields`. Note this walks any nested blocks as well. If the
-        # nested blocks were recovered from named blocks, they will already
-        # be obfuscated, but if nested fields were hardcoded into the parent
-        # blocks data, this is the only opportunity to obfuscate them.
-        if not include_secrets:
-            flat_data = dict_to_flatdict(data)
-            # iterate over the (possibly nested) secret fields
-            # and obfuscate their data
-            for secret_field in orm_block_document.block_schema.fields.get(
-                "secret_fields", []
-            ):
-                secret_key = tuple(secret_field.split("."))
-                if flat_data.get(secret_key) is not None:
-                    flat_data[secret_key] = obfuscate_string(flat_data[secret_key])
-                # If a wildcard (*) is in the current secret key path, we take the portion
-                # of the path before the wildcard and compare it to the same level of each
-                # key. A match means that the field is nested under the secret key and should
-                # be obfuscated.
-                elif "*" in secret_key:
-                    wildcard_index = secret_key.index("*")
-                    for data_key in flat_data.keys():
-                        if secret_key[0:wildcard_index] == data_key[0:wildcard_index]:
-                            flat_data[data_key] = obfuscate(flat_data[data_key])
-            data = flatdict_to_dict(flat_data)
-
-        return cls(
-            id=orm_block_document.id,
-            created=orm_block_document.created,
-            updated=orm_block_document.updated,
-            name=orm_block_document.name,
-            data=data,
-            block_schema_id=orm_block_document.block_schema_id,
-            block_schema=orm_block_document.block_schema,
-            block_type_id=orm_block_document.block_type_id,
-            block_type=orm_block_document.block_type,
-            is_anonymous=orm_block_document.is_anonymous,
-        )
-
-
-class BlockDocumentReference(ORMBaseModel):
+class BlockDocumentReference(ObjectBaseModel):
     """An ORM representation of a block document reference."""
 
     parent_block_document_id: UUID = Field(
@@ -791,7 +1059,7 @@ class BlockDocumentReference(ORMBaseModel):
         return values
 
 
-class Configuration(ORMBaseModel):
+class Configuration(ObjectBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
@@ -815,7 +1083,7 @@ class SavedSearchFilter(PrefectBaseModel):
     )
 
 
-class SavedSearch(ORMBaseModel):
+class SavedSearch(ObjectBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(default=..., description="The name of the saved search.")
@@ -824,7 +1092,7 @@ class SavedSearch(ORMBaseModel):
     )
 
 
-class Log(ORMBaseModel):
+class Log(ObjectBaseModel):
     """An ORM representation of log data."""
 
     name: str = Field(default=..., description="The logger name.")
@@ -852,7 +1120,7 @@ class QueueFilter(PrefectBaseModel):
     )
 
 
-class WorkQueue(ORMBaseModel):
+class WorkQueue(ObjectBaseModel):
     """An ORM representation of a work queue"""
 
     name: str = Field(default=..., description="The name of the work queue.")
@@ -953,7 +1221,7 @@ class WorkQueueStatusDetail(PrefectBaseModel):
     )
 
 
-class FlowRunNotificationPolicy(ORMBaseModel):
+class FlowRunNotificationPolicy(ObjectBaseModel):
     """An ORM representation of a flow run notification."""
 
     is_active: bool = Field(
@@ -992,7 +1260,7 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         return v
 
 
-class Agent(ORMBaseModel):
+class Agent(ObjectBaseModel):
     """An ORM representation of an agent"""
 
     name: str = Field(
@@ -1010,7 +1278,7 @@ class Agent(ORMBaseModel):
     )
 
 
-class WorkPool(ORMBaseModel):
+class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 
     name: str = Field(
@@ -1094,7 +1362,7 @@ class WorkPool(ORMBaseModel):
         return v
 
 
-class Worker(ORMBaseModel):
+class Worker(ObjectBaseModel):
     """An ORM representation of a worker"""
 
     name: str = Field(description="The name of the worker.")
@@ -1110,7 +1378,7 @@ Flow.update_forward_refs()
 FlowRun.update_forward_refs()
 
 
-class Artifact(ORMBaseModel):
+class Artifact(ObjectBaseModel):
     key: Optional[str] = Field(
         default=None, description="An optional unique reference key for this artifact."
     )
@@ -1146,24 +1414,6 @@ class Artifact(ORMBaseModel):
         default=None, description="The task run associated with the artifact."
     )
 
-    @classmethod
-    def from_result(cls, data: Any):
-        artifact_info = dict()
-        if isinstance(data, dict):
-            artifact_key = data.pop("artifact_key", None)
-            if artifact_key:
-                artifact_info["key"] = artifact_key
-
-            artifact_type = data.pop("artifact_type", None)
-            if artifact_type:
-                artifact_info["type"] = artifact_type
-
-            description = data.pop("artifact_description", None)
-            if description:
-                artifact_info["description"] = description
-
-        return cls(data=data, **artifact_info)
-
     @validator("metadata_")
     def validate_metadata_length(cls, v):
         max_metadata_length = 500
@@ -1175,7 +1425,7 @@ class Artifact(ORMBaseModel):
         return v
 
 
-class ArtifactCollection(ORMBaseModel):
+class ArtifactCollection(ObjectBaseModel):
     key: str = Field(description="An optional unique reference key for this artifact.")
     latest_id: UUID = Field(
         description="The latest artifact ID associated with the key."
@@ -1212,7 +1462,7 @@ class ArtifactCollection(ORMBaseModel):
     )
 
 
-class Variable(ORMBaseModel):
+class Variable(ObjectBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
