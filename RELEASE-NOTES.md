@@ -7,7 +7,7 @@
 - Add interactive prompt to `prefect work-pool create` — https://github.com/PrefectHQ/prefect/pull/9686
 
 ### Enhancements
-- Emit events from deployments, work queues, and work pools. — https://github.com/PrefectHQ/prefect/pull/9635
+- Emit events from deployments, work queues, and work pools — https://github.com/PrefectHQ/prefect/pull/9635
 - Improve SQLite database transaction behavior — https://github.com/PrefectHQ/prefect/pull/9594
 - Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
 - Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
