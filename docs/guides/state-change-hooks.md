@@ -8,7 +8,7 @@ tags:
 
 # State Change Hooks
 
-State change hooks execute code in response to changes in flow or task run states, enabling you to define actions for specific state transitions in a workflow.
+You've read about how [state change hooks execute code in response to changes in flow or task run states](/concepts/states/#state-change-hooks), enabling you to define actions for specific state transitions in a workflow. Now let's create some real-world examples of state change hooks.
 
 ## Example use cases
 
