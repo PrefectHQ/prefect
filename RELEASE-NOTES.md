@@ -29,7 +29,7 @@
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
 - Use `PrefectHttpxClient` in cloud communication — https://github.com/PrefectHQ/prefect/pull/9724
 - Remove trailing slashes when building events/in websocket url — https://github.com/PrefectHQ/prefect/pull/9663
-- Update flow run logs empty text for light mode
+- Unknown states crash flow run timeline — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
 ### Deprecations
 - Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - https://github.com/PrefectHQ/prefect/pull/8788
