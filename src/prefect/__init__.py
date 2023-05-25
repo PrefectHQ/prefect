@@ -57,7 +57,7 @@ import prefect.blocks.notifications
 import prefect.blocks.system
 import prefect.infrastructure.process
 import prefect.infrastructure.kubernetes
-import prefect.infrastructure.docker
+import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -101,6 +101,16 @@ register_renamed_module(
     "prefect.client.orchestration",
     "prefect.client.orchestration",
     start_date="Feb 2023",
+)
+register_renamed_module(
+    "prefect.docker",
+    "prefect.utilities.dockerutils",
+    start_date="Mar 2023",
+)
+register_renamed_module(
+    "prefect.infrastructure.docker",
+    "prefect.infrastructure.container",
+    start_date="Mar 2023",
 )
 inject_renamed_module_alias_finder()
 

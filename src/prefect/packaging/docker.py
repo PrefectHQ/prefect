@@ -6,18 +6,18 @@ from typing import Any, Mapping, Optional, Union
 from pydantic import AnyHttpUrl, root_validator, validator
 from typing_extensions import Literal
 
-from prefect.docker import (
+from prefect.flows import Flow, load_flow_from_script
+from prefect.packaging.base import PackageManifest, Packager
+from prefect.packaging.serializers import SourceSerializer
+from prefect.software import CondaEnvironment, PythonEnvironment
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.dockerutils import (
     ImageBuilder,
     build_image,
     get_prefect_image_name,
     push_image,
     to_run_command,
 )
-from prefect.flows import Flow, load_flow_from_script
-from prefect.packaging.base import PackageManifest, Packager
-from prefect.packaging.serializers import SourceSerializer
-from prefect.software import CondaEnvironment, PythonEnvironment
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.slugify import slugify
 
 

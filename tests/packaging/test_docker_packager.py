@@ -7,11 +7,14 @@ from tarfile import TarFile, TarInfo
 
 import pytest
 
-from prefect.docker import get_prefect_image_name, silence_docker_warnings
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
 from prefect.utilities.callables import parameter_schema
+from prefect.utilities.dockerutils import (
+    get_prefect_image_name,
+    silence_docker_warnings,
+)
 
 from . import howdy
 

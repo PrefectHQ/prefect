@@ -13,10 +13,10 @@ from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.docker import get_prefect_image_name
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
