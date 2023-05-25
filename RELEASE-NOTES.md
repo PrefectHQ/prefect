@@ -16,7 +16,7 @@
 - Add guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
-- Add worker event telemetry — https://github.com/PrefectHQ/prefect/pull/9702
+- Emit worker event when a flow run is scheduled to run or cancel — https://github.com/PrefectHQ/prefect/pull/9702
 - Add "Retrying" to ui states select — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
 - Update docs links in ui to concepts when possible — https://github.com/PrefectHQ/prefect-ui-library/pull/1351
 
