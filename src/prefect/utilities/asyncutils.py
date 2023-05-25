@@ -328,7 +328,7 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
         except GeneratorExit:
             await coroutine_fn()
             # Remove self from the garbage collection set
-            local_event_loop_gc_refs.pop(key)
+            EVENT_LOOP_GC_REFS.pop(key)
 
     # Create the iterator and store it in a global variable so it is not garbage
     # collected. If the iterator is garbage collected before the event loop closes, the
@@ -336,10 +336,10 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     # loop that is calling it, a reference with global scope is necessary to ensure
     # garbage collection does not occur until after event loop closure.
     key = id(on_shutdown)
-    local_event_loop_gc_refs[key] = on_shutdown(key)
+    EVENT_LOOP_GC_REFS[key] = on_shutdown(key)
 
     # Begin iterating so it will be cleaned up as an incomplete generator
-    await local_event_loop_gc_refs[key].__anext__()
+    await EVENT_LOOP_GC_REFS[key].__anext__()
 
 
 class GatherIncomplete(RuntimeError):
