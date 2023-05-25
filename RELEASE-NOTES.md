@@ -3,6 +3,7 @@
 ## Release 2.10.11
 
 ### Interactive Deployments and Work Pool Wizard 🧙
+![Screenshot 2023-05-25 at 1 02 48 PM](https://github.com/PrefectHQ/prefect/assets/12350579/c861b8dd-2dbb-4cfa-82f9-69008714f9fe)
 
 This release introduces enhancements aimed at simplifying deployment and work pool creation.
 
