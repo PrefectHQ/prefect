@@ -17,7 +17,7 @@ tags:
 | __[Tasks](/concepts/tasks)__                       | Discrete units of work in a Prefect workflow.                                                                                                                                      |
 | __[Results](/concepts/results)__                   | The data returned by a flow or a task.                                                                                                                                             |
 | __[Artifacts](/concepts/artifacts)__               | Persisted outputs for human viewing such as tables or links.                                                                                                                       |
-| __[States](/concepts/states)__                     | Contain information about the status of a particular task run or flow run.                                                                                                         |
+| __[States](/concepts/states)__                     | The status of a particular task run or flow run.                                                                                                         |
 | __[Task Runners](/concepts/task-runners)__         | Enable you to engage specific executors for Prefect tasks, such as concurrent, parallel, or distributed execution of tasks.                                                    |
 | __[Runtime Context](/concepts/runtime-context)__   | Information about the current flow or task run that you can refer to in your code.        |
 | __[Profiles & Configuration](/concepts/settings)__ | Settings you can use to interact with Prefect Cloud and a Prefect server.                                                                                                         |
