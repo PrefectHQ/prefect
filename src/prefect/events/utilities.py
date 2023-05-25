@@ -6,6 +6,7 @@ import pendulum
 
 from prefect._internal.schemas.fields import DateTimeTZ
 
+from .clients import AssertingEventsClient, PrefectCloudEventsClient
 from .schemas import Event, RelatedResource
 from .worker import EventsWorker
 
@@ -20,7 +21,7 @@ def emit_event(
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
     follows: Optional[Event] = None,
-) -> Event:
+) -> Optional[Event]:
     """
     Send an event to Prefect Cloud.
 
@@ -38,8 +39,15 @@ def emit_event(
             relationship will not be set.
 
     Returns:
-        The event that was emitted.
+        The event that was emitted if worker is using a client that emit
+        events, otherwise None.
     """
+    operational_clients = [AssertingEventsClient, PrefectCloudEventsClient]
+    worker_instance = EventsWorker.instance()
+
+    if worker_instance.client_type not in operational_clients:
+        return None
+
     event_kwargs = {
         "event": event,
         "resource": resource,
@@ -63,6 +71,6 @@ def emit_event(
             event_kwargs["follows"] = follows.id
 
     event_obj = Event(**event_kwargs)
-    EventsWorker.instance().send(event_obj)
+    worker_instance.send(event_obj)
 
     return event_obj

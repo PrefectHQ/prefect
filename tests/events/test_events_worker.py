@@ -38,13 +38,13 @@ def test_emits_event_via_client(asserting_events_worker: EventsWorker, event: Ev
 def test_worker_instance_null_client_no_api_url():
     with temporary_settings(updates={PREFECT_API_URL: None}):
         worker = EventsWorker.instance()
-        assert worker._client_type == NullEventsClient
+        assert worker.client_type == NullEventsClient
 
 
 def test_worker_instance_null_client_non_cloud_api_url():
     with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
         worker = EventsWorker.instance()
-        assert worker._client_type == NullEventsClient
+        assert worker.client_type == NullEventsClient
 
 
 def test_worker_instance_null_client_cloud_api_url_experiment_disabled():
@@ -56,7 +56,7 @@ def test_worker_instance_null_client_cloud_api_url_experiment_disabled():
         }
     ):
         worker = EventsWorker.instance()
-        assert worker._client_type == NullEventsClient
+        assert worker.client_type == NullEventsClient
 
 
 def test_worker_instance_null_client_cloud_api_url_experiment_enabled():
@@ -68,7 +68,7 @@ def test_worker_instance_null_client_cloud_api_url_experiment_enabled():
         }
     ):
         worker = EventsWorker.instance()
-        assert worker._client_type == PrefectCloudEventsClient
+        assert worker.client_type == PrefectCloudEventsClient
 
 
 async def test_includes_related_resources_from_run_context(
