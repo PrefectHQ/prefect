@@ -7,7 +7,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 
 import prefect
-from prefect.docker import (
+from prefect.utilities.dockerutils import (
     BuildError,
     ImageBuilder,
     build_image,

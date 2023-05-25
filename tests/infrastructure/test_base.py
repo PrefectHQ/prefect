@@ -7,7 +7,6 @@ from packaging.version import Version
 
 import prefect
 from prefect import engine
-from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import (
     DockerContainer,
     Infrastructure,
@@ -16,6 +15,7 @@ from prefect.infrastructure import (
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
 from prefect.server.schemas.core import Deployment
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 @pytest.fixture
