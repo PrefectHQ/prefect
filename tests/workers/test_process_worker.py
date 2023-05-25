@@ -46,8 +46,8 @@ def patch_run_process(monkeypatch):
 
 
 @pytest.fixture
-async def flow_run(orion_client: PrefectClient):
-    flow_run = await orion_client.create_flow_run(
+async def flow_run(prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run(
         flow=example_process_worker_flow,
         state=State(
             type=StateType.SCHEDULED,

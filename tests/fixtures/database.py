@@ -300,28 +300,30 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(orion_client, tmpdir):
+async def storage_document_id(prefect_client, tmpdir):
     return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name="local-test", client=orion_client
+        name="local-test", client=prefect_client
     )
 
 
 @pytest.fixture
-async def storage_document_id_2(orion_client):
-    return await LocalFileSystem().save(name="distinct-local-test", client=orion_client)
+async def storage_document_id_2(prefect_client):
+    return await LocalFileSystem().save(
+        name="distinct-local-test", client=prefect_client
+    )
 
 
 @pytest.fixture
-async def infrastructure_document_id(orion_client):
+async def infrastructure_document_id(prefect_client):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
 @pytest.fixture
-async def infrastructure_document_id_2(orion_client):
+async def infrastructure_document_id_2(prefect_client):
     return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
@@ -737,7 +739,7 @@ def initialize_orchestration(flow):
 
 
 @pytest.fixture
-async def notifier_block(orion_client):
+async def notifier_block(prefect_client):
     # Ignore warnings from block reuse in fixture
     warnings.filterwarnings("ignore", category=UserWarning)
 
