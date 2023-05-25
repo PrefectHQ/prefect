@@ -83,7 +83,7 @@ def test_register_blocks_from_invalid_module():
     )
 
 
-def test_register_blocks_from_file(tmp_path, orion_client: PrefectClient):
+def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
@@ -100,7 +100,7 @@ def test_register_blocks_from_file(tmp_path, orion_client: PrefectClient):
         )
 
     block_type = asyncio.run(
-        orion_client.read_block_type_by_slug(slug="testforfileregister")
+        prefect_client.read_block_type_by_slug(slug="testforfileregister")
     )
     assert block_type is not None
 
@@ -280,7 +280,7 @@ def test_inspecting_a_block_type(tmp_path):
     )
 
 
-def test_deleting_a_block_type(tmp_path, orion_client):
+def test_deleting_a_block_type(tmp_path, prefect_client):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
@@ -304,11 +304,11 @@ def test_deleting_a_block_type(tmp_path, orion_client):
     )
 
     with pytest.raises(ObjectNotFound):
-        asyncio.run(orion_client.read_block_type_by_slug(slug="testforfileregister"))
+        asyncio.run(prefect_client.read_block_type_by_slug(slug="testforfileregister"))
 
 
 def test_deleting_a_protected_block_type(
-    tmp_path, orion_client, install_system_block_types
+    tmp_path, prefect_client, install_system_block_types
 ):
     expected_output = "is a protected block"
 
