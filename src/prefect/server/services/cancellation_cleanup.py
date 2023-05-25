@@ -132,15 +132,20 @@ class CancellationCleanup(LoopService):
         self, db: PrefectDBInterface, flow_run: PrefectDBInterface.FlowRun
     ) -> None:
         if not flow_run.parent_task_run_id:
-            return
+            return False
 
         if flow_run.state.type in states.TERMINAL_STATES:
-            return
+            return False
 
         async with db.session_context() as session:
             parent_task_run = await models.task_runs.read_task_run(
                 session, task_run_id=flow_run.parent_task_run_id
             )
+
+            if not parent_task_run:
+                # Global orchestration policy will prevent further orchestration
+                return False
+
             containing_flow_run = await models.flow_runs.read_flow_run(
                 session, flow_run_id=parent_task_run.flow_run_id
             )
@@ -150,7 +155,7 @@ class CancellationCleanup(LoopService):
                 and containing_flow_run.state.type != states.StateType.CANCELLED
             ):
                 # Nothing to do here; the parent is not cancelled
-                return
+                return False
 
         async with db.session_context(begin_transaction=True) as session:
             await models.flow_runs.set_flow_run_state(
