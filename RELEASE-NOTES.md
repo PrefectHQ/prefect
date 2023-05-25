@@ -17,6 +17,8 @@
 - Handle deleted deployments gracefully — https://github.com/PrefectHQ/prefect/pull/9464
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
 - Add worker event telemetry — https://github.com/PrefectHQ/prefect/pull/9702
+- Add "Retrying" to ui states select — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
+- Update docs links in ui to concepts when possible — https://github.com/PrefectHQ/prefect-ui-library/pull/1351
 
 ### Fixes
 - Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
