@@ -19,7 +19,7 @@ tags:
 | __[Artifacts](artifacts.md)__               | Persisted outputs for human viewing such as tables or links.                                                                                                                       |
 | __[States](states.md)__                     | Contain information about the status of a particular task run or flow run.                                                                                                         |
 | __[Task Runners](task-runners.md)__         | Enable you to engage specific executors for Prefect tasks, such as concurrent, parallel, or distributed execution of tasks.                                                    |
-| __[Runtime Context](runtime-context.md)__   | Prefect tracks information about the current flow or task run with a run context                                                                                                   |
+| __[Runtime Context](runtime-context.md)__   | Information about the current flow or task run that you can refer to in your code.        |
 | __[Profiles & Configuration](settings.md)__ | Prefect settings and configuration                                                                                                                                                 |
 | __[Blocks](blocks.md)__                     | Blocks are a primitive within Prefect that enable the storage of configuration and provide an interface for interacting with external systems                                      |
 | __[Variables](variables.md)__               | Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables |
