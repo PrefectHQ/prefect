@@ -43,7 +43,7 @@ def test_start_worker_run_once_with_name():
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
+async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -59,7 +59,7 @@ async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
         expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
     )
 
-    work_pool = await orion_client.read_work_pool("not-yet-created-pool")
+    work_pool = await prefect_client.read_work_pool("not-yet-created-pool")
     assert work_pool is not None
     assert work_pool.name == "not-yet-created-pool"
     assert work_pool.default_queue_id is not None
@@ -173,7 +173,7 @@ def test_start_worker_with_limit(monkeypatch):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient):
+async def test_worker_joins_existing_pool(work_pool, prefect_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -194,7 +194,7 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient
         ],
     )
 
-    workers = await orion_client.read_workers_for_work_pool(
+    workers = await prefect_client.read_workers_for_work_pool(
         work_pool_name=work_pool.name
     )
     assert workers[0].name == "test-worker"
@@ -202,7 +202,7 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 async def test_worker_discovers_work_pool_type(
-    process_work_pool, orion_client: PrefectClient
+    process_work_pool, prefect_client: PrefectClient
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -226,7 +226,7 @@ async def test_worker_discovers_work_pool_type(
         ],
     )
 
-    workers = await orion_client.read_workers_for_work_pool(
+    workers = await prefect_client.read_workers_for_work_pool(
         work_pool_name=process_work_pool.name
     )
     assert workers[0].name == "test-worker"
@@ -234,7 +234,7 @@ async def test_worker_discovers_work_pool_type(
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 async def test_start_worker_without_type_creates_process_work_pool(
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -258,7 +258,7 @@ async def test_start_worker_without_type_creates_process_work_pool(
         ],
     )
 
-    workers = await orion_client.read_workers_for_work_pool(work_pool_name="not-here")
+    workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
 
 

@@ -1058,14 +1058,14 @@ class TestRegisterBlockTypeAndSchema:
         b: str
         c: int
 
-    async def test_register_type_and_schema(self, orion_client: PrefectClient):
+    async def test_register_type_and_schema(self, prefect_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
+        block_type = await prefect_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
-        block_schema = await orion_client.read_block_schema_by_checksum(
+        block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
@@ -1074,22 +1074,22 @@ class TestRegisterBlockTypeAndSchema:
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
 
-    async def test_register_idempotent(self, orion_client: PrefectClient):
+    async def test_register_idempotent(self, prefect_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
+        block_type = await prefect_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
-        block_schema = await orion_client.read_block_schema_by_checksum(
+        block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_existing_block_type_new_block_schema(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -1102,27 +1102,27 @@ class TestRegisterBlockTypeAndSchema:
 
         await ImpostorBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
+        block_type = await prefect_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
         await self.NewBlock.register_type_and_schema()
 
-        block_schema = await orion_client.read_block_schema_by_checksum(
+        block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_new_block_schema_when_version_changes(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
         await self.NewBlock.register_type_and_schema()
 
-        block_schema = await orion_client.read_block_schema_by_checksum(
+        block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
@@ -1133,7 +1133,7 @@ class TestRegisterBlockTypeAndSchema:
 
         await self.NewBlock.register_type_and_schema()
 
-        block_schema = await orion_client.read_block_schema_by_checksum(
+        block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
@@ -1142,7 +1142,7 @@ class TestRegisterBlockTypeAndSchema:
 
         self.NewBlock._block_schema_version = None
 
-    async def test_register_nested_block(self, orion_client: PrefectClient):
+    async def test_register_nested_block(self, prefect_client: PrefectClient):
         class Big(Block):
             id: UUID = Field(default_factory=uuid4)
             size: int
@@ -1158,28 +1158,30 @@ class TestRegisterBlockTypeAndSchema:
 
         await Biggest.register_type_and_schema()
 
-        big_block_type = await orion_client.read_block_type_by_slug(slug="big")
+        big_block_type = await prefect_client.read_block_type_by_slug(slug="big")
         assert big_block_type is not None
-        big_block_schema = await orion_client.read_block_schema_by_checksum(
+        big_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=Big._calculate_schema_checksum()
         )
         assert big_block_schema is not None
 
-        bigger_block_type = await orion_client.read_block_type_by_slug(slug="bigger")
+        bigger_block_type = await prefect_client.read_block_type_by_slug(slug="bigger")
         assert bigger_block_type is not None
-        bigger_block_schema = await orion_client.read_block_schema_by_checksum(
+        bigger_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=Bigger._calculate_schema_checksum()
         )
         assert bigger_block_schema is not None
 
-        biggest_block_type = await orion_client.read_block_type_by_slug(slug="biggest")
+        biggest_block_type = await prefect_client.read_block_type_by_slug(
+            slug="biggest"
+        )
         assert biggest_block_type is not None
-        biggest_block_schema = await orion_client.read_block_schema_by_checksum(
+        biggest_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=Biggest._calculate_schema_checksum()
         )
         assert biggest_block_schema is not None
 
-    async def test_register_nested_block_union(self, orion_client: PrefectClient):
+    async def test_register_nested_block_union(self, prefect_client: PrefectClient):
         class A(Block):
             a: str
 
@@ -1194,30 +1196,30 @@ class TestRegisterBlockTypeAndSchema:
 
         await Umbrella.register_type_and_schema()
 
-        a_block_type = await orion_client.read_block_type_by_slug(slug="a")
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
         assert a_block_type is not None
-        b_block_type = await orion_client.read_block_type_by_slug(slug="b")
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
         assert b_block_type is not None
-        c_block_type = await orion_client.read_block_type_by_slug(slug="c")
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
         assert c_block_type is not None
-        umbrella_block_type = await orion_client.read_block_type_by_slug(
+        umbrella_block_type = await prefect_client.read_block_type_by_slug(
             slug="umbrella"
         )
         assert umbrella_block_type is not None
 
-        a_block_schema = await orion_client.read_block_schema_by_checksum(
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=A._calculate_schema_checksum()
         )
         assert a_block_schema is not None
-        b_block_schema = await orion_client.read_block_schema_by_checksum(
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=B._calculate_schema_checksum()
         )
         assert b_block_schema is not None
-        c_block_schema = await orion_client.read_block_schema_by_checksum(
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=C._calculate_schema_checksum()
         )
         assert c_block_schema is not None
-        umbrella_block_schema = await orion_client.read_block_schema_by_checksum(
+        umbrella_block_schema = await prefect_client.read_block_schema_by_checksum(
             checksum=Umbrella._calculate_schema_checksum()
         )
         assert umbrella_block_schema is not None
@@ -1232,7 +1234,7 @@ class TestRegisterBlockTypeAndSchema:
         ):
             await Block.register_type_and_schema()
 
-    async def test_register_updates_block_type(self, orion_client: PrefectClient):
+    async def test_register_updates_block_type(self, prefect_client: PrefectClient):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -1248,16 +1250,16 @@ class TestRegisterBlockTypeAndSchema:
 
         await Before.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        block_type = await prefect_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "Before"
 
         await After.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        block_type = await prefect_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "After"
 
     async def test_register_wont_update_same_block_type_values(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -1274,28 +1276,28 @@ class TestRegisterBlockTypeAndSchema:
 
         await Before.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        block_type = await prefect_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "Before"
 
         mock = AsyncMock()
-        orion_client.update_block_type = mock
+        prefect_client.update_block_type = mock
 
-        await After.register_type_and_schema(client=orion_client)
+        await After.register_type_and_schema(client=prefect_client)
 
         # change to description means we should try and update the block type
         assert mock.call_count == 1
 
         # confirm the call was mocked, description is the same
-        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
+        block_type = await prefect_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "Before"
 
         # if the description is the same as what matches the server, don't update
-        await Before.register_type_and_schema(client=orion_client)
+        await Before.register_type_and_schema(client=prefect_client)
 
         # call count should not have increased
         assert mock.call_count == 1
 
-    async def test_register_fails_on_abc(self, orion_client):
+    async def test_register_fails_on_abc(self, prefect_client):
         class Interface(Block, abc.ABC):
             _block_schema_capabilities = ["do-stuff"]
 
@@ -1310,7 +1312,7 @@ class TestRegisterBlockTypeAndSchema:
                 "subclass and not on a Block interface class directly."
             ),
         ):
-            await Interface.register_type_and_schema(client=orion_client)
+            await Interface.register_type_and_schema(client=prefect_client)
 
 
 class TestSaveBlock:
@@ -2221,8 +2223,8 @@ class TestTypeDispatch:
     def test_block_type_slug_respects_include(self):
         assert "block_type_slug" not in AChildBlock().dict(include={"a"})
 
-    async def test_block_type_slug_excluded_from_document(self, orion_client):
-        await AChildBlock.register_type_and_schema(client=orion_client)
+    async def test_block_type_slug_excluded_from_document(self, prefect_client):
+        await AChildBlock.register_type_and_schema(client=prefect_client)
         document = AChildBlock()._to_block_document(name="foo")
         assert "block_type_slug" not in document.data
 
@@ -2431,7 +2433,7 @@ class TestBlockSchemaMigration:
 
         assert bar.dict() == bar_new.dict()
 
-    async def test_save_new_schema_with_overwrite(self, orion_client):
+    async def test_save_new_schema_with_overwrite(self, prefect_client):
         class Baz(Block):
             _block_type_name = "baz"
             _block_type_slug = "baz"
@@ -2441,7 +2443,7 @@ class TestBlockSchemaMigration:
 
         await baz.save("test")
 
-        block_document = await orion_client.read_block_document_by_name(
+        block_document = await prefect_client.read_block_document_by_name(
             name="test", block_type_slug="baz"
         )
         old_schema_id = block_document.block_schema_id
@@ -2468,7 +2470,7 @@ class TestBlockSchemaMigration:
         # new local schema ID should be different because field added
         assert old_schema_id != new_schema_id
 
-        updated_schema = await orion_client.read_block_document_by_name(
+        updated_schema = await prefect_client.read_block_document_by_name(
             name="test", block_type_slug="baz"
         )
         updated_schema_id = updated_schema.block_schema_id
