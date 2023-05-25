@@ -24,7 +24,7 @@
 - Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
 - Fix hanging flow runs from deployments when variables exist in base scope - https://github.com/PrefectHQ/prefect/pull/9665
 - Fix inconsistent flow run parameters when creating a new flow run or editing a deployment — https://github.com/PrefectHQ/prefect/pull/9705
-- Fix max value when updating variables — https://github.com/PrefectHQ/prefect/pull/9710
+- Fix maximum character length when updating variables — https://github.com/PrefectHQ/prefect/pull/9710
 - Fix bug where agents would fail when processing runs with deleted deployments — https://github.com/PrefectHQ/prefect/pull/9464
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
 - Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
