@@ -13,7 +13,7 @@
 - Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
 - Improve cancellation cleanup service iteration over subflow runs - https://github.com/PrefectHQ/prefect/pull/9731
 - Add an `/api/ready check` endpoint to Prefect server — https://github.com/PrefectHQ/prefect/pull/9701
-- Guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
+- Add guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
 - Add worker event telemetry — https://github.com/PrefectHQ/prefect/pull/9702
