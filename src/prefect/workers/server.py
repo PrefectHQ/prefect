@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from typing import Union
 import uvicorn
 
 from prefect.workers.base import BaseWorker
@@ -6,7 +7,7 @@ from prefect.workers.process import ProcessWorker
 
 
 def start_healthcheck_server(
-    worker: BaseWorker | ProcessWorker, run_once: bool, log_level: str = "error"
+    worker: Union[BaseWorker, ProcessWorker], run_once: bool, log_level: str = "error"
 ) -> None:
     """
     Run a healthcheck FastAPI server for a worker.
