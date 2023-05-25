@@ -66,18 +66,18 @@ class TestGetClient:
 
 class TestClientProxyAwareness:
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where
-    a customer reported that the Cloud client supported proxies, but the Orion client
+    a customer reported that the Cloud client supported proxies, but the client
     did not.  This test suite is implementation-specific to httpx/httpcore, as there are
     no other inexpensive ways to confirm both the proxy-awareness and preserving the
     retry behavior without probing into the implementation details of the libraries."""
 
     @pytest.fixture()
-    def remote_https_orion(self) -> Generator[httpx.URL, None, None]:
-        orion_url = "https://127.0.0.1:4242/"
-        with temporary_settings(updates={PREFECT_API_URL: orion_url}):
-            yield httpx.URL(orion_url)
+    def remote_https_api(self) -> Generator[httpx.URL, None, None]:
+        api_url = "https://127.0.0.1:4242/"
+        with temporary_settings(updates={PREFECT_API_URL: api_url}):
+            yield httpx.URL(api_url)
 
-    def test_unproxied_remote_client_will_retry(self, remote_https_orion: httpx.URL):
+    def test_unproxied_remote_client_will_retry(self, remote_https_api: httpx.URL):
         """The original issue here was that we were overriding the `transport` in
         order to set the retries to 3; this is what circumvented the proxy support.
         This test (and those below) should confirm that we are setting the retries on
@@ -85,24 +85,24 @@ class TestClientProxyAwareness:
         httpx_client = get_client()._client
         assert isinstance(httpx_client, httpx.AsyncClient)
 
-        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
-        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+        transport_for_api = httpx_client._transport_for_url(remote_https_api)
+        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
 
-        pool = transport_for_orion._pool
+        pool = transport_for_api._pool
         assert isinstance(pool, httpcore.AsyncConnectionPool)
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
-    def test_users_can_still_provide_transport(self, remote_https_orion: httpx.URL):
+    def test_users_can_still_provide_transport(self, remote_https_api: httpx.URL):
         """If users want to supply an alternative transport, they still can and
         we will not alter it"""
         httpx_settings = {"transport": httpx.AsyncHTTPTransport(retries=11)}
         httpx_client = get_client(httpx_settings)._client
         assert isinstance(httpx_client, httpx.AsyncClient)
 
-        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
-        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+        transport_for_api = httpx_client._transport_for_url(remote_https_api)
+        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
 
-        pool = transport_for_orion._pool
+        pool = transport_for_api._pool
         assert isinstance(pool, httpcore.AsyncConnectionPool)
         assert pool._retries == 11  # not overridden by get_client() in this case
 
@@ -119,24 +119,24 @@ class TestClientProxyAwareness:
                 os.environ["HTTPS_PROXY"] = original
 
     async def test_client_is_aware_of_https_proxy(
-        self, remote_https_orion: httpx.URL, https_proxy: httpcore.URL
+        self, remote_https_api: httpx.URL, https_proxy: httpcore.URL
     ):
         httpx_client = get_client()._client
         assert isinstance(httpx_client, httpx.AsyncClient)
 
-        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
-        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+        transport_for_api = httpx_client._transport_for_url(remote_https_api)
+        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
 
-        pool = transport_for_orion._pool
+        pool = transport_for_api._pool
         assert isinstance(pool, httpcore.AsyncHTTPProxy)
         assert pool._proxy_url == https_proxy
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
     @pytest.fixture()
-    def remote_http_orion(self) -> Generator[httpx.URL, None, None]:
-        orion_url = "http://127.0.0.1:4242/"
-        with temporary_settings(updates={PREFECT_API_URL: orion_url}):
-            yield httpx.URL(orion_url)
+    def remote_http_api(self) -> Generator[httpx.URL, None, None]:
+        api_url = "http://127.0.0.1:4242/"
+        with temporary_settings(updates={PREFECT_API_URL: api_url}):
+            yield httpx.URL(api_url)
 
     @pytest.fixture
     def http_proxy(self) -> Generator[httpcore.URL, None, None]:
@@ -151,15 +151,15 @@ class TestClientProxyAwareness:
                 os.environ["HTTP_PROXY"] = original
 
     async def test_client_is_aware_of_http_proxy(
-        self, remote_http_orion: httpx.URL, http_proxy: httpcore.URL
+        self, remote_http_api: httpx.URL, http_proxy: httpcore.URL
     ):
         httpx_client = get_client()._client
         assert isinstance(httpx_client, httpx.AsyncClient)
 
-        transport_for_orion = httpx_client._transport_for_url(remote_http_orion)
-        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+        transport_for_api = httpx_client._transport_for_url(remote_http_api)
+        assert isinstance(transport_for_api, httpx.AsyncHTTPTransport)
 
-        pool = transport_for_orion._pool
+        pool = transport_for_api._pool
         assert isinstance(pool, httpcore.AsyncHTTPProxy)
         assert pool._proxy_url == http_proxy
         assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
