@@ -32,7 +32,8 @@
 - Update flow run logs empty text for light mode
 
 ### Deprecations
-- Rename `docker` modules to avoid conflict — https://github.com/PrefectHQ/prefect/pull/8788
+- Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - https://github.com/PrefectHQ/prefect/pull/8788
+- Rename `prefect.docker` to `prefect.utilities.dockerutils` - https://github.com/PrefectHQ/prefect/pull/8788
 
 ### Documentation
 - Create examples of working with Prefect REST APIs — https://github.com/PrefectHQ/prefect/pull/9661
