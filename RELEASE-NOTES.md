@@ -2,21 +2,21 @@
 
 ## Release preview
 
-- feat: add worker `poll.*` events — https://github.com/PrefectHQ/prefect/pull/9702
 - Adds work pool creation wizard — https://github.com/PrefectHQ/prefect/pull/9717
-- Emit events from deployments, work queues, and work pools. — https://github.com/PrefectHQ/prefect/pull/9635
 - Add interactive prompts for deployment name and work pool to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9707
 - Add interactive prompt to `prefect work-pool create` — https://github.com/PrefectHQ/prefect/pull/9686
-- Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
-- Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
 
 ### Enhancements
+- Emit events from deployments, work queues, and work pools. — https://github.com/PrefectHQ/prefect/pull/9635
 - Improve SQLite database transaction behavior — https://github.com/PrefectHQ/prefect/pull/9594
+- Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
+- Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
 - Add an `/api/ready check` endpoint to Prefect server — https://github.com/PrefectHQ/prefect/pull/9701
 - Guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
 - Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
 - Handle deleted deployments gracefully — https://github.com/PrefectHQ/prefect/pull/9464
 - Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
+- Add worker event telemetry — https://github.com/PrefectHQ/prefect/pull/9702
 
 ### Fixes
 - Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
