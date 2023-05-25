@@ -159,16 +159,17 @@ async def start(
 
             started_event = await worker._emit_worker_started_event()
 
-            # start healthcheck ASGI server
-            # in a background thread
-            server_thread = threading.Thread(
-                name="healthcheck-server-thread",
-                target=partial(
-                    start_healthcheck_server, worker=worker, run_once=run_once
-                ),
-                daemon=True,
-            )
-            server_thread.start()
+            # if run_once=True, we don't want to start the healthcheck server
+            # as it will continue to run in scenarios where we want to exit automatically
+            if not run_once:
+                # we'll start the ASGI server in a separate thread so that
+                # uvicorn does not block the main thread
+                server_thread = threading.Thread(
+                    name="healthcheck-server-thread",
+                    target=partial(start_healthcheck_server, worker=worker),
+                    daemon=True,
+                )
+                server_thread.start()
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")
