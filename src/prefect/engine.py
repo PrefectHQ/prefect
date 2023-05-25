@@ -82,6 +82,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
 )
 from prefect.states import (
     Paused,
@@ -265,8 +266,17 @@ async def create_then_begin_flow_run(
 
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
+    logger = flow_run_logger(flow_run, flow)
+
+    ui_url = PREFECT_UI_URL.value()
+    if ui_url:
+        logger.info(
+            f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+            extra={"send_to_orion": False},
+        )
+
     if state.is_failed():
-        flow_run_logger(flow_run).error(state.message)
+        logger.error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as"
             " failed."
@@ -534,7 +544,15 @@ async def create_and_begin_subflow_run(
         parent_logger.info(
             f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
         )
+
         logger = flow_run_logger(flow_run, flow)
+        ui_url = PREFECT_UI_URL.value()
+        if ui_url:
+            logger.info(
+                f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+                extra={"send_to_orion": False},
+            )
+
         result_factory = await ResultFactory.from_flow(
             flow, client=parent_flow_run_context.client
         )
