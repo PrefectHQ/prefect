@@ -2,6 +2,7 @@ from typing import List
 from unittest.mock import ANY
 
 import pytest
+import sys
 
 import prefect
 import prefect.cli.server
@@ -31,6 +32,8 @@ def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
     )
     mock_run_process.assert_awaited_once_with(
         command=[
+            sys.executable,
+            "-m",
             "uvicorn",
             "--app-dir",
             f'"{prefect.__module_path__.parent}"',  # note, wrapped in double quotes

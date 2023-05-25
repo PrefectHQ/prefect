@@ -3,6 +3,7 @@ Command line interface for working with Prefect
 """
 import os
 import textwrap
+import sys
 from functools import partial
 
 import anyio
@@ -145,6 +146,8 @@ async def start(
             partial(
                 run_process,
                 command=[
+                    sys.executable,
+                    "-m",
                     "uvicorn",
                     "--app-dir",
                     # quote wrapping needed for windows paths with spaces
