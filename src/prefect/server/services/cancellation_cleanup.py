@@ -154,7 +154,6 @@ class CancellationCleanup(LoopService):
                 session=session,
                 flow_run_id=flow_run.id,
                 state=states.Cancelled(message="The parent flow run was cancelled."),
-                force=True,
             )
 
 
