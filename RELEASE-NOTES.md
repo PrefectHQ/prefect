@@ -4,11 +4,11 @@
 
 ### Interactive Deployments and Work Pool Wizard 🧙
 
-This release introduces enhancements aimed at simplifying deployment and work pool creation.
+This release simplifies deployment and work pool creation.
 
 ![interactive-prefect-deploy-console-output](https://github.com/PrefectHQ/prefect/assets/12350579/c861b8dd-2dbb-4cfa-82f9-69008714f9fe)
 
-Firstly, the `prefect deploy` command has been upgraded to provide interactive prompts for deployment names and work pool selections. If you don't provide a deployment name via the CLI or a `deployment.yaml` file, the CLI will prompt you to do so. Furthermore, if a work pool name isn't specified, the CLI will guide you through the available work pools for your workspace. This feature aims to make deployments more approachable, even for first-time users, requiring just an entrypoint to a flow to get started.
+Firstly, the `prefect deploy` command has been upgraded to provide interactive prompts for deployment names and work pool selections. If you don't provide a deployment name via the CLI or a `deployment.yaml` file, the CLI will prompt you to do so. Furthermore, if a work pool name isn't specified, the CLI will guide you through the available work pools for your workspace. This feature aims to make deployments more approachable, especially for first-time users, requiring just an entrypoint to a flow to get started.
 
 ![work-pool-wizard-infrastructure-choices](https://github.com/PrefectHQ/prefect/assets/12350579/383f004b-816e-4a52-98c3-46745e273362)
 
