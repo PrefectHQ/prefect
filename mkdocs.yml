@@ -171,6 +171,7 @@ nav:
             - Developing a New Worker Type: guides/deployment/developing-a-new-worker-type.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
+        - State Change Hooks: guides/state-change-hooks.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md
