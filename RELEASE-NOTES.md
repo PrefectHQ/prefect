@@ -1,5 +1,60 @@
 # Prefect Release Notes
 
+## Release preview
+
+- feat: add worker `poll.*` events — https://github.com/PrefectHQ/prefect/pull/9702
+- Adds work pool creation wizard — https://github.com/PrefectHQ/prefect/pull/9717
+- Emit events from deployments, work queues, and work pools. — https://github.com/PrefectHQ/prefect/pull/9635
+- Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
+
+### Enhancements
+- Improve SQLite database transaction behavior — https://github.com/PrefectHQ/prefect/pull/9594
+- Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
+- Add interactive prompts for deployment name and work pool to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9707
+- Add interactive prompt to `prefect work-pool create` — https://github.com/PrefectHQ/prefect/pull/9686
+- Add an `/api/ready check` endpoint to Prefect server — https://github.com/PrefectHQ/prefect/pull/9701
+- Guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
+- Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
+- Handle deleted deployments gracefully — https://github.com/PrefectHQ/prefect/pull/9464
+- Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
+
+### Fixes
+- Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
+- Fix hanging flow runs from deployments when variables exist in base scope - https://github.com/PrefectHQ/prefect/pull/9665
+- Fix inconsistent flow run parameters when creating a new flow run or editing a deployment — https://github.com/PrefectHQ/prefect/pull/9705
+- Fix max value when updating variables — https://github.com/PrefectHQ/prefect/pull/9710
+- Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
+- Use `PrefectHttpxClient` in cloud communication — https://github.com/PrefectHQ/prefect/pull/9724
+- Remove trailing slashes when building events/in websocket url — https://github.com/PrefectHQ/prefect/pull/9663
+
+### Deprecations
+- Rename `docker` modules to avoid conflict — https://github.com/PrefectHQ/prefect/pull/8788
+
+### Documentation
+- Create examples of working with Prefect REST APIs — https://github.com/PrefectHQ/prefect/pull/9661
+- Add tip about private repositories in projects documentation — https://github.com/PrefectHQ/prefect/pull/9685
+- Improve runtime context documentation — https://github.com/PrefectHQ/prefect/pull/9652
+- Simplify the flow and task configuration documentation — https://github.com/PrefectHQ/prefect/pull/9420
+- Clarify task retries documentation — https://github.com/PrefectHQ/prefect/pull/9575
+- Fix typos in cloud documentation — https://github.com/PrefectHQ/prefect/pull/9657
+- Update automations documentation — https://github.com/PrefectHQ/prefect/pull/9680
+- Fix typo in tutorial documentation — https://github.com/PrefectHQ/prefect/pull/9646
+- Add tip on `keys` in artifacts documentation — https://github.com/PrefectHQ/prefect/pull/9666
+- Expand docstrings for artifacts — https://github.com/PrefectHQ/prefect/pull/9704
+- Update description of `image` parameter of `DockerContainer` in infrastructure documentation — https://github.com/PrefectHQ/prefect/pull/9682
+- Lowercase Prefect server where appropriate — https://github.com/PrefectHQ/prefect/pull/9697
+- Remove `Upgrading from Prefect Beta` section of installation page — https://github.com/PrefectHQ/prefect/pull/9726
+- Update rate limit documentation to include `/set_state` and `/flows` endpoint for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/9694
+
+## Contributors
+* @BitTheByte
+* @snikch made their first contribution in https://github.com/PrefectHQ/prefect/pull/9646
+* @prefectcboyd made their first contribution in https://github.com/PrefectHQ/prefect/pull/9680
+* @rkscodes made their first contribution in https://github.com/PrefectHQ/prefect/pull/9682
+* @sarahmk125 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9694
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.10...2.10.11
+
 ## Release 2.10.10
 
 ### The need for (CLI) speed
