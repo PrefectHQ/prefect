@@ -1,6 +1,5 @@
 import yaml
 
-from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.kubernetes import KubernetesJob
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -8,6 +7,7 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 def test_printing_the_server_manifest_with_no_args():

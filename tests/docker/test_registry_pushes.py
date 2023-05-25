@@ -7,7 +7,12 @@ import pendulum
 import pytest
 from _pytest.capture import CaptureFixture
 
-from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
+from prefect.utilities.dockerutils import (
+    ImageBuilder,
+    PushError,
+    push_image,
+    silence_docker_warnings,
+)
 from prefect.utilities.slugify import slugify
 
 with silence_docker_warnings():
