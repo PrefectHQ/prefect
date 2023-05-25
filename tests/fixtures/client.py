@@ -6,7 +6,7 @@ from prefect.client.orchestration import get_client
 
 
 @pytest.fixture
-async def orion_client(test_database_connection_url):
+async def prefect_client(test_database_connection_url):
     async with get_client() as client:
         yield client
 
