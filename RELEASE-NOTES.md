@@ -12,6 +12,7 @@
 - Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
 - Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
 - Improve cancellation cleanup service iteration over subflow runs - https://github.com/PrefectHQ/prefect/pull/9731
+- Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
 - Add `PREFECT_CLIENT_MAX_RETRIES` for configuration of maximum HTTP request retries - https://github.com/PrefectHQ/prefect/pull/9735 
 - Add an `/api/ready` endpoint to the Prefect server to check database connectivity — https://github.com/PrefectHQ/prefect/pull/9701
 - Display URL to flow run on creation - https://github.com/PrefectHQ/prefect/pull/9740 
@@ -29,7 +30,6 @@
 - Fix bug where agents would fail when processing runs with deleted deployments — https://github.com/PrefectHQ/prefect/pull/9464
 - Fix bug where `uvicorn` could not be found when server was started from an unloaded virtual environment - https://github.com/PrefectHQ/prefect/pull/9734 
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
-- Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
 - Fix bug where events worker would fail if the API URL includes a trailing `/` — https://github.com/PrefectHQ/prefect/pull/9663
 - Unknown states crash flow run timeline — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
