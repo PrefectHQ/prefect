@@ -48,17 +48,17 @@ Check out these pull requests for more details:
 - Fix bug where flow run timeline crashed when custom state names were used — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
 ### Collections
-- Stream Kubernetes Worker flow run logs to the API - https://github.com/PrefectHQ/prefect-kubernetes/pull/72
-- Stream ECS Worker flow run logs to the API - https://github.com/PrefectHQ/prefect-aws/pull/267
-- Stream Cloud Run Worker flow run logs logs to the API - https://github.com/PrefectHQ/prefect-gcp/pull/183
-- Add `prefect-spark-on-k8s-operator` to integrations catalog list — https://github.com/PrefectHQ/prefect/pull/9029
-- Add optional `accelerator_count` property for `VertexAICustomTrainingJob` - https://github.com/PrefectHQ/prefect-gcp/pull/174
-- Add `result_transformer` parameter to customize the return structure of `bigquery_query` - https://github.com/PrefectHQ/prefect-gcp/pull/176
-- Add `boot_disk_type` and `boot_disk_size_gb` properties for `VertexAICustomTrainingJob` - https://github.com/PrefectHQ/prefect-gcp/pull/177
-- Fix bug where incorrect credentials model was selected when `MinIOCredentials` was used with `S3Bucket` - https://github.com/PrefectHQ/prefect-aws/pull/254
-- Fix bug where `S3Bucket.list_objects` was truncating prefix paths ending with slashes - https://github.com/PrefectHQ/prefect-aws/pull/263
-- Fix bug where ECS worker could not cancel flow runs - https://github.com/PrefectHQ/prefect-aws/pull/268
-- Improve failure message when creating a Kubernetes job fails - https://github.com/PrefectHQ/prefect-kubernetes/pull/71
+- Stream Kubernetes Worker flow run logs to the API - [#72](https://github.com/PrefectHQ/prefect-kubernetes/pull/72)
+- Stream ECS Worker flow run logs to the API - [#267](https://github.com/PrefectHQ/prefect-aws/pull/267)
+- Stream Cloud Run Worker flow run logs logs to the API - [#183](https://github.com/PrefectHQ/prefect-gcp/pull/183)
+- Add `prefect-spark-on-k8s-operator` to integrations catalog list — [#9029](https://github.com/PrefectHQ/prefect/pull/9029)
+- Add optional `accelerator_count` property for `VertexAICustomTrainingJob` - [#174](https://github.com/PrefectHQ/prefect-gcp/pull/174)
+- Add `result_transformer` parameter to customize the return structure of `bigquery_query` - [#176](https://github.com/PrefectHQ/prefect-gcp/pull/176)
+- Add `boot_disk_type` and `boot_disk_size_gb` properties for `VertexAICustomTrainingJob` - [#177](https://github.com/PrefectHQ/prefect-gcp/pull/177)
+- Fix bug where incorrect credentials model was selected when `MinIOCredentials` was used with `S3Bucket` - [#254](https://github.com/PrefectHQ/prefect-aws/pull/254)
+- Fix bug where `S3Bucket.list_objects` was truncating prefix paths ending with slashes - [#263](https://github.com/PrefectHQ/prefect-aws/pull/263)
+- Fix bug where ECS worker could not cancel flow runs - [#268](https://github.com/PrefectHQ/prefect-aws/pull/268)
+- Improve failure message when creating a Kubernetes job fails - [#71](https://github.com/PrefectHQ/prefect-kubernetes/pull/71)
 
 ### Deprecations
 - Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - https://github.com/PrefectHQ/prefect/pull/8788
