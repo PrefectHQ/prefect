@@ -7,7 +7,6 @@ import anyio.abc
 import docker
 import pytest
 
-from prefect.docker import get_prefect_image_name
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.docker import (
     CONTAINER_LABELS,
@@ -16,6 +15,7 @@ from prefect.infrastructure.docker import (
     ImagePullPolicy,
 )
 from prefect.testing.utilities import assert_does_not_warn
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 if TYPE_CHECKING:
     from docker import DockerClient

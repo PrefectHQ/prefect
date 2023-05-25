@@ -102,6 +102,11 @@ register_renamed_module(
     "prefect.client.orchestration",
     start_date="Feb 2023",
 )
+register_renamed_module(
+    "prefect.docker",
+    "prefect.utilities.dockerutils",
+    start_date="Feb 2023",
+)
 inject_renamed_module_alias_finder()
 
 

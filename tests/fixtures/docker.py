@@ -7,13 +7,13 @@ from typer.testing import CliRunner
 
 import prefect
 from prefect.cli.dev import dev_app
-from prefect.docker import (
+from prefect.infrastructure.docker import CONTAINER_LABELS
+from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     docker_client,
     get_prefect_image_name,
     silence_docker_warnings,
 )
-from prefect.infrastructure.docker import CONTAINER_LABELS
 
 with silence_docker_warnings():
     from docker import DockerClient
