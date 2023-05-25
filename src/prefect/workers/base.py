@@ -3,6 +3,9 @@ import inspect
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
+from fastapi import FastAPI
+from prefect.utilities.processutils import run_process
+
 import anyio
 import anyio.abc
 import pendulum
@@ -296,6 +299,15 @@ class BaseWorkerResult(BaseModel, abc.ABC):
         return self.status_code == 0
 
 
+app = FastAPI()
+
+
+@app.get("/health")
+async def root():
+    print("ASLKDJALSKFJALKSJFLKA")
+    return {"message": "Hello, World!"}
+
+
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
@@ -357,6 +369,18 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+
+    async def start_webserver(self):
+        print("YOOOOO WE STARTED")
+        cmd = [
+            "uvicorn",
+            "prefect.workers.base:app",
+            "--port",
+            "8080",
+            "--log-level",
+            "info",
+        ]
+        await run_process(cmd)
 
     @classmethod
     def get_documentation_url(cls) -> str:

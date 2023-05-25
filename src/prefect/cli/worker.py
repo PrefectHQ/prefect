@@ -20,7 +20,6 @@ from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
-from prefect.workers.server import run_healthcheck_server
 from prefect.plugins import load_prefect_collections
 
 worker_app = PrefectTyper(
@@ -120,6 +119,7 @@ async def start(
     ) as worker:
         app.console.print(f"Worker {worker.name!r} started!")
         async with anyio.create_task_group() as tg:
+            await worker.start_webserver()
             # wait for an initial heartbeat to configure the worker
             await worker.sync_with_backend()
             # schedule the scheduled flow run polling loop
@@ -155,7 +155,7 @@ async def start(
                 )
             )
 
-            tg.start_soon(run_healthcheck_server)
+            # tg.start_soon(run_healthcheck_server)
 
             started_event = await worker._emit_worker_started_event()
 
