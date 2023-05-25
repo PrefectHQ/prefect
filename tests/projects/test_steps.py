@@ -8,11 +8,11 @@ from prefect.projects.steps import run_step
 
 
 @pytest.fixture
-async def variables(orion_client: PrefectClient):
-    await orion_client._client.post(
+async def variables(prefect_client: PrefectClient):
+    await prefect_client._client.post(
         "/variables/", json={"name": "test_variable_1", "value": "test_value_1"}
     )
-    await orion_client._client.post(
+    await prefect_client._client.post(
         "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
     )
 

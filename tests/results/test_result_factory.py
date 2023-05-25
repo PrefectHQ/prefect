@@ -23,8 +23,10 @@ def DEFAULT_STORAGE():
 
 
 @pytest.fixture
-async def factory(orion_client):
-    return await ResultFactory.default_factory(client=orion_client, persist_result=True)
+async def factory(prefect_client):
+    return await ResultFactory.default_factory(
+        client=prefect_client, persist_result=True
+    )
 
 
 @pytest.mark.parametrize("value", [True, False, None])
@@ -205,7 +207,7 @@ def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
     assert result_factory.storage_block_id == storage_id
 
 
-async def test_root_flow_custom_storage_by_instance_unsaved(orion_client, tmp_path):
+async def test_root_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
 
     @flow(result_storage=storage)
@@ -220,7 +222,7 @@ async def test_root_flow_custom_storage_by_instance_unsaved(orion_client, tmp_pa
     assert isinstance(result_factory.storage_block_id, uuid.UUID)
 
     # Check that the block is matching in the API
-    storage_block_document = await orion_client.read_block_document(
+    storage_block_document = await prefect_client.read_block_document(
         result_factory.storage_block_id
     )
     assert LocalFileSystem._from_block_document(storage_block_document) == storage
@@ -474,7 +476,7 @@ def test_child_flow_custom_storage(tmp_path):
     assert child_factory.storage_block_id == storage_id
 
 
-async def test_child_flow_custom_storage_by_instance_unsaved(orion_client, tmp_path):
+async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
 
     @flow()
@@ -497,7 +499,7 @@ async def test_child_flow_custom_storage_by_instance_unsaved(orion_client, tmp_p
     assert isinstance(child_factory.storage_block_id, uuid.UUID)
 
     # Check that the block is matching in the API
-    storage_block_document = await orion_client.read_block_document(
+    storage_block_document = await prefect_client.read_block_document(
         child_factory.storage_block_id
     )
     assert LocalFileSystem._from_block_document(storage_block_document) == storage
@@ -735,7 +737,7 @@ def test_task_custom_storage(tmp_path):
     assert task_factory.storage_block_id == storage_id
 
 
-async def test_task_custom_storage_by_instance_unsaved(orion_client, tmp_path):
+async def test_task_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
 
     @flow()
@@ -758,7 +760,7 @@ async def test_task_custom_storage_by_instance_unsaved(orion_client, tmp_path):
     assert isinstance(task_factory.storage_block_id, uuid.UUID)
 
     # Check that the block is matching in the API
-    storage_block_document = await orion_client.read_block_document(
+    storage_block_document = await prefect_client.read_block_document(
         task_factory.storage_block_id
     )
     assert LocalFileSystem._from_block_document(storage_block_document) == storage

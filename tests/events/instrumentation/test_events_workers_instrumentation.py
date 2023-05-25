@@ -30,17 +30,17 @@ class WorkerEventsTestImpl(BaseWorker):
 async def test_worker_emits_submitted_event(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
         tags=["flow-run-one"],
     )
 
-    flow = await orion_client.read_flow(flow_run.flow_id)
+    flow = await prefect_client.read_flow(flow_run.flow_id)
 
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
@@ -119,17 +119,17 @@ async def test_worker_emits_submitted_event(
 async def test_worker_emits_executed_event(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
         tags=["flow-run-one"],
     )
 
-    flow = await orion_client.read_flow(flow_run.flow_id)
+    flow = await prefect_client.read_flow(flow_run.flow_id)
 
     worker_result = BaseWorkerResult(status_code=1, identifier="process123")
     run_flow_fn = AsyncMock(return_value=worker_result)
@@ -321,17 +321,17 @@ def test_lifecycle_events(
 async def test_worker_emits_cancelled_event(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
         state=Cancelling(),
         tags=["flow-run-one"],
     )
-    await orion_client.update_flow_run(flow_run.id, infrastructure_pid="process123")
-    flow = await orion_client.read_flow(flow_run.flow_id)
+    await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="process123")
+    flow = await prefect_client.read_flow(flow_run.flow_id)
 
     async with WorkerEventsTestImpl(work_pool_name=work_pool.name) as worker:
         await worker.sync_with_backend()

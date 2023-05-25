@@ -39,7 +39,7 @@ async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):
     sys.version_info < (3, 8),
     reason="The flow is reported as FAILED on Python 3.7",
 )
-async def test_anyio_cancellation_crashes_flow(orion_client):
+async def test_anyio_cancellation_crashes_flow(prefect_client):
     started = asyncio.Future()
     flow_run_id = None
 
@@ -55,7 +55,7 @@ async def test_anyio_cancellation_crashes_flow(orion_client):
         flow_run_id = await started
         tg.cancel_scope.cancel()
 
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
         flow_run, expected_message="Execution was cancelled by the runtime environment"
     )
@@ -66,7 +66,7 @@ async def test_anyio_cancellation_crashes_flow(orion_client):
     sys.version_info < (3, 8),
     reason="The flow is reported as FAILED on Python 3.7",
 )
-async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_client):
+async def test_anyio_cancellation_crashes_flow_with_timeout_configured(prefect_client):
     """
     Our timeout cancellation mechanisms for async flows can overlap with AnyIO
     cancellation. This test defends against regressions where reporting a timed out
@@ -87,7 +87,7 @@ async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_cli
         flow_run_id = await started
         tg.cancel_scope.cancel()
 
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
         flow_run, expected_message="Execution was cancelled by the runtime environment"
     )
@@ -98,7 +98,7 @@ async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_cli
     sys.version_info < (3, 8),
     reason="The flow is reported as FAILED on Python 3.7",
 )
-async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
+async def test_anyio_cancellation_crashes_parent_and_child_flow(prefect_client):
     child_started = asyncio.Future()
     parent_started = asyncio.Future()
     child_flow_run_id = parent_flow_run_id = None
@@ -121,13 +121,13 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
         child_flow_run_id = await child_started
         tg.cancel_scope.cancel()
 
-    child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+    child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
         child_flow_run,
         expected_message="Execution was cancelled by the runtime environment",
     )
 
-    parent_flow_run = await orion_client.read_flow_run(parent_flow_run_id)
+    parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
     await assert_flow_run_crashed(
         parent_flow_run,
         expected_message="Execution was cancelled by the runtime environment",
@@ -140,7 +140,7 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
     reason="The flow is reported as FAILED on Python 3.7",
 )
 @pytest.mark.xfail  # The child cannot be reported as crashed due to client closure
-async def test_anyio_cancellation_crashes_child_flow(orion_client):
+async def test_anyio_cancellation_crashes_child_flow(prefect_client):
     child_started = asyncio.Future()
     child_flow_run_id = parent_flow_run_id = None
 
@@ -162,13 +162,13 @@ async def test_anyio_cancellation_crashes_child_flow(orion_client):
 
     parent_flow_run_id, child_flow_run_id = await parent_flow()
 
-    child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+    child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
         child_flow_run,
         expected_message="Execution was cancelled by the runtime environment",
     )
 
-    parent_flow_run = await orion_client.read_flow_run(parent_flow_run_id)
+    parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
     assert parent_flow_run.state.is_completed()
 
 
@@ -176,7 +176,7 @@ async def test_anyio_cancellation_crashes_child_flow(orion_client):
     "ignore::pytest.PytestUnhandledThreadExceptionWarning"
 )  # Pytest complains about unhandled exception in runtime thread
 @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-async def test_interrupt_crashes_flow(orion_client, interrupt_type):
+async def test_interrupt_crashes_flow(prefect_client, interrupt_type):
     flow_run_id = None
 
     @prefect.flow
@@ -188,7 +188,7 @@ async def test_interrupt_crashes_flow(orion_client, interrupt_type):
     with pytest.raises(interrupt_type):
         await my_flow()
 
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
         flow_run,
         expected_message="Execution was aborted",
@@ -200,7 +200,7 @@ async def test_interrupt_crashes_flow(orion_client, interrupt_type):
 )  # Pytest complains about unhandled exception in runtime thread
 @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
 async def test_interrupt_in_child_crashes_parent_and_child_flow(
-    orion_client, interrupt_type
+    prefect_client, interrupt_type
 ):
     child_flow_run_id = parent_flow_run_id = None
 
@@ -219,13 +219,13 @@ async def test_interrupt_in_child_crashes_parent_and_child_flow(
     with pytest.raises(interrupt_type):
         await parent_flow()
 
-    parent_flow_run = await orion_client.read_flow_run(parent_flow_run_id)
+    parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
     await assert_flow_run_crashed(
         parent_flow_run,
         expected_message="Execution was aborted",
     )
 
-    child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+    child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
         child_flow_run,
         expected_message="Execution was aborted",
@@ -246,7 +246,7 @@ def mock_sigterm_handler():
         signal.signal(signal.SIGTERM, prev_handler)
 
 
-async def test_sigterm_crashes_flow(orion_client, mock_sigterm_handler):
+async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
     flow_run_id = None
 
     @prefect.flow
@@ -259,7 +259,7 @@ async def test_sigterm_crashes_flow(orion_client, mock_sigterm_handler):
     with pytest.raises(prefect.exceptions.TerminationSignal):
         await my_flow()
 
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
         flow_run,
         expected_message="Execution was aborted by a termination signal",
@@ -274,7 +274,7 @@ async def test_sigterm_crashes_flow(orion_client, mock_sigterm_handler):
 
 
 def test_sigterm_crashes_deployed_flow(
-    orion_client, mock_sigterm_handler, monkeypatch, flow_run
+    prefect_client, mock_sigterm_handler, monkeypatch, flow_run
 ):
     # This is not a part of our public API and generally we should not write tests like
     # this here, but we do not have robust testing utilities for deployed runs yet.
@@ -295,7 +295,7 @@ def test_sigterm_crashes_deployed_flow(
     with pytest.raises(prefect.exceptions.TerminationSignal):
         enter_flow_run_engine_from_subprocess(flow_run.id)
 
-    flow_run = asyncio.run(orion_client.read_flow_run(flow_run.id))
+    flow_run = asyncio.run(prefect_client.read_flow_run(flow_run.id))
     asyncio.run(
         assert_flow_run_crashed(
             flow_run,

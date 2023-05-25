@@ -72,7 +72,7 @@ def test_worker_instance_null_client_cloud_api_url_experiment_enabled():
 
 
 async def test_includes_related_resources_from_run_context(
-    asserting_events_worker: EventsWorker, reset_worker_events, orion_client
+    asserting_events_worker: EventsWorker, reset_worker_events, prefect_client
 ):
     @flow
     def emitting_flow():
@@ -85,8 +85,8 @@ async def test_includes_related_resources_from_run_context(
 
     state = emitting_flow._run()
 
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    db_flow = await orion_client.read_flow(flow_run.flow_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
+    db_flow = await prefect_client.read_flow(flow_run.flow_id)
 
     asserting_events_worker.drain()
 
