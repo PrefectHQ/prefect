@@ -28,7 +28,7 @@
 - Fix bug where agents would fail when processing runs with deleted deployments — https://github.com/PrefectHQ/prefect/pull/9464
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
 - Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
-- Remove trailing slashes when building events/in websocket url — https://github.com/PrefectHQ/prefect/pull/9663
+- Fix bug where events worker would fail if the API URL includes a trailing `/` — https://github.com/PrefectHQ/prefect/pull/9663
 - Unknown states crash flow run timeline — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
 ### Deprecations
