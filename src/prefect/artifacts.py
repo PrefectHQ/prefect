@@ -130,7 +130,7 @@ async def create_markdown_artifact(
 
 @sync_compatible
 async def create_table_artifact(
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]]],
+    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
@@ -148,30 +148,33 @@ async def create_table_artifact(
         The table artifact ID.
     """
 
-    def _sanitize_nan_values(container):
-        if isinstance(container, list):
-            for i, val in enumerate(container):
-                if isinstance(val, float) and math.isnan(val):
-                    container[i] = None
-        elif isinstance(container, dict):
-            for k, v in container.items():
-                if isinstance(v, float) and math.isnan(v):
-                    container[k] = None
+    def _sanitize_nan_values(item):
+        """
+        Sanitize NaN values in a given item. The item can be a dict, list or float.
+        """
 
-    if isinstance(table, dict):
-        for _, row in table.items():
-            if not isinstance(row, list):
-                raise TypeError(INVALID_TABLE_TYPE_ERROR)
-            _sanitize_nan_values(row)
-    elif isinstance(table, list):
-        for row in table:
-            if not isinstance(row, dict):
-                raise TypeError(INVALID_TABLE_TYPE_ERROR)
-            _sanitize_nan_values(row)
+        if isinstance(item, list):
+            return [_sanitize_nan_values(sub_item) for sub_item in item]
+
+        elif isinstance(item, dict):
+            return {k: _sanitize_nan_values(v) for k, v in item.items()}
+
+        elif isinstance(item, float) and math.isnan(item):
+            return None
+
+        else:
+            return item
+
+    sanitized_table = _sanitize_nan_values(table)
+
+    if isinstance(table, dict) and all(isinstance(v, list) for v in table.values()):
+        pass
+    elif isinstance(table, list) and all(isinstance(v, (list, dict)) for v in table):
+        pass
     else:
         raise TypeError(INVALID_TABLE_TYPE_ERROR)
 
-    formatted_table = json.dumps(table)
+    formatted_table = json.dumps(sanitized_table)
 
     artifact = await _create_artifact(
         key=key,
