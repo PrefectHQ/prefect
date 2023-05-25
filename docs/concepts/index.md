@@ -13,7 +13,7 @@ tags:
 
 | Keyword                                     | Description                                                                                                                                                                        |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| __[Flows](flows.md)__                       | The most basic Prefect object                                                                                                                                                      |
+| __[Flows](flows.md)__                       | The most basic Prefect objects.                                                                                                                                                      |
 | __[Tasks](tasks.md)__                       | Discrete units of work in a Prefect workflow                                                                                                                                       |
 | __[Results](results.md)__                   | represent the data returned by a flow or a task                                                                                                                                    |
 | __[Artifacts](artifacts.md)__               | are persisted outputs such as tables, files, or links                                                                                                                              |
