@@ -22,7 +22,7 @@ tags:
 | __[Runtime Context](runtime-context.md)__   | Information about the current flow or task run that you can refer to in your code.        |
 | __[Profiles & Configuration](settings.md)__ | Settings you can use to interact with Prefect Cloud and a Prefect server.                                                                                                                                               |
 | __[Blocks](blocks.md)__                     | Blocks are a primitive within Prefect that enable the storage of configuration and provide an interface for interacting with external systems                                      |
-| __[Variables](variables.md)__               | Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables |
+| __[Variables](variables.md)__               | Named, mutable string values, much like environment variables. |
 
 ## Deploy
 | Keyword                                           | Description                                                                                           |
