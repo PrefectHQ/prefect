@@ -29,7 +29,7 @@ class PrefectLogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
+        kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
 
         from prefect._internal.compatibility.deprecated import (
             generate_deprecation_message,
