@@ -10,6 +10,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    PREFECT_CLIENT_MAX_RETRIES,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -220,6 +221,33 @@ class TestPrefectHttpxClient:
 
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
+
+    @pytest.mark.usefixtures("mock_anyio_sleep")
+    @pytest.mark.parametrize(
+        "response_or_exc",
+        [RESPONSE_429_RETRY_AFTER_0, httpx.RemoteProtocolError("test")],
+    )
+    async def test_prefect_httpx_client_respects_max_retry_setting(
+        self,
+        monkeypatch,
+        response_or_exc,
+    ):
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        # Return more than 10 retryable responses
+        base_client_send.side_effect = [response_or_exc] * 20
+
+        with pytest.raises(Exception):
+            with temporary_settings({PREFECT_CLIENT_MAX_RETRIES: 10}):
+                await client.post(
+                    url="fake.url/fake/route",
+                    data={"evenmorefake": "data"},
+                )
+
+        # 10 retries + 1 first attempt
+        assert base_client_send.call_count == 11
 
     @pytest.mark.usefixtures("mock_anyio_sleep")
     @pytest.mark.parametrize(
