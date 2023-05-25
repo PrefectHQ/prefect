@@ -3,18 +3,130 @@ description: Prefect REST API for interacting with the orchestration engine and 
 tags:
     - REST API
     - Prefect Cloud
-    - Prefect Server
+    - Prefect server
+    - curl
+    - PrefectClient
+    - Requests
+    - API reference
 ---
 
 # REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
+The Prefect REST API is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
 
 Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
-- Interactive Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-- Interactive REST API documentation for a locally hosted open-source Prefect server is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
-- The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
+- Prefect Cloud:
+    - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
+    - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
+- Locally hosted open-source Prefect server:
+    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
+    - [Prefect REST API documentation](/api-ref/rest-api-reference/)
+
+## Interacting with the REST API
+
+You have many options to interact with the Prefect REST API:
+
+- Create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
+- Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
+- Use an HTTP library in your language of choice
+- Use [curl](https://curl.se/) from the command line 
+
+### PrefectClient with Prefect server
+This example uses `PrefectClient` with a locally hosted Prefect server:
+
+```python
+import asyncio
+from prefect.client import get_client
+
+async def get_flows():
+    client = get_client()
+    r = await client.read_flows(limit=5)
+    return r
+
+r = asyncio.run(get_flows())
+
+for flow in r:
+    print(flow.name, flow.id)
+
+if __name__ == "__main__":
+    asyncio.run(get_flows())
+```
+
+Output:
+
+<div class="terminal">
+```bash
+cat-facts 58ed68b1-0201-4f37-adef-0ea24bd2a022
+dog-facts e7c0403d-44e7-45cf-a6c8-79117b7f3766
+sloth-facts 771c0574-f5bf-4f59-a69d-3be3e061a62d
+capybara-facts fbadaf8b-584f-48b9-b092-07d351edd424
+lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
+```
+</div>
+
+### Requests with Prefect
+
+This example uses the Requests library with Prefect Cloud to return the five newest artifacts.
+
+```python
+import requests
+
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc-my-cloud-account-id-is-here/workspaces/123-my-workspace-id-is-here"
+PREFECT_API_KEY="123abc_my_api_key_goes_here"
+data = {
+    "sort": "CREATED_DESC",
+    "limit": 5,
+    "artifacts": {
+        "key": {
+            "exists_": True
+        }
+    }
+}
+
+headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
+endpoint = f"{PREFECT_API_URL}/artifacts/filter"
+
+response = requests.post(endpoint, headers=headers, json=data)
+assert response.status_code == 200
+for artifact in response.json():
+    print(artifact)
+```
+
+### curl with Prefect Cloud
+
+This example uses curl with Prefect Cloud to create a flow run:
+
+```bash
+ACCOUNT_ID="abc-my-cloud-account-id-goes-here"
+WORKSPACE_ID="123-my-workspace-id-goes-here"
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORKSPACE_ID"
+PREFECT_API_KEY="123abc_my_api_key_goes_here"
+DEPLOYMENT_ID="my_deployment_id"
+
+curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT_ID/create_flow_run" \
+  --header "Content-Type: application/json" \
+  --header "Authorization: Bearer $PREFECT_API_KEY" \
+  --header "X-PREFECT-API-VERSION: 0.8.4" \
+  --data-raw "{}"
+```
+
+Note that in this example `--data-raw "{}"` is required and is where you can specify other aspects of the flow run such as the state. Windows users substitute `^` for `\` for line multi-line commands.
+
+
+## Finding your Prefect Cloud details
+
+When working with the Prefect Cloud REST API you will need your Account ID and often the Workspace ID for the [workspace](/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/concepts/settings/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/cloud/users/api-keys/), as shown below:
+
+<div class="terminal">
+```bash
+PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here'
+PREFECT_API_KEY='123abc_my_api_key_is_here'
+```
+</div>
+
+Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`. 
+
 
 ## REST Guidelines
 
@@ -96,7 +208,7 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 The Prefect REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing REST APIs.
 
-To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
+To generate Prefect server's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
 from prefect.server.api.server import create_app
