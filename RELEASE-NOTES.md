@@ -2,9 +2,24 @@
 
 ## Release 2.10.11
 
-- Adds work pool creation wizard — https://github.com/PrefectHQ/prefect/pull/9717
-- Add interactive prompts for deployment name and work pool to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9707
-- Add interactive prompt to `prefect work-pool create` — https://github.com/PrefectHQ/prefect/pull/9686
+### Interactive Deployments and Work Pool Wizard 🧙
+
+This release simplifies deployment and work pool creation.
+
+![interactive-prefect-deploy-console-output](https://github.com/PrefectHQ/prefect/assets/12350579/c861b8dd-2dbb-4cfa-82f9-69008714f9fe)
+
+Firstly, the `prefect deploy` command has been upgraded to provide interactive prompts for deployment names and work pool selections. If you don't provide a deployment name via the CLI or a `deployment.yaml` file, the CLI will prompt you to do so. Furthermore, if a work pool name isn't specified, the CLI will guide you through the available work pools for your workspace. This feature aims to make deployments more approachable, especially for first-time users, requiring just an entrypoint to a flow to get started.
+
+![work-pool-wizard-infrastructure-choices](https://github.com/PrefectHQ/prefect/assets/12350579/383f004b-816e-4a52-98c3-46745e273362)
+
+Secondly, we've added a work pool creation wizard to streamline the process and spotlight various infrastructure types. The wizard will walk you through the essentials: basic work pool info, infrastructure type, and infrastructure configuration. The infrastructure type step will present you with a list of available infrastructure types, each with an icon and a description.
+
+Together, these improvements offer an interactive, guided experience that not only simplifies deployments and work pool creation but also empowers users to navigate the process confidently and efficiently. 
+
+Check out these pull requests for more details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1431
+- https://github.com/PrefectHQ/prefect/pull/9707
+- https://github.com/PrefectHQ/prefect/pull/9686
 
 ### Enhancements
 - Emit events from deployments, work queues, and work pools — https://github.com/PrefectHQ/prefect/pull/9635
