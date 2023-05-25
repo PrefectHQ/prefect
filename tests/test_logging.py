@@ -475,7 +475,9 @@ class TestAPILogHandler:
                     ' available after Nov 2023. Use "send_to_api" instead.'
                 ),
             ):
-                PrefectLogAdapter(logger).info("test", extra={"send_to_orion": False})
+                PrefectLogAdapter(logger, extra={}).info(
+                    "test", extra={"send_to_orion": False}
+                )
 
         mock_log_worker.instance().send.assert_not_called()
 
