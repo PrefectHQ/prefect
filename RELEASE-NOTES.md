@@ -27,7 +27,7 @@
 - Fix inconsistent flow run parameters when creating a new flow run or editing a deployment — https://github.com/PrefectHQ/prefect/pull/9705
 - Fix max value when updating variables — https://github.com/PrefectHQ/prefect/pull/9710
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
-- Use `PrefectHttpxClient` in cloud communication — https://github.com/PrefectHQ/prefect/pull/9724
+- Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
 - Remove trailing slashes when building events/in websocket url — https://github.com/PrefectHQ/prefect/pull/9663
 - Unknown states crash flow run timeline — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
