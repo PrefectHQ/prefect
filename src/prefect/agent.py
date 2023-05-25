@@ -21,7 +21,6 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
-    exception_traceback
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
@@ -44,14 +43,14 @@ class PrefectAgent:
         "work_pool_name", group="work_pools", when=lambda y: y is not None
     )
     def __init__(
-            self,
-            work_queues: List[str] = None,
-            work_queue_prefix: Union[str, List[str]] = None,
-            work_pool_name: str = None,
-            prefetch_seconds: int = None,
-            default_infrastructure: Infrastructure = None,
-            default_infrastructure_document_id: UUID = None,
-            limit: Optional[int] = None,
+        self,
+        work_queues: List[str] = None,
+        work_queue_prefix: Union[str, List[str]] = None,
+        work_pool_name: str = None,
+        prefetch_seconds: int = None,
+        default_infrastructure: Infrastructure = None,
+        default_infrastructure_document_id: UUID = None,
+        limit: Optional[int] = None,
     ) -> None:
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
@@ -361,7 +360,7 @@ class PrefectAgent:
             self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def _mark_flow_run_as_cancelled(
-            self, flow_run: FlowRun, state_updates: Optional[dict] = None
+        self, flow_run: FlowRun, state_updates: Optional[dict] = None
     ) -> None:
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
@@ -476,10 +475,10 @@ class PrefectAgent:
         self.submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-            self,
-            flow_run: FlowRun,
-            infrastructure: Infrastructure,
-            task_status: anyio.abc.TaskStatus = None,
+        self,
+        flow_run: FlowRun,
+        infrastructure: Infrastructure,
+        task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
         # Note: There is not a clear way to determine if task_status.started() has been
         #       called without peeking at the internal `_future`. Ideally we could just
