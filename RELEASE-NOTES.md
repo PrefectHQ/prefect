@@ -30,7 +30,7 @@
 - Fix bug where `uvicorn` could not be found when server was started from an unloaded virtual environment - https://github.com/PrefectHQ/prefect/pull/9734 
 - Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
 - Fix bug where events worker would fail if the API URL includes a trailing `/` — https://github.com/PrefectHQ/prefect/pull/9663
-- Unknown states crash flow run timeline — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
+- Fix bug where flow run timeline crashed when custom state names were used — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
 
 ### Deprecations
 - Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - https://github.com/PrefectHQ/prefect/pull/8788
