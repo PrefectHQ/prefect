@@ -305,6 +305,7 @@ class TestNonblockingPause:
                 flow_run_id,
                 FlowRun.construct(deployment_id=deployment.id),
             )
+            await session.commit()
 
             x = await foo.submit()
             y = await foo.submit()
@@ -341,6 +342,7 @@ class TestNonblockingPause:
                 prefect.runtime.flow_run.id,
                 FlowRun.construct(deployment_id=deployment.id),
             )
+            await session.commit()
 
             x = await foo.submit()
             y = await foo.submit()
@@ -374,6 +376,7 @@ class TestNonblockingPause:
                 flow_run_id,
                 FlowRun.construct(deployment_id=deployment.id),
             )
+            await session.commit()
 
             x = await foo.submit()
             y = await foo.submit()
@@ -459,6 +462,7 @@ class TestOutOfProcessPause:
                 prefect.runtime.flow_run.id,
                 FlowRun.construct(deployment_id=deployment.id),
             )
+            await session.commit()
 
             context = FlowRunContext.get()
             x = await foo.submit()
@@ -501,6 +505,7 @@ class TestOutOfProcessPause:
                 prefect.runtime.flow_run.id,
                 FlowRun.construct(deployment_id=deployment.id),
             )
+            await session.commit()
 
             context = FlowRunContext.get()
             x = await foo.submit()
