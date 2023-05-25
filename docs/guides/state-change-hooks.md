@@ -86,10 +86,10 @@ def my_task_that_crashes():
 
 @flow(on_crashed=[delete_cloud_run_job])
 def crashing_flow():
-    """Save the flow name (i.e. Cloud Run job name) as a 
+    """Save the flow run name (i.e. Cloud Run job name) as a 
     String block. It then executes a task that ends up crashing."""
-    flow_name = prefect.runtime.flow_run.name
-    cloud_run_job_name = String(value=flow_name)
+    flow_run_name = prefect.runtime.flow_run.name
+    cloud_run_job_name = String(value=flow_run_name)
     cloud_run_job_name.save(
         name="crashing-flow-cloud-run-job", overwrite=True
     )
