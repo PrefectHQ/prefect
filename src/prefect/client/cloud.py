@@ -13,6 +13,7 @@ from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
 from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
 
+
 def get_cloud_client(
     host: Optional[str] = None,
     api_key: Optional[str] = None,
