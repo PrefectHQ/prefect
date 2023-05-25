@@ -20,7 +20,10 @@ def start_healthcheck_server(
     if not run_once:
         webserver = FastAPI()
         router = APIRouter()
-        router.add_api_route("/health", worker.check_worker_health, methods=["GET"])
+
+        router.add_api_route("/health", worker.check_last_polled, methods=["GET"])
+        router.add_api_route("/info", worker.get_status, methods=["GET"])
+
         webserver.include_router(router)
 
         uvicorn.run(webserver, host="0.0.0.0", port=8080, log_level=log_level)

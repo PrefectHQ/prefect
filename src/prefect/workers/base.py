@@ -358,7 +358,7 @@ class BaseWorker(abc.ABC):
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
 
-    async def check_worker_health(self):
+    async def check_last_polled(self):
         return {
             "name": self.name,
             "worker_pool": self._work_pool_name,
