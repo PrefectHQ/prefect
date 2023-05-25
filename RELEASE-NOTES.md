@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release preview
+## Release 2.10.11
 
 - Adds work pool creation wizard — https://github.com/PrefectHQ/prefect/pull/9717
 - Add interactive prompts for deployment name and work pool to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9707
