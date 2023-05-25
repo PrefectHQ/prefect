@@ -134,6 +134,9 @@ class CancellationCleanup(LoopService):
         if not flow_run.parent_task_run_id:
             return
 
+        if flow_run.state.type in states.TERMINAL_STATES:
+            return
+
         async with db.session_context() as session:
             parent_task_run = await models.task_runs.read_task_run(
                 session, task_run_id=flow_run.parent_task_run_id
