@@ -805,7 +805,7 @@ class BaseWorker(abc.ABC):
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
-                self._logger.exception(
+                run_logger.exception(
                     f"Failed to submit flow run '{flow_run.id}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
