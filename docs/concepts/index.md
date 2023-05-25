@@ -33,7 +33,7 @@ tags:
 | __[Storage](storage.md)__                         | Lets you configure how flow code for deployments is persisted and retrieved by Prefect agents.            |
 | __[Filesystems](filesystems.md)__                 | [Blocks](/concepts/blocks/) that allow you to read and write data from paths.                                |
 | __[Infrastructure](infrastructure.md)__           | [Blocks](blocks.md) that specify infrastructure for flow runs created by the deployment. |
-| __[Schedules](schedules.md)__                     | tell the Prefect API how to create new flow runs for you automatically on a specified cadence.           |
+| __[Schedules](schedules.md)__                     | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.           |
 __[Logging](logs.md)__
 Log a variety of useful information about your flow and task runs on the server.
 
