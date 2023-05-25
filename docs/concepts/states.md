@@ -186,7 +186,7 @@ def my_flow():
 
 my_flow()
 ```
-## Create and use hooks
+### Create and use hooks
 #### Available state change hooks
 
 | Type | Flow | Task | Description |
@@ -235,6 +235,6 @@ def my_succeed_or_fail_hook(task, task_run, state):
 )
 ```
 
-#### More examples
+### More examples of state change hooks
 - [Send a notification when a flow run fails](/guides/state-change-hooks/#send-a-notification-when-a-flow-run-fails)
 - [Delete a Cloud Run job when a flow crashes](/guides/state-change-hooks/#delete-a-cloud-run-job-when-a-flow-crashes)
