@@ -57,7 +57,6 @@
 ## Contributors
 * @BitTheByte
 * @snikch made their first contribution in https://github.com/PrefectHQ/prefect/pull/9646
-* @prefectcboyd made their first contribution in https://github.com/PrefectHQ/prefect/pull/9680
 * @rkscodes made their first contribution in https://github.com/PrefectHQ/prefect/pull/9682
 * @sarahmk125 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9694
 
