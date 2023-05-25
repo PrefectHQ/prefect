@@ -316,11 +316,13 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     asyncio does not provided _any_ other way to clean up a resource when the event
     loop is about to close.
     """
-    # EVENT_LOOP_GC_REFS can randomly become `None` (no idea why)
-    # See: https://github.com/PrefectHQ/prefect/issues/7709#issuecomment-1560021109
-    local_event_loop_gc_refs = EVENT_LOOP_GC_REFS
 
     async def on_shutdown(key):
+        # It appears that EVENT_LOOP_GC_REFS is somehow being garbage collected early.
+        # We hold a reference to it so as to preserve it, at least for the lifetime of
+        # this coroutine. See the issue below for the initial report/discussion:
+        # https://github.com/PrefectHQ/prefect/issues/7709#issuecomment-1560021109
+        _ = EVENT_LOOP_GC_REFS
         try:
             yield
         except GeneratorExit:
