@@ -15,18 +15,7 @@ from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.engine import propose_state
-from prefect.exceptions import (
-    Abort,
-    InfrastructureNotAvailable,
-    InfrastructureNotFound,
-    ObjectNotFound,
-)
-from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
-from prefect.logging import get_logger
-from prefect.server import schemas
-from prefect.server.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.server.schemas.filters import (
+from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
     FlowRunFilterState,
@@ -37,6 +26,16 @@ from prefect.server.schemas.filters import (
     WorkQueueFilter,
     WorkQueueFilterName,
 )
+from prefect.client.schemas.objects import BlockDocument, FlowRun, WorkQueue
+from prefect.engine import propose_state
+from prefect.exceptions import (
+    Abort,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
+    ObjectNotFound,
+)
+from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
+from prefect.logging import get_logger
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
@@ -98,10 +97,8 @@ class PrefectAgent:
             if self.work_pool_name:
                 matched_queues = await self.client.read_work_queues(
                     work_pool_name=self.work_pool_name,
-                    work_queue_filter=schemas.filters.WorkQueueFilter(
-                        name=schemas.filters.WorkQueueFilterName(
-                            startswith_=self.work_queue_prefix
-                        )
+                    work_queue_filter=WorkQueueFilter(
+                        name=WorkQueueFilterName(startswith_=self.work_queue_prefix)
                     ),
                 )
             else:
