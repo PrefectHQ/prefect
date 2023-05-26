@@ -326,7 +326,7 @@ If not all flow runs can be executed, as a result of concurrency limits or infra
 
 Priority for flow-run submission proceeds from the highest priority to the lowest priority.  In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
 
-If new work is received on the "critical" queue while work is still in scheduled on the "high" and "low" queues? We go back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty in waterfall fashion.
+If new work is received on the "critical" queue while work is still in scheduled on the "high" and "low" queues, flow-run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty in waterfall fashion.
 
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
