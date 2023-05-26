@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import os
 import anyio
+import threading
 import typer
 
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -19,11 +20,10 @@ from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
-from prefect.workers.server import start_healthcheck_server
 from prefect.workers.process import ProcessWorker
+from prefect.workers.server import start_healthcheck_server
 from prefect.plugins import load_prefect_collections
 
-import threading
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
