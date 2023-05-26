@@ -36,7 +36,6 @@ def start_healthcheck_server(
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
 
     router.add_api_route("/health", perform_health_check, methods=["GET"])
-    router.add_api_route("/info", worker.get_status, methods=["GET"])
 
     webserver.include_router(router)
 
