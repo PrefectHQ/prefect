@@ -50,7 +50,7 @@ const addDeviceIdToAppLinks = () => {
 
 const init = () => {
   amplitude.init(amplitudeKey, undefined, {
-    useBatch: false,
+    useBatch: true,
     serverUrl: amplitudeUrl,
     attribution: {
       disabled: false,
