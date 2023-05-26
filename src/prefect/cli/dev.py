@@ -21,7 +21,6 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
-from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
@@ -120,6 +119,9 @@ def build_docs(
     Builds REST API reference documentation for static display.
     """
     exit_with_error_if_not_editable_install()
+
+    from prefect.server.api.server import create_app
+
     schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:

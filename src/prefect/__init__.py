@@ -72,6 +72,9 @@ prefect.context.TaskRunContext.update_forward_refs(Task=Task)
 prefect.client.schemas.State.update_forward_refs(
     BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
 )
+prefect.client.schemas.StateCreate.update_forward_refs(
+    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
+)
 
 
 prefect.plugins.load_extra_entrypoints()

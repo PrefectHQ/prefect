@@ -9,9 +9,9 @@ from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
-from prefect.server import schemas
-from prefect.server.schemas import sorting
 
 artifact_app = PrefectTyper(
     name="artifact", help="Commands for starting and interacting with artifacts."
@@ -50,7 +50,7 @@ async def list_artifacts(
     async with get_client() as client:
         if all:
             artifacts = await client.read_artifacts(
-                sort=sorting.ArtifactSort.KEY_ASC,
+                sort=ArtifactSort.KEY_ASC,
                 limit=limit,
             )
 
@@ -64,7 +64,7 @@ async def list_artifacts(
 
         else:
             artifacts = await client.read_latest_artifacts(
-                sort=sorting.ArtifactCollectionSort.KEY_ASC,
+                sort=ArtifactCollectionSort.KEY_ASC,
                 limit=limit,
             )
 
@@ -127,10 +127,8 @@ async def inspect(
     async with get_client() as client:
         artifacts = await client.read_artifacts(
             limit=limit,
-            sort=sorting.ArtifactSort.UPDATED_DESC,
-            artifact_filter=schemas.filters.ArtifactFilter(
-                key=schemas.filters.ArtifactFilterKey(any_=[key])
-            ),
+            sort=ArtifactSort.UPDATED_DESC,
+            artifact_filter=ArtifactFilter(key=ArtifactFilterKey(any_=[key])),
         )
         if not artifacts:
             exit_with_error(f"Artifact {key!r} not found.")
@@ -181,9 +179,7 @@ async def delete(
 
         elif key is not None:
             artifacts = await client.read_artifacts(
-                artifact_filter=schemas.filters.ArtifactFilter(
-                    key=schemas.filters.ArtifactFilterKey(any_=[key])
-                ),
+                artifact_filter=ArtifactFilter(key=ArtifactFilterKey(any_=[key])),
             )
             if not artifacts:
                 exit_with_error(

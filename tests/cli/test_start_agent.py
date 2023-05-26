@@ -50,7 +50,9 @@ async def agent_process(use_hosted_api_server):
         for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
             await anyio.sleep(POLL_INTERVAL)
             if out.tell() > 400:
-                await anyio.sleep(2)
+                # Sleep to allow startup to complete
+                # TODO: Replace with a healthcheck endpoint
+                await anyio.sleep(4)
                 break
 
         assert out.tell() > 400, "The agent did not start up in time"

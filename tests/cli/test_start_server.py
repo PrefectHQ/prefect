@@ -69,7 +69,7 @@ async def server_process():
                         pass
                     else:
                         if response.status_code == 200:
-                            await anyio.sleep(0.5)  # extra sleep for less flakiness
+                            await anyio.sleep(1)  # extra sleep for less flakiness
                             break
                     await anyio.sleep(POLL_INTERVAL)
             if response:

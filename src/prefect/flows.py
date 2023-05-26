@@ -33,6 +33,9 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import Literal, ParamSpec
 
+from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect.client.schemas.objects import Flow as FlowSchema
+from prefect.client.schemas.objects import FlowRun
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
@@ -42,8 +45,6 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-import prefect.server.schemas as schemas
-from prefect.client.schemas import FlowRun
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
@@ -146,24 +147,20 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+            List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-        ] = None,
+        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+            List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-        ] = None,
+        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
         # Validate name if given
         if name:
-            schemas.core.raise_on_invalid_name(name)
+            raise_on_name_with_banned_characters(name)
 
         self.name = name or fn.__name__.replace("_", "-")
 
@@ -273,17 +270,13 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
         on_completion: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+            List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-        ] = None,
+        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+            List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[
-            List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-        ] = None,
+        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -590,18 +583,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
-    on_failure: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
+    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_cancellation: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+        List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
+    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -623,18 +610,12 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
-    on_failure: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
+    on_completion: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_cancellation: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
+        List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[
-        List[Callable[[schemas.core.Flow, FlowRun, State], None]]
-    ] = None,
+    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.

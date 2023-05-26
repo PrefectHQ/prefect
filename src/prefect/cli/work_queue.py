@@ -18,9 +18,9 @@ from prefect._internal.compatibility.experimental import (
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
+from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.server.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
