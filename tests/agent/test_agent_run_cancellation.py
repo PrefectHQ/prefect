@@ -500,3 +500,52 @@ async def test_agent_cancel_run_without_infrastructure_support_for_kill(
         in caplog.text
     )
     assert "Cancellation cannot be guaranteed." in caplog.text
+
+
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
+async def test_agent_started_in_work_pool_without_work_queue_can_put_flow_run_into_cancelled_state(
+    prefect_client: PrefectClient,
+    deployment: ORMDeployment,
+    caplog,
+    cancelling_constructor,
+    work_pool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=cancelling_constructor(),
+    )
+
+    # agent with work pool but no work queue
+    async with PrefectAgent(
+        work_pool_name=work_pool.name, prefetch_seconds=10
+    ) as agent:
+        await agent.check_for_cancelled_flow_runs()
+    assert "Found 1 flow runs awaiting cancellation" in caplog.text
+    post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert post_flow_run.state.name == "Cancelled"
+
+
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
+async def test_agent_started_in_different_work_pool_without_work_queue_does_not_cancel_flow_run(
+    prefect_client: PrefectClient,
+    deployment: ORMDeployment,
+    caplog,
+    cancelling_constructor,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=cancelling_constructor(),
+    )
+
+    # agent with work pool but no work queue
+    async with PrefectAgent(
+        work_pool_name="another-work-pool", prefetch_seconds=10
+    ) as agent:
+        await agent.check_for_cancelled_flow_runs()
+    assert "Found 1 flow runs awaiting cancellation" not in caplog.text
+    post_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert post_flow_run.state.name == "Cancelling"
