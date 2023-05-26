@@ -9,7 +9,9 @@ from prefect.workers.process import ProcessWorker
 
 
 def start_healthcheck_server(
-    worker: Union[BaseWorker, ProcessWorker], log_level: str = "error"
+    worker: Union[BaseWorker, ProcessWorker],
+    query_interval_seconds: int,
+    log_level: str = "error",
 ) -> None:
     """
     Run a healthcheck FastAPI server for a worker.
@@ -22,7 +24,9 @@ def start_healthcheck_server(
     router = APIRouter()
 
     def perform_health_check():
-        did_recently_poll = worker.is_worker_still_polling()
+        did_recently_poll = worker.is_worker_still_polling(
+            query_interval_seconds=query_interval_seconds
+        )
 
         if not did_recently_poll:
             return JSONResponse(

@@ -166,7 +166,11 @@ async def start(
                 # uvicorn does not block the main thread
                 server_thread = threading.Thread(
                     name="healthcheck-server-thread",
-                    target=partial(start_healthcheck_server, worker=worker),
+                    target=partial(
+                        start_healthcheck_server,
+                        worker=worker,
+                        query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                    ),
                     daemon=True,
                 )
                 server_thread.start()

@@ -487,16 +487,20 @@ class BaseWorker(abc.ABC):
         self._runs_task_group = None
         self._client = None
 
-    def is_worker_still_polling(self) -> bool:
+    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
         """
         This method is invoked by a webserver healthcheck handler
         and returns a boolean indicating if the worker has recorded a
-        scheduled flow run poll in the last 5 minutes.
+        scheduled flow run poll within a variable amount of time.
+
+        The `query_interval_seconds` is the same value that is used by
+        the loop services - we will evaluate if the _last_polled_time
+        was within that interval x 30 (so 10s -> 5m)
 
         The instance property `self._last_polled_time`
         is currently set/updated in `get_and_submit_flow_runs()`
         """
-        threshold_seconds = 300  # 5 minutes
+        threshold_seconds = query_interval_seconds * 30
 
         seconds_since_last_poll = (
             pendulum.now("utc") - self._last_polled_time
