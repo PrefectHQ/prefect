@@ -487,6 +487,7 @@ class BaseWorker(abc.ABC):
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
+        self._emit_worker_poll_flow_run_event()
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):
@@ -535,6 +536,8 @@ class BaseWorker(abc.ABC):
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
+        self._emit_worker_poll_cancelled_flow_run_event()
+
         if cancelling_flow_runs:
             self._logger.info(
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
@@ -565,7 +568,13 @@ class BaseWorker(abc.ABC):
             )
             return
 
-        configuration = await self._get_configuration(flow_run)
+        try:
+            configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
 
         try:
             await self.kill_infrastructure(
@@ -740,7 +749,7 @@ class BaseWorker(abc.ABC):
 
         try:
             await self._check_flow_run(flow_run)
-        except ValueError:
+        except (ValueError, ObjectNotFound):
             self._logger.exception(
                 (
                     "Flow run %s did not pass checks and will not be submitted for"
@@ -796,7 +805,7 @@ class BaseWorker(abc.ABC):
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
-                self._logger.exception(
+                run_logger.exception(
                     f"Failed to submit flow run '{flow_run.id}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
@@ -1062,6 +1071,20 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
+        )
+
+    def _emit_worker_poll_flow_run_event(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
+        )
+
+    def _emit_worker_poll_cancelled_flow_run_event(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.cancelled-flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
         )
 
     async def _emit_worker_started_event(self) -> Event:

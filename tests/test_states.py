@@ -145,8 +145,8 @@ class TestRaiseStateException:
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def factory(self, orion_client):
-        return await ResultFactory.default_factory(client=orion_client)
+    async def factory(self, prefect_client):
+        return await ResultFactory.default_factory(client=prefect_client)
 
     async def test_returns_single_state_unaltered(self, factory):
         state = Completed(data="hello!")

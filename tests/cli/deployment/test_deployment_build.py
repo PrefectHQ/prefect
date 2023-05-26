@@ -879,17 +879,17 @@ class TestAutoApply:
 
 class TestWorkQueueConcurrency:
     async def test_setting_work_queue_concurrency_limits_with_build(
-        self, built_deployment_with_queue_and_limit_overrides, orion_client
+        self, built_deployment_with_queue_and_limit_overrides, prefect_client
     ):
-        queue = await orion_client.read_work_queue_by_name(
+        queue = await prefect_client.read_work_queue_by_name(
             "the-queue-to-end-all-queues"
         )
         assert queue.concurrency_limit == 424242
 
     async def test_setting_work_queue_concurrency_limits_with_apply(
-        self, applied_deployment_with_queue_and_limit_overrides, orion_client
+        self, applied_deployment_with_queue_and_limit_overrides, prefect_client
     ):
-        queue = await orion_client.read_work_queue_by_name("the-mother-of-all-queues")
+        queue = await prefect_client.read_work_queue_by_name("the-mother-of-all-queues")
         assert queue.concurrency_limit == 4242
 
 

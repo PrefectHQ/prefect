@@ -9,8 +9,8 @@ import pytest
 
 import prefect
 from prefect import __development_base_path__
-from prefect.docker import docker_client
 from prefect.exceptions import ScriptError
+from prefect.utilities.dockerutils import docker_client
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import (
     from_qualified_name,
