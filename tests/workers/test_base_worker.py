@@ -7,7 +7,6 @@ import pendulum
 import pydantic
 import pytest
 from pydantic import Field
-from fastapi import status
 
 import prefect
 import prefect.server.schemas as schemas
@@ -1785,16 +1784,16 @@ async def test_worker_last_polled_health_check(
     pendulum.set_test_now(now)
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        resp = await worker.check_if_worker_is_polling()
-        assert resp.status_code == status.HTTP_200_OK
+        resp = await worker.is_worker_still_polling()
+        assert resp is True
 
         pendulum.set_test_now(now.add(seconds=299))
-        resp = await worker.check_if_worker_is_polling()
-        assert resp.status_code == status.HTTP_200_OK
+        resp = await worker.is_worker_still_polling()
+        assert resp is True
 
         pendulum.set_test_now(now.add(seconds=301))
-        resp = await worker.check_if_worker_is_polling()
-        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        resp = await worker.is_worker_still_polling()
+        assert resp is False
 
         # cleanup mock
         pendulum.set_test_now()

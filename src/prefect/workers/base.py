@@ -8,8 +8,6 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
-from fastapi import status
-from fastapi.responses import JSONResponse
 
 import prefect
 from prefect._internal.compatibility.experimental import experimental
@@ -363,27 +361,27 @@ class BaseWorker(abc.ABC):
 
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
 
-    async def check_if_worker_is_polling(self) -> JSONResponse:
+    async def is_worker_still_polling(self) -> bool:
         """
         If this health check is invoked, and we have not registered a poll
         in the last 5 minutes, return a 503 so that worker can be
         restarted by a container orchestrator liveness probe (or similar)
         """
+        threshold_seconds = 300  # 5 minutes
+
         seconds_since_last_poll = (
             pendulum.now("utc") - self._last_polled_time
         ).in_seconds()
 
-        if seconds_since_last_poll >= 300:
+        is_still_polling = seconds_since_last_poll <= threshold_seconds
+
+        if not is_still_polling:
             self._logger.error(
                 f"Worker has not polled in the last {seconds_since_last_poll} seconds "
                 "and should be restarted"
             )
 
-            return JSONResponse(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content={"message": "Worker may be unresponsive at this time"},
-            )
-        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
+        return is_still_polling
 
     @classmethod
     def get_documentation_url(cls) -> str:

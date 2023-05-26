@@ -1,4 +1,6 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, status
+from fastapi.responses import JSONResponse
+
 from typing import Union
 import uvicorn
 
@@ -13,13 +15,23 @@ def start_healthcheck_server(
     Run a healthcheck FastAPI server for a worker.
 
     Args:
-        worker (BaseWorker | ProcessWorker): the worker to check health for
+        worker (BaseWorker | ProcessWorker): the worker whose health we will check
         log_level (str): the log level to use for the server
     """
     webserver = FastAPI()
     router = APIRouter()
 
-    router.add_api_route("/health", worker.check_if_worker_is_polling, methods=["GET"])
+    def perform_health_check():
+        did_recently_poll = worker.is_worker_still_polling()
+
+        if not did_recently_poll:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"message": "Worker may be unresponsive at this time"},
+            )
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
+
+    router.add_api_route("/health", perform_health_check, methods=["GET"])
     router.add_api_route("/info", worker.get_status, methods=["GET"])
 
     webserver.include_router(router)
