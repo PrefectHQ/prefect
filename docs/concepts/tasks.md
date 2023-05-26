@@ -224,7 +224,6 @@ we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
 request.
 
 ```python hl_lines="4"
-import requests
 import httpx
 
 from prefect import flow, task
