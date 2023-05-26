@@ -76,6 +76,9 @@ async def start(
         "--limit",
         help="Maximum number of flow runs to start simultaneously.",
     ),
+    with_healthcheck: bool = typer.Option(
+        False, help="Start a healthcheck server for the worker."
+    ),
 ):
     """
     Start a worker process to poll a work pool for flow runs.
@@ -159,9 +162,8 @@ async def start(
 
             started_event = await worker._emit_worker_started_event()
 
-            # if run_once=True, we don't want to start the healthcheck server
-            # as it will continue to run in scenarios where we want to exit automatically
-            if not run_once:
+            # if --with-healthcheck was passed, start the healthcheck server
+            if with_healthcheck:
                 # we'll start the ASGI server in a separate thread so that
                 # uvicorn does not block the main thread
                 server_thread = threading.Thread(
