@@ -54,13 +54,15 @@ async def test_agent_start_and_shutdown():
     assert agent.client is None, "Shuts down the client"
 
 
-async def test_agent_with_work_queue(orion_client, deployment):
+async def test_agent_with_work_queue(prefect_client, deployment):
     @flow
     def foo():
         pass
 
     def create_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(deployment.id, state=state)
+        return prefect_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -78,13 +80,15 @@ async def test_agent_with_work_queue(orion_client, deployment):
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
-    work_queue_runs = await orion_client.get_runs_in_work_queue(
+    work_queue = await prefect_client.read_work_queue_by_name(
+        deployment.work_queue_name
+    )
+    work_queue_runs = await prefect_client.get_runs_in_work_queue(
         work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
     )
     work_queue_flow_run_ids = {run.id for run in work_queue_runs}
@@ -103,13 +107,15 @@ async def test_agent_with_work_queue(orion_client, deployment):
     assert submitted_flow_run_ids == work_queue_flow_run_ids
 
 
-async def test_agent_with_work_queue_and_limit(orion_client, deployment):
+async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
     @flow
     def foo():
         pass
 
     def create_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(deployment.id, state=state)
+        return prefect_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
 
     flow_runs = [
         await create_run_with_deployment(Pending()),
@@ -127,13 +133,15 @@ async def test_agent_with_work_queue_and_limit(orion_client, deployment):
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
-    work_queue_runs = await orion_client.get_runs_in_work_queue(
+    work_queue = await prefect_client.read_work_queue_by_name(
+        deployment.work_queue_name
+    )
+    work_queue_runs = await prefect_client.get_runs_in_work_queue(
         work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
     )
     work_queue_runs.sort(key=lambda run: run.next_scheduled_start_time)
@@ -177,14 +185,14 @@ async def test_agent_matches_work_queues_dynamically(
 
 
 async def test_agent_matches_multiple_work_queues_dynamically(
-    session, orion_client, prefect_caplog
+    session, prefect_client, prefect_caplog
 ):
     prod1 = "prod-deployment-1"
     prod2 = "prod-deployment-2"
     prod3 = "prod-deployment-3"
     dev1 = "dev-data-producer"
-    await orion_client.create_work_queue(name=prod1)
-    await orion_client.create_work_queue(name=prod2)
+    await prefect_client.create_work_queue(name=prod1)
+    await prefect_client.create_work_queue(name=prod2)
 
     async with PrefectAgent(work_queue_prefix=["prod-"]) as agent:
         assert not agent.work_queues
@@ -196,8 +204,8 @@ async def test_agent_matches_multiple_work_queues_dynamically(
         agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
             minutes=1
         )
-        await orion_client.create_work_queue(name=prod3)
-        await orion_client.create_work_queue(name=dev1)
+        await prefect_client.create_work_queue(name=prod3)
+        await prefect_client.create_work_queue(name=dev1)
         await agent.get_and_submit_flow_runs()
         assert prod3 in agent.work_queues
         assert (
@@ -206,12 +214,12 @@ async def test_agent_matches_multiple_work_queues_dynamically(
 
 
 async def test_agent_matches_multiple_work_queue_prefixes(
-    session, orion_client, prefect_caplog
+    session, prefect_client, prefect_caplog
 ):
     prod = "prod-deployment"
     dev = "dev-data-producer"
-    await orion_client.create_work_queue(name=prod)
-    await orion_client.create_work_queue(name=dev)
+    await prefect_client.create_work_queue(name=prod)
+    await prefect_client.create_work_queue(name=dev)
 
     async with PrefectAgent(work_queue_prefix=["prod-", "dev-"]) as agent:
         assert not agent.work_queues
@@ -221,7 +229,7 @@ async def test_agent_matches_multiple_work_queue_prefixes(
 
 
 async def test_matching_work_queues_handes_work_queue_deletion(
-    session, work_queue, orion_client, prefect_caplog
+    session, work_queue, prefect_client, prefect_caplog
 ):
     name = "wq-1"
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
@@ -233,7 +241,7 @@ async def test_matching_work_queues_handes_work_queue_deletion(
         agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
             minutes=1
         )
-        await orion_client.delete_work_queue_by_id(work_queue.id)
+        await prefect_client.delete_work_queue_by_id(work_queue.id)
         await agent.get_and_submit_flow_runs()
         assert name not in agent.work_queues
 
@@ -323,8 +331,10 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     assert "No!" in prefect_caplog.text
 
 
-async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
-    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+async def test_agent_caches_work_queues(prefect_client, deployment, monkeypatch):
+    work_queue = await prefect_client.read_work_queue_by_name(
+        deployment.work_queue_name
+    )
 
     async def read_queue(name, work_pool_name=None):
         return work_queue
@@ -346,10 +356,12 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
 
 
 async def test_agent_with_work_queue_name_survives_queue_deletion(
-    orion_client, deployment
+    prefect_client, deployment
 ):
     """Ensure that cached work queues don't create errors if deleted"""
-    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+    work_queue = await prefect_client.read_work_queue_by_name(
+        deployment.work_queue_name
+    )
 
     async with PrefectAgent(
         work_queues=[work_queue.name], prefetch_seconds=10
@@ -359,14 +371,14 @@ async def test_agent_with_work_queue_name_survives_queue_deletion(
         await agent.get_and_submit_flow_runs()
 
         # delete the work queue
-        await orion_client.delete_work_queue_by_id(work_queue.id)
+        await prefect_client.delete_work_queue_by_id(work_queue.id)
 
         # gracefully handled
         await agent.get_and_submit_flow_runs()
 
 
-async def test_agent_internal_submit_run_called(orion_client, deployment):
-    flow_run = await orion_client.create_flow_run_from_deployment(
+async def test_agent_internal_submit_run_called(prefect_client, deployment):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
@@ -380,7 +392,7 @@ async def test_agent_internal_submit_run_called(orion_client, deployment):
     agent.submit_run.assert_called_once_with(flow_run)
 
 
-async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
+async def test_agent_runs_multiple_work_queues(prefect_client, session, flow):
     # create two deployments
     deployment_a = await models.deployments.create_deployment(
         session=session,
@@ -401,11 +413,11 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
     await session.commit()
 
     # create two runs
-    flow_run_a = await orion_client.create_flow_run_from_deployment(
+    flow_run_a = await prefect_client.create_flow_run_from_deployment(
         deployment_a.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
-    flow_run_b = await orion_client.create_flow_run_from_deployment(
+    flow_run_b = await prefect_client.create_flow_run_from_deployment(
         deployment_b.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
@@ -486,17 +498,17 @@ class TestInfrastructureIntegration:
         yield mock
 
     async def test_agent_submits_using_the_retrieved_infrastructure(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        flow = await orion_client.read_flow(deployment.flow_id)
+        flow = await prefect_client.read_flow(deployment.flow_id)
 
-        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await prefect_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
         async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
@@ -510,9 +522,9 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_sets_pending_state(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -522,14 +534,14 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
-        flow_run = await orion_client.read_flow_run(flow_run.id)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
         mock_infrastructure_run.assert_called_once()
 
     async def test_agent_sets_infrastructure_pid(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -539,17 +551,17 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
-        flow_run = await orion_client.read_flow_run(flow_run.id)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.infrastructure_pid == "id-1234"
 
     async def test_agent_submit_run_does_not_wait_for_scheduled_time_before_submitting(
         self,
-        orion_client,
+        prefect_client,
         deployment,
         mock_infrastructure_run,
         mock_anyio_sleep,
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc").add(seconds=10)),
         )
@@ -561,7 +573,7 @@ class TestInfrastructureIntegration:
             with mock_anyio_sleep.assert_sleeps_for(0):
                 await agent.submit_run(flow_run)
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert (
             state.timestamp.add(seconds=1) < flow_run.state.state_details.scheduled_time
         ), "Pending state time should be before the scheduled time"
@@ -571,13 +583,13 @@ class TestInfrastructureIntegration:
     @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
     async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
         self,
-        orion_client,
+        prefect_client,
         deployment,
         mock_infrastructure_run,
         return_state,
         mock_propose_state,
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -605,14 +617,14 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_aborts_if_flow_run_is_missing(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        await orion_client.delete_flow_run(flow_run.id)
+        await prefect_client.delete_flow_run(flow_run.id)
 
         async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
@@ -635,9 +647,9 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
-        self, orion_client, deployment, mock_infrastructure_run, mock_propose_state
+        self, prefect_client, deployment, mock_infrastructure_run, mock_propose_state
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -663,9 +675,9 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_fails_flow_if_get_infrastructure_fails(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -690,23 +702,23 @@ class TestInfrastructureIntegration:
             agent.limiter.borrowed_tokens == 0
         ), "The concurrency slot should be released"
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
         with pytest.raises(FailedRun, match="Submission failed. ValueError: Bad!"):
             await state.result()
 
     async def test_agent_fails_flow_if_infrastructure_submission_fails(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
-        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await prefect_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        flow = await orion_client.read_flow(deployment.flow_id)
+        flow = await prefect_client.read_flow(deployment.flow_id)
 
         def raise_value_error():
             raise ValueError("Hello!")
@@ -732,23 +744,23 @@ class TestInfrastructureIntegration:
             agent.limiter.borrowed_tokens == 0
         ), "The concurrency slot should be released"
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
         with pytest.raises(FailedRun, match="Submission failed. ValueError: Hello!"):
             await state.result()
 
     async def test_agent_does_not_fail_flow_if_infrastructure_watch_fails(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
-        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await prefect_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        flow = await orion_client.read_flow(deployment.flow_id)
+        flow = await prefect_client.read_flow(deployment.flow_id)
 
         def raise_value_error():
             raise ValueError("Hello!")
@@ -772,13 +784,13 @@ class TestInfrastructureIntegration:
             "occurred."
         )
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_pending(), f"State should be PENDING: {state!r}"
 
     async def test_agent_logs_if_infrastructure_does_not_mark_as_started(
-        self, orion_client, deployment, mock_infrastructure_run
+        self, prefect_client, deployment, mock_infrastructure_run
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
@@ -802,17 +814,17 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_crashes_flow_if_infrastructure_returns_nonzero_status_code(
-        self, orion_client, deployment, mock_infrastructure_run, caplog
+        self, prefect_client, deployment, mock_infrastructure_run, caplog
     ):
         infra_doc_id = deployment.infrastructure_document_id
-        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await prefect_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        flow = await orion_client.read_flow(deployment.flow_id)
+        flow = await prefect_client.read_flow(deployment.flow_id)
 
         mock_infrastructure_run.result_status_code = 9
 
@@ -832,7 +844,7 @@ class TestInfrastructureIntegration:
             in caplog.text
         )
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_crashed()
         with pytest.raises(CrashedRun, match="exited with non-zero status code 9"):
             await state.result()
@@ -843,24 +855,24 @@ class TestInfrastructureIntegration:
     )
     async def test_agent_does_not_crashes_flow_if_already_in_terminal_state(
         self,
-        orion_client,
+        prefect_client,
         deployment,
         mock_infrastructure_run,
         caplog,
         terminal_state_type,
     ):
         infra_doc_id = deployment.infrastructure_document_id
-        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await prefect_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
 
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        flow = await orion_client.read_flow(deployment.flow_id)
+        flow = await prefect_client.read_flow(deployment.flow_id)
 
         async def update_flow_run_state():
-            await orion_client.set_flow_run_state(
+            await prefect_client.set_flow_run_state(
                 flow_run.id, State(type=terminal_state_type, message="test")
             )
 
@@ -880,15 +892,17 @@ class TestInfrastructureIntegration:
 
         assert f"Reported flow run '{flow_run.id}' as crashed" not in caplog.text
 
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.type == terminal_state_type
         assert state.message == "test"
 
 
 async def test_agent_displays_message_on_work_queue_pause(
-    orion_client, prefect_caplog, deployment
+    prefect_client, prefect_caplog, deployment
 ):
-    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+    work_queue = await prefect_client.read_work_queue_by_name(
+        deployment.work_queue_name
+    )
 
     async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
@@ -902,7 +916,7 @@ async def test_agent_displays_message_on_work_queue_pause(
             not in prefect_caplog.text
         ), "Message should not be displayed before pausing"
 
-        await orion_client.update_work_queue(work_queue.id, is_paused=True)
+        await prefect_client.update_work_queue(work_queue.id, is_paused=True)
 
         # clear agent cache
         agent._work_queue_cache_expiration = pendulum.now()
@@ -917,7 +931,7 @@ async def test_agent_displays_message_on_work_queue_pause(
 
 
 async def test_agent_with_work_queue_and_work_pool(
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -927,7 +941,7 @@ async def test_agent_with_work_queue_and_work_pool(
         pass
 
     def create_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(
+        return prefect_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
 
@@ -947,12 +961,12 @@ async def test_agent_with_work_queue_and_work_pool(
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
+    responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue_1.name],
         scheduled_before=pendulum.now().add(seconds=10),
@@ -978,7 +992,7 @@ async def test_agent_with_work_queue_and_work_pool(
 
 
 async def test_agent_with_work_pool(
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -988,7 +1002,7 @@ async def test_agent_with_work_pool(
         pass
 
     def create_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(
+        return prefect_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
 
@@ -1008,16 +1022,16 @@ async def test_agent_with_work_pool(
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue_by_name(
+    work_queue = await prefect_client.read_work_queue_by_name(
         work_pool_name=work_pool.name,
         name=work_queue_1.name,
     )
-    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
+    responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
         scheduled_before=pendulum.now().add(seconds=10),
@@ -1042,7 +1056,7 @@ async def test_agent_with_work_pool(
 
 
 async def test_agent_with_work_pool_and_work_queue_prefix(
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -1052,7 +1066,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
         pass
 
     def create_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(
+        return prefect_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
 
@@ -1072,16 +1086,16 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue_by_name(
+    work_queue = await prefect_client.read_work_queue_by_name(
         work_pool_name=work_pool.name,
         name=work_queue_1.name,
     )
-    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
+    responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
         scheduled_before=pendulum.now().add(seconds=10),
@@ -1142,7 +1156,7 @@ async def deployment_on_default_queue(
 
 
 async def test_agent_runs_high_priority_flow_runs_first(
-    orion_client: PrefectClient,
+    prefect_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     deployment_on_default_queue: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
@@ -1163,12 +1177,12 @@ async def test_agent_runs_high_priority_flow_runs_first(
         pass
 
     def create_high_priority_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(
+        return prefect_client.create_flow_run_from_deployment(
             deployment_on_default_queue.id, state=state
         )
 
     def create_low_priority_run_with_deployment(state):
-        return orion_client.create_flow_run_from_deployment(
+        return prefect_client.create_flow_run_from_deployment(
             deployment_in_non_default_work_pool.id, state=state
         )
 
@@ -1188,7 +1202,7 @@ async def test_agent_runs_high_priority_flow_runs_first(
         ),
         await create_low_priority_run_with_deployment(Running()),
         await create_low_priority_run_with_deployment(Completed()),
-        await orion_client.create_flow_run(foo, state=Scheduled()),
+        await prefect_client.create_flow_run(foo, state=Scheduled()),
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
