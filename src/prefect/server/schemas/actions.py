@@ -348,7 +348,7 @@ class FlowRunCreate(ActionBaseModel):
 
     # FlowRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
-        default=None, description="The state of the flow run to create"
+        default=None, description="prefect dev build-docs && mkdocs serve"
     )
 
     name: str = FieldFrom(schemas.core.FlowRun)
