@@ -10,8 +10,8 @@ import threading
 from typing import List, Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
-from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
 
 logger = get_logger("prefect._internal.concurrency.threads")

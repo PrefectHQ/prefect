@@ -55,6 +55,7 @@ import abc
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
+    Any,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -62,17 +63,16 @@ from typing import (
     Optional,
     Set,
     TypeVar,
-    Any,
 )
 from uuid import UUID
 
 import anyio
 
-from prefect.utilities.collections import AutoEnum
 from prefect._internal.concurrency.primitives import Event
+from prefect.client.schemas.objects import State
 from prefect.logging import get_logger
-from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     import anyio.abc

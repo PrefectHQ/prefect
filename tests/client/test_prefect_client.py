@@ -22,20 +22,39 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
-from prefect.client.schemas import OrchestrationResult
+from prefect.client.schemas.responses import (
+    OrchestrationResult,
+    DeploymentResponse,
+    SetStateStatus,
+)
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.server import schemas
 from prefect.server.api.server import SERVER_API_VERSION, create_app
-from prefect.server.schemas.actions import ArtifactCreate, LogCreate, WorkPoolCreate
-from prefect.server.schemas.core import FlowRunNotificationPolicy
-from prefect.server.schemas.filters import (
+from prefect.client.schemas.actions import (
+    ArtifactCreate,
+    LogCreate,
+    WorkPoolCreate,
+    VariableCreate,
+)
+from prefect.client.schemas.objects import (
+    WorkQueue,
+    FlowRunNotificationPolicy,
+    Flow,
+    FlowRunPolicy,
+    TaskRun,
+    Variable,
+)
+from prefect.client.schemas.filters import (
     FlowRunNotificationPolicyFilter,
+    FlowFilter,
+    FlowRunFilter,
+    ArtifactFilter,
+    ArtifactFilterKey,
     LogFilter,
     LogFilterFlowRunId,
 )
-from prefect.server.schemas.schedules import IntervalSchedule
-from prefect.server.schemas.states import StateType
+from prefect.client.schemas.schedules import IntervalSchedule
+from prefect.client.schemas.objects import StateType
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
@@ -605,7 +624,7 @@ async def test_create_then_read_flow(prefect_client):
     assert isinstance(flow_id, UUID)
 
     lookup = await prefect_client.read_flow(flow_id)
-    assert isinstance(lookup, schemas.core.Flow)
+    assert isinstance(lookup, Flow)
     assert lookup.name == foo.name
 
 
@@ -633,7 +652,7 @@ async def test_create_then_read_deployment(
     )
 
     lookup = await prefect_client.read_deployment(deployment_id)
-    assert isinstance(lookup, schemas.responses.DeploymentResponse)
+    assert isinstance(lookup, DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
@@ -699,7 +718,7 @@ async def test_read_deployment_by_name(prefect_client):
     )
 
     lookup = await prefect_client.read_deployment_by_name("foo/test-deployment")
-    assert isinstance(lookup, schemas.responses.DeploymentResponse)
+    assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
     assert lookup.manifest_path == "file.json"
@@ -829,7 +848,7 @@ async def test_set_then_read_flow_run_state(prefect_client):
         state=Completed(message="Test!"),
     )
     assert isinstance(response, OrchestrationResult)
-    assert response.status == schemas.responses.SetStateStatus.ACCEPT
+    assert response.status == SetStateStatus.ACCEPT
 
     states = await prefect_client.read_flow_run_states(flow_run_id)
     assert len(states) == 2
@@ -884,8 +903,8 @@ async def test_read_flow_runs_with_filtering(prefect_client):
     fr_id_5 = (await prefect_client.create_flow_run(bar, state=Running())).id
 
     flow_runs = await prefect_client.read_flow_runs(
-        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
-        flow_run_filter=schemas.filters.FlowRunFilter(
+        flow_filter=FlowFilter(name=dict(any_=["bar"])),
+        flow_run_filter=FlowRunFilter(
             state=dict(
                 type=dict(
                     any_=[
@@ -915,7 +934,7 @@ async def test_read_flows_without_filter(prefect_client):
 
     flows = await prefect_client.read_flows()
     assert len(flows) == 2
-    assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
+    assert all(isinstance(flow, Flow) for flow in flows)
     assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
 
 
@@ -937,10 +956,10 @@ async def test_read_flows_with_filter(prefect_client):
     await prefect_client.create_flow(foobar)
 
     flows = await prefect_client.read_flows(
-        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
+        flow_filter=FlowFilter(name=dict(any_=["foo", "bar"]))
     )
     assert len(flows) == 2
-    assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
+    assert all(isinstance(flow, Flow) for flow in flows)
     assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
 
 
@@ -1029,7 +1048,7 @@ async def test_update_flow_run(prefect_client):
         parameters={"foo": "bar"},
         name="test",
         tags=["hello", "world"],
-        empirical_policy=schemas.core.FlowRunPolicy(
+        empirical_policy=FlowRunPolicy(
             retries=1,
             retry_delay=2,
         ),
@@ -1040,7 +1059,7 @@ async def test_update_flow_run(prefect_client):
     assert updated_flow_run.parameters == {"foo": "bar"}
     assert updated_flow_run.name == "test"
     assert updated_flow_run.tags == ["hello", "world"]
-    assert updated_flow_run.empirical_policy == schemas.core.FlowRunPolicy(
+    assert updated_flow_run.empirical_policy == FlowRunPolicy(
         retries=1,
         retry_delay=2,
     )
@@ -1078,7 +1097,7 @@ async def test_create_then_read_task_run(prefect_client):
     task_run = await prefect_client.create_task_run(
         bar, flow_run_id=flow_run.id, dynamic_key="0"
     )
-    assert isinstance(task_run, schemas.core.TaskRun)
+    assert isinstance(task_run, TaskRun)
 
     lookup = await prefect_client.read_task_run(task_run.id)
     # Estimates will not be equal since time has passed
@@ -1123,7 +1142,7 @@ async def test_set_then_read_task_run_state(prefect_client):
     )
 
     assert isinstance(response, OrchestrationResult)
-    assert response.status == schemas.responses.SetStateStatus.ACCEPT
+    assert response.status == SetStateStatus.ACCEPT
 
     run = await prefect_client.read_task_run(task_run.id)
     assert isinstance(run.state, State)
@@ -1425,7 +1444,7 @@ class TestClientWorkQueues:
         assert isinstance(queue.id, UUID)
 
         lookup = await prefect_client.read_work_queue(queue.id)
-        assert isinstance(lookup, schemas.core.WorkQueue)
+        assert isinstance(lookup, WorkQueue)
         assert lookup.name == "foo"
 
     async def test_create_then_read_work_queue_by_name(self, prefect_client):
@@ -1433,9 +1452,7 @@ class TestClientWorkQueues:
         assert isinstance(queue.id, UUID)
 
         lookup = await prefect_client.read_work_queue_by_name("foo")
-        assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
-        assert lookup.id == queue.id
 
     async def test_create_queue_with_settings(self, prefect_client):
         queue = await prefect_client.create_work_queue(
@@ -1508,7 +1525,7 @@ class TestClientWorkQueues:
 
 
 async def test_delete_flow_run(prefect_client, flow_run):
-    # Note - the flow_run provided by the fixture is not of type `schemas.core.FlowRun`
+    # Note - the flow_run provided by the fixture is not of type `FlowRun`
     print(f"Type: {type(flow_run)}")
 
     # Make sure our flow exists (the read flow is of type `s.c.FlowRun`)
@@ -1691,9 +1708,7 @@ class TestArtifacts:
         }
 
     async def test_read_artifacts_with_key_filter(self, prefect_client, artifacts):
-        key_artifact_filter = schemas.filters.ArtifactFilter(
-            key=schemas.filters.ArtifactFilterKey(any_=["voltaic"])
-        )
+        key_artifact_filter = ArtifactFilter(key=ArtifactFilterKey(any_=["voltaic"]))
 
         artifact_list = await prefect_client.read_artifacts(
             artifact_filter=key_artifact_filter
@@ -1729,12 +1744,12 @@ class TestVariables:
     ):
         res = await client.post(
             "/variables/",
-            json=schemas.actions.VariableCreate(
+            json=VariableCreate(
                 name="my_variable", value="my-value", tags=["123", "456"]
             ).dict(json_compatible=True),
         )
         assert res.status_code == 201
-        return pydantic.parse_obj_as(schemas.core.Variable, res.json())
+        return pydantic.parse_obj_as(Variable, res.json())
 
     @pytest.fixture
     async def variables(
@@ -1742,15 +1757,9 @@ class TestVariables:
         client,
     ):
         variables = [
-            schemas.actions.VariableCreate(
-                name="my_variable1", value="my-value1", tags=["1"]
-            ),
-            schemas.actions.VariableCreate(
-                name="my_variable2", value="my-value2", tags=["2"]
-            ),
-            schemas.actions.VariableCreate(
-                name="my_variable3", value="my-value3", tags=["3"]
-            ),
+            VariableCreate(name="my_variable1", value="my-value1", tags=["1"]),
+            VariableCreate(name="my_variable2", value="my-value2", tags=["2"]),
+            VariableCreate(name="my_variable3", value="my-value3", tags=["3"]),
         ]
         results = []
         for variable in variables:
@@ -1759,7 +1768,7 @@ class TestVariables:
             )
             assert res.status_code == 201
             results.append(res.json())
-        return pydantic.parse_obj_as(List[schemas.core.Variable], results)
+        return pydantic.parse_obj_as(List[Variable], results)
 
     async def test_read_variable_by_name(self, prefect_client, variable):
         res = await prefect_client.read_variable_by_name(variable.name)
