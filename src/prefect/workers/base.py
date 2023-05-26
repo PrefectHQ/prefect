@@ -361,7 +361,7 @@ class BaseWorker(abc.ABC):
 
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
 
-    async def is_worker_still_polling(self) -> bool:
+    def is_worker_still_polling(self) -> bool:
         """
         If this health check is invoked, and we have not registered a poll
         in the last 5 minutes, return a 503 so that worker can be

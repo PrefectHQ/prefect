@@ -1784,15 +1784,15 @@ async def test_worker_last_polled_health_check(
     pendulum.set_test_now(now)
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        resp = await worker.is_worker_still_polling()
+        resp = worker.is_worker_still_polling()
         assert resp is True
 
         pendulum.set_test_now(now.add(seconds=299))
-        resp = await worker.is_worker_still_polling()
+        resp = worker.is_worker_still_polling()
         assert resp is True
 
         pendulum.set_test_now(now.add(seconds=301))
-        resp = await worker.is_worker_still_polling()
+        resp = worker.is_worker_still_polling()
         assert resp is False
 
         # cleanup mock
