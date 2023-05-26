@@ -7,6 +7,7 @@ import pendulum
 import pydantic
 import pytest
 from pydantic import Field
+from fastapi import status
 
 import prefect
 import prefect.server.schemas as schemas
@@ -1747,3 +1748,53 @@ async def test_get_flow_run_logger(
             "work_pool_name": "test-work-pool",
             "work_pool_id": str(work_pool.id),
         }
+
+
+async def test_worker_set_last_polled_time(
+    work_pool,
+):
+    now = pendulum.now("utc")
+    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+    pendulum.set_test_now(now)
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # initially, the worker should have _last_polled_time set to now
+        assert worker._last_polled_time == now
+
+        # some arbitrary delta forward
+        now2 = now.add(seconds=49)
+        pendulum.set_test_now(now2)
+        await worker.get_and_submit_flow_runs()
+        assert worker._last_polled_time == now2
+
+        # some arbitrary datetime
+        now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
+        pendulum.set_test_now(now3)
+        await worker.get_and_submit_flow_runs()
+        assert worker._last_polled_time == now3
+
+        # cleanup mock
+        pendulum.set_test_now()
+
+
+async def test_worker_last_polled_health_check(
+    work_pool,
+):
+    now = pendulum.now("utc")
+    # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
+    pendulum.set_test_now(now)
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        resp = await worker.check_if_worker_is_polling()
+        assert resp.status_code == status.HTTP_200_OK
+
+        pendulum.set_test_now(now.add(seconds=299))
+        resp = await worker.check_if_worker_is_polling()
+        assert resp.status_code == status.HTTP_200_OK
+
+        pendulum.set_test_now(now.add(seconds=301))
+        resp = await worker.check_if_worker_is_polling()
+        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+        # cleanup mock
+        pendulum.set_test_now()

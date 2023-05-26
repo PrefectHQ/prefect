@@ -8,6 +8,9 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
+from fastapi import status
+from fastapi.responses import JSONResponse
+
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
@@ -358,12 +361,29 @@ class BaseWorker(abc.ABC):
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
 
-    async def check_last_polled(self):
-        return {
-            "name": self.name,
-            "worker_pool": self._work_pool_name,
-            "worker_pool_queues": self._work_queues,
-        }
+        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
+
+    async def check_if_worker_is_polling(self) -> JSONResponse:
+        """
+        If this health check is invoked, and we have not registered a poll
+        in the last 5 minutes, return a 503 so that worker can be
+        restarted by a container orchestrator liveness probe (or similar)
+        """
+        seconds_since_last_poll = (
+            pendulum.now("utc") - self._last_polled_time
+        ).in_seconds()
+
+        if seconds_since_last_poll >= 300:
+            self._logger.error(
+                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
+                "and should be restarted"
+            )
+
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"message": "Worker may be unresponsive at this time"},
+            )
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
 
     @classmethod
     def get_documentation_url(cls) -> str:
@@ -494,7 +514,10 @@ class BaseWorker(abc.ABC):
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
+
         self._emit_worker_poll_flow_run_event()
+        self._last_polled_time = pendulum.now("utc")
+
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):

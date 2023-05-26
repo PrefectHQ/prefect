@@ -19,7 +19,7 @@ def start_healthcheck_server(
     webserver = FastAPI()
     router = APIRouter()
 
-    router.add_api_route("/health", worker.check_last_polled, methods=["GET"])
+    router.add_api_route("/health", worker.check_if_worker_is_polling, methods=["GET"])
     router.add_api_route("/info", worker.get_status, methods=["GET"])
 
     webserver.include_router(router)
