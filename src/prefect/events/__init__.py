@@ -1,4 +1,4 @@
-from .schemas import Event, Resource, RelatedResource
+from .schemas import Event, RelatedResource, Resource
 from .utilities import emit_event
 
 __all__ = [

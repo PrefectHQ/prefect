@@ -9,22 +9,24 @@ import pendulum
 import pydantic
 import pytest
 
+import prefect._internal.schemas.bases
 import prefect.server.utilities.schemas
 from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
     IDBaseModel,
     ORMBaseModel,
-    PrefectBaseModel,
+    PrefectBaseModel as ServerPrefectBaseModel,
     copy_model_fields,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn
+from prefect._internal.schemas.bases import PrefectBaseModel
 
 
 @contextmanager
 def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
-    original_base_model = prefect.server.utilities.schemas.PrefectBaseModel
+    original_base_model = prefect._internal.schemas.bases.PrefectBaseModel
     original_environment = os.environ.get("PREFECT_TEST_MODE")
     if test_mode_value is not None:
         os.environ["PREFECT_TEST_MODE"] = test_mode_value
@@ -34,9 +36,9 @@ def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
     try:
         # We must re-execute the module since the setting is configured at base model
         # definition time
-        importlib.reload(prefect.server.utilities.schemas)
+        importlib.reload(prefect._internal.schemas.bases)
 
-        from prefect.server.utilities.schemas import PrefectBaseModel
+        from prefect._internal.schemas.bases import PrefectBaseModel
 
         yield PrefectBaseModel
     finally:
@@ -46,7 +48,7 @@ def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
             os.environ["PREFECT_TEST_MODE"] = original_environment
 
         # We must restore this type or `isinstance` checks will fail later
-        prefect.server.utilities.schemas.PrefectBaseModel = original_base_model
+        prefect._internal.schemas.bases.PrefectBaseModel = original_base_model
 
 
 class TestExtraForbidden:
@@ -172,7 +174,7 @@ class TestPydanticSubclass:
 
 
 class TestClassmethodSubclass:
-    class Parent(PrefectBaseModel):
+    class Parent(ServerPrefectBaseModel):
         x: int
         y: int
 

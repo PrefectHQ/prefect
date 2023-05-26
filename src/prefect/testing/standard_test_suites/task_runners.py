@@ -12,8 +12,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import StateType
 from prefect.logging import get_run_logger
-from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal

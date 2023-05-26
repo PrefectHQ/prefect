@@ -1,9 +1,9 @@
 import abc
-import queue
 import asyncio
 import atexit
 import concurrent.futures
 import contextlib
+import queue
 import sys
 import threading
 from functools import partial
@@ -14,8 +14,8 @@ from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
 from prefect._internal.concurrency.timeouts import get_deadline, get_timeout
-from prefect._internal.concurrency.threads import get_global_loop, WorkerThread
 from prefect.logging import get_logger
 
 T = TypeVar("T")

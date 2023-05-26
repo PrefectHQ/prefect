@@ -13,8 +13,8 @@ Whenever a step is run, the following actions are taken:
 import subprocess
 import sys
 from typing import Optional
-from prefect._internal.concurrency.api import from_async, Call
 
+from prefect._internal.concurrency.api import Call, from_async
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
     resolve_block_document_references,

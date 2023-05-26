@@ -22,7 +22,7 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_callable,
     generate_deprecation_message,
 )
-from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect._internal.schemas.bases import PrefectBaseModel
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest

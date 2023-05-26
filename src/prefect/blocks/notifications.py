@@ -8,7 +8,6 @@ from prefect.blocks.abstract import NotificationBlock
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
 
-
 PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
 

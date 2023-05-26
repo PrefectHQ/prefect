@@ -11,9 +11,9 @@ from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
+    from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 

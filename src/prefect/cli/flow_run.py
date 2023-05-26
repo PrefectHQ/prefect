@@ -12,16 +12,15 @@ from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
-import prefect.server.schemas as schemas
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
+from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.responses import SetStateStatus
+from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
-from prefect.server.schemas.responses import SetStateStatus
-from prefect.server.schemas.sorting import FlowRunSort
-from prefect.server.schemas.states import StateType
 from prefect.states import State
 
 flow_run_app = PrefectTyper(
@@ -227,9 +226,7 @@ async def logs(
                 limit=num_logs_to_return_from_page,
                 offset=offset,
                 sort=(
-                    schemas.sorting.LogSort.TIMESTAMP_DESC
-                    if reverse or tail
-                    else schemas.sorting.LogSort.TIMESTAMP_ASC
+                    LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
                 ),
             )
 

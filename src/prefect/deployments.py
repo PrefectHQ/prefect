@@ -21,6 +21,8 @@ from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import (
@@ -33,8 +35,6 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.projects.steps import run_step
-from prefect.server import schemas
-from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -171,7 +171,7 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: schemas.core.FlowRun, client: PrefectClient, ignore_storage: bool = False
+    flow_run: FlowRun, client: PrefectClient, ignore_storage: bool = False
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -423,7 +423,7 @@ class Deployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: schemas.schedules.SCHEDULE_TYPES = None
+    schedule: SCHEDULE_TYPES = None
     is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
