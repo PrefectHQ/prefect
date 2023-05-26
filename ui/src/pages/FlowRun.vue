@@ -55,17 +55,17 @@
     getSchemaValuesWithDefaultsJson,
     CopyableWrapper,
     isPendingStateType,
-    useTabs
+    useTabs,
+    httpStatus
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { computed, watch, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
   const router = useRouter()
-
   const flowRunId = useRouteParam('flowRunId')
 
   const api = useWorkspaceApi()
@@ -112,6 +112,16 @@
     return `Flow Run: ${flowRun.value.name}`
   })
   usePageTitle(title)
+
+  watchEffect(() => {
+    if (flowRunDetailsSubscription.error) {
+      const status = httpStatus(flowRunDetailsSubscription.error)
+
+      if (status.isInRange('clientError')) {
+        router.replace(routes[404]())
+      }
+    }
+  })
 </script>
 
 <style>
