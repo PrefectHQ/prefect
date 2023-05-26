@@ -80,15 +80,33 @@ async def related_resources_from_run_context(
         async def dummy_read():
             return {}
 
-        related_objects = [
-            await _get_and_cache_related_object(
-                kind="flow-run",
-                role="flow-run",
-                client_method=client.read_flow_run,
-                obj_id=flow_run_id,
-                cache=RESOURCE_CACHE,
+        if flow_run_context:
+            related_objects.append(
+                {
+                    "kind": "flow-run",
+                    "role": "flow-run",
+                    "object": flow_run_context.flow_run,
+                },
             )
-        ]
+        else:
+            related_objects.append(
+                await _get_and_cache_related_object(
+                    kind="flow-run",
+                    role="flow-run",
+                    client_method=client.read_flow_run,
+                    obj_id=flow_run_id,
+                    cache=RESOURCE_CACHE,
+                )
+            )
+
+        if task_run_context:
+            related_objects.append(
+                {
+                    "kind": "task-run",
+                    "role": "task-run",
+                    "object": task_run_context.task_run,
+                },
+            )
 
         flow_run = related_objects[0]["object"]
 
