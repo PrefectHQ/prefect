@@ -467,6 +467,9 @@ class FlowRun(ObjectBaseModel):
         default=None, description="The id of the run's work pool queue."
     )
 
+    work_pool_id: Optional[UUID] = Field(
+        description="The work pool with which the queue is associated."
+    )
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
