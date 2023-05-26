@@ -353,35 +353,12 @@ class BaseWorker(abc.ABC):
         self._work_pool: Optional[schemas.core.WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
-
-        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
-
-    def is_worker_still_polling(self) -> bool:
-        """
-        If this health check is invoked, and we have not registered a poll
-        in the last 5 minutes, return a 503 so that worker can be
-        restarted by a container orchestrator liveness probe (or similar)
-        """
-        threshold_seconds = 300  # 5 minutes
-
-        seconds_since_last_poll = (
-            pendulum.now("utc") - self._last_polled_time
-        ).in_seconds()
-
-        is_still_polling = seconds_since_last_poll <= threshold_seconds
-
-        if not is_still_polling:
-            self._logger.error(
-                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
-                "and should be restarted"
-            )
-
-        return is_still_polling
 
     @classmethod
     def get_documentation_url(cls) -> str:
@@ -509,6 +486,31 @@ class BaseWorker(abc.ABC):
             await self._client.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
+
+    def is_worker_still_polling(self) -> bool:
+        """
+        This method is invoked by a webserver healthcheck handler
+        and returns a boolean indicating if the worker has recorded a
+        scheduled flow run poll in the last 5 minutes.
+
+        The instance property `self._last_polled_time`
+        is currently set/updated in `get_and_submit_flow_runs()`
+        """
+        threshold_seconds = 300  # 5 minutes
+
+        seconds_since_last_poll = (
+            pendulum.now("utc") - self._last_polled_time
+        ).in_seconds()
+
+        is_still_polling = seconds_since_last_poll <= threshold_seconds
+
+        if not is_still_polling:
+            self._logger.error(
+                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
+                "and should be restarted"
+            )
+
+        return is_still_polling
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
