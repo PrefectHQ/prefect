@@ -1,9 +1,5 @@
 <script src="https://cdn.amplitude.com/libs/analytics-browser-1.9.1-min.js.gz"></script>
 <script type="text/javascript">
-// Difficult to get the value from mkdocs-material config to be interpolated as
-// a boolean, so we're using a string and converting it to a boolean here.
-const amplitudeEnabledParam = "{{ config.extra.analytics.enabled }}"
-const amplitudeEnabled = amplitudeEnabledParam === 'enabled'
 const amplitudeKey = "{{ config.extra.analytics.property }}"
 const amplitudeUrl = "{{ config.extra.analytics.url }}"
 
@@ -83,7 +79,7 @@ function trackPageView() {
   )
 }
 
-if (amplitudeEnabled){
+if (amplitudeKey){
   document.addEventListener("DOMContentLoaded", function() {
       init()
       setTimeout(addDeviceIdToAppLinks)
