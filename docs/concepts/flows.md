@@ -264,6 +264,10 @@ The relationship between a child and parent flow is tracked by creating a specia
 A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field.  A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
+    
+!!! warning "Cancelling sub flow runs"
+    Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
+    
 
 ```python
 from prefect import flow, task
@@ -346,9 +350,7 @@ Subflow says: Hello Marvin!
     - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
-    
-!!! warning "Cancelling sub flow runs"
-    Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
+
 
 ## Parameters
 
