@@ -320,6 +320,12 @@ Work queues can also have their own concurrency limits. Note that each queue is 
 
 Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
+Priority is evaluated if more is scheduled than can be submitted. This can be due to Concurrency limits that limit the number of flows running, or could be due to infrastructure limits such as Kubernetes where there is insufficient CPU and/or Memory availability. In these scenarios where work is in a `SCHEDULED` state, priority becomes relevant. 
+
+Priority for flow-run submission (transitioning from `SCHEDULED` to `PENDING`) proceeds from the highest priority to the lowest priority.  In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
+
+What happens if new work is received on the "critical" queue while work is still in scheduled on the "high" and "low" queues? We go back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty in waterfall fashion.
+
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
 
