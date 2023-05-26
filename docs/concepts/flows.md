@@ -768,7 +768,9 @@ You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, o
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 !!! warning "An agent is required"
-    Flow run cancellation requires the flow run to be submitted by an agent or worker and for an agent or worker to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet. Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
+    Flow run cancellation requires the flow run to be submitted by an agent or worker and for an agent or worker to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet. 
+
+    Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
 
 Support for cancellation is included for all core library infrastructure types:
 
