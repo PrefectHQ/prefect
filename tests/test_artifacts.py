@@ -295,6 +295,22 @@ class TestCreateArtifacts:
         result_data = json.loads(result.data)
         assert result_data == my_table
 
+    async def test_create_and_read_list_of_list_table_artifact_succeeds(
+        self, artifact, client
+    ):
+        my_table = [[1, 2], [None, 4]]
+
+        artifact_id = await create_table_artifact(
+            key=artifact.key,
+            table=my_table,
+            description=artifact.description,
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result_data = json.loads(result.data)
+        assert result_data == my_table
+
     async def test_create_table_artifact_in_task_succeeds(self, client):
         @task
         def my_special_task():

@@ -1,31 +1,26 @@
 """
 Command line interface for working with work queues.
 """
-from typing import Any, Dict, Optional, Set
-
 import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import (
-    experimental,
-    experimental_parameter,
-)
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
-from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.logging.loggers import get_logger
-from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_DEBUG_MODE,
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    prompt_select_from_table,
 )
-from prefect.workers.base import BaseWorker
+from prefect.cli.root import app, is_interactive
+from prefect.client.collections import get_collections_metadata_client
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.workers.utilities import (
+    get_available_work_pool_types,
+    get_default_base_job_template_for_infrastructure_type,
+)
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
@@ -34,14 +29,6 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
-@experimental_parameter(
-    name="type",
-    group="work_pools",
-)
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
     paused: bool = typer.Option(
@@ -50,7 +37,7 @@ async def create(
         help="Whether or not to create the work pool in a paused state.",
     ),
     type: str = typer.Option(
-        "prefect-agent", "-t", "--type", help="The type of work pool to create."
+        None, "-t", "--type", help="The type of work pool to create."
     ),
 ):
     """
@@ -60,13 +47,38 @@ async def create(
     Examples:
         $ prefect work-pool create "my-pool" --paused
     """
-    # will always be an empty dict until workers added
-    base_job_template = await get_default_base_job_template_for_type(type)
-    if base_job_template is None:
-        exit_with_error(
-            f"Unknown work pool type {type!r}. "
-            f"Please choose from {', '.join(await get_available_work_pool_types())}."
+    async with get_collections_metadata_client() as collections_client:
+        if type is None:
+            if not is_interactive():
+                exit_with_error(
+                    "When not using an interactive terminal, you must supply a `--type`"
+                    " value."
+                )
+            worker_metadata = await collections_client.read_worker_metadata()
+            worker = prompt_select_from_table(
+                app.console,
+                "What infrastructure type would you like to use for this work pool?",
+                columns=[
+                    {"header": "Infrastructure Type", "key": "display_name"},
+                    {"header": "Description", "key": "description"},
+                ],
+                data=[
+                    worker
+                    for collection in worker_metadata.values()
+                    for worker in collection.values()
+                ],
+                table_kwargs={"show_lines": True},
+            )
+            type = worker["type"]
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            type
         )
+        if base_job_template is None:
+            exit_with_error(
+                f"Unknown work pool type {type!r}. "
+                "Please choose from"
+                f" {', '.join(await get_available_work_pool_types())}."
+            )
     async with get_client() as client:
         try:
             wp = WorkPoolCreate(
@@ -79,15 +91,12 @@ async def create(
             exit_with_success(f"Created work pool {work_pool.name!r}.")
         except ObjectAlreadyExists:
             exit_with_error(
-                f"Work pool {name} already exists. Please choose a different name."
+                f"Work pool named {name!r} already exists. Please try creating your"
+                " work pool again with a different name."
             )
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def ls(
     verbose: bool = typer.Option(
         False,
@@ -138,10 +147,6 @@ async def ls(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def inspect(
     name: str = typer.Argument(..., help="The name of the work pool to inspect."),
 ):
@@ -163,10 +168,6 @@ async def inspect(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def pause(
     name: str = typer.Argument(..., help="The name of the work pool to pause."),
 ):
@@ -193,10 +194,6 @@ async def pause(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def resume(
     name: str = typer.Argument(..., help="The name of the work pool to resume."),
 ):
@@ -223,10 +220,6 @@ async def resume(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
@@ -248,10 +241,6 @@ async def delete(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
     concurrency_limit: int = typer.Argument(
@@ -283,10 +272,6 @@ async def set_concurrency_limit(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
 ):
@@ -313,10 +298,6 @@ async def clear_concurrency_limit(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def preview(
     name: str = typer.Argument(None, help="The name or ID of the work pool to preview"),
     hours: int = typer.Option(
@@ -384,63 +365,3 @@ async def preview(
             ),
             style="yellow",
         )
-
-
-async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str, Any]]:
-    # Attempt to get the default base job template for the worker type
-    # from the local type registry first.
-    worker_cls = BaseWorker.get_worker_class_from_type(type)
-    if worker_cls is not None:
-        return worker_cls.get_default_base_job_template()
-
-    # If the worker type is not found in the local type registry, attempt to
-    # get the default base job template from the collections registry.
-    try:
-        worker_metadata = await _get_worker_metadata()
-
-        for collection in worker_metadata.values():
-            for worker in collection.values():
-                if worker.get("type") == type:
-                    return worker.get("default_base_job_configuration")
-    except Exception:
-        return None
-
-
-async def get_available_work_pool_types() -> Set[str]:
-    work_pool_types = BaseWorker.get_all_available_worker_types()
-
-    try:
-        worker_metadata = await _get_worker_metadata()
-        for collection in worker_metadata.values():
-            for worker in collection.values():
-                work_pool_types.append(worker.get("type"))
-    except Exception:
-        if PREFECT_DEBUG_MODE:
-            get_logger().warning(
-                "Unable to get worker metadata from the collections registry",
-                exc_info=True,
-            )
-        # Return only work pool types from the local type registry if
-        # the request to the collections registry fails.
-        pass
-
-    return set([type for type in work_pool_types if type is not None])
-
-
-async def _get_worker_metadata() -> Dict[str, Any]:
-    # TODO: Clean this up and move to a more appropriate location
-    # This might need to be its own client
-    httpx_settings = {}
-    base_url = (
-        PREFECT_CLOUD_API_URL.value()
-        if PREFECT_API_KEY.value() is not None
-        else PREFECT_API_URL.value()
-    )
-    if base_url:
-        httpx_settings["base_url"] = base_url
-    async with get_client(httpx_settings=httpx_settings) as client:
-        response = await client._client.get(
-            "collections/views/aggregate-worker-metadata"
-        )
-        response.raise_for_status()
-        return response.json()

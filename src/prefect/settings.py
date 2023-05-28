@@ -536,6 +536,18 @@ If the API does not support HTTP/2, this will have no effect and connections wil
 made via HTTP/1.1.
 """
 
+
+PREFECT_CLIENT_MAX_RETRIES = Setting(int, default=5)
+"""
+The maximum number of retries to perform on failed HTTP requests.
+
+Defaults to 5.
+Set to 0 to disable retries.
+
+See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are 
+retried.
+"""
+
 PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
 """
 A value greater than or equal to zero to control the amount of jitter added to retried
@@ -544,6 +556,7 @@ client requests. Higher values introduce larger amounts of jitter.
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
 """
+
 
 PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
     str, default="", value_callback=status_codes_as_integers_in_range

@@ -20,7 +20,7 @@ Prefect Cloud enforces the following rate limits:
 
 ## Flow and task creation rate limits
 
-Prefect Cloud limits creation of flow and task runs to: 
+Prefect Cloud limits the `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes at the following levels:
 
 - 400 per minute for personal accounts
 - 2,000 per minute for organization accounts

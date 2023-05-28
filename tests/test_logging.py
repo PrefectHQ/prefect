@@ -71,7 +71,7 @@ def dictConfigMock(monkeypatch):
 
 
 @pytest.fixture
-async def logger_test_deployment(orion_client):
+async def logger_test_deployment(prefect_client):
     """
     A deployment with a flow that returns information about the given loggers
     """
@@ -92,9 +92,9 @@ async def logger_test_deployment(orion_client):
 
         return settings
 
-    flow_id = await orion_client.create_flow(my_flow)
+    flow_id = await prefect_client.create_flow(my_flow)
 
-    deployment_id = await orion_client.create_deployment(
+    deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="logger_test_deployment",
         manifest_path="file.json",
@@ -178,13 +178,13 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
 
 @pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
 @pytest.mark.enable_api_log_handler
-async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deployment):
+async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deployment):
     """
     Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
     intended. This avoids side-effects of modifying the loggers in this test run without
     confusing mocking.
     """
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         logger_test_deployment
     )
 
@@ -194,9 +194,9 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         .run()
     )
 
-    state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state, orion_client)
-    api_logs = await orion_client.read_logs()
+    state = (await prefect_client.read_flow_run(flow_run.id)).state
+    settings = await _retrieve_result(state, prefect_client)
+    api_logs = await prefect_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
     extra_logger = logging.getLogger("prefect.extra")
@@ -275,31 +275,31 @@ class TestAPILogHandler:
 
     @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
-        self, logger, handler, flow_run, orion_client
+        self, logger, handler, flow_run, prefect_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
     @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_flush(
-        self, logger, handler, flow_run, orion_client
+        self, logger, handler, flow_run, prefect_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
     @pytest.mark.flaky
     async def test_sync_flush_from_async_context(
-        self, logger, handler, flow_run, orion_client
+        self, logger, handler, flow_run, prefect_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.flush()
@@ -307,7 +307,7 @@ class TestAPILogHandler:
         # Yield to the worker thread
         time.sleep(2)
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 1
 
     @pytest.mark.flaky
@@ -684,14 +684,14 @@ class TestAPILogWorker:
             message="hello",
         ).dict(json_compatible=True)
 
-    async def test_send_logs_single_record(self, log_dict, orion_client, worker):
+    async def test_send_logs_single_record(self, log_dict, prefect_client, worker):
         worker.send(log_dict)
         await worker.drain()
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 1
         assert logs[0].dict(include=log_dict.keys(), json_compatible=True) == log_dict
 
-    async def test_send_logs_many_records(self, log_dict, orion_client, worker):
+    async def test_send_logs_many_records(self, log_dict, prefect_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
         count = prefect.settings.PREFECT_API_DEFAULT_LIMIT.value()
         log_dict.pop("message")
@@ -702,7 +702,7 @@ class TestAPILogWorker:
             worker.send(new_log)
         await worker.drain()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == count
         for log in logs:
             assert (
@@ -751,7 +751,9 @@ class TestAPILogWorker:
 
         assert mock_create_logs.call_count == 3
 
-    async def test_logs_are_sent_immediately_when_stopped(self, log_dict, orion_client):
+    async def test_logs_are_sent_immediately_when_stopped(
+        self, log_dict, prefect_client
+    ):
         # Set a long interval
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
@@ -765,11 +767,11 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitary time less than the 10s interval
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
     async def test_logs_are_sent_immediately_when_flushed(
-        self, log_dict, orion_client, worker
+        self, log_dict, prefect_client, worker
     ):
         # Set a long interval
         start_time = time.time()
@@ -783,7 +785,7 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitary time less than the 10s interval
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
 
@@ -866,17 +868,17 @@ async def test_run_logger_with_explicit_context_of_invalid_type():
 
 
 async def test_run_logger_with_explicit_context(
-    orion_client, flow_run, local_filesystem
+    prefect_client, flow_run, local_filesystem
 ):
     @task
     def foo():
         pass
 
-    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     context = TaskRunContext.construct(
         task=foo,
         task_run=task_run,
-        client=orion_client,
+        client=prefect_client,
     )
 
     logger = get_run_logger(context)
@@ -893,7 +895,7 @@ async def test_run_logger_with_explicit_context(
 
 
 async def test_run_logger_with_explicit_context_overrides_existing(
-    orion_client, flow_run, local_filesystem
+    prefect_client, flow_run, local_filesystem
 ):
     @task
     def foo():
@@ -903,25 +905,25 @@ async def test_run_logger_with_explicit_context_overrides_existing(
     def bar():
         pass
 
-    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
     context = TaskRunContext.construct(
         task=bar,
         task_run=task_run,
-        client=orion_client,
+        client=prefect_client,
     )
 
     logger = get_run_logger(context)
     assert logger.extra["task_name"] == bar.name
 
 
-async def test_run_logger_in_flow(orion_client):
+async def test_run_logger_in_flow(prefect_client):
     @flow
     def test_flow():
         return get_run_logger()
 
     state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -931,13 +933,13 @@ async def test_run_logger_in_flow(orion_client):
     }
 
 
-async def test_run_logger_extra_data(orion_client):
+async def test_run_logger_extra_data(prefect_client):
     @flow
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
     state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -948,7 +950,7 @@ async def test_run_logger_extra_data(orion_client):
     }
 
 
-async def test_run_logger_in_nested_flow(orion_client):
+async def test_run_logger_in_nested_flow(prefect_client):
     @flow
     def child_flow():
         return get_run_logger()
@@ -958,7 +960,7 @@ async def test_run_logger_in_nested_flow(orion_client):
         return child_flow._run()
 
     child_state = await test_flow._run().result()
-    flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
     logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -968,7 +970,7 @@ async def test_run_logger_in_nested_flow(orion_client):
     }
 
 
-async def test_run_logger_in_task(orion_client):
+async def test_run_logger_in_task(prefect_client):
     @task
     def test_task():
         return get_run_logger()
@@ -978,9 +980,9 @@ async def test_run_logger_in_task(orion_client):
         return test_task._run()
 
     flow_state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
-    task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
     logger = await task_state.result()
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {

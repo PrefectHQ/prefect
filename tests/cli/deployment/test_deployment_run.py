@@ -9,8 +9,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture
-async def deployment_name(deployment, orion_client):
-    flow = await orion_client.read_flow(deployment.flow_id)
+async def deployment_name(deployment, prefect_client):
+    flow = await prefect_client.read_flow(deployment.flow_id)
     return f"{flow.name}/{deployment.name}"
 
 
@@ -22,7 +22,7 @@ def frozen_now(monkeypatch):
 
 
 async def test_run_deployment_only_creates_one_flow_run(
-    deployment_name: str, orion_client: prefect.PrefectClient, deployment
+    deployment_name: str, prefect_client: prefect.PrefectClient, deployment
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -33,7 +33,7 @@ async def test_run_deployment_only_creates_one_flow_run(
         ],
     )
 
-    flow_runs = await orion_client.read_flow_runs()
+    flow_runs = await prefect_client.read_flow_runs()
     assert len(flow_runs) == 1
     flow_run = flow_runs[0]
 
@@ -158,7 +158,7 @@ async def test_start_at_option_schedules_flow_run(
     deployment_name: str,
     start_at: str,
     expected_start_time: DateTime,
-    orion_client: prefect.PrefectClient,
+    prefect_client: prefect.PrefectClient,
 ):
     expected_display = expected_start_time.to_datetime_string()
 
@@ -174,7 +174,7 @@ async def test_start_at_option_schedules_flow_run(
         expected_output_contains=f"Scheduled start time: {expected_display}",
     )
 
-    flow_runs = await orion_client.read_flow_runs()
+    flow_runs = await prefect_client.read_flow_runs()
     assert len(flow_runs) == 1
     flow_run = flow_runs[0]
 
@@ -198,7 +198,7 @@ async def test_start_at_option_with_tz_schedules_flow_run(
     deployment_name: str,
     start_at: str,
     expected_start_time: DateTime,
-    orion_client: prefect.PrefectClient,
+    prefect_client: prefect.PrefectClient,
 ):
     expected_start_time_local = expected_start_time.in_tz(pendulum.tz.local_timezone())
     expected_display = (
@@ -219,7 +219,7 @@ async def test_start_at_option_with_tz_schedules_flow_run(
         expected_output_contains=f"Scheduled start time: {expected_display}",
     )
 
-    flow_runs = await orion_client.read_flow_runs()
+    flow_runs = await prefect_client.read_flow_runs()
     assert len(flow_runs) == 1
     flow_run = flow_runs[0]
 
@@ -300,7 +300,7 @@ async def test_start_in_option_displays_scheduled_start_time(
 async def test_start_in_option_schedules_flow_run(
     deployment_name: str,
     frozen_now: DateTime,
-    orion_client: prefect.PrefectClient,
+    prefect_client: prefect.PrefectClient,
     start_in: str,
     expected_duration: Duration,
 ):
@@ -321,7 +321,7 @@ async def test_start_in_option_schedules_flow_run(
         expected_output_contains=f"Scheduled start time: {expected_display}",
     )
 
-    flow_runs = await orion_client.read_flow_runs()
+    flow_runs = await prefect_client.read_flow_runs()
     assert len(flow_runs) == 1
     flow_run = flow_runs[0]
 
@@ -352,7 +352,7 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     deployment_name: str,
     start_time: str,
     expected_start_time: DateTime,
-    orion_client: prefect.PrefectClient,
+    prefect_client: prefect.PrefectClient,
 ):
     """
     Passing a date (rather than something like `5 minutes`) as an argument to start_in results in a scheduled flow run,
@@ -392,7 +392,7 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
         expected_output_contains=f"Scheduled start time: {expected_display}",
     )
 
-    flow_runs = await orion_client.read_flow_runs()
+    flow_runs = await prefect_client.read_flow_runs()
 
     assert len(flow_runs) == 2
     start_at_flow_run = flow_runs[0]

@@ -90,7 +90,8 @@ class TestCreateVariable:
         assert res.status_code == 422
         assert (
             res.json()["exception_detail"][0]["msg"]
-            == "name must only contain lowercase letters, numbers, and underscores"
+            == "Variable name must only contain lowercase letters, numbers, and"
+            " underscores."
         )
 
     async def test_name_unique(
@@ -534,6 +535,54 @@ class TestUpdateVariable:
         assert res
         assert res.status_code == 409
 
+    async def test_name_max_length(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        max_length = 255
+
+        res = await client.patch(
+            f"/variables/{variable.id}", json={"name": "v" * max_length}
+        )
+        assert res
+        assert res.status_code == 204
+
+        max_length_plus1 = max_length + 1
+
+        res = await client.patch(
+            f"/variables/{variable.id}", json={"name": "v" * max_length_plus1}
+        )
+        assert res
+        assert res.status_code == 422
+        assert (
+            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_value_max_length(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        max_length = 5000
+
+        res = await client.patch(
+            f"/variables/{variable.id}", json={"value": "v" * max_length}
+        )
+        assert res
+        assert res.status_code == 204
+
+        max_length_plus1 = max_length + 1
+
+        res = await client.patch(
+            f"/variables/{variable.id}", json={"value": "v" * max_length_plus1}
+        )
+        assert res
+        assert res.status_code == 422
+        assert (
+            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
+        )
+
 
 class TestUpdateVariableByName:
     async def test_update_variable(
@@ -583,6 +632,54 @@ class TestUpdateVariableByName:
             json=same_name_update.dict(json_compatible=True),
         )
         assert res.status_code == 409
+
+    async def test_name_max_length(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        max_length = 255
+
+        res = await client.patch(
+            f"/variables/name/{variable.name}", json={"name": "v" * max_length}
+        )
+        assert res
+        assert res.status_code == 204
+
+        max_length_plus1 = max_length + 1
+
+        res = await client.patch(
+            f"/variables/name/{variable.name}", json={"name": "v" * max_length_plus1}
+        )
+        assert res
+        assert res.status_code == 422
+        assert (
+            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_value_max_length(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        max_length = 5000
+
+        res = await client.patch(
+            f"/variables/name/{variable.name}", json={"value": "v" * max_length}
+        )
+        assert res
+        assert res.status_code == 204
+
+        max_length_plus1 = max_length + 1
+
+        res = await client.patch(
+            f"/variables/name/{variable.name}", json={"value": "v" * max_length_plus1}
+        )
+        assert res
+        assert res.status_code == 422
+        assert (
+            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestDeleteVariable:

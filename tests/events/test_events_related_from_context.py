@@ -52,9 +52,9 @@ async def test_gracefully_handles_missing_context():
 
 
 async def test_gets_related_from_run_context(
-    orion_client, work_queue_1, worker_deployment_wq1
+    prefect_client, work_queue_1, worker_deployment_wq1
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
         state=Running(),
         tags=["flow-run-one"],
@@ -64,7 +64,7 @@ async def test_gets_related_from_run_context(
         related = await related_resources_from_run_context()
 
     work_pool = work_queue_1.work_pool
-    db_flow = await orion_client.read_flow(flow_run.flow_id)
+    db_flow = await prefect_client.read_flow(flow_run.flow_id)
 
     assert related == [
         RelatedResource(
@@ -117,7 +117,7 @@ async def test_gets_related_from_run_context(
     ]
 
 
-async def test_can_exclude_by_resource_id(orion_client):
+async def test_can_exclude_by_resource_id(prefect_client):
     @flow
     async def test_flow():
         flow_run_context = FlowRunContext.get()
@@ -128,14 +128,14 @@ async def test_can_exclude_by_resource_id(orion_client):
 
     state = await test_flow._run()
 
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
 
     related = await state.result()
 
     assert f"prefect.flow-run.{flow_run.id}" not in related
 
 
-async def test_gets_flow_run_from_task_run_context(orion_client):
+async def test_gets_related_from_task_run_context(prefect_client):
     @task
     async def test_task():
         # Clear the FlowRunContext to simulated a task run in a remote worker.
@@ -144,14 +144,16 @@ async def test_gets_flow_run_from_task_run_context(orion_client):
 
     @flow
     async def test_flow():
-        return await test_task()
+        return await test_task._run()
 
     state = await test_flow._run()
+    task_state = await state.result()
 
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    db_flow = await orion_client.read_flow(flow_run.flow_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
+    db_flow = await prefect_client.read_flow(flow_run.flow_id)
+    task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
 
-    related = await state.result()
+    related = await task_state.result()
 
     assert related == [
         RelatedResource(
@@ -159,6 +161,13 @@ async def test_gets_flow_run_from_task_run_context(orion_client):
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+                "prefect.resource.role": "task-run",
+                "prefect.resource.name": task_run.name,
             }
         ),
         RelatedResource(

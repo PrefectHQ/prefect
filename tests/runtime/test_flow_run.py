@@ -86,8 +86,8 @@ class TestTags:
 
         assert flow_run.tags == []
 
-    async def test_tags_pulls_from_api_when_needed(self, monkeypatch, orion_client):
-        run = await orion_client.create_flow_run(
+    async def test_tags_pulls_from_api_when_needed(self, monkeypatch, prefect_client):
+        run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"), tags=["red", "green"]
         )
         assert flow_run.tags == []
@@ -105,10 +105,10 @@ class TestStartTime:
         assert isinstance(flow_run.scheduled_start_time, datetime.datetime)
 
     async def test_scheduled_start_time_pulls_from_api_when_needed(
-        self, monkeypatch, orion_client
+        self, monkeypatch, prefect_client
     ):
         TIMESTAMP = pendulum.now("utc").add(days=7)
-        run = await orion_client.create_flow_run(
+        run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"),
             state=states.Scheduled(scheduled_time=TIMESTAMP),
         )
@@ -134,8 +134,8 @@ class TestName:
 
         assert flow_run.name is None
 
-    async def test_name_pulls_from_api_when_needed(self, monkeypatch, orion_client):
-        run = await orion_client.create_flow_run(
+    async def test_name_pulls_from_api_when_needed(self, monkeypatch, prefect_client):
+        run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"), name="foo"
         )
         assert flow_run.name is None
@@ -163,9 +163,9 @@ class TestFlowName:
         assert flow_run.flow_name is None
 
     async def test_flow_name_pulls_from_api_when_needed(
-        self, monkeypatch, orion_client
+        self, monkeypatch, prefect_client
     ):
-        run = await orion_client.create_flow_run(
+        run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="foo"), name="bar"
         )
         assert flow_run.flow_name is None
@@ -188,8 +188,8 @@ class TestParameters:
         ):
             assert flow_run.parameters == {"x": "foo", "y": "bar"}
 
-    async def test_parameters_from_api(self, monkeypatch, orion_client):
-        run = await orion_client.create_flow_run(
+    async def test_parameters_from_api(self, monkeypatch, prefect_client):
+        run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="foo"), parameters={"x": "foo", "y": "bar"}
         )
 
