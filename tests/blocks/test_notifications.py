@@ -4,6 +4,7 @@ from unittest.mock import patch, Mock
 
 import cloudpickle
 import pytest
+import respx
 
 import prefect
 from prefect.blocks.notifications import (
@@ -370,138 +371,159 @@ class TestTwilioSMS:
             assert "Dropped invalid phone # (0000000) specified." in caplog.text
 
 
-class HttpxResponseMock:
-    def __init__(self) -> None:
-        self.raise_for_status = Mock()
-
-
 class TestCustomWebhook:
-    async def _test_notify_async(
-        self,
-        data: dict,
-        expected_call: dict,
-        body: str = "test",
-        subject: Optional[str] = "subject",
-    ):
-        with patch("httpx.AsyncClient", autospec=True) as HttpxClientMock:
-            reload_modules()
-
-            httpx_instance_mock = HttpxClientMock.return_value
-            resp_mock = HttpxResponseMock()
-            httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
-
-            custom_block = CustomWebhookNotificationBlock(**data)
-            await custom_block.notify(body, subject)
-
-            HttpxClientMock.assert_called_once_with(
-                headers={"user-agent": "Prefect Notifications"}
-            )
-            httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
-            resp_mock.raise_for_status.assert_called_once()
-
-    def _test_notify_sync(
-        self,
-        data: dict,
-        expected_call: dict,
-        body: str = "test",
-        subject: Optional[str] = "subject",
-    ):
-        with patch("httpx.AsyncClient", autospec=True) as HttpxClientMock:
-            reload_modules()
-
-            httpx_instance_mock = HttpxClientMock.return_value
-            resp_mock = HttpxResponseMock()
-            httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
-
-            custom_block = CustomWebhookNotificationBlock(**data)
-            custom_block.notify(body, subject)
-
-            HttpxClientMock.assert_called_once_with(
-                headers={"user-agent": "Prefect Notifications"}
-            )
-            httpx_instance_mock.request.assert_awaited_once_with(**expected_call)
-            resp_mock.raise_for_status.assert_called_once()
-
     async def test_notify_async(self):
-        await self._test_notify_async(
-            {
-                "name": "test name",
-                "url": "https://example.com/",
-                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
-                "secrets": {"token": "someSecretToken"},
-            },
-            expected_call={
-                "method": "POST",
-                "url": "https://example.com/",
-                "params": None,
-                "data": None,
-                "json": {"msg": "subject\ntest", "token": "someSecretToken"},
-                "headers": None,
-                "cookies": None,
-                "timeout": 10,
-            },
-        )
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            await custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert last_req.content == (
+                b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
 
     def test_notify_sync(self):
-        self._test_notify_sync(
-            {
-                "name": "test name",
-                "url": "https://example.com/",
-                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
-                "secrets": {"token": "someSecretToken"},
-            },
-            expected_call={
-                "method": "POST",
-                "url": "https://example.com/",
-                "params": None,
-                "data": None,
-                "json": {"msg": "subject\ntest", "token": "someSecretToken"},
-                "headers": None,
-                "cookies": None,
-                "timeout": 10,
-            },
-        )
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert last_req.content == (
+                b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_user_agent_override(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                headers={"user-agent": "CustomUA"},
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "CustomUA"
+            assert last_req.content == (
+                b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_timeout_override(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+                timeout=30,
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.content == (
+                b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
+            }
+
+    def test_request_cookie(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                cookies={"key": "{{cookie}}"},
+                secrets={"token": "someSecretToken", "cookie": "secretCookieValue"},
+                timeout=30,
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["cookie"] == "key=secretCookieValue"
+            assert last_req.content == (
+                b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
+            }
 
     def test_subst_nested_list(self):
-        self._test_notify_sync(
-            {
-                "name": "test name",
-                "url": "https://example.com/",
-                "json_data": {"data": {"sub1": [{"in-list": "{{body}}"}]}},
-                "secrets": {"token": "someSecretToken"},
-            },
-            expected_call={
-                "method": "POST",
-                "url": "https://example.com/",
-                "params": None,
-                "data": None,
-                "json": {"data": {"sub1": [{"in-list": "test"}]}},
-                "headers": None,
-                "cookies": None,
-                "timeout": 10,
-            },
-        )
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={
+                    "data": {"sub1": [{"in-list": "{{body}}", "name": "{{name}}"}]}
+                },
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert last_req.content == (
+                b'{"data": {"sub1": [{"in-list": "test", "name": "test name"}]}}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
 
     def test_subst_none(self):
-        self._test_notify_sync(
-            {
-                "name": "test name",
-                "url": "https://example.com/",
-                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
-                "secrets": {"token": "someSecretToken"},
-            },
-            expected_call={
-                "method": "POST",
-                "url": "https://example.com/",
-                "params": None,
-                "data": None,
-                "json": {"msg": "null\ntest", "token": "someSecretToken"},
-                "headers": None,
-                "cookies": None,
-                "timeout": 10,
-            },
-            subject=None,
-        )
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            # subject=None
+            custom_block.notify("test", None)
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert last_req.content == (
+                b'{"msg": "null\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
 
     def test_is_picklable(self):
         reload_modules()
