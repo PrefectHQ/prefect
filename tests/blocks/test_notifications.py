@@ -390,8 +390,7 @@ class TestCustomWebhook:
             resp_mock = HttpxResponseMock()
             httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
 
-            # use validate here to match alias for 'json'
-            custom_block = CustomWebhookNotificationBlock.validate(data)
+            custom_block = CustomWebhookNotificationBlock(**data)
             await custom_block.notify(body, subject)
 
             HttpxClientMock.assert_called_once_with(
@@ -414,7 +413,7 @@ class TestCustomWebhook:
             resp_mock = HttpxResponseMock()
             httpx_instance_mock.request = AsyncMock(return_value=resp_mock)
 
-            custom_block = CustomWebhookNotificationBlock.validate(data)
+            custom_block = CustomWebhookNotificationBlock(**data)
             custom_block.notify(body, subject)
 
             HttpxClientMock.assert_called_once_with(
@@ -428,7 +427,7 @@ class TestCustomWebhook:
             {
                 "name": "test name",
                 "url": "https://example.com/",
-                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 "secrets": {"token": "someSecretToken"},
             },
             expected_call={
@@ -448,7 +447,7 @@ class TestCustomWebhook:
             {
                 "name": "test name",
                 "url": "https://example.com/",
-                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 "secrets": {"token": "someSecretToken"},
             },
             expected_call={
@@ -468,7 +467,7 @@ class TestCustomWebhook:
             {
                 "name": "test name",
                 "url": "https://example.com/",
-                "json": {"data": {"sub1": [{"in-list": "${body}"}]}},
+                "json_data": {"data": {"sub1": [{"in-list": "{{body}}"}]}},
                 "secrets": {"token": "someSecretToken"},
             },
             expected_call={
@@ -488,7 +487,7 @@ class TestCustomWebhook:
             {
                 "name": "test name",
                 "url": "https://example.com/",
-                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
+                "json_data": {"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 "secrets": {"token": "someSecretToken"},
             },
             expected_call={
@@ -506,13 +505,11 @@ class TestCustomWebhook:
 
     def test_is_picklable(self):
         reload_modules()
-        block = CustomWebhookNotificationBlock.validate(
-            {
-                "name": "test name",
-                "url": "https://example.com/",
-                "json": {"msg": "${subject}\n${body}", "token": "${token}"},
-                "secrets": {"token": "someSecretToken"},
-            }
+        block = CustomWebhookNotificationBlock(
+            name="test name",
+            url="https://example.com/",
+            json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+            secrets={"token": "someSecretToken"},
         )
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -520,23 +517,19 @@ class TestCustomWebhook:
 
     def test_invalid_key_raises_validation_error(self):
         with pytest.raises(KeyError):
-            CustomWebhookNotificationBlock.validate(
-                {
-                    "name": "test name",
-                    "url": "https://example.com/",
-                    "json": {"msg": "${subject}\n${body}", "token": "${token}"},
-                    "secrets": {"token2": "someSecretToken"},
-                }
+            CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token2": "someSecretToken"},
             )
 
     def test_provide_both_data_and_json_raises_validation_error(self):
         with pytest.raises(ValueError):
-            CustomWebhookNotificationBlock.validate(
-                {
-                    "name": "test name",
-                    "url": "https://example.com/",
-                    "data": {"msg": "${subject}\n${body}", "token": "${token}"},
-                    "json": {"msg": "${subject}\n${body}", "token": "${token}"},
-                    "secrets": {"token": "someSecretToken"},
-                }
+            CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                form_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
             )

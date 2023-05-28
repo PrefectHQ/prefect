@@ -9,7 +9,7 @@ from prefect.blocks.abstract import NotificationBlock
 from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
-
+from prefect.utilities.templating import apply_values, find_placeholders
 
 PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
@@ -491,41 +491,11 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         self._start_apprise_client(url)
 
 
-class SubstitutionHelper:
-    """A helper class for value substitution
-
-    It will be used to replace any `${key}` in strings inside nested data
-    with value in context.
-    """
-
-    def __init__(self, data: dict) -> None:
-        self.data = data
-
-    def get(self, m: re.Match):
-        key = m.group(1)
-        val = self.data[key]
-        if val is None:
-            return "null"
-        return str(val)
-
-    def handle(self, val: Any):
-        """Do substitution"""
-        if val is None:
-            return None
-        if isinstance(val, dict):
-            return {key: self.handle(subval) for key, subval in val.items()}
-        if isinstance(val, list):
-            return [self.handle(subval) for subval in val]
-        if isinstance(val, str):
-            return re.sub(r"\$\{(\w+)\}", self.get, val)
-        return val
-
-
 class CustomWebhookNotificationBlock(NotificationBlock):
     """
     Enables sending notifications via any custom webhook.
 
-    All nested string param contains `${key}` will be substituted with value from context/secrets.
+    All nested string param contains `{{key}}` will be substituted with value from context/secrets.
 
     Context values include: `subject`, `body` and `name`.
 
@@ -557,22 +527,21 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     )
 
     params: Optional[Dict[str, str]] = Field(
-        default=None, title="Query params", description="Custom query params."
+        default=None, title="Query Params", description="Custom query params."
     )
     json_data: Optional[dict] = Field(
         default=None,
-        alias="json",
-        title="Json data",
+        title="JSON Data",
         description="Send json data as payload.",
-        example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
+        example='{"text":"{{subject}}\n{{body}}","title":"{{name}}","token":"{{tokenFromSecrets}}"}',
     )
-    data: Optional[Dict[str, str]] = Field(
+    form_data: Optional[Dict[str, str]] = Field(
         default=None,
-        title="Form data",
+        title="Form Data",
         description=(
-            "Send form data as payload. Should not be used together with `json`."
+            "Send form data as payload. Should not be used together with `JSON Data`."
         ),
-        example='{"text":"${subject}\n${body}","title":"${name}","token":"${tokenFromSecrets}"}',
+        example='{"text":"{{subject}}\n{{body}}","title":"{{name}}","token":"{{tokenFromSecrets}}"}',
     )
 
     headers: Optional[Dict[str, str]] = Field(None, description="Custom headers.")
@@ -584,33 +553,55 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     secrets: SecretDict = Field(
         default_factory=lambda: SecretDict(dict()),
-        title="Custom Secret values",
+        title="Custom Secret Values",
         description="A dictionary of secret values to be substituted in other configs.",
         example='{"tokenFromSecrets":"SomeSecretToken"}',
     )
 
     def _build_request_args(self, body: str, subject: Optional[str]):
         """Build kwargs for httpx.AsyncClient.request"""
-        # prepare SubstitutionHelper
-        ctx = SubstitutionHelper(self.secrets.get_secret_value())
-        ctx.data.update({"subject": subject, "body": body, "name": self.name})
+        # prepare values
+        values = self.secrets.get_secret_value()
+        # use 'null' when subject is None
+        values.update(
+            {
+                "subject": 'null' if subject is None else subject,
+                "body": body,
+                "name": self.name,
+            }
+        )
         # do substution
-        return {
-            "method": self.method,
-            "url": ctx.handle(self.url),
-            "params": ctx.handle(self.params),
-            "data": ctx.handle(self.data),
-            "json": ctx.handle(self.json_data),
-            "headers": ctx.handle(self.headers),
-            "cookies": ctx.handle(self.cookies),
-            "timeout": self.timeout,
-        }
+        return apply_values(
+            {
+                "method": self.method,
+                "url": self.url,
+                "params": self.params,
+                "data": self.form_data,
+                "json": self.json_data,
+                "headers": self.headers,
+                "cookies": self.cookies,
+                "timeout": self.timeout,
+            },
+            values,
+        )
 
     def block_initialization(self) -> None:
-        # test substitution to raise a type error early
-        if self.data is not None and self.json_data is not None:
-            raise ValueError("both `data` and `json` provided")
-        self._build_request_args("test", "subject")
+        # check form_data and json_data
+        if self.form_data is not None and self.json_data is not None:
+            raise ValueError("both `Form Data` and `JSON Data` provided")
+        allowed_keys = {'subject', 'body', 'name'}.union(
+            self.secrets.get_secret_value().keys()
+        )
+        # test template to raise a error early
+        for name in ['url', 'params', 'form_data', 'json_data', 'headers', 'cookies']:
+            template = getattr(self, name)
+            if template is None:
+                continue
+            # check for placeholders not in predefined keys and secrets
+            placeholders = find_placeholders(template)
+            for placeholder in placeholders:
+                if placeholder.name not in allowed_keys:
+                    raise KeyError(f'{name}/{placeholder}')
 
     @sync_compatible
     @instrument_instance_method_call()
