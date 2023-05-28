@@ -1,6 +1,6 @@
 from importlib import reload
-from typing import Optional, Type
-from unittest.mock import patch, Mock
+from typing import Type
+from unittest.mock import patch
 
 import cloudpickle
 import pytest
