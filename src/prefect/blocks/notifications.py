@@ -1,6 +1,5 @@
 from abc import ABC
-import re
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
