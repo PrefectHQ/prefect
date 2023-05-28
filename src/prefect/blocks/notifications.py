@@ -18,14 +18,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal[
-        "prefect_default", "info", "success", "warning", "failure"
-    ] = Field(
-        default=PREFECT_NOTIFY_TYPE_DEFAULT,
-        description=(
-            "The type of notification being performed; the prefect_default "
-            "is a plain notification that does not attach an image."
-        ),
+    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
+        Field(
+            default=PREFECT_NOTIFY_TYPE_DEFAULT,
+            description=(
+                "The type of notification being performed; the prefect_default "
+                "is a plain notification that does not attach an image."
+            ),
+        )
     )
 
     def __init__(self, *args, **kwargs):
@@ -564,7 +564,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         # use 'null' when subject is None
         values.update(
             {
-                "subject": 'null' if subject is None else subject,
+                "subject": "null" if subject is None else subject,
                 "body": body,
                 "name": self.name,
             }
@@ -588,11 +588,11 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         # check form_data and json_data
         if self.form_data is not None and self.json_data is not None:
             raise ValueError("both `Form Data` and `JSON Data` provided")
-        allowed_keys = {'subject', 'body', 'name'}.union(
+        allowed_keys = {"subject", "body", "name"}.union(
             self.secrets.get_secret_value().keys()
         )
         # test template to raise a error early
-        for name in ['url', 'params', 'form_data', 'json_data', 'headers', 'cookies']:
+        for name in ["url", "params", "form_data", "json_data", "headers", "cookies"]:
             template = getattr(self, name)
             if template is None:
                 continue
@@ -600,7 +600,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             placeholders = find_placeholders(template)
             for placeholder in placeholders:
                 if placeholder.name not in allowed_keys:
-                    raise KeyError(f'{name}/{placeholder}')
+                    raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
     @instrument_instance_method_call()
