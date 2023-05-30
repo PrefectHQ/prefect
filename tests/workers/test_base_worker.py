@@ -1201,7 +1201,7 @@ class TestPrepareForFlowRun:
 
     @pytest.fixture
     def flow_run(self):
-        return FlowRun(name="my-flow-run-name")
+        return FlowRun(name="my-flow-run-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
     def deployment(self):

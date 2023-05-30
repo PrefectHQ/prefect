@@ -12,6 +12,19 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    WorkPoolFilter,
+    WorkPoolFilterName,
+    WorkQueueFilter,
+    WorkQueueFilterName,
+)
+from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
 from prefect.events import Event, emit_event
@@ -23,21 +36,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, get_logger, flow_run_logger
-from prefect.server import schemas
-from prefect.server.schemas.actions import WorkPoolUpdate
-from prefect.server.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    FlowRunFilterState,
-    FlowRunFilterStateName,
-    FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
-    WorkQueueFilter,
-    WorkQueueFilterName,
-)
-from prefect.server.schemas.states import StateType
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
@@ -46,9 +45,8 @@ from prefect.utilities.templating import apply_values, resolve_block_document_re
 from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import (
+    from prefect.client.schemas.objects import Flow, FlowRun
+    from prefect.client.schemas.responses import (
         DeploymentResponse,
         WorkerFlowRunResponse,
     )
@@ -350,7 +348,7 @@ class BaseWorker(abc.ABC):
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
 
-        self._work_pool: Optional[schemas.core.WorkPool] = None
+        self._work_pool: Optional[WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
@@ -648,9 +646,7 @@ class BaseWorker(abc.ABC):
         except ObjectNotFound:
             if self._create_pool_if_not_found:
                 work_pool = await self._client.create_work_pool(
-                    work_pool=schemas.actions.WorkPoolCreate(
-                        name=self._work_pool_name, type=self.type
-                    )
+                    work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
                 )
                 self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
             else:

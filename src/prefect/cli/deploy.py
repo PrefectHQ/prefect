@@ -4,37 +4,36 @@ from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from rich.console import Console
 
 import typer
 import typer.core
 import yaml
+from rich.console import Console
 from rich.panel import Panel
 
 import prefect
+import prefect.context
+import prefect.settings
+from prefect.cli._utilities import exit_with_error, prompt, prompt_select_from_table
+from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
-from prefect.client.utilities import inject_client
-import prefect.context
-from prefect.logging.loggers import get_logger
-from prefect.server.schemas.actions import WorkPoolCreate
-import prefect.settings
-from prefect.cli._utilities import exit_with_error, prompt
-from prefect.cli.root import app, is_interactive
-from prefect.exceptions import ObjectNotFound
-from prefect.flows import load_flow_from_entrypoint
-from prefect.projects import find_prefect_directory, register_flow
-from prefect.projects.steps import run_step
-from prefect.server.schemas.schedules import (
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.client.utilities import inject_client
+from prefect.exceptions import ObjectNotFound
+from prefect.flows import load_flow_from_entrypoint
+from prefect.logging.loggers import get_logger
+from prefect.projects import find_prefect_directory, register_flow
+from prefect.projects.steps import run_step
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
-from prefect.cli._utilities import prompt_select_from_table
 
 
 @app.command()

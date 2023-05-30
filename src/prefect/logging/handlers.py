@@ -15,14 +15,14 @@ from typing_extensions import Self
 
 import prefect.context
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
 from prefect._internal.concurrency.threads import in_global_loop
-from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import LogCreate
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
-from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_LOGGING_COLORS,

@@ -5,8 +5,8 @@ import readchar
 from typer import Exit
 
 from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import WorkPoolUpdate
-from prefect.server.schemas.core import WorkPool
+from prefect.client.schemas.actions import WorkPoolUpdate
+from prefect.client.schemas.objects import WorkPool
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.process import ProcessWorker

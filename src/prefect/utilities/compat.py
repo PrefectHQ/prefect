@@ -3,10 +3,10 @@ Utilities for Python version compatibility
 """
 # Please organize additions to this file by version
 
+import asyncio
+import os
 import shutil
 import sys
-import os
-import asyncio
 
 if sys.version_info < (3, 10):
     import importlib_metadata

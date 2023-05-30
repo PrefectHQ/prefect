@@ -3,7 +3,6 @@ import statistics
 import sys
 import time
 from contextlib import contextmanager
-from functools import partial
 from typing import List
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -42,9 +41,9 @@ from prefect.exceptions import (
     PausedRun,
     SignatureMismatchError,
 )
+from prefect.server.schemas.core import FlowRun
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.schemas.actions import FlowRunCreate
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
@@ -285,12 +284,8 @@ class TestBlockingPause:
 
 class TestNonblockingPause:
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
-        self, prefect_client, deployment, monkeypatch
+        self, prefect_client, deployment, session
     ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
         flow_run_id = None
 
         @task
@@ -301,6 +296,17 @@ class TestNonblockingPause:
         async def pausing_flow_without_blocking():
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
+
+            # Add the deployment id to the flow run to allow a pause
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
@@ -320,19 +326,24 @@ class TestNonblockingPause:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_gracefully_exit_with_reschedule_flag(
-        self, prefect_client, deployment, monkeypatch
+        self, session, deployment
     ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
-
         @task
         async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
+            # Add the deployment id to the flow run to allow a pause
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                prefect.runtime.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
@@ -344,12 +355,8 @@ class TestNonblockingPause:
             await pausing_flow_without_blocking()
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
-        self, prefect_client, deployment, monkeypatch
+        self, prefect_client, deployment, session
     ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
         flow_run_id = None
 
         @task
@@ -360,6 +367,17 @@ class TestNonblockingPause:
         async def pausing_flow_without_blocking():
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
+
+            # Add the deployment id to the flow run to allow a pause
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
@@ -378,13 +396,8 @@ class TestNonblockingPause:
         assert flow_run.state.is_scheduled()
 
     async def test_subflows_cannot_be_paused_with_reschedule_flag(
-        self, prefect_client, deployment, monkeypatch
+        self, deployment, session
     ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
-
         @task
         async def foo():
             return 42
@@ -406,7 +419,7 @@ class TestNonblockingPause:
             await wrapper_flow()
 
     async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
-        self, prefect_client
+        self,
     ):
         @task
         async def foo():
@@ -429,13 +442,8 @@ class TestNonblockingPause:
 
 class TestOutOfProcessPause:
     async def test_flows_can_be_paused_out_of_process(
-        self, prefect_client, deployment, monkeypatch
+        self, prefect_client, deployment, session
     ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
-
         @task
         async def foo():
             return 42
@@ -446,6 +454,16 @@ class TestOutOfProcessPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
+            # Add the deployment id to the flow run to allow a pause
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                prefect.runtime.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
             context = FlowRunContext.get()
             x = await foo.submit()
             y = await foo.submit()
@@ -455,7 +473,9 @@ class TestOutOfProcessPause:
             await foo(wait_for=[x, y])
 
         flow_run_state = await pausing_flow_without_blocking(return_state=True)
-        assert flow_run_state.is_paused()
+        with pytest.raises(PausedRun):
+            await flow_run_state.result()
+
         flow_run_id = flow_run_state.state_details.flow_run_id
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
@@ -470,20 +490,23 @@ class TestOutOfProcessPause:
             len(paused_task_runs) == 1
         ), "one task run should have exited with a paused state"
 
-    async def test_out_of_process_pauses_exit_gracefully(
-        self, prefect_client, deployment, monkeypatch
-    ):
-        frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr(
-            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
-        )
-
+    async def test_out_of_process_pauses_exit_gracefully(self, deployment, session):
         @task
         async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
+            # Add the deployment id to the flow run to allow a pause
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                prefect.runtime.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
             context = FlowRunContext.get()
             x = await foo.submit()
             y = await foo.submit()

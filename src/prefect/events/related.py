@@ -19,9 +19,9 @@ from pendulum.datetime import DateTime
 from .schemas import RelatedResource
 
 if TYPE_CHECKING:
-    from prefect.server.utilities.schemas import ORMBaseModel
+    from prefect._internal.schemas.bases import ObjectBaseModel
 
-ResourceCacheEntry = Dict[str, Union[str, "ORMBaseModel", None]]
+ResourceCacheEntry = Dict[str, Union[str, "ObjectBaseModel", None]]
 RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
 
 MAX_CACHE_SIZE = 100
@@ -80,15 +80,33 @@ async def related_resources_from_run_context(
         async def dummy_read():
             return {}
 
-        related_objects = [
-            await _get_and_cache_related_object(
-                kind="flow-run",
-                role="flow-run",
-                client_method=client.read_flow_run,
-                obj_id=flow_run_id,
-                cache=RESOURCE_CACHE,
+        if flow_run_context:
+            related_objects.append(
+                {
+                    "kind": "flow-run",
+                    "role": "flow-run",
+                    "object": flow_run_context.flow_run,
+                },
             )
-        ]
+        else:
+            related_objects.append(
+                await _get_and_cache_related_object(
+                    kind="flow-run",
+                    role="flow-run",
+                    client_method=client.read_flow_run,
+                    obj_id=flow_run_id,
+                    cache=RESOURCE_CACHE,
+                )
+            )
+
+        if task_run_context:
+            related_objects.append(
+                {
+                    "kind": "task-run",
+                    "role": "task-run",
+                    "object": task_run_context.task_run,
+                },
+            )
 
         flow_run = related_objects[0]["object"]
 
@@ -171,7 +189,7 @@ async def related_resources_from_run_context(
 async def _get_and_cache_related_object(
     kind: str,
     role: str,
-    client_method: Callable[[Union[UUID, str]], Awaitable[Optional["ORMBaseModel"]]],
+    client_method: Callable[[Union[UUID, str]], Awaitable[Optional["ObjectBaseModel"]]],
     obj_id: Union[UUID, str],
     cache: RelatedResourceCache,
 ) -> ResourceCacheEntry:
