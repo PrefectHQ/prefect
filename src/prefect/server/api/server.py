@@ -31,6 +31,7 @@ import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
 from prefect._internal.compatibility.experimental import enabled_experiments
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
@@ -207,7 +208,12 @@ async def prefect_object_not_found_exception_handler(
     )
 
 
-def create_orion_api(
+@deprecated_callable(start_date="May 2023", help="Use `create_api_app` instead.")
+def create_orion_api(*args, **kwargs) -> FastAPI:
+    return create_orion_api(*args, **kwargs)
+
+
+def create_api_app(
     router_prefix: Optional[str] = "",
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
@@ -527,7 +533,7 @@ def create_app(
         version=API_VERSION,
         lifespan=lifespan,
     )
-    api_app = create_orion_api(
+    api_app = create_api_app(
         fast_api_app_kwargs={
             "exception_handlers": {
                 # NOTE: FastAPI special cases the generic `Exception` handler and
