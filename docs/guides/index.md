@@ -8,7 +8,7 @@ tags:
 ---
 
 !!! tip "Need help?"
-    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=dpcs)!
 
 - Learn how Prefect makes [testing your workflows a breeze](/guides/testing/).
 - See how to [parallelize your code with Dask and Ray](/guides/dask-ray-task-runners/).
