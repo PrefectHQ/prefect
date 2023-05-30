@@ -263,7 +263,7 @@ class DockerContainer(Infrastructure):
         description=(
             "Total memory (memory + swap), -1 to disable swap. Should only be "
             "set if `mem_limit` is also set. If `mem_limit` is set, this defaults to"
-            "allowing the container to use as much swap as ry. For example, if "
+            "allowing the container to use as much swap as memory. For example, if "
             "`mem_limit` is 300m and `memswap_limit` is not set, the container can use "
             "600m in total of memory and swap."
         ),
