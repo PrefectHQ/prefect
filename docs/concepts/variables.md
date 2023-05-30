@@ -67,7 +67,7 @@ answer = await variables.get('the_answer')
 print(answer)
 # 42
 
-# with a default value
+# without a default value
 answer = variables.get('not_the_answer')
 print(answer)
 # None
