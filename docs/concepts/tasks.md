@@ -80,7 +80,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
 ## Task arguments
 
-Tasks allow a great deal of customization through optional arguments. Here are a few common ones:
+Tasks allow for customization through optional arguments:
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
