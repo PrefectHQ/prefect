@@ -382,6 +382,9 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
 
         if current_blocks_loading_hash is not None:
             try:
+                if not memo_store_path.exists():
+                    memo_store_path.touch(mode=0o0600)
+
                 memo_store_path.write_text(
                     toml.dumps({"block_auto_registration": current_blocks_loading_hash})
                 )
