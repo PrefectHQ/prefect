@@ -74,7 +74,7 @@ api_result = call_api("http://time.jsontest.com/")
 print(api_result)
 ```
 
-Let's run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dicionary returned by the API call, we wrap it in a `print` function.
+Let's run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dictionary returned by the API call, we wrap it in a `print` function.
 
 <div class="terminal">
 ```bash
