@@ -6,7 +6,7 @@ from prefect.events.worker import EventsWorker
 async def test_task_state_change_happy_path(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
-    orion_client,
+    prefect_client,
 ):
     @task
     def happy_little_tree():
@@ -20,8 +20,8 @@ async def test_task_state_change_happy_path(
 
     task_state = await flow_state.result()
     task_run_id = task_state.state_details.task_run_id
-    task_run = await orion_client.read_task_run(task_run_id)
-    task_run_states = await orion_client.read_task_run_states(task_run_id)
+    task_run = await prefect_client.read_task_run(task_run_id)
+    task_run_states = await prefect_client.read_task_run_states(task_run_id)
 
     await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
@@ -70,7 +70,7 @@ async def test_task_state_change_happy_path(
 async def test_task_state_change_task_failure(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
-    orion_client,
+    prefect_client,
 ):
     @task
     def happy_little_tree():
@@ -84,8 +84,8 @@ async def test_task_state_change_task_failure(
 
     task_state = await flow_state.result(raise_on_failure=False)
     task_run_id = task_state.state_details.task_run_id
-    task_run = await orion_client.read_task_run(task_run_id)
-    task_run_states = await orion_client.read_task_run_states(task_run_id)
+    task_run = await prefect_client.read_task_run(task_run_id)
+    task_run_states = await prefect_client.read_task_run_states(task_run_id)
 
     await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
