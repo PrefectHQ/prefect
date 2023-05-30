@@ -1,7 +1,6 @@
 """
 Reduced schemas for accepting API actions.
 """
-import re
 import warnings
 from copy import copy, deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
@@ -12,6 +11,10 @@ from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_alphanumeric_underscores_only,
+)
 from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -21,43 +24,26 @@ from prefect.server.utilities.schemas import (
 )
 from prefect.utilities.pydantic import get_class_fields_only
 
-LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
-LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
-
 
 def validate_block_type_slug(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
-        raise ValueError(
-            "slug must only contain lowercase letters, numbers, and dashes"
-        )
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
     return value
 
 
 def validate_block_document_name(value):
-    if value is not None and not bool(
-        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
-    ):
-        raise ValueError(
-            "name must only contain lowercase letters, numbers, and dashes"
-        )
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
     return value
 
 
 def validate_artifact_key(value):
-    if value is not None and not bool(
-        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
-    ):
-        raise ValueError(
-            "Artifact key must only contain lowercase letters, numbers, and dashes"
-        )
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
     return value
 
 
 def validate_variable_name(value):
-    if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX, value)):
-        raise ValueError(
-            "name must only contain lowercase letters, numbers, and underscores"
-        )
+    raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 

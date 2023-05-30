@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Any, Generic, Optional, Type, TypeVar, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum

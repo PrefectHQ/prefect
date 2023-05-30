@@ -6,6 +6,7 @@ futures in nested data structures.
 """
 import asyncio
 import warnings
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,13 +14,14 @@ from typing import (
     Callable,
     Generic,
     Optional,
+    Set,
     TypeVar,
     Union,
     cast,
-    Set,
     overload,
 )
 from uuid import UUID
+
 import anyio
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -27,15 +29,9 @@ from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
-from functools import partial
 from prefect.utilities.annotations import quote
-from prefect.utilities.asyncutils import (
-    A,
-    Async,
-    Sync,
-    sync,
-)
-from prefect.utilities.collections import visit_collection, StopVisiting
+from prefect.utilities.asyncutils import A, Async, Sync, sync
+from prefect.utilities.collections import StopVisiting, visit_collection
 
 if TYPE_CHECKING:
     from prefect.task_runners import BaseTaskRunner

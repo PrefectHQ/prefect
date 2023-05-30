@@ -1,6 +1,9 @@
 INHERIT: mkdocs.yml
 plugins:
     meta:
+    privacy:
+        assets_include:
+          - cdn.amplitude.com/*
     social:
         cards: !ENV [DOC_PROD, True]
         cards_color:
