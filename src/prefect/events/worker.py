@@ -19,13 +19,13 @@ class EventsWorker(QueueService[Event]):
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
     ):
         super().__init__(client_type, client_options)
-        self._client_type = client_type
-        self._client_options = client_options
+        self.client_type = client_type
+        self.client_options = client_options
         self._client: EventsClient
 
     @asynccontextmanager
     async def _lifespan(self):
-        self._client = self._client_type(**{k: v for k, v in self._client_options})
+        self._client = self.client_type(**{k: v for k, v in self.client_options})
 
         async with self._client:
             yield
@@ -45,7 +45,9 @@ class EventsWorker(QueueService[Event]):
         event.related += await related_resources_from_run_context(exclude=exclude)
 
     @classmethod
-    def instance(cls: Type[Self], client_type: Optional[EventsClient] = None) -> Self:
+    def instance(
+        cls: Type[Self], client_type: Optional[Type[EventsClient]] = None
+    ) -> Self:
         client_kwargs = {}
 
         # Select a client type for this worker based on settings

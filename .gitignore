@@ -9,6 +9,7 @@ dist/
 sdist/
 
 # Test artifacts
+.benchmarks/
 .coverage
 .coverage.*.*
 .prefect-results

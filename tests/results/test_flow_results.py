@@ -398,11 +398,13 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     state = my_flow(return_state=True)
     assert state.type == return_state.type
 
-    # State details must be excluded as the flow state includes ids
-    # Data must be excluded as it will have been updated to a result
-    assert state.dict(exclude={"state_details", "data"}) == return_state.dict(
-        exclude={"state_details", "data"}
-    )
+    # id, timestamp, and state details must be excluded as they are copied from
+    # the API version of the state and will not match the state created for
+    # this test. Data must be excluded as it will have been updated to a
+    # result.
+    assert state.dict(
+        exclude={"id", "timestamp", "state_details", "data"}
+    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
         assert state.result(raise_on_failure=False) == return_state.data
@@ -428,11 +430,13 @@ def test_flow_server_state_schema_result_is_respected(persist_result, return_sta
 
     assert state.type == return_state.type
 
-    # State details must be excluded as the flow state includes ids
-    # Data must be excluded as it will have been updated to a result
-    assert state.dict(exclude={"state_details", "data"}) == return_state.dict(
-        exclude={"state_details", "data"}
-    )
+    # id, timestamp, and state details must be excluded as they are copied from
+    # the API version of the state and will not match the state created for
+    # this test. Data must be excluded as it will have been updated to a
+    # result.
+    assert state.dict(
+        exclude={"id", "timestamp", "state_details", "data"}
+    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
         with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
