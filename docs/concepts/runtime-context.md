@@ -22,6 +22,7 @@ The run context itself contains many internal objects used by Prefect to manage 
     $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
     ```
     </div>
+    If the environment variable mock an existing runtime attribute, the value is casted to the same type. It only works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`, for those of type `list` or `dict` they can be mocked using [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
 
 
 ## Accessing runtime information
