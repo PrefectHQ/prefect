@@ -1,8 +1,7 @@
 <script src="https://cdn.amplitude.com/libs/analytics-browser-1.9.1-min.js.gz"></script>
 <script type="text/javascript">
-const amplitudeKey = "{{ config.extra.analytics.property }}"
-const amplitudeUrl = "{{ config.extra.analytics.url }}"
-
+const amplitudeKey = "{{ config.extra.analytics.amplitude_key }}"
+const amplitudeUrl = "{{ config.extra.analytics.amplitude_url }}"
 
 const addUrl = (event) => {
   const deviceId = amplitude.getDeviceId()
@@ -84,3 +83,5 @@ if (amplitudeKey){
   });
 }
 </script>
+
+{% include "partials/integrations/analytics/google.html" %}
