@@ -60,6 +60,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.events import Event, emit_event
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -121,6 +122,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
+from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -1568,6 +1570,12 @@ async def orchestrate_task_run(
         else PREFECT_TASKS_REFRESH_CACHE.value()
     )
 
+    # Emit an event to capture that the task run was in the `PENDING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run, initial_state=None, validated_state=task_run.state
+    )
+    last_state = task_run.state
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
@@ -1576,6 +1584,15 @@ async def orchestrate_task_run(
         ),
         task_run_id=task_run.id,
     )
+
+    # Emit an event to capture the result of proposing a `RUNNING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run,
+        initial_state=last_state,
+        validated_state=state,
+        follows=last_event,
+    )
+    last_state = state
 
     # flag to ensure we only update the task run name once
     run_name_set = False
@@ -1668,6 +1685,13 @@ async def orchestrate_task_run(
                     terminal_state.state_details.cache_key = cache_key
 
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+            last_event = _emit_task_run_state_change_event(
+                task_run=task_run,
+                initial_state=last_state,
+                validated_state=state,
+                follows=last_event,
+            )
+            last_state = state
 
             await _run_task_hooks(
                 task=task,
@@ -1695,6 +1719,13 @@ async def orchestrate_task_run(
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
+                last_event = _emit_task_run_state_change_event(
+                    task_run=task_run,
+                    initial_state=last_state,
+                    validated_state=state,
+                    follows=last_event,
+                )
+                last_state = state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -2051,6 +2082,8 @@ async def propose_state(
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
         # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
         if response.state.state_details:
             state.state_details = response.state.state_details
         return state
@@ -2290,6 +2323,60 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
 
     # Create a 10 minute cache for the healthy response
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
+
+
+def _emit_task_run_state_change_event(
+    task_run: TaskRun,
+    initial_state: Optional[State],
+    validated_state: State,
+    follows: Optional[Event] = None,
+) -> Event:
+    state_message_truncation_length = 100_000
+
+    return emit_event(
+        id=validated_state.id,
+        occurred=validated_state.timestamp,
+        event=f"prefect.task-run.{validated_state.name}",
+        payload={
+            "intended": {
+                "from": str(initial_state.type.value) if initial_state else None,
+                "to": str(validated_state.type.value) if validated_state else None,
+            },
+            "initial_state": (
+                {
+                    "type": str(initial_state.type.value),
+                    "name": initial_state.name,
+                    "message": truncated_to(
+                        state_message_truncation_length, initial_state.message
+                    ),
+                }
+                if initial_state
+                else None
+            ),
+            "validated_state": {
+                "type": str(validated_state.type.value),
+                "name": validated_state.name,
+                "message": truncated_to(
+                    state_message_truncation_length, validated_state.message
+                ),
+            },
+        },
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": truncated_to(
+                state_message_truncation_length, validated_state.message
+            ),
+            "prefect.state-name": validated_state.name or "",
+            "prefect.state-timestamp": (
+                validated_state.timestamp.isoformat()
+                if validated_state and validated_state.timestamp
+                else ""
+            ),
+            "prefect.state-type": str(validated_state.type.value),
+        },
+        follows=follows,
+    )
 
 
 if __name__ == "__main__":
