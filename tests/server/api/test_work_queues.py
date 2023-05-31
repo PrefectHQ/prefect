@@ -54,6 +54,87 @@ class TestCreateWorkQueue:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"contains an invalid character" in response.content
 
+    async def test_create_work_queue_with_priority(
+        self,
+        session,
+        client,
+    ):
+        data = WorkQueueCreate(name="wq-1", priority=5).dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "wq-1"
+        assert response.json()["priority"] == 5
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert str(work_queue.id) == work_queue_id
+        assert work_queue.name == "wq-1"
+        assert work_queue.priority == 5
+
+    async def test_create_work_queue_with_default_priority(
+        self,
+        session,
+        client,
+    ):
+        data = WorkQueueCreate(name="wq-1").dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        await models.work_queues.read_work_queues(session=session)
+        assert response.json()["name"] == "wq-1"
+        # Starts at 2 because the 'default' work queue is 1
+        assert response.json()["priority"] == 2
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert str(work_queue.id) == work_queue_id
+        assert work_queue.name == "wq-1"
+        assert work_queue.priority == 2
+
+        data = WorkQueueCreate(name="wq-2").dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "wq-2"
+        assert response.json()["priority"] == 3
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert str(work_queue.id) == work_queue_id
+        assert work_queue.name == "wq-2"
+        assert work_queue.priority == 3
+
+    async def test_create_work_queue_with_existing_priority(
+        self,
+        session,
+        client,
+    ):
+        data = WorkQueueCreate(name="wq-1", priority=5).dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "wq-1"
+        assert response.json()["priority"] == 5
+        work_queue_id = response.json()["id"]
+
+        data = WorkQueueCreate(name="wq-2", priority=5).dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "wq-2"
+        assert response.json()["priority"] == 5
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert str(work_queue.id) == work_queue_id
+        assert work_queue.name == "wq-2"
+        assert work_queue.priority == 5
+
 
 class TestUpdateWorkQueue:
     async def test_update_work_queue(
