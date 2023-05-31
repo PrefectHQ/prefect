@@ -31,9 +31,9 @@ The engine acquires and calls the flow. Infrastructure doesn't know anything abo
 
 Infrastructure is specific to the environments in which flows will run. Prefect currently provides the following infrastructure types:
 
-- [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
-- [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
-- [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
+- [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.Process) runs flows in a local subprocess.
+- [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer) runs flows in a Docker container.
+- [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob) runs flows in a Kubernetes Job.
 - [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an Amazon ECS Task.
 - [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
 - [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
@@ -102,7 +102,7 @@ infrastructure:
   - python
   - -m
   - prefect.engine
-  image: prefecthq/prefect:dev-python3.9
+  image: prefecthq/prefect:2-latest
   image_pull_policy: null
   networks: []
   network_mode: null
@@ -206,7 +206,7 @@ Requirements for `DockerContainer`:
 | auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
 | env	| Environment variables to set for the container. |
-| image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
+| image | An optional string specifying the name of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
 | image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
 | image_registry | A [`DockerRegistry`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) block containing credentials to use if `image` is stored in a private image registry. |
 | labels | An optional dictionary of labels, mapping name to value. |

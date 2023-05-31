@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Any, Generic, Optional, Type, TypeVar, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -169,6 +169,9 @@ class State(StateBaseModel, Generic[R]):
 
     def is_cancelled(self) -> bool:
         return self.type == StateType.CANCELLED
+
+    def is_cancelling(self) -> bool:
+        return self.type == StateType.CANCELLING
 
     def is_final(self) -> bool:
         return self.type in TERMINAL_STATES

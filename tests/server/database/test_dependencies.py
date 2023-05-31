@@ -51,6 +51,9 @@ async def test_injecting_a_really_dumb_database_database_config():
         def is_inmemory(self, engine):
             ...
 
+        async def begin_transaction(self, session, locked):
+            ...
+
     with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):

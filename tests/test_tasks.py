@@ -12,6 +12,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
+from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
@@ -23,13 +24,11 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
-from prefect.server.schemas.core import TaskRunResult
-from prefect.server.schemas.states import StateType
 from prefect.settings import (
-    PREFECT_TASKS_REFRESH_CACHE,
-    temporary_settings,
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASKS_REFRESH_CACHE,
+    temporary_settings,
 )
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
@@ -706,7 +705,7 @@ class TestTaskVersion:
 
         assert my_task.version == "test-dev-experimental"
 
-    async def test_task_version_is_set_in_backend(self, orion_client):
+    async def test_task_version_is_set_in_backend(self, prefect_client):
         @task(version="test-dev-experimental")
         def my_task():
             pass
@@ -716,14 +715,14 @@ class TestTaskVersion:
             return my_task._run()
 
         task_state = test()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert task_run.task_version == "test-dev-experimental"
 
 
 class TestTaskFutures:
-    async def test_wait_gets_final_state(self, orion_client):
+    async def test_wait_gets_final_state(self, prefect_client):
         @task
         async def foo():
             return 1
@@ -736,7 +735,7 @@ class TestTaskFutures:
             assert state.is_completed()
 
             # TODO: The ids are not equal here, why?
-            # task_run = await orion_client.read_task_run(state.state_details.task_run_id)
+            # task_run = await prefect_client.read_task_run(state.state_details.task_run_id)
             # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
 
         await my_flow()
@@ -863,7 +862,7 @@ class TestTaskRetries:
     """
 
     @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_task_respects_retry_count(self, always_fail, orion_client):
+    async def test_task_respects_retry_count(self, always_fail, prefect_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -897,7 +896,7 @@ class TestTaskRetries:
             assert await task_run_state.result() is True
             assert mock.call_count == 4
 
-        states = await orion_client.read_task_run_states(task_run_id)
+        states = await prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
         assert state_names == [
@@ -912,7 +911,7 @@ class TestTaskRetries:
             "Failed" if always_fail else "Completed",
         ]
 
-    async def test_task_only_uses_necessary_retries(self, orion_client):
+    async def test_task_only_uses_necessary_retries(self, prefect_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -935,7 +934,7 @@ class TestTaskRetries:
         assert await task_run_state.result() is True
         assert mock.call_count == 2
 
-        states = await orion_client.read_task_run_states(task_run_id)
+        states = await prefect_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -1485,7 +1484,7 @@ class TestTaskTimeouts:
 
 
 class TestTaskRunTags:
-    async def test_task_run_tags_added_at_submission(self, orion_client):
+    async def test_task_run_tags_added_at_submission(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -1498,12 +1497,12 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_added_at_run(self, orion_client):
+    async def test_task_run_tags_added_at_run(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -1516,12 +1515,12 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_added_at_call(self, orion_client):
+    async def test_task_run_tags_added_at_call(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -1534,12 +1533,12 @@ class TestTaskRunTags:
             return "foo"
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    async def test_task_run_tags_include_tags_on_task_object(self, orion_client):
+    async def test_task_run_tags_include_tags_on_task_object(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -1552,12 +1551,12 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    async def test_task_run_tags_include_flow_run_tags(self, orion_client):
+    async def test_task_run_tags_include_flow_run_tags(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -1572,12 +1571,12 @@ class TestTaskRunTags:
         with tags("a", "b"):
             task_state = my_flow()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    async def test_task_run_tags_not_added_outside_context(self, orion_client):
+    async def test_task_run_tags_not_added_outside_context(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -1591,12 +1590,12 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert not task_run.tags
 
-    async def test_task_run_tags_respects_nesting(self, orion_client):
+    async def test_task_run_tags_respects_nesting(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
@@ -1610,7 +1609,7 @@ class TestTaskRunTags:
             pass
 
         task_state = my_flow()
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
@@ -1637,7 +1636,7 @@ class TestTaskInputs:
 
         return upstream_downstream_flow
 
-    async def test_task_inputs_populated_with_no_upstreams(self, orion_client):
+    async def test_task_inputs_populated_with_no_upstreams(self, prefect_client):
         @task
         def foo(x):
             return x
@@ -1649,12 +1648,12 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         x = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(x.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[])
 
     async def test_task_inputs_populated_with_no_upstreams_and_multiple_parameters(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def foo(x, *a, **k):
@@ -1667,12 +1666,12 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         x = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(x.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[], a=[], k=[])
 
     async def test_task_inputs_populated_with_one_upstream_positional_future(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def foo(x):
@@ -1692,7 +1691,7 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         a, b, c = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
             x=[TaskRunResult(id=a.state_details.task_run_id)],
@@ -1700,7 +1699,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_one_upstream_keyword_future(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def foo(x):
@@ -1720,14 +1719,16 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         a, b, c = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
             x=[TaskRunResult(id=a.state_details.task_run_id)],
             y=[],
         )
 
-    async def test_task_inputs_populated_with_two_upstream_futures(self, orion_client):
+    async def test_task_inputs_populated_with_two_upstream_futures(
+        self, prefect_client
+    ):
         @task
         def foo(x):
             return x
@@ -1746,7 +1747,7 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         a, b, c = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
             x=[TaskRunResult(id=a.state_details.task_run_id)],
@@ -1754,7 +1755,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_two_upstream_futures_from_same_task(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def foo(x):
@@ -1773,7 +1774,7 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         a, c = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
             x=[TaskRunResult(id=a.state_details.task_run_id)],
@@ -1781,7 +1782,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_nested_upstream_futures(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def foo(x):
@@ -1803,7 +1804,7 @@ class TestTaskInputs:
 
         a, b, c, d = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(d.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
 
         assert comparable_inputs(task_run.task_inputs) == dict(
             x={
@@ -1816,7 +1817,7 @@ class TestTaskInputs:
             },
         )
 
-    async def test_task_inputs_populated_with_subflow_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_subflow_upstream(self, prefect_client):
         @task
         def foo(x):
             return x
@@ -1833,7 +1834,7 @@ class TestTaskInputs:
         parent_state = parent._run()
         child_state, task_state = await parent_state.result()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id
         )
 
@@ -1841,7 +1842,7 @@ class TestTaskInputs:
             x=[TaskRunResult(id=child_state.state_details.task_run_id)],
         )
 
-    async def test_task_inputs_populated_with_result_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_result_upstream(self, prefect_client):
         @task
         def name():
             return "Fred"
@@ -1859,14 +1860,16 @@ class TestTaskInputs:
         flow_state = test_flow._run()
         name_state, hi_state = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(hi_state.state_details.task_run_id)
+        task_run = await prefect_client.read_task_run(
+            hi_state.state_details.task_run_id
+        )
 
         assert task_run.task_inputs == dict(
             name=[TaskRunResult(id=name_state.state_details.task_run_id)],
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_future(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def upstream(x):
@@ -1886,7 +1889,7 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
 
@@ -1895,7 +1898,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def upstream(x):
@@ -1914,9 +1917,9 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
-        await orion_client.read_task_run(downstream_state.state_details.task_run_id)
+        await prefect_client.read_task_run(downstream_state.state_details.task_run_id)
 
-    async def test_task_inputs_populated_with_state_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_state_upstream(self, prefect_client):
         @task
         def upstream(x):
             return x
@@ -1933,7 +1936,7 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
 
@@ -1942,7 +1945,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_state_upstream_wrapped_with_allow_failure(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def upstream(x):
@@ -1962,7 +1965,7 @@ class TestTaskInputs:
 
         upstream_state, downstream_state = test_flow()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
 
@@ -1972,12 +1975,12 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
     async def test_task_inputs_populated_with_collection_result_upstream(
-        self, result, orion_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
         upstream_state, downstream_state = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
 
@@ -1987,12 +1990,12 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", ["Fred", 5.1])
     async def test_task_inputs_populated_with_basic_result_types_upstream(
-        self, result, orion_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
         upstream_state, downstream_state = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
         assert task_run.task_inputs == dict(
@@ -2001,19 +2004,19 @@ class TestTaskInputs:
 
     @pytest.mark.parametrize("result", [True, False, None, ..., NotImplemented])
     async def test_task_inputs_not_populated_with_singleton_results_upstream(
-        self, result, orion_client, flow_with_upstream_downstream
+        self, result, prefect_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
         _, downstream_state = await flow_state.result()
 
-        task_run = await orion_client.read_task_run(
+        task_run = await prefect_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
 
         assert task_run.task_inputs == dict(value=[])
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_trackables(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def task_1():
@@ -2040,7 +2043,7 @@ class TestTaskInputs:
 
         t1_state, t2_state, t3_state = unpacking_flow()
 
-        task_3_run = await orion_client.read_task_run(
+        task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
         )
 
@@ -2048,7 +2051,7 @@ class TestTaskInputs:
             task_3_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
         )
 
-        task_2_run = await orion_client.read_task_run(
+        task_2_run = await prefect_client.read_task_run(
             t2_state.state_details.task_run_id
         )
 
@@ -2057,7 +2060,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_untrackable_types(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def task_1():
@@ -2084,7 +2087,7 @@ class TestTaskInputs:
 
         t1_state, t2_state, t3_state = unpacking_flow()
 
-        task_3_run = await orion_client.read_task_run(
+        task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
         )
 
@@ -2092,7 +2095,7 @@ class TestTaskInputs:
             task_3_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
         )
 
-        task_2_run = await orion_client.read_task_run(
+        task_2_run = await prefect_client.read_task_run(
             t2_state.state_details.task_run_id
         )
 
@@ -2101,7 +2104,7 @@ class TestTaskInputs:
         )
 
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackable_types(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def task_1():
@@ -2127,7 +2130,7 @@ class TestTaskInputs:
 
         t1_state, t2_state, t3_state = unpacking_flow()
 
-        task_3_run = await orion_client.read_task_run(
+        task_3_run = await prefect_client.read_task_run(
             t3_state.state_details.task_run_id
         )
 
@@ -2135,7 +2138,7 @@ class TestTaskInputs:
             task_3_input=[],
         )
 
-        task_2_run = await orion_client.read_task_run(
+        task_2_run = await prefect_client.read_task_run(
             t2_state.state_details.task_run_id
         )
 
@@ -2182,7 +2185,7 @@ class TestSubflowWaitForTasks:
 
         assert test_flow() == 2
 
-    async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
+    async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
         @task
         def foo(x):
             return x
@@ -2199,8 +2202,8 @@ class TestSubflowWaitForTasks:
             return (a, b, c, d)
 
         a, b, c, d = test_flow()
-        d_subflow_run = await orion_client.read_flow_run(d.state_details.flow_run_id)
-        d_virtual_task_run = await orion_client.read_task_run(
+        d_subflow_run = await prefect_client.read_flow_run(d.state_details.flow_run_id)
+        d_virtual_task_run = await prefect_client.read_task_run(
             d_subflow_run.parent_task_run_id
         )
 
@@ -2333,7 +2336,7 @@ class TestTaskWaitFor:
 
         assert test_flow() == 2
 
-    async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
+    async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
         @task
         def foo(x):
             return x
@@ -2346,7 +2349,7 @@ class TestTaskWaitFor:
             return (a, b, c, d)
 
         a, b, c, d = test_flow()
-        d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
+        d_task_run = await prefect_client.read_task_run(d.state_details.task_run_id)
 
         assert d_task_run.task_inputs["x"] == [
             TaskRunResult(id=c.state_details.task_run_id)
@@ -2393,7 +2396,7 @@ class TestTaskWaitFor:
 
 @pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
-    async def test_user_logs_are_sent_to_orion(self, orion_client):
+    async def test_user_logs_are_sent_to_orion(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
@@ -2405,10 +2408,10 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
-    async def test_tracebacks_are_logged(self, orion_client):
+    async def test_tracebacks_are_logged(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
@@ -2423,12 +2426,12 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "NameError" in error_log
         assert "x + y" in error_log
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+    async def test_opt_out_logs_are_not_sent_to_orion(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
@@ -2440,10 +2443,10 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" not in {log.message for log in logs}
 
-    async def test_logs_are_given_correct_ids(self, orion_client):
+    async def test_logs_are_given_correct_ids(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
@@ -2457,7 +2460,7 @@ class TestTaskRunLogs:
         flow_run_id = task_state.state_details.flow_run_id
         task_run_id = task_state.state_details.task_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert logs, "There should be logs"
         assert all([log.flow_run_id == flow_run_id for log in logs])
         task_run_logs = [log for log in logs if log.task_run_id is not None]
@@ -3244,7 +3247,7 @@ class TestTaskConstructorValidation:
                 raise RuntimeError("try again!")
 
 
-async def test_task_run_name_is_set(orion_client):
+async def test_task_run_name_is_set(prefect_client):
     @task(task_run_name="fixed-name")
     def my_task(name):
         return name
@@ -3257,11 +3260,11 @@ async def test_task_run_name_is_set(orion_client):
 
     # Check that the state completed happily
     assert tr_state.is_completed()
-    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "fixed-name"
 
 
-async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client):
+async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_client):
     @task(task_run_name="{name}-wuz-{where}")
     def my_task(name, where="here"):
         return name
@@ -3274,11 +3277,11 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client)
 
     # Check that the state completed happily
     assert tr_state.is_completed()
-    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "chris-wuz-here"
 
 
-async def test_task_run_name_is_set_with_function(orion_client):
+async def test_task_run_name_is_set_with_function(prefect_client):
     def generate_task_run_name():
         return "is-this-a-bird"
 
@@ -3294,11 +3297,11 @@ async def test_task_run_name_is_set_with_function(orion_client):
 
     # Check that the state completed happily
     assert tr_state.is_completed()
-    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "is-this-a-bird"
 
 
-async def test_task_run_name_is_set_with_function_using_runtime_context(orion_client):
+async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_client):
     def generate_task_run_name():
         params = task_run_ctx.parameters
         tokens = []
@@ -3320,11 +3323,11 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(orion_cl
 
     # Check that the state completed happily
     assert tr_state.is_completed()
-    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "chris-wuz-here"
 
 
-async def test_task_run_name_is_set_with_function_not_returning_string(orion_client):
+async def test_task_run_name_is_set_with_function_not_returning_string(prefect_client):
     def generate_task_run_name():
         pass
 

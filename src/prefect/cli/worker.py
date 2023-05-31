@@ -1,7 +1,9 @@
 from functools import partial
 from typing import List, Optional
 
+import os
 import anyio
+import threading
 import typer
 
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -15,9 +17,13 @@ from prefect.settings import (
     PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
+from prefect.utilities.processutils import setup_signal_handlers_worker
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
+from prefect.workers.server import start_healthcheck_server
+from prefect.plugins import load_prefect_collections
+
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -70,6 +76,9 @@ async def start(
         "--limit",
         help="Maximum number of flow runs to start simultaneously.",
     ),
+    with_healthcheck: bool = typer.Option(
+        False, help="Start a healthcheck server for the worker."
+    ),
 ):
     """
     Start a worker process to poll a work pool for flow runs.
@@ -83,6 +92,8 @@ async def start(
                 f"Discovered worker type {worker_type!r} for work pool"
                 f" {work_pool.name!r}."
             )
+
+        load_prefect_collections()
         worker_cls = lookup_type(BaseWorker, worker_type)
     except KeyError:
         # TODO: Use collection registry info to direct users on how to install the worker type
@@ -99,6 +110,11 @@ async def start(
             style="yellow",
         )
         worker_cls = ProcessWorker
+
+    worker_process_id = os.getpid()
+    setup_signal_handlers_worker(
+        worker_process_id, f"the {worker_type} worker", app.console.print
+    )
 
     async with worker_cls(
         name=worker_name,
@@ -145,6 +161,21 @@ async def start(
             )
 
             started_event = await worker._emit_worker_started_event()
+
+            # if --with-healthcheck was passed, start the healthcheck server
+            if with_healthcheck:
+                # we'll start the ASGI server in a separate thread so that
+                # uvicorn does not block the main thread
+                server_thread = threading.Thread(
+                    name="healthcheck-server-thread",
+                    target=partial(
+                        start_healthcheck_server,
+                        worker=worker,
+                        query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                    ),
+                    daemon=True,
+                )
+                server_thread.start()
 
     await worker._emit_worker_stopped_event(started_event)
     app.console.print(f"Worker {worker.name!r} stopped!")

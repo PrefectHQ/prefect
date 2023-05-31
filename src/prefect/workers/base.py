@@ -8,9 +8,23 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
+
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    WorkPoolFilter,
+    WorkPoolFilterName,
+    WorkQueueFilter,
+    WorkQueueFilterName,
+)
+from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
 from prefect.events import Event, emit_event
@@ -22,31 +36,17 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, get_logger, flow_run_logger
-from prefect.server import schemas
-from prefect.server.schemas.actions import WorkPoolUpdate
-from prefect.server.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    FlowRunFilterState,
-    FlowRunFilterStateName,
-    FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
-    WorkQueueFilter,
-    WorkQueueFilterName,
-)
-from prefect.server.schemas.states import StateType
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import apply_values, resolve_block_document_references
+from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import (
+    from prefect.client.schemas.objects import Flow, FlowRun
+    from prefect.client.schemas.responses import (
         DeploymentResponse,
         WorkerFlowRunResponse,
     )
@@ -348,9 +348,10 @@ class BaseWorker(abc.ABC):
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
 
-        self._work_pool: Optional[schemas.core.WorkPool] = None
+        self._work_pool: Optional[WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
@@ -386,6 +387,28 @@ class BaseWorker(abc.ABC):
             "job_configuration": cls.job_configuration.json_template(),
             "variables": variables_schema,
         }
+
+    @staticmethod
+    def get_worker_class_from_type(type: str) -> Optional[Type["BaseWorker"]]:
+        """
+        Returns the worker class for a given worker type. If the worker type
+        is not recognized, returns None.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return worker_registry.get(type)
+
+    @staticmethod
+    def get_all_available_worker_types() -> List[str]:
+        """
+        Returns all worker types available in the local registry.
+        """
+        load_prefect_collections()
+        worker_registry = get_registry_for_type(BaseWorker)
+        if worker_registry is not None:
+            return list(worker_registry.keys())
+        return []
 
     def get_name_slug(self):
         return slugify(self.name)
@@ -462,8 +485,41 @@ class BaseWorker(abc.ABC):
         self._runs_task_group = None
         self._client = None
 
+    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
+        """
+        This method is invoked by a webserver healthcheck handler
+        and returns a boolean indicating if the worker has recorded a
+        scheduled flow run poll within a variable amount of time.
+
+        The `query_interval_seconds` is the same value that is used by
+        the loop services - we will evaluate if the _last_polled_time
+        was within that interval x 30 (so 10s -> 5m)
+
+        The instance property `self._last_polled_time`
+        is currently set/updated in `get_and_submit_flow_runs()`
+        """
+        threshold_seconds = query_interval_seconds * 30
+
+        seconds_since_last_poll = (
+            pendulum.now("utc") - self._last_polled_time
+        ).in_seconds()
+
+        is_still_polling = seconds_since_last_poll <= threshold_seconds
+
+        if not is_still_polling:
+            self._logger.error(
+                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
+                "and should be restarted"
+            )
+
+        return is_still_polling
+
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
+
+        self._emit_worker_poll_flow_run_event()
+        self._last_polled_time = pendulum.now("utc")
+
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):
@@ -512,6 +568,8 @@ class BaseWorker(abc.ABC):
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
+        self._emit_worker_poll_cancelled_flow_run_event()
+
         if cancelling_flow_runs:
             self._logger.info(
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
@@ -542,7 +600,13 @@ class BaseWorker(abc.ABC):
             )
             return
 
-        configuration = await self._get_configuration(flow_run)
+        try:
+            configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
 
         try:
             await self.kill_infrastructure(
@@ -582,9 +646,7 @@ class BaseWorker(abc.ABC):
         except ObjectNotFound:
             if self._create_pool_if_not_found:
                 work_pool = await self._client.create_work_pool(
-                    work_pool=schemas.actions.WorkPoolCreate(
-                        name=self._work_pool_name, type=self.type
-                    )
+                    work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
                 )
                 self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
             else:
@@ -717,7 +779,7 @@ class BaseWorker(abc.ABC):
 
         try:
             await self._check_flow_run(flow_run)
-        except ValueError:
+        except (ValueError, ObjectNotFound):
             self._logger.exception(
                 (
                     "Flow run %s did not pass checks and will not be submitted for"
@@ -773,7 +835,7 @@ class BaseWorker(abc.ABC):
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
-                self._logger.exception(
+                run_logger.exception(
                     f"Failed to submit flow run '{flow_run.id}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
@@ -1039,6 +1101,20 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
+        )
+
+    def _emit_worker_poll_flow_run_event(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
+        )
+
+    def _emit_worker_poll_cancelled_flow_run_event(self) -> Event:
+        return emit_event(
+            "prefect.worker.poll.cancelled-flow-run",
+            resource=self._event_resource(),
+            related=self._event_related_resources(),
         )
 
     async def _emit_worker_started_event(self) -> Event:

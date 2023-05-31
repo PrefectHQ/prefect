@@ -22,13 +22,13 @@ Leading up to this section, you've been able to explore Prefect capabilities lik
     See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect server.
 
 !!! tip "Projects: An improved experience"
-    Prefect Deployments are getting even easier with the introduction of [Projects](/tutorials/projects), currently in beta.
+    Prefect Deployments are getting even easier with the introduction of [Projects](/concepts/projects/), currently in beta.
 
 ## Components of a deployment
 
 You need just a few ingredients to turn a flow definition into a deployment:
 
-- A Python script that contains a function [decorated with `@flow`](/tutorials/flow-task-config/#basic-flow-configuration)
+- A Python script that contains a function [decorated with `@flow`](/tutorial/flow-task-config/#basic-flow-configuration)
 
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
@@ -534,7 +534,7 @@ Note that we referenced the deployment by name in the format "flow_name/deployme
 
 You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/). You'll see your deployment's flow run in the UI.
 
-![Deployment flow run on the Flow Runs page of the Prefect UI](../img/tutorials/my-first-deployment.png)
+![Deployment flow run on the Flow Runs page of the Prefect UI](/img/tutorial/my-first-deployment.png)
 
 ## Run a deployment from the UI
 
@@ -542,22 +542,22 @@ With a work pool and agent in place, you can also create a flow run for `log_sim
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect server instance.
 
-![The Deployments page displays a list of deployments created in Prefect](../img/tutorials/deployments.png)
+![The Deployments page displays a list of deployments created in Prefect](/img/tutorial/deployments.png)
 
 Now select **log-flow/log-simple** to see details for the deployment you just created.
 
-![Viewing details of a single deployment](../img/tutorials/deployment-details.png)
+![Viewing details of a single deployment](/img/tutorial/deployment-details.png)
 
 Select **Parameters** to see the default parameters you specified in the deployment definition.
 
-![Viewing deployment parameters](../img/tutorials/deployment-parameters.png)
+![Viewing deployment parameters](/img/tutorial/deployment-parameters.png)
 
 You can start a flow run for this deployment from the UI by selecting the **Run** button, which gives you options to:
 
 - Create a flow run with the default settings
 - Create a flow run with custom settings
 
-![Deployment run options in the UI](../img/tutorials/deployment-run-options.png)
+![Deployment run options in the UI](/img/tutorial/deployment-run-options.png)
 
 If you choose a **Custom** flow run, you can configure details including:
 
@@ -567,13 +567,13 @@ If you choose a **Custom** flow run, you can configure details including:
 - Scheduled start time
 - Custom parameters
 
-![Configuring custom flow run settings](../img/tutorials/custom-flow-run.png)
+![Configuring custom flow run settings](/img/tutorial/custom-flow-run.png)
 
 Let's change the `name` parameter for the next flow run. Under **Parameters**, select **Custom**.
 
 Change the value for the `name` parameter to some other value. We used "Trillian".
 
-![Configuring custom flow run settings](../img/tutorials/custom-parameter.png)
+![Configuring custom flow run settings](/img/tutorial/custom-parameter.png)
 
 Select **Save** to save any changed values, then select **Run** to create the custom flow run.
 
@@ -609,11 +609,11 @@ As before, the flow run will be picked up by the agent, and you should be able t
 
 Go back the **Flow Runs** page in the UI and you'll see the flow run you just initiatied ran and was observed by the API.
 
-![The deployment flow run is shown in the UI run history](../img/tutorials/deployment-run.png)
+![The deployment flow run is shown in the UI run history](/img/tutorial/deployment-run.png)
 
 Select the flow run to see details. In the flow run logs, you can see that the flow run logged a "Hello Trillian!" message as expected.
 
-![The flow run logs show the expected Hello Trillian! log message](../img/tutorials/dep-flow-logs.png)
+![The flow run logs show the expected Hello Trillian! log message](/img/tutorial/dep-flow-logs.png)
 
 ## Run deployments with Prefect Cloud
 
@@ -654,4 +654,4 @@ To terminate the agent, simply go to the terminal session where it's running and
 You can pause or delete a work pool on the Prefect UI **Work pools** page.
 
 !!! tip "Next steps: Storage and infrastructure"
-    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorials/storage/), which is covered in our next tutorial.
+    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorial/storage/), which is covered in our next tutorial.

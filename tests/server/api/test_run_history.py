@@ -4,6 +4,7 @@ from typing import List
 import pendulum
 import pydantic
 import pytest
+import sqlalchemy as sa
 from fastapi import Response, status
 
 from prefect.server import models
@@ -38,9 +39,16 @@ def parse_response(response: Response, include=None):
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def clear_db():
+async def clear_db(db):
     """Prevent automatic database-clearing behavior after every test"""
-    pass  # noqa
+    yield  # noqa
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(db.Agent.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
+        for table in reversed(db.Base.metadata.sorted_tables):
+            await session.execute(table.delete())
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -778,7 +786,7 @@ async def test_last_bin_contains_end_date(client, route):
 
 @pytest.mark.flaky(max_runs=3)
 async def test_flow_run_lateness(client, session):
-    await session.execute("delete from flow where true;")
+    await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
 

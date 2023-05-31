@@ -22,7 +22,7 @@ Using triggers and actions you can automatically kick off flow runs, pause deplo
 
 The **Automations** page provides an overview of all configured automations for your workspace.
 
-![Viewing automations for a workspace in Prefect Cloud.](../img/ui/automations.png)
+![Viewing automations for a workspace in Prefect Cloud.](/img/ui/automations.png)
 
 Selecting the toggle next to an automation pauses execution of the automation. 
 
@@ -30,11 +30,11 @@ The button next to the toggle provides commands to copy the automation ID, edit 
 
 Select the name of an automation to view **Details** about it.
 
-![Viewing details of an automation in Prefect Cloud.](../img/ui/automations-detail-tab.png)
+![Viewing details of an automation in Prefect Cloud.](/img/ui/automations-detail-tab.png)
 
 The **Events** tab displays a list of triggers and actions related to the automation. You can filter the list on date or event type. Select the timestamp of an event to see further details.
 
-![Viewing events that triggered an automation in Prefect Cloud.](../img/ui/automations-event-tab.png)
+![Viewing events that triggered an automation in Prefect Cloud.](/img/ui/automations-event-tab.png)
 
 ## Create an automation
 
@@ -49,12 +49,13 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
 
 - Flow run state change
+    -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work queue health
 - [Custom event](#automations-api) triggers
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
-![Configuring a trigger for an automation in Prefect Cloud.](../img/ui/automations-trigger.png)
+![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
 
@@ -65,7 +66,7 @@ Custom Triggers
 
 Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions.
 
-![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](../img/ui/automations-custom.png)
+![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
  
 For example, if you would only like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
 
@@ -142,7 +143,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Send a [notification](#automation-notifications)
 - Call a webhook
 
-![Configuring an action for an automation in Prefect Cloud.](../img/ui/automations-action.png)
+![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 
 ### Selected and inferred action targets
 
@@ -162,7 +163,7 @@ Prefect tries to infer the relevant event whenever possible, but sometimes one d
 
 Specify a name and, optionally, a description for the automation.
 
-![Configuring details for an automation in Prefect Cloud.](../img/ui/automations-details.png)
+![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
 
 ## Automation notifications
 
@@ -174,7 +175,7 @@ Automation notifications support sending notifications via any predefined block 
 - Microsoft Teams message to a channel
 - Email to a configured email address
 
-![Configuring notifications for an automation in Prefect Cloud.](../img/ui/automations-notifications.png)
+![Configuring notifications for an automation in Prefect Cloud.](/img/ui/automations-notifications.png)
 
 !!! note "Notification blocks must be pre-configured"
     Notification blocks must be pre-configured prior to creating a notification action. Any existing blocks capable of sending messages will be shown in the block drop-down list.
@@ -211,7 +212,7 @@ Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
 The resulting Slack webhook notification would look something like this:
 
-![Configuring notifications for an automation in Prefect Cloud.](../img/ui/templated-notification.png)
+![Configuring notifications for an automation in Prefect Cloud.](/img/ui/templated-notification.png)
 
 You could include `flow` and `deployment` properties.
 

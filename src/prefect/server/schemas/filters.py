@@ -161,7 +161,7 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
 
 
 class FlowRunFilterId(PrefectFilterBaseModel):
-    """Filter by FlowRun.id."""
+    """Filter by `FlowRun.id`."""
 
     any_: Optional[List[UUID]] = Field(
         default=None, description="A list of flow run ids to include"
@@ -300,6 +300,8 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
 
 
 class FlowRunFilterStateName(PrefectFilterBaseModel):
+    """Filter by `FlowRun.state_name`."""
+
     any_: Optional[List[str]] = Field(
         default=None, description="A list of flow run state names to include"
     )
@@ -312,6 +314,8 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
 
 
 class FlowRunFilterState(PrefectOperatorFilterBaseModel):
+    """Filter by `FlowRun.state_type` and `FlowRun.state_name`."""
+
     type: Optional[FlowRunFilterStateType]
     name: Optional[FlowRunFilterStateName]
 
@@ -616,6 +620,8 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
 
 
 class TaskRunFilterStateName(PrefectFilterBaseModel):
+    """Filter by `TaskRun.state_name`."""
+
     any_: Optional[List[str]] = Field(
         default=None, description="A list of task run state names to include"
     )
@@ -628,6 +634,8 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
 
 
 class TaskRunFilterState(PrefectOperatorFilterBaseModel):
+    """Filter by `TaskRun.type` and `TaskRun.name`."""
+
     type: Optional[TaskRunFilterStateType]
     name: Optional[TaskRunFilterStateName]
 
@@ -1400,6 +1408,8 @@ class WorkPoolFilterType(PrefectFilterBaseModel):
 
 
 class WorkPoolFilter(PrefectOperatorFilterBaseModel):
+    """Filter work pools. Only work pools matching all criteria will be returned"""
+
     id: Optional[WorkPoolFilterId] = Field(
         default=None, description="Filter criteria for `WorkPool.id`"
     )
@@ -1463,6 +1473,8 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
 
 
 class WorkerFilter(PrefectOperatorFilterBaseModel):
+    """Filter by `Worker.last_heartbeat_time`."""
+
     # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
     # )
