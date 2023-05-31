@@ -122,3 +122,6 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 To create an account or sign in with an existing Prefect Cloud account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
 Then follow the steps in our [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and start running workflows with Prefect Cloud.
+
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
