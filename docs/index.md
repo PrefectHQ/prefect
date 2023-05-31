@@ -90,13 +90,16 @@ Prefect automatically persists all executions of your flow along with useful met
 ## Next Steps
 To learn more, try our [tutorials](/tutorials) and [guides](/guides), or go deeper with [Prefect concepts](/concepts).
 
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=dpcs)!
+
 ---
 
 ## Community
 
 - Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
-- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) 
+- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect)
 
 ---
 

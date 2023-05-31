@@ -14,3 +14,6 @@ tags:
 - Check out many common workflows with [Prefect Recipes](../recipes/recipes/).
 - Learn how to migrate from Prefect 1 to Prefect 2 with the [Migration Guide](/guides/migration-guide/).
 - Execute code in response to state changes with [state change hooks](/guides/state-change-hooks/).
+
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
