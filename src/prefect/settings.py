@@ -1212,6 +1212,16 @@ PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect artifacts are used.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to enable the experimental workspace dashboard.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to warn when the experimental workspace dashboard is enabled.
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 
