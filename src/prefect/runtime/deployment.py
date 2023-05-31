@@ -70,7 +70,7 @@ def __getattr__(name: str) -> Any:
     real_value = func()
     if env_key in os.environ:
         mocked_value = os.environ[env_key]
-        # cast `mocked_value` to the same type than `real_value`
+        # cast `mocked_value` to the same type as `real_value`
         try:
             cast_func = type_cast[type(real_value)]
             return cast_func(mocked_value)

@@ -20,9 +20,9 @@ class TestAttributeAccessPatterns:
         assert "foo" not in dir(task_run)
 
     @pytest.mark.parametrize(
-        "env_name, env_value, expected_value",
+        "attribute_name, attribute_value, expected_value",
         [
-            # new user defined env var
+            # new user defined attribute
             ("new_key", "foobar", "foobar"),
             # KNOWN FIELDS
             # id is of type str
@@ -34,19 +34,20 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, env_name, env_value, expected_value
+        self, monkeypatch, attribute_name, attribute_value, expected_value
     ):
         monkeypatch.setenv(
-            name=f"PREFECT__RUNTIME__TASK_RUN__{env_name.upper()}", value=env_value
+            name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}",
+            value=attribute_value,
         )
-        tasks_run_attr = getattr(task_run, env_name)
+        tasks_run_attr = getattr(task_run, attribute_name)
         # check the type of the flow_run attribute
         assert isinstance(tasks_run_attr, type(expected_value))
         # check the flow_run attribute value is expected_value
         assert tasks_run_attr == expected_value
 
     @pytest.mark.parametrize(
-        "env_name",
+        "attribute_name",
         [
             # complex types (list and dict) not allowed to be mocked using environment variables
             "tags",
@@ -54,13 +55,13 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, env_name
+        self, monkeypatch, attribute_name
     ):
         monkeypatch.setenv(
-            name=f"PREFECT__RUNTIME__TASK_RUN__{env_name.upper()}", value="foo"
+            name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}", value="foo"
         )
         with pytest.raises(ValueError, match="cannot be mocked"):
-            getattr(task_run, env_name)
+            getattr(task_run, attribute_name)
 
 
 class TestID:

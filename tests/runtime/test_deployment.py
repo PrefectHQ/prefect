@@ -30,9 +30,9 @@ class TestAttributeAccessPatterns:
         assert "foo" not in dir(deployment)
 
     @pytest.mark.parametrize(
-        "env_name, env_value, expected_value",
+        "attribute_name, attribute_value, expected_value",
         [
-            # new user defined env var
+            # new user defined attribute
             ("new_key", "foobar", "foobar"),
             # KNOWN FIELDS
             # id is of type str
@@ -42,32 +42,33 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, env_name, env_value, expected_value
+        self, monkeypatch, attribute_name, attribute_value, expected_value
     ):
         monkeypatch.setenv(
-            name=f"PREFECT__RUNTIME__DEPLOYMENT__{env_name.upper()}", value=env_value
+            name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}",
+            value=attribute_value,
         )
-        deployment_attr = getattr(deployment, env_name)
+        deployment_attr = getattr(deployment, attribute_name)
         # check the type of the flow_run attribute
         assert isinstance(deployment_attr, type(expected_value))
         # check the flow_run attribute value is expected_value
         assert deployment_attr == expected_value
 
     @pytest.mark.parametrize(
-        "env_name",
+        "attribute_name",
         [
             # complex types (list and dict) not allowed to be mocked using environment variables
             "parameters",
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, env_name
+        self, monkeypatch, attribute_name
     ):
         monkeypatch.setenv(
-            name=f"PREFECT__RUNTIME__DEPLOYMENT__{env_name.upper()}", value="foo"
+            name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}", value="foo"
         )
         with pytest.raises(ValueError, match="cannot be mocked"):
-            getattr(deployment, env_name)
+            getattr(deployment, attribute_name)
 
 
 class TestID:
