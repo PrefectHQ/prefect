@@ -20,9 +20,6 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 !!! success "Prefect Cloud Quickstart"
     Ready to jump right in and start running with Prefect Cloud? See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
-!!! tip "Need help?"
-    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
-
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
 Prefect Cloud includes all the features in the open-source Prefect server plus the following:
@@ -125,3 +122,6 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 To create an account or sign in with an existing Prefect Cloud account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
 Then follow the steps in our [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and start running workflows with Prefect Cloud.
+
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
