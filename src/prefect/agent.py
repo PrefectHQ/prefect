@@ -266,7 +266,7 @@ class PrefectAgent:
         work_pool_filter = (
             WorkPoolFilter(name=WorkPoolFilterName(any_=[self.work_pool_name]))
             if self.work_pool_name
-            else WorkPoolFilter(name=WorkPoolFilterName(any_=["default_agent_pool"]))
+            else WorkPoolFilter(name=WorkPoolFilterName(any_=["default-agent-pool"]))
         )
         named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
