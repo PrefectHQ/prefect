@@ -9,6 +9,7 @@ from typing import Union
 
 import fsspec
 import pathspec
+import prefect
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
@@ -22,7 +23,7 @@ def create_default_ignore_file(path: str) -> bool:
     ignore_file = path / ".prefectignore"
     if ignore_file.exists():
         return False
-    default_file = pathlib.Path(__file__).parent.parent / ".prefectignore"
+    default_file = pathlib.Path(prefect.__module_path__) / ".prefectignore"
     with ignore_file.open(mode="w") as f:
         f.write(default_file.read_text())
     return True
