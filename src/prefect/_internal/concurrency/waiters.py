@@ -9,6 +9,7 @@ import contextlib
 import inspect
 import queue
 import threading
+import weakref
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 import anyio
@@ -27,6 +28,17 @@ T = TypeVar("T")
 
 logger = get_logger("prefect._internal.concurrency.waiters")
 
+_WAITERS_BY_THREAD: weakref.WeakValueDictionary[int, "Waiter"] = {}
+
+
+def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+    """
+    Get the waiter for a thread.
+
+    Returns `None` if one does not exist.
+    """
+    return _WAITERS_BY_THREAD.get(thread.ident)
+
 
 class Waiter(Portal, abc.ABC, Generic[T]):
     """
@@ -43,6 +55,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         call.set_waiter(self)
         self._call = call
         self._owner_thread = threading.current_thread()
+
+        # Set the waiter for the current thread
+        _WAITERS_BY_THREAD[self._owner_thread.ident] = self
 
         super().__init__()
 
@@ -73,6 +88,9 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError("The call is already done.")
+
         self._queue.put_nowait(call)
         call.set_runner(self)
         return call
@@ -144,6 +162,9 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError(f"The call {self._call} is already done.")
+
         if not self._queue:
             # If the loop is not yet available, just push the call to a stack
             self._early_submissions.append(call)

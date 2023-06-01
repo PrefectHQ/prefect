@@ -5,6 +5,7 @@ import abc
 import asyncio
 import concurrent.futures
 import contextlib
+import threading
 from typing import (
     Awaitable,
     Callable,
@@ -17,13 +18,17 @@ from typing import (
 
 from typing_extensions import ParamSpec
 
-from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import (
     WorkerThread,
     get_global_loop,
     in_global_loop,
 )
-from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter
+from prefect._internal.concurrency.waiters import (
+    AsyncWaiter,
+    Call,
+    SyncWaiter,
+    get_waiter_for_thread,
+)
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -101,7 +106,9 @@ class _base(abc.ABC):
 
     @staticmethod
     def call_soon_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+        __call: Union[Callable[[], T], Call[T]],
+        thread: threading.Thread,
+        timeout: Optional[float] = None,
     ) -> Call[T]:
         """
         Schedule a call for execution in the thread that is waiting for the current
@@ -110,17 +117,19 @@ class _base(abc.ABC):
         Returns the submitted call.
         """
         call = _cast_to_call(__call)
-        current_call = get_current_call()
-        if current_call is None:
-            raise RuntimeError("No call found in context.")
+        waiter = get_waiter_for_thread(thread)
+        if waiter is None:
+            raise RuntimeError(f"No waiter found for thread {thread}.")
 
+        waiter.submit(call)
         call.set_timeout(timeout)
-        current_call.add_waiting_callback(call)
         return call
 
     @staticmethod
     def call_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+        __call: Union[Callable[[], T], Call[T]],
+        thread: threading.Thread,
+        timeout: Optional[float] = None,
     ) -> T:
         """
         Run a call in the thread that is waiting for the current call.
@@ -188,9 +197,11 @@ class from_async(_base):
 
     @staticmethod
     def call_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+        __call: Union[Callable[[], T], Call[T]],
+        thread: threading.Thread,
+        timeout: Optional[float] = None,
     ) -> Awaitable[T]:
-        call = _base.call_soon_in_waiting_thread(__call, timeout=timeout)
+        call = _base.call_soon_in_waiting_thread(__call, thread, timeout=timeout)
         return call.aresult()
 
     @staticmethod
@@ -247,9 +258,11 @@ class from_sync(_base):
 
     @staticmethod
     def call_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
+        __call: Union[Callable[[], T], Call[T]],
+        thread: threading.Thread,
+        timeout: Optional[float] = None,
     ) -> T:
-        call = _base.call_soon_in_waiting_thread(__call, timeout=timeout)
+        call = _base.call_soon_in_waiting_thread(__call, thread, timeout=timeout)
         return call.result()
 
     @staticmethod

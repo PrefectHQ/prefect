@@ -106,18 +106,6 @@ class Call(Generic[T]):
 
         self.waiter = portal
 
-    def add_waiting_callback(self, call: "Call") -> None:
-        """
-        Send a callback to the waiter.
-        """
-        if self.waiter is None:
-            raise RuntimeError("No waiter has been configured.")
-
-        if self.future.done():
-            raise RuntimeError("The call is already done.")
-
-        self.waiter.submit(call)
-
     def run(self) -> Optional[Awaitable[T]]:
         """
         Execute the call and place the result on the future.
