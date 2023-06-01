@@ -21,7 +21,8 @@ from prefect.client.schemas.filters import (
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
-    FlowRunFilterWorkQueueName,
+    WorkPoolFilter,
+    WorkPoolFilterName,
     WorkQueueFilter,
     WorkQueueFilterName,
 )
@@ -256,20 +257,28 @@ class PrefectAgent:
 
         self.logger.debug("Checking for cancelled flow runs...")
 
-        work_queue_names = set()
-        async for work_queue in self.get_work_queues():
-            work_queue_names.add(work_queue.name)
+        work_queue_filter = (
+            WorkQueueFilter(name=WorkQueueFilterName(any_=list(self.work_queues)))
+            if self.work_queues
+            else None
+        )
 
+        work_pool_filter = (
+            WorkPoolFilter(name=WorkPoolFilterName(any_=[self.work_pool_name]))
+            if self.work_pool_name
+            else WorkPoolFilter(name=WorkPoolFilterName(any_=["default-agent-pool"]))
+        )
         named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
                     name=FlowRunFilterStateName(any_=["Cancelling"]),
                 ),
-                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
+            work_pool_filter=work_pool_filter,
+            work_queue_filter=work_queue_filter,
         )
 
         typed_cancelling_flow_runs = await self.client.read_flow_runs(
@@ -277,10 +286,11 @@ class PrefectAgent:
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
                 ),
-                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
+            work_pool_filter=work_pool_filter,
+            work_queue_filter=work_queue_filter,
         )
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
