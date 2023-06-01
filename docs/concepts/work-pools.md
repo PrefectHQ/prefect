@@ -324,7 +324,7 @@ Priority is evaluated to determine the order of flow-runs that can be submitted 
 If all flow runs are capable of being executed with no limitation due to concurrency or otherwise, priority is still used to determine order of submission, but there is no impact to execution.
 If not all flow runs can be executed, as a result of concurrency limits or infrastructure limitations, priority is used to determine which queues receive precedence to submit runs for execution, based upon the defined priority of that queue.
 
-Priority for flow-run submission proceeds from the highest priority to the lowest priority.  In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
+Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
 
 If new work is received on the "critical" queue while work is still in scheduled on the "high" and "low" queues, flow-run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty in waterfall fashion.
 
