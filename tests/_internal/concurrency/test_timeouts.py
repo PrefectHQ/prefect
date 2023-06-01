@@ -384,3 +384,43 @@ def test_cancel_sync_manually_in_worker_thread():
 
     assert elapsed_time < 1
     assert ctx.cancelled()
+
+
+def test_cancel_sync_after_nested_in_main_thread_inner_fails():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(2) as ctx:
+            with cancel_sync_after(0.1) as ctx:
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert ctx.cancelled()
+    assert t1 - t0 < 1
+
+
+@pytest.mark.xfail
+def test_cancel_sync_after_nested_in_main_thread_outer_fails():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as outer:
+            # xfail: Overrides the inner handler and does not raise
+            with cancel_sync_after(2):
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert outer.cancelled()
+    assert t1 - t0 < 1
+
+
+def test_cancel_sync_if_other_cancelled_in_main_thread_nested():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as outer:
+            with cancel_sync_if_other_cancelled(outer) as inner:
+                outer.chain(inner)
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert outer.cancelled()
+    assert inner.cancelled()
+    assert t1 - t0 < 1

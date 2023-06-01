@@ -22,6 +22,8 @@ from prefect._internal.concurrency.event_loop import get_running_loop, call_in_l
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
 
+_ALARM_TIMEOUT_ACTIVE: bool = False
+
 
 class CancelledError(asyncio.CancelledError):
     pass
@@ -329,7 +331,7 @@ def cancel_sync_if_other_cancelled(context: CancelContext):
     """
 
     try:
-        with cancel_sync_after(context.timeout) as ctx:
+        with cancel_sync_after(None) as ctx:
             context.chain(ctx)
             yield ctx
     except CancelledError:
