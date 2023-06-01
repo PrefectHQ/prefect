@@ -3,8 +3,8 @@
 ## Release 2.10.12
 
 ### Enhancements
-- Duplicate schemas client side and remove server imports to improve import times — https://github.com/PrefectHQ/prefect/pull/9577
-- Add task- un as a related object to emitted events — https://github.com/PrefectHQ/prefect/pull/9759
+- Duplicate schemas client side and remove server imports to improve CLI start time — https://github.com/PrefectHQ/prefect/pull/9577
+- Add task run as a related object to emitted events — https://github.com/PrefectHQ/prefect/pull/9759
 - Emit task run state change events when orchestrating a task run — https://github.com/PrefectHQ/prefect/pull/9684
 - Add healthcheck webserver to workers — https://github.com/PrefectHQ/prefect/pull/9687
 - Create files and directories with user-scoped permissions — https://github.com/PrefectHQ/prefect/pull/9789
