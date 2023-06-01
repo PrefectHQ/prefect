@@ -1,4 +1,55 @@
 # Prefect Release Notes
+     
+## Release 2.10.12
+
+
+### The deployments page is back
+
+We got a lot of positive feedback about the new flows page that was redesigned to include deployments, but several users pointed out that the it wasn't quite a full replacement for the dedicated deployments page. The deployments page has been re-added to the navigation menu until the new flows page is a worthy substitute.
+
+See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for implementation details.
+
+### Enhancements
+- All server-side schemas now have dedicated client-side duplicates — https://github.com/PrefectHQ/prefect/pull/9577
+- Import of `prefect.server` is delayed to improve CLI start time and `import prefect` time — https://github.com/PrefectHQ/prefect/pull/9577
+- Add task run as a related object to emitted events — https://github.com/PrefectHQ/prefect/pull/9759
+- Emit task run state change events when orchestrating a task run — https://github.com/PrefectHQ/prefect/pull/9684
+- Add healthcheck webserver to workers — https://github.com/PrefectHQ/prefect/pull/9687
+- Create files and directories with user-scoped permissions — https://github.com/PrefectHQ/prefect/pull/9789
+
+### Fixes
+- Show 404 instead of blank page in UI flow run id is invalid or if flow run is missing — https://github.com/PrefectHQ/prefect/pull/9746
+- Fix bug where event loop shutdown hooks could fail due to early garbage collection — https://github.com/PrefectHQ/prefect/pull/9748
+- Fix process worker `documentation_url` — https://github.com/PrefectHQ/prefect/pull/9791
+- Fix bug where given priority was ignored when creating a work queue — https://github.com/PrefectHQ/prefect/pull/9798
+- Fix inconsistent work queue handling by agent when cancelling flow runs — https://github.com/PrefectHQ/prefect/pull/9757
+
+### Experimental
+- Add `dashboard` experiment via `ENABLE_WORKSPACE_DASHBOARD` — https://github.com/PrefectHQ/prefect/pull/9802, https://github.com/PrefectHQ/prefect/pull/9799
+
+### Deprecations
+- Deprecate `create_orion_api` in favor of `create_api_app` — https://github.com/PrefectHQ/prefect/pull/9745
+- Deprecate "send_to_orion" logging option in favor of "send_to_api" — https://github.com/PrefectHQ/prefect/pull/9743
+
+### Documentation
+- Removes unreferenced requests import in 'real-world example' — https://github.com/PrefectHQ/prefect/pull/9760
+- Add state change hooks to guides overview page — https://github.com/PrefectHQ/prefect/pull/9761
+- Fix typo in flows and tasks tutorials — https://github.com/PrefectHQ/prefect/pull/9762
+- Update task docs to reference common params and link to all params — https://github.com/PrefectHQ/prefect/pull/9787
+- Add Google Analytics to documentation — https://github.com/PrefectHQ/prefect/pull/9793
+- Remove outdated announcement — https://github.com/PrefectHQ/prefect/pull/9792
+- Add extra loggers example — https://github.com/PrefectHQ/prefect/pull/9714
+- Clarify work pool priority options — https://github.com/PrefectHQ/prefect/pull/9752
+- Update worker requirements in projects tutorial — https://github.com/PrefectHQ/prefect/pull/9579
+- Fix default value comment in docs/concepts/variables — https://github.com/PrefectHQ/prefect/pull/9771
+- Fix formatting of link to Ray page — https://github.com/PrefectHQ/prefect/pull/9772
+- Add book a rubber duck links — https://github.com/PrefectHQ/prefect/pull/9790
+
+### Contributors
+- @marco-buttu made their first contribution in https://github.com/PrefectHQ/prefect/pull/9771
+- @rmorshea
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.11...2.10.12
 
 ## Release 2.10.11
 
