@@ -62,8 +62,8 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 
-# Generic type var for capturing the inner return type of async funcs
-T = TypeVar("T")
+
+T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
 
@@ -159,23 +159,24 @@ class Flow(Generic[P, R]):
             List[Callable[[schemas.core.Flow, FlowRun, State], None]]
         ] = None,
     ):
-        # Validate if hooks type is list and hook_type is callable
-        hooks = [on_completion, on_failure, on_cancellation, on_crashed]
-        for hook_types in hooks:
-            if hook_types is not None:
+        # Validate if hook passed is list and contains callables
+        hook_types = [on_completion, on_failure, on_cancellation, on_crashed]
+        hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
+        for hook, hook_name in zip(hook_types, hook_names):
+            if hook is not None:
                 try:
-                    hook_types = list(hook_types)
+                    hook = list(hook)
                 except TypeError:
                     raise TypeError(
-                        f"Expected list of callable for {hook_types}; got"
-                        f" {type(hook_types).__name__} instead."
+                        f"Expected iterable for '{hook_name}'; got"
+                        f" {type(hook).__name__} instead."
                     )
 
-                for hook_type in hook_types:
-                    if not callable(hook_type):
+                for hook_item in hook:
+                    if not callable(hook_item):
                         raise TypeError(
-                            f"Expected callables in {hook_types}; got"
-                            f" {type(hook_type).__name__} instead."
+                            f"Expected callables in {hook}; got"
+                            f" {type(hook_item).__name__} instead."
                         )
 
         if not callable(fn):

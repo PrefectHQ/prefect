@@ -206,23 +206,24 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
-        # Validate if hooks type is list and hook_type is callable
-        hooks = [on_completion, on_failure]
-        for hook_types in hooks:
-            if hook_types is not None:
+        # Validate if hook passed is list and contains callables
+        hook_types = [on_completion, on_failure]
+        hook_names = ["on_completion", "on_failure"]
+        for hook, hook_name in zip(hook_types, hook_names):
+            if hook is not None:
                 try:
-                    hook_types = list(hook_types)
+                    hook = list(hook)
                 except TypeError:
                     raise TypeError(
-                        f"Expected list of callable for {hook_types}; got"
-                        f" {type(hook_types).__name__} instead."
+                        f"Expected iterable for '{hook_name}'; got"
+                        f" {type(hook).__name__} instead."
                     )
 
-                for hook_type in hook_types:
-                    if not callable(hook_type):
+                for hook_item in hook:
+                    if not callable(hook_item):
                         raise TypeError(
-                            f"Expected callables in {hook_types}; got"
-                            f" {type(hook_type).__name__} instead."
+                            f"Expected callables in {hook}; got"
+                            f" {type(hook_item).__name__} instead."
                         )
 
         if not callable(fn):
