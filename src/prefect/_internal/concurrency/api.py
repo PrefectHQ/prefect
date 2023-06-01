@@ -121,8 +121,8 @@ class _base(abc.ABC):
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
-        waiter.submit(call)
         call.set_timeout(timeout)
+        waiter.submit(call)
         return call
 
     @staticmethod
