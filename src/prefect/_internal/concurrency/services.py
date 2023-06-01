@@ -175,8 +175,9 @@ class QueueService(abc.ABC, Generic[T]):
         """
         Internal implementation for `drain`. Returns a future for sync/async interfaces.
         """
+        if not at_exit:  # The logger may not be available during interpreter exit
+            logger.debug("Draining service %r", self)
 
-        logger.debug("Draining service %r", self)
         self._stop(at_exit=at_exit)
 
         if self._done_event.is_set():
