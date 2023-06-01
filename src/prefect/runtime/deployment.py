@@ -39,7 +39,7 @@ CACHED_DEPLOYMENT = {}
 
 
 type_cast = {
-    bool: bool,
+    bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
     str: str,

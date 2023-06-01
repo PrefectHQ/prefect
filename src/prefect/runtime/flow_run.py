@@ -25,7 +25,7 @@ __all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name", "parameter
 
 
 type_cast = {
-    bool: bool,
+    bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
     str: str,

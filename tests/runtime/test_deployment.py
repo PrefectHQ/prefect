@@ -29,24 +29,29 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(deployment)
         assert "foo" not in dir(deployment)
 
+    async def test_new_attribute_via_env_var(self, monkeypatch):
+        monkeypatch.setenv(name="PREFECT__RUNTIME__DEPLOYMENT__NEW_KEY", value="foobar")
+        assert deployment.new_key == "foobar"
+
     @pytest.mark.parametrize(
-        "attribute_name, attribute_value, expected_value",
+        "attribute_name, attribute_value, env_value, expected_value",
         [
-            # new user-defined attribute
-            ("new_key", "foobar", "foobar"),
-            # KNOWN FIELDS
-            # id is of type str
-            ("id", "fake-id", "fake-id"),
-            # flow_run_id is of type str
-            ("flow_run_id", "fake-flow-run-id", "fake-flow-run-id"),
+            # check allowed types for existing attributes
+            ("bool_attribute", True, "False", False),
+            ("int_attribute", 10, "20", 20),
+            ("float_attribute", 10.5, "20.5", 20.5),
+            ("str_attribute", "foo", "bar", "bar"),
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, attribute_name, attribute_value, expected_value
+        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
     ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(deployment.FIELDS, attribute_name, lambda: attribute_value)
+
         monkeypatch.setenv(
             name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}",
-            value=attribute_value,
+            value=env_value,
         )
         deployment_attr = getattr(deployment, attribute_name)
         # check the type of the deployment attribute
@@ -55,34 +60,17 @@ class TestAttributeAccessPatterns:
         assert deployment_attr == expected_value
 
     @pytest.mark.parametrize(
-        "attribute_name",
+        "attribute_name, attribute_value",
         [
             # complex types (list and dict) not allowed to be mocked using environment variables
-            "parameters",
+            ("list_of_values", [1, 2, 3]),
+            ("dict_of_values", {"foo": "bar"}),
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, attribute_name
+        self, monkeypatch, attribute_name, attribute_value
     ):
-        monkeypatch.setenv(
-            name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}", value="foo"
-        )
-        with pytest.raises(ValueError, match="cannot be mocked"):
-            getattr(deployment, attribute_name)
-
-    @pytest.mark.parametrize(
-        "attribute_name, attribute_value_fn",
-        # the previous test cannot test complex type list because any deployment attribute is of type List
-        # a new attribute is mocked in the deployment.FIELDS dict to test that case
-        [
-            # complex types (list and dict) not allowed to be mocked using environment variables
-            ("list_of_values", list),
-        ],
-    )
-    async def test_attribute_override_via_env_var_not_allowed_mocked(
-        self, monkeypatch, attribute_name, attribute_value_fn
-    ):
-        monkeypatch.setitem(deployment.FIELDS, attribute_name, attribute_value_fn)
+        monkeypatch.setitem(deployment.FIELDS, attribute_name, lambda: attribute_value)
 
         monkeypatch.setenv(
             name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}", value="foo"

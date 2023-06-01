@@ -19,26 +19,29 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(task_run)
         assert "foo" not in dir(task_run)
 
+    async def test_new_attribute_via_env_var(self, monkeypatch):
+        monkeypatch.setenv(name="PREFECT__RUNTIME__TASK_RUN__NEW_KEY", value="foobar")
+        assert task_run.new_key == "foobar"
+
     @pytest.mark.parametrize(
-        "attribute_name, attribute_value, expected_value",
+        "attribute_name, attribute_value, env_value, expected_value",
         [
-            # new user-defined attribute
-            ("new_key", "foobar", "foobar"),
-            # KNOWN FIELDS
-            # id is of type str
-            ("id", "fake-id", "fake-id"),
-            # name is of type str
-            ("name", "fake-name", "fake-name"),
-            # task_name is of type str
-            ("task_name", "fake-task-name", "fake-task-name"),
+            # check allowed types for existing attributes
+            ("bool_attribute", True, "False", False),
+            ("int_attribute", 10, "20", 20),
+            ("float_attribute", 10.5, "20.5", 20.5),
+            ("str_attribute", "foo", "bar", "bar"),
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, attribute_name, attribute_value, expected_value
+        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
     ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
+
         monkeypatch.setenv(
             name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}",
-            value=attribute_value,
+            value=env_value,
         )
         tasks_run_attr = getattr(task_run, attribute_name)
         # check the type of the task_run attribute
@@ -47,16 +50,19 @@ class TestAttributeAccessPatterns:
         assert tasks_run_attr == expected_value
 
     @pytest.mark.parametrize(
-        "attribute_name",
+        "attribute_name, attribute_value",
         [
             # complex types (list and dict) not allowed to be mocked using environment variables
-            "tags",
-            "parameters",
+            ("list_of_values", [1, 2, 3]),
+            ("dict_of_values", {"foo": "bar"}),
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, attribute_name
+        self, monkeypatch, attribute_name, attribute_value
     ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
+
         monkeypatch.setenv(
             name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}", value="foo"
         )
