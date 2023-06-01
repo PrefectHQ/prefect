@@ -17,6 +17,7 @@ import anyio._backends._asyncio
 
 from prefect.logging import get_logger
 from prefect.utilities.compat import raise_signal
+from prefect._internal.concurrency.event_loop import get_running_loop, call_in_loop
 
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
@@ -44,6 +45,7 @@ class CancelContext:
         self._started = False
         self._completed = False
         self._cancel = cancel
+        self._loop = get_running_loop()
 
     @property
     def timeout(self) -> Optional[float]:
@@ -59,7 +61,12 @@ class CancelContext:
         if self.mark_cancelled():
             if self._cancel is not None:
                 logger.debug("Cancelling %r with %r", self, self._cancel)
-                self._cancel()
+                if self._loop:
+                    # Cancellation is not thread safe sometimes and this can be called
+                    # by another thread via chaining
+                    call_in_loop(self._loop, self._cancel)
+                else:
+                    self._cancel()
 
     def cancelled(self):
         with self._lock:
@@ -232,6 +239,28 @@ def cancel_async_after(timeout: Optional[float]):
 
 
 @contextlib.contextmanager
+def cancel_async_if_other_cancelled(context: CancelContext):
+    """
+    Cancel any async calls within the context if the given context is cancelled or if
+    its timeout is reached.
+
+    Yields a `CancelContext`.
+    """
+    try:
+        with cancel_async_after(context.timeout) as ctx:
+            context.chain(ctx)
+            yield ctx
+    except CancelledError:
+        if (
+            context.cancelled()
+            and context._deadline is not None
+            and time.monotonic() >= context._deadline
+        ):
+            raise TimeoutError() from None
+        raise
+
+
+@contextlib.contextmanager
 def cancel_sync_at(deadline: Optional[float]):
     """
     Cancel any sync calls within the context if it does not exit by the given deadline.
@@ -285,6 +314,32 @@ def cancel_sync_after(timeout: Optional[float]):
                 ctx,
             )
             yield ctx
+
+
+@contextlib.contextmanager
+def cancel_sync_if_other_cancelled(context: CancelContext):
+    """
+    Cancel any sync calls within the context if the given context is cancelled or if
+    its timeout is reached.
+
+    The cancel method varies depending on if this is called in the main thread or not.
+    See `cancel_sync_after` for details
+
+    Yields a `CancelContext`.
+    """
+
+    try:
+        with cancel_sync_after(context.timeout) as ctx:
+            context.chain(ctx)
+            yield ctx
+    except CancelledError:
+        if (
+            context.cancelled()
+            and context._deadline is not None
+            and time.monotonic() >= context._deadline
+        ):
+            raise TimeoutError() from None
+        raise
 
 
 @contextlib.contextmanager

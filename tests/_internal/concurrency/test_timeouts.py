@@ -13,6 +13,8 @@ from prefect._internal.concurrency.timeouts import (
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
+    cancel_async_if_other_cancelled,
+    cancel_sync_if_other_cancelled,
     cancel_sync_at,
     get_deadline,
 )
@@ -127,6 +129,84 @@ async def test_cancel_context_chain_bidirectional_after_second_completed():
     assert not ctx1.cancelled()
     assert not ctx2.cancelled()
     cancel1.assert_not_called()
+    cancel2.assert_not_called()
+
+
+async def test_cancel_async_if_other_cancelled():
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    with cancel_async_if_other_cancelled(ctx1) as ctx2:
+        ctx2._cancel = cancel2
+        assert not ctx2.cancelled()
+        ctx1.cancel()
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_called_once_with()
+
+
+async def test_cancel_async_if_other_cancelled_first():
+    cancel1 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx1.cancel()
+    with pytest.raises(CancelledError):
+        # Cancelled immediately on entrance
+        with cancel_async_if_other_cancelled(ctx1):
+            pass
+    assert ctx1.cancelled()
+    cancel1.assert_called_once_with()
+
+
+async def test_cancel_async_if_other_cancelled_after_completed():
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    with cancel_async_if_other_cancelled(ctx1) as ctx2:
+        ctx2._cancel = cancel2
+    ctx1.cancel()
+    assert ctx1.cancelled()
+    assert not ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_not_called()
+
+
+def test_cancel_sync_if_other_cancelled():
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    with cancel_sync_if_other_cancelled(ctx1) as ctx2:
+        ctx2._cancel = cancel2
+        assert not ctx2.cancelled()
+        ctx1.cancel()
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_called_once_with()
+
+
+def test_cancel_sync_if_other_cancelled_first():
+    cancel1 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx1.cancel()
+    with pytest.raises(CancelledError):
+        # Cancelled immediately on entrance
+        with cancel_sync_if_other_cancelled(ctx1):
+            pass
+    assert ctx1.cancelled()
+    cancel1.assert_called_once_with()
+
+
+def test_cancel_sync_if_other_cancelled_after_completed():
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    with cancel_sync_if_other_cancelled(ctx1) as ctx2:
+        ctx2._cancel = cancel2
+    ctx1.cancel()
+    assert ctx1.cancelled()
+    assert not ctx2.cancelled()
+    cancel1.assert_called_once_with()
     cancel2.assert_not_called()
 
 

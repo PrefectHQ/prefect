@@ -20,8 +20,8 @@ from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
-    cancel_async_at,
-    cancel_sync_at,
+    cancel_async_if_other_cancelled,
+    cancel_sync_if_other_cancelled,
 )
 from prefect.logging import get_logger
 
@@ -103,7 +103,7 @@ class SyncWaiter(Waiter[T]):
         Submit a callback to execute while waiting.
         """
         if self._call.future.done():
-            raise RuntimeError("The call is already done.")
+            raise RuntimeError(f"The call {self._call} is already done.")
 
         self._queue.put_nowait(call)
         call.set_runner(self)
@@ -151,8 +151,7 @@ class SyncWaiter(Waiter[T]):
 
         with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
-            self._call.cancel_context.start()
-            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
+            with cancel_sync_if_other_cancelled(self._call.cancel_context) as ctx:
                 self._handle_waiting_callbacks(ctx)
 
             # Wait for the future to be done
@@ -181,6 +180,8 @@ class AsyncWaiter(Waiter[T]):
         if self._call.future.done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
+        call.set_runner(self)
+
         if not self._queue:
             # If the loop is not yet available, just push the call to a stack
             self._early_submissions.append(call)
@@ -188,13 +189,13 @@ class AsyncWaiter(Waiter[T]):
 
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
-        call.set_runner(self)
         return call
 
     def _resubmit_early_submissions(self):
         assert self._queue
         for call in self._early_submissions:
-            self.submit(call)
+            # We must put items in the queue from the event loop that owns it
+            call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         self._early_submissions = []
 
     async def _handle_waiting_callbacks(self, cancel_context: CancelContext):
@@ -269,8 +270,7 @@ class AsyncWaiter(Waiter[T]):
 
         async with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
-            self._call.cancel_context.start()
-            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
+            with cancel_async_if_other_cancelled(self._call.cancel_context) as ctx:
                 await self._handle_waiting_callbacks(ctx)
 
             # Wait for the future to be done
