@@ -16,6 +16,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for imple
 - Emit task run state change events when orchestrating a task run — https://github.com/PrefectHQ/prefect/pull/9684
 - Add healthcheck webserver to workers — https://github.com/PrefectHQ/prefect/pull/9687
 - Create files and directories with user-scoped permissions — https://github.com/PrefectHQ/prefect/pull/9789
+- Runtime variables mocked with environment variables for testing are now coerced to the correct type — https://github.com/PrefectHQ/prefect/pull/9561
 
 ### Fixes
 - Show 404 instead of blank page in UI flow run id is invalid or if flow run is missing — https://github.com/PrefectHQ/prefect/pull/9746
