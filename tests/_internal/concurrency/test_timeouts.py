@@ -27,6 +27,27 @@ async def test_cancel_context():
     cancel.assert_called_once_with()
 
 
+async def test_cancel_context_deadline_not_set_yet():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    with pytest.raises(RuntimeError, match="Deadline accessed before `start` called"):
+        ctx.deadline
+
+
+async def test_cancel_context_deadline_set_on_start():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    ctx.start()
+    assert ctx.deadline == pytest.approx(time.monotonic() + 1, abs=0.25)
+
+
+async def test_cancel_context_deadline_set_on_context_manager():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    with ctx:
+        assert ctx.deadline == pytest.approx(time.monotonic() + 1, abs=0.25)
+
+
 async def test_cancel_context_chain():
     cancel1 = MagicMock()
     cancel2 = MagicMock()

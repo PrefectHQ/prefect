@@ -37,10 +37,11 @@ class CancelContext:
         self, timeout: Optional[float], cancel: Optional[Callable[[], None]] = None
     ) -> None:
         self._timeout = timeout
-        self._deadline = get_deadline(timeout)
+        self._deadline = None
         self._cancelled: bool = False
         self._chained: List["CancelContext"] = []
         self._lock = threading.Lock()
+        self._started = False
         self._completed = False
         self._cancel = cancel
 
@@ -50,6 +51,8 @@ class CancelContext:
 
     @property
     def deadline(self) -> Optional[float]:
+        if not self.started():
+            raise RuntimeError("Deadline accessed before `start` called")
         return self._deadline
 
     def cancel(self):
@@ -96,6 +99,16 @@ class CancelContext:
             self._completed = True
             return True
 
+    def start(self):
+        # Start can be called multiple times without effect
+        with self._lock:
+            if not self._started:
+                self._deadline = get_deadline(self._timeout)
+                self._started = True
+
+    def started(self):
+        return self._started
+
     def chain(self, ctx: "CancelContext", bidirectional: bool = False) -> None:
         """
         When this context is cancelled, cancel the given context as well.
@@ -113,6 +126,7 @@ class CancelContext:
             ctx.chain(self)
 
     def __enter__(self):
+        self.start()
         return self
 
     def __exit__(self, *_):
@@ -191,7 +205,8 @@ def cancel_async_at(deadline: Optional[float]):
         with _AsyncCanceller(
             deadline=deadline if deadline is not None else math.inf
         ) as scope:
-            yield scope.context
+            with scope.context:
+                yield scope.context
     finally:
         if scope.cancel_called:
             raise (
@@ -263,12 +278,13 @@ def cancel_sync_after(timeout: Optional[float]):
         method_name = "watcher"
 
     with method(timeout) as ctx:
-        logger.debug(
-            "Entered synchronous %s based cancel context %r",
-            method_name,
-            ctx,
-        )
-        yield ctx
+        with ctx:
+            logger.debug(
+                "Entered synchronous %s based cancel context %r",
+                method_name,
+                ctx,
+            )
+            yield ctx
 
 
 @contextlib.contextmanager
@@ -302,7 +318,7 @@ def _alarm_based_timeout(timeout: Optional[float]):
         # Cancel this context
         raise (
             TimeoutError()
-            if timeout is not None and time.monotonic() >= ctx._deadline
+            if timeout is not None and time.monotonic() >= ctx.deadline
             else CancelledError()
         )
 

@@ -151,6 +151,7 @@ class SyncWaiter(Waiter[T]):
 
         with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
+            self._call.cancel_context.start()
             with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
                 self._handle_waiting_callbacks(ctx)
 
@@ -268,6 +269,7 @@ class AsyncWaiter(Waiter[T]):
 
         async with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
+            self._call.cancel_context.start()
             with cancel_async_at(self._call.cancel_context.deadline) as ctx:
                 await self._handle_waiting_callbacks(ctx)
 

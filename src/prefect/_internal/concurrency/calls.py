@@ -79,7 +79,7 @@ class Call(Generic[T]):
         """
         Set the timeout for the call.
 
-        WARNING: The timeout begins immediately, not when the call starts.
+        The timeout begins when the call starts.
         """
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
@@ -167,6 +167,7 @@ class Call(Generic[T]):
     def _run_sync(self):
         try:
             with set_current_call(self):
+                self.cancel_context.start()
                 with cancel_sync_at(self.cancel_context.deadline) as ctx:
                     ctx.chain(self.cancel_context, bidirectional=True)
                     result = self.fn(*self.args, **self.kwargs)
