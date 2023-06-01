@@ -31,7 +31,7 @@ logger = get_logger("prefect._internal.concurrency.waiters")
 
 
 # Waiters are stored in a stack for each thread
-_WAITERS_BY_THREAD: weakref.WeakKeyDictionary[threading.Thread, deque["Waiter"]] = (
+_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
     weakref.WeakKeyDictionary()
 )
 
