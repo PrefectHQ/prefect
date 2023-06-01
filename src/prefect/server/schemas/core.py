@@ -11,15 +11,14 @@ from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.server.database
-import prefect.server.schemas as schemas
-from prefect.exceptions import InvalidNameError
+from prefect.server.schemas import states, schedules
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
+from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 from prefect.utilities.templating import find_placeholders
-
-INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -41,42 +40,6 @@ MAX_VARIABLE_NAME_LENGTH = 255
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
-def raise_on_invalid_name(name: str) -> None:
-    """
-    Raise an InvalidNameError if the given name contains any invalid
-    characters.
-    """
-    if any(c in name for c in INVALID_CHARACTERS):
-        raise InvalidNameError(
-            f"Name {name!r} contains an invalid character. "
-            f"Must not contain any of: {INVALID_CHARACTERS}."
-        )
-
-
-class CreatedBy(PrefectBaseModel):
-    id: Optional[UUID] = Field(
-        default=None, description="The id of the creator of the object."
-    )
-    type: Optional[str] = Field(
-        default=None, description="The type of the creator of the object."
-    )
-    display_value: Optional[str] = Field(
-        default=None, description="The display value for the creator."
-    )
-
-
-class UpdatedBy(PrefectBaseModel):
-    id: Optional[UUID] = Field(
-        default=None, description="The id of the updater of the object."
-    )
-    type: Optional[str] = Field(
-        default=None, description="The type of the updater of the object."
-    )
-    display_value: Optional[str] = Field(
-        default=None, description="The display value for the updater."
-    )
-
-
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
@@ -91,7 +54,7 @@ class Flow(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -231,7 +194,7 @@ class FlowRun(ORMBaseModel):
         ),
     )
 
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current flow run state."
     )
     state_name: Optional[str] = Field(
@@ -292,7 +255,7 @@ class FlowRun(ORMBaseModel):
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current state of the flow run."
     )
     # parent_task_run: "TaskRun" = None
@@ -456,7 +419,7 @@ class TaskRun(ORMBaseModel):
             "Tracks the source of inputs to a task run. Used for internal bookkeeping."
         ),
     )
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
     state_name: Optional[str] = Field(
@@ -508,7 +471,7 @@ class TaskRun(ORMBaseModel):
     # relationships
     # flow_run: FlowRun = None
     # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current task run state."
     )
 
@@ -539,7 +502,7 @@ class Deployment(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[schedules.SCHEDULE_TYPES] = Field(
         default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(
@@ -617,7 +580,7 @@ class Deployment(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -659,7 +622,7 @@ class BlockType(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -738,7 +701,7 @@ class BlockDocument(ORMBaseModel):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
         if v is not None:
-            raise_on_invalid_name(v)
+            raise_on_name_with_banned_characters(v)
         return v
 
     @root_validator
@@ -923,7 +886,7 @@ class WorkQueue(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -1076,7 +1039,7 @@ class WorkPool(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
     @validator("default_queue_id", always=True)

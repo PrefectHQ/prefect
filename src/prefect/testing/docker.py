@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from typing import Generator, List
 from unittest import mock
 
-from prefect.docker import ImageBuilder
+from prefect.utilities.dockerutils import ImageBuilder
 
 
 @contextmanager

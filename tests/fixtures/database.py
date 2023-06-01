@@ -300,28 +300,30 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(orion_client, tmpdir):
+async def storage_document_id(prefect_client, tmpdir):
     return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name="local-test", client=orion_client
+        name="local-test", client=prefect_client
     )
 
 
 @pytest.fixture
-async def storage_document_id_2(orion_client):
-    return await LocalFileSystem().save(name="distinct-local-test", client=orion_client)
+async def storage_document_id_2(prefect_client):
+    return await LocalFileSystem().save(
+        name="distinct-local-test", client=prefect_client
+    )
 
 
 @pytest.fixture
-async def infrastructure_document_id(orion_client):
+async def infrastructure_document_id(prefect_client):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
 @pytest.fixture
-async def infrastructure_document_id_2(orion_client):
+async def infrastructure_document_id_2(prefect_client):
     return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
@@ -332,7 +334,7 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_queue_1,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
     def hello(name: str):
         pass
@@ -354,6 +356,43 @@ async def deployment(
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_in_default_work_pool(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue,  # not attached to a work pool
+):
+    """This will create a deployment in the default work pool called `default-agent-pool`"""
+
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue.id,
         ),
     )
     await session.commit()
@@ -737,7 +776,7 @@ def initialize_orchestration(flow):
 
 
 @pytest.fixture
-async def notifier_block(orion_client):
+async def notifier_block(prefect_client):
     # Ignore warnings from block reuse in fixture
     warnings.filterwarnings("ignore", category=UserWarning)
 

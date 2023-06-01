@@ -68,7 +68,7 @@ for testing.
 ## Building an image
 
 As with the `DockerFlowRunner`, the `KubernetesFlowRunner` test assumes that you have an
-image named `prefecthq/prefect:dev-python3.9` available on the Docker daemon, and that
+image named `prefecthq/prefect-dev:sha-COMMITSHA-python3.9` available on the Docker daemon, and that
 it includes and installation of the same version of `prefect` that you are currently
 testing.  You can build a compatible image from your source tree with:
 

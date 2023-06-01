@@ -8,11 +8,11 @@ import contextlib
 from typing import (
     Awaitable,
     Callable,
+    ContextManager,
     Iterable,
     Optional,
     TypeVar,
     Union,
-    ContextManager,
 )
 
 from typing_extensions import ParamSpec

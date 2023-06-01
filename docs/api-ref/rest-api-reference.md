@@ -4,15 +4,12 @@ tags:
     - REST API
     - Prefect Cloud
 hide:
-    - navigation
     - toc
+title: Prefect Server REST API reference
 ---
 
-Both Prefect Cloud and locally hosted Prefect servers expose a REST API that gives you access to many observability, coordination, and account management functions of the platform.
-
-Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-
-The Prefect REST API documentation for locally run open-source Prefect servers is available below.
+## Prefect Server REST API
+The REST API documentation for a locally hosted open-source Prefect server is available below.
 
 <hr>
 

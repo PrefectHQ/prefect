@@ -24,7 +24,7 @@ def test_start_agent_run_once():
     )
 
 
-async def test_start_agent_creates_work_queue(orion_client: PrefectClient):
+async def test_start_agent_creates_work_queue(prefect_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["agent", "start", "--run-once", "-q", "test"],
@@ -32,7 +32,7 @@ async def test_start_agent_creates_work_queue(orion_client: PrefectClient):
         expected_output_contains=["Agent stopped!", "Agent started!"],
     )
 
-    queue = await orion_client.read_work_queue_by_name("test")
+    queue = await prefect_client.read_work_queue_by_name("test")
     assert queue
     assert queue.name == "test"
 
