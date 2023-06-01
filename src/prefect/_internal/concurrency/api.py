@@ -100,7 +100,7 @@ class _base(abc.ABC):
         return call
 
     @staticmethod
-    def call_soon_in_waiter_thread(
+    def call_soon_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> Call[T]:
         """
@@ -119,7 +119,7 @@ class _base(abc.ABC):
         return call
 
     @staticmethod
-    def call_in_waiter_thread(
+    def call_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> T:
         """
@@ -187,10 +187,10 @@ class from_async(_base):
         return call.result()
 
     @staticmethod
-    def call_in_waiter_thread(
+    def call_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> Awaitable[T]:
-        call = _base.call_soon_in_waiter_thread(__call, timeout=timeout)
+        call = _base.call_soon_in_waiting_thread(__call, timeout=timeout)
         return call.aresult()
 
     @staticmethod
@@ -246,10 +246,10 @@ class from_sync(_base):
         return call.result()
 
     @staticmethod
-    def call_in_waiter_thread(
+    def call_in_waiting_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> T:
-        call = _base.call_soon_in_waiter_thread(__call, timeout=timeout)
+        call = _base.call_soon_in_waiting_thread(__call, timeout=timeout)
         return call.result()
 
     @staticmethod

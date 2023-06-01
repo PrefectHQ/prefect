@@ -739,7 +739,7 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.call_soon_in_waiter_thread(
+                    from_async.call_soon_in_waiting_thread(
                         flow_call, timeout=flow.timeout_seconds
                     )
                 else:

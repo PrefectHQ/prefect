@@ -66,15 +66,15 @@ def test_from_sync_wait_for_call_in_loop_thread():
 
 
 @pytest.mark.parametrize("from_module", [from_async, from_sync])
-async def test_call_soon_in_waiter_thread_no_call(from_module):
+async def test_call_soon_in_waiting_thread_no_call(from_module):
     with pytest.raises(RuntimeError, match="No call found in context"):
-        getattr(from_module, "call_soon_in_waiter_thread")(create_call(identity, 1))
+        getattr(from_module, "call_soon_in_waiting_thread")(create_call(identity, 1))
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_soon_in_waiter_thread_from_worker_thread(work):
+async def test_from_async_call_soon_in_waiting_thread_from_worker_thread(work):
     async def worker():
-        call = from_async.call_soon_in_waiter_thread(create_call(work, 1))
+        call = from_async.call_soon_in_waiting_thread(create_call(work, 1))
         assert await call.aresult() == 1
         return 2
 
@@ -83,9 +83,9 @@ async def test_from_async_call_soon_in_waiter_thread_from_worker_thread(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_soon_in_waiter_thread_from_worker_thread(work):
+def test_from_sync_call_soon_in_waiting_thread_from_worker_thread(work):
     def worker():
-        call = from_sync.call_soon_in_waiter_thread(create_call(work, 1))
+        call = from_sync.call_soon_in_waiting_thread(create_call(work, 1))
         assert call.result() == 1
         return 2
 
@@ -94,9 +94,9 @@ def test_from_sync_call_soon_in_waiter_thread_from_worker_thread(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_soon_in_waiter_thread_from_loop_thread(work):
+async def test_from_async_call_soon_in_waiting_thread_from_loop_thread(work):
     async def from_loop_thread():
-        call = from_async.call_soon_in_waiter_thread(create_call(work, 1))
+        call = from_async.call_soon_in_waiting_thread(create_call(work, 1))
         assert await call.aresult() == 1
         return 2
 
@@ -106,7 +106,7 @@ async def test_from_async_call_soon_in_waiter_thread_from_loop_thread(work):
     assert result
 
 
-async def test_from_async_call_soon_in_waiter_thread_allows_concurrency():
+async def test_from_async_call_soon_in_waiting_thread_allows_concurrency():
     last_task_run = None
 
     async def sleep_then_set(n):
@@ -120,13 +120,13 @@ async def test_from_async_call_soon_in_waiter_thread_allows_concurrency():
     async def from_worker():
         calls = []
         calls.append(
-            from_async.call_soon_in_waiter_thread(create_call(sleep_then_set, 1))
+            from_async.call_soon_in_waiting_thread(create_call(sleep_then_set, 1))
         )
         calls.append(
-            from_async.call_soon_in_waiter_thread(create_call(sleep_then_set, 2))
+            from_async.call_soon_in_waiting_thread(create_call(sleep_then_set, 2))
         )
         calls.append(
-            from_async.call_soon_in_waiter_thread(create_call(sleep_then_set, 3))
+            from_async.call_soon_in_waiting_thread(create_call(sleep_then_set, 3))
         )
         await asyncio.gather(*[call.aresult() for call in calls])
         return last_task_run
@@ -136,9 +136,9 @@ async def test_from_async_call_soon_in_waiter_thread_allows_concurrency():
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_soon_in_waiter_thread_from_loop_thread(work):
+def test_from_sync_call_soon_in_waiting_thread_from_loop_thread(work):
     async def from_loop_thread():
-        call = from_async.call_soon_in_waiter_thread(create_call(work, 1))
+        call = from_async.call_soon_in_waiting_thread(create_call(work, 1))
         assert await call.aresult() == 1
         return 2
 
@@ -175,22 +175,22 @@ def test_from_sync_wait_for_call_in_new_thread_captures_context_variables(get):
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-async def test_from_async_call_soon_in_waiter_thread_captures_context_varaibles(
+async def test_from_async_call_soon_in_waiting_thread_captures_context_varaibles(
     get,
 ):
     async def from_loop_thread():
         with set_contextvar("test"):
-            call = from_async.call_soon_in_waiter_thread(get)
+            call = from_async.call_soon_in_waiting_thread(get)
         assert await call.aresult() == "test"
 
     await from_async.wait_for_call_in_loop_thread(from_loop_thread)
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-def test_from_sync_call_soon_in_waiter_thread_captures_context_varaibles(get):
+def test_from_sync_call_soon_in_waiting_thread_captures_context_varaibles(get):
     async def from_loop_thread():
         with set_contextvar("test"):
-            call = from_async.call_soon_in_waiter_thread(get)
+            call = from_async.call_soon_in_waiting_thread(get)
         assert await call.aresult() == "test"
 
     from_sync.wait_for_call_in_loop_thread(from_loop_thread)
@@ -206,9 +206,9 @@ async def test_from_async_wait_for_call_in_loop_thread_timeout():
 
 def test_from_sync_wait_for_call_in_loop_thread_timeout():
     with pytest.raises(TimeoutError):
-        # In this test, there is a slight race condition where the waiter can reach
+        # In this test, there is a slight race condition where the waiting can reach
         # the timeout before the call does resulting in an error during `wait_for...`
-        # or the call can encounter the timeout and return before the waiter times out
+        # or the call can encounter the timeout and return before the waiting times out
         # in which the error is raised when the result is retrieved
 
         from_sync.wait_for_call_in_loop_thread(
@@ -258,9 +258,9 @@ def test_from_sync_call_in_loop_thread(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_in_waiter_thread_from_worker_thread(work):
+async def test_from_async_call_in_waiting_thread_from_worker_thread(work):
     async def worker():
-        result = await from_async.call_in_waiter_thread(create_call(work, 1))
+        result = await from_async.call_in_waiting_thread(create_call(work, 1))
         assert result == 1
         return 2
 
@@ -269,9 +269,9 @@ async def test_from_async_call_in_waiter_thread_from_worker_thread(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_in_waiter_thread_from_worker_thread(work):
+def test_from_sync_call_in_waiting_thread_from_worker_thread(work):
     def worker():
-        result = from_sync.call_in_waiter_thread(create_call(work, 1))
+        result = from_sync.call_in_waiting_thread(create_call(work, 1))
         assert result == 1
         return 2
 
