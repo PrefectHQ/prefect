@@ -1544,13 +1544,13 @@ class TestFlowRunLogs:
         assert "Traceback" in error_log
         assert "ValueError: Hello!" in error_log, "References the exception"
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, prefect_client):
+    async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
             logger.info(
                 "Hello world!",
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         my_flow()
