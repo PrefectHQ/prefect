@@ -27,7 +27,7 @@ class TestAttributeAccessPatterns:
     @pytest.mark.parametrize(
         "attribute_name, attribute_value, expected_value",
         [
-            # new user defined attribute
+            # new user-defined attribute
             ("new_key", "foobar", "foobar"),
             # KNOWN FIELDS
             # id is of type str

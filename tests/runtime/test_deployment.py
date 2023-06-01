@@ -32,7 +32,7 @@ class TestAttributeAccessPatterns:
     @pytest.mark.parametrize(
         "attribute_name, attribute_value, expected_value",
         [
-            # new user defined attribute
+            # new user-defined attribute
             ("new_key", "foobar", "foobar"),
             # KNOWN FIELDS
             # id is of type str
@@ -49,9 +49,9 @@ class TestAttributeAccessPatterns:
             value=attribute_value,
         )
         deployment_attr = getattr(deployment, attribute_name)
-        # check the type of the flow_run attribute
+        # check the type of the deployment attribute
         assert isinstance(deployment_attr, type(expected_value))
-        # check the flow_run attribute value is expected_value
+        # check the deployment attribute value is expected_value
         assert deployment_attr == expected_value
 
     @pytest.mark.parametrize(

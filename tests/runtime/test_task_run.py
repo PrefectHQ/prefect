@@ -22,14 +22,14 @@ class TestAttributeAccessPatterns:
     @pytest.mark.parametrize(
         "attribute_name, attribute_value, expected_value",
         [
-            # new user defined attribute
+            # new user-defined attribute
             ("new_key", "foobar", "foobar"),
             # KNOWN FIELDS
             # id is of type str
             ("id", "fake-id", "fake-id"),
             # name is of type str
             ("name", "fake-name", "fake-name"),
-            # flow_name is of type str
+            # task_name is of type str
             ("task_name", "fake-task-name", "fake-task-name"),
         ],
     )
@@ -41,9 +41,9 @@ class TestAttributeAccessPatterns:
             value=attribute_value,
         )
         tasks_run_attr = getattr(task_run, attribute_name)
-        # check the type of the flow_run attribute
+        # check the type of the task_run attribute
         assert isinstance(tasks_run_attr, type(expected_value))
-        # check the flow_run attribute value is expected_value
+        # check the task_run attribute value is expected_value
         assert tasks_run_attr == expected_value
 
     @pytest.mark.parametrize(
