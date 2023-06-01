@@ -2,13 +2,21 @@
      
 ## Release 2.10.12
 
+
+### The deployments page is back
+
+We got a lot of positive feedback about the new flows page that was redesigned to include deployments, but several users pointed out that the it wasn't quite a full replacement for the dedicated deployments page. The deployments page has been re-added to the navigation menu until the new flows page is a worthy substitute.
+
+See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for implementation details.
+
+
 ### Enhancements
-- Duplicate schemas client side and remove server imports to improve CLI start time — https://github.com/PrefectHQ/prefect/pull/9577
+- All server-side schemas now have dedicated client-side duplicates — https://github.com/PrefectHQ/prefect/pull/9577
+- Import of `prefect.server` is delayed to improve CLI start time and `import prefect` time — https://github.com/PrefectHQ/prefect/pull/9577
 - Add task run as a related object to emitted events — https://github.com/PrefectHQ/prefect/pull/9759
 - Emit task run state change events when orchestrating a task run — https://github.com/PrefectHQ/prefect/pull/9684
 - Add healthcheck webserver to workers — https://github.com/PrefectHQ/prefect/pull/9687
 - Create files and directories with user-scoped permissions — https://github.com/PrefectHQ/prefect/pull/9789
-- Restore "Deployments" page in UI — https://github.com/PrefectHQ/prefect/pull/9800
 
 ### Fixes
 - Show 404 instead of blank page in UI flow run id is invalid or if flow run is missing — https://github.com/PrefectHQ/prefect/pull/9746
