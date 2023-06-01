@@ -391,6 +391,7 @@ async def deployment_in_default_work_pool(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue.name,
+            parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue.id,
         ),
     )

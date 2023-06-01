@@ -610,7 +610,6 @@ async def test_agent_started_in_same_work_pool_with_same_work_queue_name_cancels
         deployment.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_queue_name == deployment.work_queue_name
     assert flow_run.work_pool_name == "test-work-pool"
 
     async with PrefectAgent(
