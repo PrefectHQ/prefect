@@ -70,6 +70,7 @@ class TestAttributeAccessPatterns:
     async def test_attribute_override_via_env_var_not_allowed(
         self, monkeypatch, attribute_name, attribute_value
     ):
+        # mock attribute_name to be a function that generates attribute_value
         monkeypatch.setitem(deployment.FIELDS, attribute_name, lambda: attribute_value)
 
         monkeypatch.setenv(
