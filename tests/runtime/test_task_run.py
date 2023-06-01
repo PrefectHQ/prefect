@@ -19,9 +19,55 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(task_run)
         assert "foo" not in dir(task_run)
 
-    async def test_attribute_override_via_env_var(self, monkeypatch):
+    async def test_new_attribute_via_env_var(self, monkeypatch):
         monkeypatch.setenv(name="PREFECT__RUNTIME__TASK_RUN__NEW_KEY", value="foobar")
         assert task_run.new_key == "foobar"
+
+    @pytest.mark.parametrize(
+        "attribute_name, attribute_value, env_value, expected_value",
+        [
+            # check allowed types for existing attributes
+            ("bool_attribute", True, "False", False),
+            ("int_attribute", 10, "20", 20),
+            ("float_attribute", 10.5, "20.5", 20.5),
+            ("str_attribute", "foo", "bar", "bar"),
+        ],
+    )
+    async def test_attribute_override_via_env_var(
+        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
+    ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
+
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}",
+            value=env_value,
+        )
+        tasks_run_attr = getattr(task_run, attribute_name)
+        # check the type of the task_run attribute
+        assert isinstance(tasks_run_attr, type(expected_value))
+        # check the task_run attribute value is expected_value
+        assert tasks_run_attr == expected_value
+
+    @pytest.mark.parametrize(
+        "attribute_name, attribute_value",
+        [
+            # complex types (list and dict) not allowed to be mocked using environment variables
+            ("list_of_values", [1, 2, 3]),
+            ("dict_of_values", {"foo": "bar"}),
+        ],
+    )
+    async def test_attribute_override_via_env_var_not_allowed(
+        self, monkeypatch, attribute_name, attribute_value
+    ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
+
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__TASK_RUN__{attribute_name.upper()}", value="foo"
+        )
+        with pytest.raises(ValueError, match="cannot be mocked"):
+            getattr(task_run, attribute_name)
 
 
 class TestID:
