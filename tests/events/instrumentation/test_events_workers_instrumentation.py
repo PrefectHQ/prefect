@@ -51,19 +51,10 @@ async def test_worker_emits_submitted_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.poll.*' event.
-    # it then monitors that flow run until it's complete.
-    # When it's complete, it fires a third 'monitored' event, which
+    # When a worker submits a flow-run, it monitors that flow run until it's complete.
+    # When it's complete, it fires a second 'monitored' event, which
     # is covered by the test_worker_emits_monitored_event below.
-    assert len(asserting_events_worker._client.events) == 3
-
-    flow_run_poll_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.poll.flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(flow_run_poll_events) == 1
+    assert len(asserting_events_worker._client.events) == 2
 
     submit_events = list(
         filter(
@@ -143,19 +134,10 @@ async def test_worker_emits_executed_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    # When a worker submits a flow-run, it first dispatches a 'worker.poll.*' event.
-    # it then monitors that flow run until it's complete.
-    # When it's complete, it fires a third 'sumbitted' event, which
+    # When a worker submits a flow-run, it monitors that flow run until it's complete.
+    # When it's complete, it fires a second 'submitted' event, which
     # is covered by the test_worker_emits_submitted_event below.
-    assert len(asserting_events_worker._client.events) == 3
-
-    flow_run_poll_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.poll.flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(flow_run_poll_events) == 1
+    assert len(asserting_events_worker._client.events) == 2
 
     submitted_events = list(
         filter(
@@ -245,7 +227,7 @@ def test_lifecycle_events(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 4
+    assert len(asserting_events_worker._client.events) == 2
 
     # first event will always be `prefect.worker.started`
     started_event = asserting_events_worker._client.events[0]
@@ -269,28 +251,6 @@ def test_lifecycle_events(
             "prefect.resource.name": work_pool.name,
         },
     ]
-
-    # two 'worker.poll.*' events are dispatched in a lifecycle
-    # one for when scheduled flow runs are checked, and
-    # one for when cancelled flow runs are checked
-
-    # NOTE: here, we'll do count checks for non-starting/ending events,
-    # as the order of these events is non-deterministic / non-guaranteed
-    flow_run_poll_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.poll.flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(flow_run_poll_events) == 1
-
-    cancellation_poll_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.poll.cancelled-flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(cancellation_poll_events) == 1
 
     # last event should be `prefect.worker.stopped`
     stopped_event = asserting_events_worker._client.events[
@@ -341,15 +301,7 @@ async def test_worker_emits_cancelled_event(
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
-    assert len(asserting_events_worker._client.events) == 2
-
-    cancellation_poll_events = list(
-        filter(
-            lambda e: e.event == "prefect.worker.poll.cancelled-flow-run",
-            asserting_events_worker._client.events,
-        )
-    )
-    assert len(cancellation_poll_events) == 1
+    assert len(asserting_events_worker._client.events) == 1
 
     cancelled_events = list(
         filter(
