@@ -70,6 +70,26 @@ class TestAttributeAccessPatterns:
         with pytest.raises(ValueError, match="cannot be mocked"):
             getattr(deployment, attribute_name)
 
+    @pytest.mark.parametrize(
+        "attribute_name, attribute_value_fn",
+        # the previous test cannot test complex type list because any deployment attribute is of type List
+        # a new attribute is mocked in the deployment.FIELDS dict to test that case
+        [
+            # complex types (list and dict) not allowed to be mocked using environment variables
+            ("list_of_values", list),
+        ],
+    )
+    async def test_attribute_override_via_env_var_not_allowed_mocked(
+        self, monkeypatch, attribute_name, attribute_value_fn
+    ):
+        monkeypatch.setitem(deployment.FIELDS, attribute_name, attribute_value_fn)
+
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__DEPLOYMENT__{attribute_name.upper()}", value="foo"
+        )
+        with pytest.raises(ValueError, match="cannot be mocked"):
+            getattr(deployment, attribute_name)
+
 
 class TestID:
     """
