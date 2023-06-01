@@ -2,6 +2,7 @@ import pytest
 
 from prefect import flow
 from prefect.runtime import deployment
+from prefect.client.schemas.schedules import IntervalSchedule
 
 
 @pytest.fixture
@@ -145,3 +146,29 @@ class TestParameters:
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
         assert deployment.parameters == {"foo": 42}
+
+
+class TestSchedule:
+    async def test_schedule_is_attribute(self):
+        assert "schedule" in dir(deployment)
+
+    async def test_schedule_is_null_when_not_set(self):
+        assert deployment.schedule is None
+
+    async def test_schedule_are_loaded_when_run_id_known(
+        self, monkeypatch, prefect_client, flow_id
+    ):
+        deployment_id = await prefect_client.create_deployment(flow_id, name="test")
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.schedule is None
+
+        deployment_id = await prefect_client.create_deployment(
+            flow, name="test", schedule=IntervalSchedule(interval=60)
+        )
+        schedule = deployment.schedule
+
+        assert isinstance(schedule, IntervalSchedule)
+        assert schedule.interval == 60
+        schedule.get_dates(n=1)

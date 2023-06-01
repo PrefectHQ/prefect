@@ -33,7 +33,7 @@ from prefect.context import FlowRunContext
 
 from .flow_run import _get_flow_run
 
-__all__ = ["id", "flow_run_id", "name", "parameters", "version"]
+__all__ = ["id", "flow_run_id", "name", "parameters", "version", "schedule"]
 
 CACHED_DEPLOYMENT = {}
 
@@ -108,6 +108,18 @@ def get_name() -> dict:
     return deployment.name
 
 
+def get_schedule() -> dict:
+    dep_id = get_id()
+
+    if dep_id is None:
+        return None
+
+    deployment = from_sync.call_soon_in_loop_thread(
+        create_call(_get_deployment, dep_id)
+    ).result()
+    return deployment.schedule
+
+
 def get_version() -> dict:
     dep_id = get_id()
 
@@ -130,4 +142,5 @@ FIELDS = {
     "parameters": get_parameters,
     "name": get_name,
     "version": get_version,
+    "schedule": get_schedule,
 }
