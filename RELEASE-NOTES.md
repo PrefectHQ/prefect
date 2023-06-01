@@ -9,7 +9,6 @@ We got a lot of positive feedback about the new flows page that was redesigned t
 
 See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for implementation details.
 
-
 ### Enhancements
 - All server-side schemas now have dedicated client-side duplicates — https://github.com/PrefectHQ/prefect/pull/9577
 - Import of `prefect.server` is delayed to improve CLI start time and `import prefect` time — https://github.com/PrefectHQ/prefect/pull/9577
