@@ -6,6 +6,7 @@ import time
 import pytest
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 
 
 def identity(x):
@@ -58,11 +59,13 @@ def test_from_sync_wait_for_call_in_new_thread(work):
 async def test_from_async_wait_for_call_in_loop_thread():
     result = await from_async.wait_for_call_in_loop_thread(create_call(aidentity, 1))
     assert result == 1
+    wait_for_global_loop_exit()
 
 
 def test_from_sync_wait_for_call_in_loop_thread():
     result = from_sync.wait_for_call_in_loop_thread(create_call(aidentity, 1))
     assert result == 1
+    wait_for_global_loop_exit()
 
 
 @pytest.mark.parametrize("from_module", [from_async, from_sync])
@@ -104,6 +107,7 @@ async def test_from_async_call_soon_in_waiter_thread_from_loop_thread(work):
         create_call(from_loop_thread)
     )
     assert result
+    wait_for_global_loop_exit()
 
 
 async def test_from_async_call_soon_in_waiter_thread_allows_concurrency():
@@ -134,6 +138,8 @@ async def test_from_async_call_soon_in_waiter_thread_allows_concurrency():
     result = await from_async.wait_for_call_in_loop_thread(create_call(from_worker))
     assert result == 1
 
+    wait_for_global_loop_exit()
+
 
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_from_sync_call_soon_in_waiter_thread_from_loop_thread(work):
@@ -144,6 +150,7 @@ def test_from_sync_call_soon_in_waiter_thread_from_loop_thread(work):
 
     result = from_sync.wait_for_call_in_loop_thread(create_call(from_loop_thread))
     assert result
+    wait_for_global_loop_exit()
 
 
 async def test_from_async_wait_for_call_in_loop_thread_captures_context_variables():
@@ -153,11 +160,15 @@ async def test_from_async_wait_for_call_in_loop_thread_captures_context_variable
         )
         assert result == "test"
 
+    wait_for_global_loop_exit()
+
 
 def test_from_sync_wait_for_call_in_loop_thread_captures_context_variables():
     with set_contextvar("test"):
         result = from_sync.wait_for_call_in_loop_thread(create_call(aget_contextvar))
         assert result == "test"
+
+    wait_for_global_loop_exit()
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
@@ -184,6 +195,7 @@ async def test_from_async_call_soon_in_waiter_thread_captures_context_varaibles(
         assert await call.aresult() == "test"
 
     await from_async.wait_for_call_in_loop_thread(from_loop_thread)
+    wait_for_global_loop_exit()
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
@@ -194,6 +206,7 @@ def test_from_sync_call_soon_in_waiter_thread_captures_context_varaibles(get):
         assert await call.aresult() == "test"
 
     from_sync.wait_for_call_in_loop_thread(from_loop_thread)
+    wait_for_global_loop_exit()
 
 
 async def test_from_async_wait_for_call_in_loop_thread_timeout():
@@ -202,6 +215,8 @@ async def test_from_async_wait_for_call_in_loop_thread_timeout():
             create_call(asyncio.sleep, 1),
             timeout=0.1,
         )
+
+    wait_for_global_loop_exit()
 
 
 def test_from_sync_wait_for_call_in_loop_thread_timeout():
@@ -215,6 +230,8 @@ def test_from_sync_wait_for_call_in_loop_thread_timeout():
             create_call(asyncio.sleep, 1),
             timeout=0.1,
         )
+
+    wait_for_global_loop_exit()
 
 
 async def test_from_async_wait_for_call_in_new_thread_timeout():
