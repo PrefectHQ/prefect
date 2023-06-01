@@ -1,4 +1,5 @@
 import pytest
+import datetime
 
 from prefect import flow
 from prefect.runtime import deployment
@@ -155,20 +156,21 @@ class TestSchedule:
     async def test_schedule_is_null_when_not_set(self):
         assert deployment.schedule is None
 
-    async def test_schedule_are_loaded_when_run_id_known(
-        self, monkeypatch, prefect_client, flow_id
+    async def test_schedule_is_loaded_when_run_id_known(
+        self, monkeypatch, prefect_client, flow
     ):
-        deployment_id = await prefect_client.create_deployment(flow_id, name="test")
+        deployment_id = await prefect_client.create_deployment(flow.id, name="test")
         flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
         assert deployment.schedule is None
 
         deployment_id = await prefect_client.create_deployment(
-            flow, name="test", schedule=IntervalSchedule(interval=60)
+            flow.id, name="test", schedule=IntervalSchedule(interval=60)
         )
+        deployment.CACHED_DEPLOYMENT.clear()
         schedule = deployment.schedule
 
         assert isinstance(schedule, IntervalSchedule)
-        assert schedule.interval == 60
+        assert schedule.interval == datetime.timedelta(60)
         schedule.get_dates(n=1)
