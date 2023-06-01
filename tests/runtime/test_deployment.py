@@ -172,5 +172,5 @@ class TestSchedule:
         schedule = deployment.schedule
 
         assert isinstance(schedule, IntervalSchedule)
-        assert schedule.interval == datetime.timedelta(60)
+        assert schedule.interval == datetime.timedelta(seconds=60)
         schedule.get_dates(n=1)
