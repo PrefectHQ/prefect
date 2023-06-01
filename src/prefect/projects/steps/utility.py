@@ -1,6 +1,7 @@
 """
 Utility project steps that are useful for managing a project's deployment lifecycle.
 """
+from typing_extensions import TypedDict
 from anyio import create_task_group
 from anyio.streams.text import TextReceiveStream
 import io
@@ -37,20 +38,89 @@ async def _stream_capture_process_output(
         )
 
 
+class RunShellScriptResult(TypedDict):
+    """
+    The result of a `run_shell_script` step.
+
+    Attributes:
+        stdout: The captured standard output of the script.
+        stderr: The captured standard error of the script.
+    """
+
+    stdout: str
+    stderr: str
+
+
 async def run_shell_script(
     script: str,
     directory: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
-):
+) -> RunShellScriptResult:
     """
-    Runs a shell script.
+    Runs a one or more shell commands in a subprocess. Returns the standard
+    output and standard error of the script.
 
     Args:
         script: The script to run
-        directory: The directory to run the script in. Defaults to the current working directory.
+        directory: The directory to run the script in. Defaults to the current
+            working directory.
         env: A dictionary of environment variables to set for the script
-        stream_output: Whether to stream the output of the script to stdout/stderr
+        stream_output: Whether to stream the output of the script to
+            stdout/stderr
+
+    Returns:
+        A dictionary with the keys `stdout` and `stderr` containing the output
+            of the script
+
+    Examples:
+        Retrieve the short Git commit hash of the current repository to use as
+            a Docker image tag:
+        ```yaml
+        build:
+            - prefect.projects.steps.run_shell_script:
+                id: get-commit-hash
+                script: git rev-parse --short HEAD
+                stream_output: false
+            - prefect.projects.steps.build_docker_image:
+                requires: prefect-docker
+                image_name: my-image
+                image_tag: "{{ get-commit-hash.stdout }}"
+                dockerfile: auto
+        ```
+
+        Run a multi-line shell script:
+        ```yaml
+        build:
+            - prefect.projects.steps.run_shell_script:
+                script: |
+                    echo "Hello"
+                    echo "World"
+        ```
+
+        Run a shell script with environment variables:
+        ```yaml
+        build:
+            - prefect.projects.steps.run_shell_script:
+                script: echo "Hello $NAME"
+                env:
+                    NAME: World
+        ```
+
+        Run a shell script in a specific directory:
+        ```yaml
+        build:
+            - prefect.projects.steps.run_shell_script:
+                script: echo "Hello"
+                directory: /path/to/directory
+        ```
+
+        Run a script stored in a file:
+        ```yaml
+        build:
+            - prefect.projects.steps.run_shell_script:
+                script: "bash path/to/script.sh"
+        ```
     """
     current_env = os.environ.copy()
     current_env.update(env or {})
@@ -75,6 +145,7 @@ async def run_shell_script(
 
             await process.wait()
 
-    return dict(
-        stdout=stdout_sink.getvalue().strip(), stderr=stderr_sink.getvalue().strip()
-    )
+    return {
+        "stdout": stdout_sink.getvalue().strip(),
+        "stderr": stderr_sink.getvalue().strip(),
+    }
