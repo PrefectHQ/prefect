@@ -20,20 +20,49 @@ from prefect.context import TaskRunContext
 __all__ = ["id", "tags", "name", "parameters", "task_name"]
 
 
+type_cast = {
+    bool: lambda x: x.lower() == "true",
+    int: int,
+    float: float,
+    str: str,
+    # for optional defined attributes, when real value is NoneType, use str
+    type(None): str,
+}
+
+
 def __getattr__(name: str) -> Any:
     """
     Attribute accessor for this submodule; note that imports also work with this:
 
         from prefect.runtime.task_run import id
     """
-    env_key = f"PREFECT__RUNTIME__TASK_RUN__{name.upper()}"
-    if env_key in os.environ:
-        return os.environ[env_key]
+
     func = FIELDS.get(name)
+
+    # if `name` is an attribute but it is mocked through environment variable, the mocked type will be str,
+    # which might be different from original one. For consistency, cast env var to the same type
+    env_key = f"PREFECT__RUNTIME__TASK_RUN__{name.upper()}"
+
     if func is None:
-        raise AttributeError(f"{__name__} has no attribute {name!r}")
+        if env_key in os.environ:
+            return os.environ[env_key]
+        else:
+            raise AttributeError(f"{__name__} has no attribute {name!r}")
+
+    real_value = func()
+    if env_key in os.environ:
+        mocked_value = os.environ[env_key]
+        # cast `mocked_value` to the same type as `real_value`
+        try:
+            cast_func = type_cast[type(real_value)]
+            return cast_func(mocked_value)
+        except KeyError:
+            raise ValueError(
+                "This runtime context attribute cannot be mocked using an"
+                " environment variable. Please use monkeypatch instead."
+            )
     else:
-        return func()
+        return real_value
 
 
 def __dir__() -> List[str]:
