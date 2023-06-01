@@ -1,11 +1,40 @@
 """
 Utility project steps that are useful for managing a project's deployment lifecycle.
 """
+from anyio import create_task_group
+from anyio.streams.text import TextReceiveStream
+import io
 import os
 import shlex
+import subprocess
+import sys
 from typing import Optional, Dict
 
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import (
+    open_process,
+    stream_text,
+)
+
+
+async def _stream_capture_process_output(
+    process,
+    stdout_sink: io.StringIO,
+    stderr_sink: io.StringIO,
+    stream_output: bool = True,
+):
+    stdout_sinks = [stdout_sink, sys.stdout] if stream_output else [stdout_sink]
+    stderr_sinks = [stderr_sink, sys.stderr] if stream_output else [stderr_sink]
+    async with create_task_group() as tg:
+        tg.start_soon(
+            stream_text,
+            TextReceiveStream(process.stdout),
+            *stdout_sinks,
+        )
+        tg.start_soon(
+            stream_text,
+            TextReceiveStream(process.stderr),
+            *stderr_sinks,
+        )
 
 
 async def run_shell_script(
@@ -27,10 +56,25 @@ async def run_shell_script(
     current_env.update(env or {})
 
     commands = script.splitlines()
+    stdout_sink = io.StringIO()
+    stderr_sink = io.StringIO()
+
     for command in commands:
-        await run_process(
+        async with open_process(
             shlex.split(command),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             cwd=directory,
-            env=current_env,
-            stream_output=stream_output,
-        )
+        ) as process:
+            await _stream_capture_process_output(
+                process,
+                stdout_sink=stdout_sink,
+                stderr_sink=stderr_sink,
+                stream_output=stream_output,
+            )
+
+            await process.wait()
+
+    return dict(
+        stdout=stdout_sink.getvalue().strip(), stderr=stderr_sink.getvalue().strip()
+    )
