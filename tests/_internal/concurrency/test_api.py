@@ -267,11 +267,15 @@ async def test_from_async_call_in_loop_thread(work):
     result = await from_async.call_in_loop_thread(create_call(work, 1))
     assert result == 1
 
+    wait_for_global_loop_exit()
+
 
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_from_sync_call_in_loop_thread(work):
     result = from_sync.call_in_loop_thread(create_call(work, 1))
     assert result == 1
+
+    wait_for_global_loop_exit()
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
@@ -307,6 +311,8 @@ def test_from_sync_call_in_loop_thread_from_loop_thread():
     result = from_sync.call_in_loop_thread(worker)
     assert result == 2
 
+    wait_for_global_loop_exit()
+
 
 async def test_from_async_call_in_loop_thread_from_loop_thread():
     async def worker():
@@ -319,3 +325,5 @@ async def test_from_async_call_in_loop_thread_from_loop_thread():
 
     result = await from_async.call_in_loop_thread(worker)
     assert result == 2
+
+    wait_for_global_loop_exit()
