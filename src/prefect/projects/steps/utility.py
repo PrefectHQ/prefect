@@ -130,11 +130,15 @@ async def run_shell_script(
     stderr_sink = io.StringIO()
 
     for command in commands:
+        split_command = shlex.split(command)
+        if not split_command:
+            continue
         async with open_process(
-            shlex.split(command),
+            split_command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=directory,
+            env=current_env,
         ) as process:
             await _stream_capture_process_output(
                 process,

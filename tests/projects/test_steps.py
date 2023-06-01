@@ -1,3 +1,5 @@
+from pathlib import Path
+import sys
 from unittest.mock import MagicMock, ANY
 import pytest
 
@@ -5,6 +7,8 @@ import prefect
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.projects.steps import run_step
+
+from prefect.projects.steps.utility import run_shell_script
 
 
 @pytest.fixture
@@ -162,3 +166,74 @@ class TestGitCloneStep:
                 }
             )
         assert "super-secret-42".upper() not in str(exc.getrepr())
+
+
+class TestRunShellScript:
+    async def test_run_shell_script_single_command(self, capsys):
+        result = await run_shell_script("echo Hello World", stream_output=True)
+        assert result["stdout"] == "Hello World"
+        assert result["stderr"] == ""
+
+        # Validate the output was streamed to the console
+        out, err = capsys.readouterr()
+        assert out.strip() == "Hello World"
+        assert err == ""
+
+    async def test_run_shell_script_multiple_commands(self, capsys):
+        script = """
+        echo First Line
+        echo Second Line
+        """
+        result = await run_shell_script(script, stream_output=True)
+        assert result["stdout"] == "First Line\nSecond Line"
+        assert result["stderr"] == ""
+
+        # Validate the output was streamed to the console
+        out, err = capsys.readouterr()
+        assert out.strip() == "First Line\nSecond Line"
+        assert err == ""
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="stderr redirect does not work on Windows"
+    )
+    async def test_run_shell_script_stderr(self, capsys):
+        script = "bash -c '>&2 echo Error Message'"
+        result = await run_shell_script(script, stream_output=True)
+        assert result["stdout"] == ""
+        assert result["stderr"] == "Error Message"
+
+        # Validate the error was streamed to the console
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err.strip() == "Error Message"
+
+    async def test_run_shell_script_with_env(self, capsys):
+        script = "bash -c 'echo $TEST_ENV_VAR'"
+        result = await run_shell_script(
+            script, env={"TEST_ENV_VAR": "Test Value"}, stream_output=True
+        )
+        assert result["stdout"] == "Test Value"
+        assert result["stderr"] == ""
+
+        # Validate the output was streamed to the console
+        out, err = capsys.readouterr()
+        assert out.strip() == "Test Value"
+        assert err == ""
+
+    async def test_run_shell_script_no_output(self, capsys):
+        result = await run_shell_script("echo Hello World", stream_output=False)
+        assert result["stdout"] == "Hello World"
+        assert result["stderr"] == ""
+
+        # Validate nothing was streamed to the console
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err == ""
+
+    async def test_run_shell_script_in_directory(self):
+        parent_dir = str(Path.cwd().parent)
+        result = await run_shell_script(
+            "pwd", directory=parent_dir, stream_output=False
+        )
+        assert result["stdout"] == parent_dir
+        assert result["stderr"] == ""
