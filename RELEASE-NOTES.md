@@ -33,6 +33,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for imple
 - Deprecate "send_to_orion" logging option in favor of "send_to_api" — https://github.com/PrefectHQ/prefect/pull/9743
 
 ### Documentation
+- Add descriptions to concept tables — https://github.com/PrefectHQ/prefect/pull/9718
 - Removes unreferenced requests import in 'real-world example' — https://github.com/PrefectHQ/prefect/pull/9760
 - Add state change hooks to guides overview page — https://github.com/PrefectHQ/prefect/pull/9761
 - Fix typo in flows and tasks tutorials — https://github.com/PrefectHQ/prefect/pull/9762
@@ -48,6 +49,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for imple
 
 ### Contributors
 - @marco-buttu made their first contribution in https://github.com/PrefectHQ/prefect/pull/9771
+- @jcozar87 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9561
 - @rmorshea
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.11...2.10.12
