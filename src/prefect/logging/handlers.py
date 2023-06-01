@@ -139,8 +139,10 @@ class APILogHandler(logging.Handler):
 
             if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
-            if not getattr(record, "send_to_orion", True):
+            if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
+            if not getattr(record, "send_to_orion", True):
+                return  # Backwards compatibility
 
             log = self.prepare(record)
             APILogWorker.instance().send(log)

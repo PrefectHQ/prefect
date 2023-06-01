@@ -2431,11 +2431,11 @@ class TestTaskRunLogs:
         assert "NameError" in error_log
         assert "x + y" in error_log
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, prefect_client):
+    async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
-            logger.info("Hello world!", extra={"send_to_orion": False})
+            logger.info("Hello world!", extra={"send_to_api": False})
 
         @flow
         def my_flow():
