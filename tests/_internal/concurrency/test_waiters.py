@@ -104,16 +104,15 @@ def test_sync_waiter_timeout_in_worker_thread():
     """
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
         call = Call.new(sleep_repeatedly, 1)
         waiter = SyncWaiter(call)
         waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
-        portal.submit(call)
+        runner.submit(call)
 
     t0 = time.time()
-    with pytest.raises(TimeoutError):
-        waiter.wait()
+    waiter.wait()
     t1 = time.time()
 
     # The call has a timeout error too
@@ -128,39 +127,42 @@ def test_sync_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_sync_waiter_timeout_in_main_thread():
     """
     In this test, a timeout is raised due to a slow call that is sent back to the main
     thread by the worker thread.
     """
     done_callback = Call.new(identity, 1)
+    waiting_callback = Call.new(time.sleep, 2)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
-            callback = Call.new(time.sleep, 1)
-            call.add_waiting_callback(callback)
-            return callback
+            call.add_waiting_callback(waiting_callback)
+            # Wait for the result, should timeout
+            waiting_callback.result()
 
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
         waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
-        portal.submit(call)
+        runner.submit(call)
 
         t0 = time.time()
-        callback = waiter.wait().result()
+        waiter.wait()
         t1 = time.time()
 
-    # The cancelled error is not raised by `waiter.result()` because the worker
-    # does not check the result of the call; however, the work that was sent
-    # to the main thread should have a cancelled error
-    with pytest.raises(CancelledError):
-        callback.result()
+    with pytest.raises(TimeoutError):
+        call.result()
 
-    assert t1 - t0 < 1
-    assert callback.cancelled()
-    assert not call.cancelled()
+    with pytest.raises(CancelledError):
+        # This call had no timeout attached so it just gets cancelled
+        waiting_callback.result()
+
+    assert t1 - t0 < 2
+    assert waiting_callback.cancelled()
+    assert call.cancelled()
     assert (
         done_callback.result(timeout=0) == 1
     ), "The done callback should still be called on cancel"
@@ -169,21 +171,20 @@ def test_sync_waiter_timeout_in_main_thread():
 async def test_async_waiter_timeout_in_worker_thread():
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
         call = Call.new(sleep_repeatedly, 1)
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
-        portal.submit(call)
+        runner.submit(call)
 
         t0 = time.time()
-        with pytest.raises(TimeoutError):
-            await waiter.wait()
+        await waiter.wait()
         t1 = time.time()
 
     assert t1 - t0 < 1
 
-    # The call has a timeout error too
+    # The call has a timeout error
     with pytest.raises(TimeoutError):
         call.result()
 
@@ -193,33 +194,38 @@ async def test_async_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
+    waiting_callback = Call.new(asyncio.sleep, 1)
 
-    with WorkerThread(run_once=True) as portal:
-        callback = None
+    with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
-            nonlocal callback
-            # Send sleep to the main thread
-            callback = Call.new(asyncio.sleep, 1)
-            call.add_waiting_callback(callback)
+            call.add_waiting_callback(waiting_callback)
+            waiting_callback.result()
 
         call = Call.new(on_worker_thread)
 
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
-        portal.submit(call)
+        runner.submit(call)
 
         t0 = time.time()
-        with pytest.raises(TimeoutError):
-            await waiter.wait()
+        await waiter.wait()
         t1 = time.time()
 
+    with pytest.raises(TimeoutError):
+        call.result()
+
+    with pytest.raises(CancelledError):
+        # This call had no timeout attached so it just gets cancelled
+        waiting_callback.result()
+
     assert t1 - t0 < 1
-    assert not call.cancelled()
-    assert callback.cancelled()
+    assert call.cancelled()
+    assert waiting_callback.cancelled()
     assert (
         done_callback.result(timeout=0) == 1
     ), "The done callback should still be called on cancel"
@@ -233,15 +239,14 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
         time.sleep(0.1)
         return asyncio.sleep(0.25)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
         call = Call.new(sync_then_async_sleep)
         waiter = AsyncWaiter(call)
         call.set_timeout(0.3)
-        portal.submit(call)
+        runner.submit(call)
 
         t0 = time.time()
-        with pytest.raises(TimeoutError):
-            await waiter.wait()
+        await waiter.wait()
         t1 = time.time()
 
         assert t1 - t0 < 1
@@ -260,11 +265,11 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
 async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
         call = Call.new(raise_fn, exception_cls("test"))
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        portal.submit(call)
+        runner.submit(call)
 
         # Waiting does not throw an exception
         await waiter.wait()
@@ -285,7 +290,7 @@ async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise
 async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
             # Send exception to the main thread
@@ -297,12 +302,12 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
 
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        portal.submit(call)
+        runner.submit(call)
 
         await waiter.wait()
         callback = call.result()
 
-    # The base exception error is not raised by `waiter.result()` because the worker
+    # The base exception error is not raised by `call.result()` because the worker
     # does not check the result of the future; however, the work that was sent
     # to the main thread should have the error
     with pytest.raises(exception_cls, match="test"):
@@ -320,11 +325,11 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
 def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
         call = Call.new(raise_fn, exception_cls("test"))
         waiter = SyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        portal.submit(call)
+        runner.submit(call)
 
         # Waiting does not throw an exception
         waiter.wait()
@@ -345,7 +350,7 @@ def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
 def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
     done_callback = Call.new(identity, 1)
 
-    with WorkerThread(run_once=True) as portal:
+    with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
             # Send exception to the main thread
@@ -357,11 +362,11 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
 
         waiter = SyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        portal.submit(call)
+        runner.submit(call)
 
         callback = waiter.wait().result()
 
-    # The base exception error is not raised by `waiter.result()` because the worker
+    # The base exception error is not raised by `call.result()` because the worker
     # does not check the result of the future; however, the work that was sent
     # to the main thread should have the error
     with pytest.raises(exception_cls, match="test"):

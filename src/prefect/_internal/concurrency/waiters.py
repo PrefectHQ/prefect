@@ -16,11 +16,6 @@ import anyio
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect._internal.concurrency.timeouts import (
-    CancelContext,
-    cancel_async_at,
-    cancel_sync_at,
-)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -78,21 +73,16 @@ class SyncWaiter(Waiter[T]):
         call.set_runner(self)
         return call
 
-    def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug(
-            "Waiter %r watching for callbacks with cancel context %r",
-            self,
-            cancel_context,
-        )
+    def _handle_waiting_callbacks(self):
+        logger.debug("Waiter %r watching for callbacks", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
                 break
 
-            # We could set the deadline for the callback to match the call we are
-            # waiting for, but callbacks can have their own timeout and we don't want to
-            # override it
-            cancel_context.chain(callback.cancel_context)
+            # Ensure that callbacks are cancelled if the parent call is cancelled so
+            # waiting never runs longer than the call
+            self._call.cancel_context.chain(callback.cancel_context)
             callback.run()
             del callback
 
@@ -119,9 +109,7 @@ class SyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         with self._handle_done_callbacks():
-            # Cancel work sent to the waiter if the future exceeds its timeout
-            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
-                self._handle_waiting_callbacks(ctx)
+            self._handle_waiting_callbacks()
 
             # Wait for the future to be done
             self._done_event.wait()
@@ -161,12 +149,8 @@ class AsyncWaiter(Waiter[T]):
             self.submit(call)
         self._early_submissions = []
 
-    async def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug(
-            "Waiter %r watching for callbacks with cancel context %r",
-            self,
-            cancel_context,
-        )
+    async def _handle_waiting_callbacks(self):
+        logger.debug("Waiter %r watching for callbacks", self)
         tasks = []
 
         try:
@@ -175,10 +159,9 @@ class AsyncWaiter(Waiter[T]):
                 if callback is None:
                     break
 
-                # We could set the deadline for the callback to match the call we are
-                # waiting for, but callbacks can have their own timeout and we don't
-                # want to override it
-                cancel_context.chain(callback.cancel_context)
+                # Ensure that callbacks are cancelled if the parent call is cancelled so
+                # waiting never runs longer than the call
+                self._call.cancel_context.chain(callback.cancel_context)
                 retval = callback.run()
                 if inspect.isawaitable(retval):
                     tasks.append(retval)
@@ -232,9 +215,7 @@ class AsyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         async with self._handle_done_callbacks():
-            # Cancel work sent to the waiter if the future exceeds its timeout
-            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
-                await self._handle_waiting_callbacks(ctx)
+            await self._handle_waiting_callbacks()
 
             # Wait for the future to be done
             await self._done_event.wait()
