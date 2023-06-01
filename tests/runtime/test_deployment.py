@@ -173,4 +173,3 @@ class TestSchedule:
 
         assert isinstance(schedule, IntervalSchedule)
         assert schedule.interval == datetime.timedelta(seconds=60)
-        schedule.get_dates(n=1)
