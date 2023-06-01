@@ -64,7 +64,6 @@ class Call(Generic[T]):
         default_factory=lambda: CancelContext(timeout=None)
     )
     runner: Optional["Portal"] = None
-    waiter: Optional["Portal"] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -96,15 +95,6 @@ class Call(Generic[T]):
             raise RuntimeError("The portal is already set for this call.")
 
         self.runner = portal
-
-    def set_waiter(self, portal: "Portal") -> None:
-        """
-        Set a portal to run callbacks while waiting for this call.
-        """
-        if self.waiter is not None:
-            raise RuntimeError("A waiter has already been set for this call.")
-
-        self.waiter = portal
 
     def run(self) -> Optional[Awaitable[T]]:
         """

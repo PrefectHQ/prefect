@@ -68,7 +68,6 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        call.set_waiter(self)
         self._call = call
         self._owner_thread = threading.current_thread()
 
