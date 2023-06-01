@@ -1,6 +1,5 @@
 # Prefect Release Notes
-
-❯ ./scripts/generate-release-notes.py 2.10.12               
+     
 ## Release 2.10.12
 
 ### Enhancements
