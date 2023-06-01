@@ -23,12 +23,12 @@ def project_dir(tmp_path):
     original_dir = os.getcwd()
     if sys.version_info >= (3, 8):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        (tmp_path / ".prefect").mkdir(exist_ok=True)
+        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path)
         yield tmp_path
     else:
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True)
+        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path / "three-seven")
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
@@ -183,7 +183,8 @@ class TestRegisterFlow:
         )
         assert f.name == "test"
 
-        with open(project_dir / ".prefect" / "flows.json", "r") as f:
+        flows_file = project_dir / ".prefect" / "flows.json"
+        with flows_file.open(mode="r") as f:
             flows = json.load(f)
 
         assert flows["test"] == "import-project/my_module/flow.py:test_flow"

@@ -47,13 +47,14 @@ def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bo
     field_defaults = field_defaults or {}
 
     path = Path(path)
-    if (path / "deployment.yaml").exists():
+    deployment_file = path / "deployment.yaml"
+    if deployment_file.exists():
         return False
 
     default_file = Path(__file__).parent / "templates" / "deployment.yaml"
 
     # load default file
-    with open(default_file, "r") as df:
+    with default_file.open(mode="r") as df:
         default = yaml.safe_load(df)
 
     # apply field defaults
@@ -63,7 +64,7 @@ def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bo
         else:
             default["deployments"][0][field] = default_value
 
-    with open(path / "deployment.yaml", "w") as f:
+    with deployment_file.open(mode="w") as f:
         yaml.dump(default, f, sort_keys=False)
 
     return True
@@ -81,7 +82,7 @@ def set_prefect_hidden_dir(path: str = None) -> bool:
     # use exists so that we dont accidentally overwrite a file
     if path.exists():
         return False
-    path.mkdir()
+    path.mkdir(mode=0o0700)
     return True
 
 
@@ -99,12 +100,13 @@ def create_default_project_yaml(
             defaults will be used
     """
     path = Path(path)
-    if (path / "prefect.yaml").exists():
+    prefect_file = path / "prefect.yaml"
+    if prefect_file.exists():
         return False
     default_file = Path(__file__).parent / "templates" / "prefect.yaml"
 
     if contents is None:
-        with open(default_file, "r") as df:
+        with default_file.open(mode="r") as df:
             contents = yaml.safe_load(df)
 
     import prefect
@@ -112,7 +114,7 @@ def create_default_project_yaml(
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name
 
-    with open(path / "prefect.yaml", "w") as f:
+    with prefect_file.open(mode="w") as f:
         # write header
         f.write(
             "# File for configuring project / deployment build, push and pull steps\n\n"
@@ -162,7 +164,7 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     if not recipe_path.exists():
         raise ValueError(f"Unknown recipe {recipe!r} provided.")
 
-    with open(recipe_path, "r") as f:
+    with recipe_path.open(mode="r") as f:
         config = yaml.safe_load(f)
 
     config = apply_values(
@@ -292,8 +294,9 @@ async def register_flow(entrypoint: str, force: bool = False):
 
     entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
 
-    if (prefect_dir / "flows.json").exists():
-        with open(prefect_dir / "flows.json", "r") as f:
+    flows_file = prefect_dir / "flows.json"
+    if flows_file.exists():
+        with flows_file.open(mode="r") as f:
             flows = json.load(f)
     else:
         flows = {}
@@ -307,7 +310,7 @@ async def register_flow(entrypoint: str, force: bool = False):
             )
     flows[flow.name] = entrypoint
 
-    with open(prefect_dir / "flows.json", "w") as f:
+    with flows_file.open(mode="w") as f:
         json.dump(flows, f, sort_keys=True, indent=2)
 
     return flow

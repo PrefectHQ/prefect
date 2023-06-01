@@ -11,6 +11,7 @@ import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -320,7 +321,8 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            os.makedirs(self.settings.value_of(PREFECT_HOME), exist_ok=True)
+            prefect_home = Path(self.settings.value_of(PREFECT_HOME))
+            prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(
                 (
