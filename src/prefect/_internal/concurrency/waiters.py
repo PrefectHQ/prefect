@@ -6,10 +6,11 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
+from collections import deque
 import inspect
+import weakref
 import queue
 import threading
-import weakref
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 import anyio
@@ -28,16 +29,31 @@ T = TypeVar("T")
 
 logger = get_logger("prefect._internal.concurrency.waiters")
 
-_WAITERS_BY_THREAD: weakref.WeakValueDictionary[int, "Waiter"] = {}
+
+# Waiters are stored in a stack for each thread
+_WAITERS_BY_THREAD: weakref.WeakKeyDictionary[threading.Thread, deque["Waiter"]] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     """
-    Get the waiter for a thread.
+    Get the current waiter for a thread.
 
     Returns `None` if one does not exist.
     """
-    return _WAITERS_BY_THREAD.get(thread.ident)
+    waiters = _WAITERS_BY_THREAD.get(thread)
+    return waiters[-1] if waiters else None
+
+
+def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
+    """
+    Add a waiter for a thread.
+    """
+    if thread not in _WAITERS_BY_THREAD:
+        _WAITERS_BY_THREAD[thread] = deque()
+
+    _WAITERS_BY_THREAD[thread].append(waiter)
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -57,8 +73,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         self._owner_thread = threading.current_thread()
 
         # Set the waiter for the current thread
-        _WAITERS_BY_THREAD[self._owner_thread.ident] = self
-
+        add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
     @abc.abstractmethod
@@ -143,6 +158,7 @@ class SyncWaiter(Waiter[T]):
             # Wait for the future to be done
             self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
 
 
@@ -259,4 +275,5 @@ class AsyncWaiter(Waiter[T]):
             # Wait for the future to be done
             await self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
