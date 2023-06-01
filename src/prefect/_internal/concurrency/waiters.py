@@ -25,7 +25,6 @@ from prefect.logging import get_logger
 
 T = TypeVar("T")
 
-# TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.waiters")
 
 
