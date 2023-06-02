@@ -19,9 +19,9 @@ def trace_on() -> bool:
     # first debug statement is printed. This is not typically how we handle settings
     # but for low-level debug prints we shall.
 
-    from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TEST_MODE
+    from prefect.settings import PREFECT_DEBUG_MODE
 
-    return PREFECT_DEBUG_MODE.value() or PREFECT_TEST_MODE.value()
+    return PREFECT_DEBUG_MODE.value()
 
 
 def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
@@ -34,12 +34,15 @@ def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
         message = message % kwargs
 
         try:
-            print(prefix + message, file=sys.stderr, flush=True)
+            print(prefix + message, file=sys.stderr)
+
+            if exc_info:
+                traceback.print_exc(file=sys.stderr)
+
+            sys.stderr.flush()
+
         except TimeoutError:
             pass  # Ignore timeouts on trace output
-
-        if exc_info:
-            traceback.print_exc(file=sys.stderr)
 
 
 """
