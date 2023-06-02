@@ -29,10 +29,9 @@ def to_qualified_name(obj: Any) -> str:
         str: the qualified name
     """
     if sys.version_info < (3, 10):
-        # These attributes are only available in Python 3.10+
         if isinstance(obj, (classmethod, staticmethod)):
             obj = obj.__func__
-    return obj.__module__ + "." + obj.__qualname__
+    return f"{obj.__module__}.{obj.__qualname__}"
 
 
 def from_qualified_name(name: str) -> Any:
@@ -53,8 +52,7 @@ def from_qualified_name(name: str) -> Any:
     """
     # Try importing it first so we support "module" or "module.sub_module"
     try:
-        module = importlib.import_module(name)
-        return module
+        return importlib.import_module(name)
     except ImportError:
         # If no subitem was included raise the import error
         if "." not in name:
@@ -267,21 +265,20 @@ def lazy_import(
     if spec is None:
         if error_on_import:
             raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
-        else:
-            try:
-                parent = inspect.stack()[1]
-                frame_data = {
-                    "spec": name,
-                    "filename": parent.filename,
-                    "lineno": parent.lineno,
-                    "function": parent.function,
-                    "code_context": parent.code_context,
-                }
-                return DelayedImportErrorModule(
-                    frame_data, help_message, "DelayedImportErrorModule"
-                )
-            finally:
-                del parent
+        try:
+            parent = inspect.stack()[1]
+            frame_data = {
+                "spec": name,
+                "filename": parent.filename,
+                "lineno": parent.lineno,
+                "function": parent.function,
+                "code_context": parent.code_context,
+            }
+            return DelayedImportErrorModule(
+                frame_data, help_message, "DelayedImportErrorModule"
+            )
+        finally:
+            del parent
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module

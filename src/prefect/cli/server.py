@@ -75,7 +75,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 
         View the API reference documentation at {docs_url}
         """
-    ).format(api_url=base_url + "/api", docs_url=base_url + "/docs")
+    ).format(api_url=f"{base_url}/api", docs_url=f"{base_url}/docs")
 
     visit_dashboard = textwrap.dedent(
         f"""
@@ -143,12 +143,11 @@ async def start(
                     "-m",
                     "uvicorn",
                     "--app-dir",
-                    # quote wrapping needed for windows paths with spaces
                     f'"{prefect.__module_path__.parent}"',
                     "--factory",
                     "prefect.server.api.server:create_app",
                     "--host",
-                    str(host),
+                    host,
                     "--port",
                     str(port),
                     "--timeout-keep-alive",

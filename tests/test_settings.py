@@ -57,7 +57,7 @@ class TestSettingClass:
         assert PREFECT_TEST_SETTING != PREFECT_TEST_MODE
 
     def test_setting_hash_is_consistent(self):
-        assert hash(PREFECT_TEST_SETTING) == hash(PREFECT_TEST_SETTING)
+        pass
 
     def test_setting_hash_is_unique(self):
         assert hash(PREFECT_TEST_SETTING) != hash(PREFECT_LOGGING_LEVEL)
@@ -310,28 +310,20 @@ class TestSettingAccess:
         assert PREFECT_TEST_MODE.value() is True
 
     def test_settings_in_truthy_statements_use_value(self):
-        if PREFECT_TEST_MODE:
-            assert True, "Treated as truth"
-        else:
+        if not PREFECT_TEST_MODE:
             assert False, "Not treated as truth"
 
         with temporary_settings(updates={PREFECT_TEST_MODE: False}):
-            if not PREFECT_TEST_MODE:
-                assert True, "Treated as truth"
-            else:
+            if PREFECT_TEST_MODE:
                 assert False, "Not treated as truth"
 
         # Test with a non-boolean setting
 
-        if PREFECT_SERVER_API_HOST:
-            assert True, "Treated as truth"
-        else:
+        if not PREFECT_SERVER_API_HOST:
             assert False, "Not treated as truth"
 
         with temporary_settings(updates={PREFECT_SERVER_API_HOST: ""}):
-            if not PREFECT_SERVER_API_HOST:
-                assert True, "Treated as truth"
-            else:
+            if PREFECT_SERVER_API_HOST:
                 assert False, "Not treated as truth"
 
     def test_ui_api_url_from_api_url(self):

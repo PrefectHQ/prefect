@@ -60,7 +60,7 @@ def generate_release_notes(
         },
         json=request,
     )
-    if not response.status_code == 200:
+    if response.status_code != 200:
         print(
             "Received status code {response.status_code} from GitHub API:",
             file=sys.stderr,
@@ -82,15 +82,14 @@ def generate_release_notes(
     # Parse all entries
     entries = ENTRY_REGEX.findall(release_notes)
 
-    # Generate a contributors section
-    contributors = ""
-    for contributor in sorted(set(user for _, user, _ in entries)):
-        contributors += f"\n- @{contributor}"
-
+    contributors = "".join(
+        f"\n- @{contributor}"
+        for contributor in sorted({user for _, user, _ in entries})
+    )
     # Replace the heading of the existing contributors section; append contributors
     release_notes = release_notes.replace(
         "\n**Full Changelog**:",
-        "### Contributors" + contributors + "\n\n**All changes**:",
+        f"### Contributors{contributors}" + "\n\n**All changes**:",
     )
 
     # Strip contributors from individual entries
@@ -120,7 +119,7 @@ def get_github_token() -> str:
         ["gh", "auth", "status", "--show-token"], capture_output=True
     )
     output = gh_auth_status.stderr.decode()
-    if not gh_auth_status.returncode == 0:
+    if gh_auth_status.returncode != 0:
         print(
             "Failed to retrieve authentication status from GitHub CLI:", file=sys.stderr
         )

@@ -268,20 +268,19 @@ async def deploy(
                     project=project,
                     options=options,
                 )
-        elif len(deployments) <= 1:
-            if len(names) > 1:
-                exit_with_error(
-                    "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
-                    " name."
-                )
-            else:
-                options["name"] = names[0] if names else None
-                await _run_single_deploy(
-                    base_deploy=deployments[0] if deployments else {},
-                    project=project,
-                    options=options,
-                )
+        elif len(names) > 1:
+            exit_with_error(
+                "Multiple deployment names were provided, but only one deployment"
+                " was found in deployment.yaml. Please provide a single deployment"
+                " name."
+            )
+        else:
+            options["name"] = names[0] if names else None
+            await _run_single_deploy(
+                base_deploy=deployments[0] if deployments else {},
+                project=project,
+                options=options,
+            )
     except ValueError as exc:
         exit_with_error(str(exc))
 
@@ -404,7 +403,7 @@ async def _run_single_deploy(
     if param and (params is not None):
         exit_with_error("Can only pass one of `param` or `params` options")
 
-    parameters = dict()
+    parameters = {}
 
     if param:
         for p in param or []:
@@ -452,7 +451,7 @@ async def _run_single_deploy(
     step_outputs = {}
     if build_steps:
         app.console.print("Running deployment build steps...")
-    step_outputs.update(await _run_steps(build_steps, step_outputs))
+    step_outputs |= await _run_steps(build_steps, step_outputs)
 
     if push_steps:
         app.console.print("Running deployment push steps...")
@@ -532,16 +531,16 @@ async def _run_single_deploy(
                     ),
                     style="red",
                 )
-        else:
-            if not is_interactive():
-                raise ValueError(
-                    "A work pool is required to deploy this flow. Please specify a work"
-                    " pool name via the '--pool' flag or in your deployment.yaml file."
-                )
+        elif is_interactive():
             base_deploy["work_pool"]["name"] = await _prompt_select_work_pool(
                 console=app.console, client=client
             )
 
+        else:
+            raise ValueError(
+                "A work pool is required to deploy this flow. Please specify a work"
+                " pool name via the '--pool' flag or in your deployment.yaml file."
+            )
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=base_deploy["name"],
@@ -649,15 +648,11 @@ async def _prompt_select_work_pool(
     client: PrefectClient = None,
 ) -> str:
     work_pools = await client.read_work_pools()
-    work_pool_options = [
+    if work_pool_options := [
         work_pool.dict()
         for work_pool in work_pools
         if work_pool.type != "prefect-agent"
-    ]
-    if not work_pool_options:
-        work_pool = await _prompt_create_work_pool(console, client=client)
-        return work_pool.name
-    else:
+    ]:
         selected_work_pool_row = prompt_select_from_table(
             console,
             prompt,
@@ -669,6 +664,9 @@ async def _prompt_select_work_pool(
             work_pool_options,
         )
         return selected_work_pool_row["name"]
+    else:
+        work_pool = await _prompt_create_work_pool(console, client=client)
+        return work_pool.name
 
 
 @inject_client
@@ -726,7 +724,7 @@ async def _run_steps(
                 get_logger().warning(
                     "Step has unexpected structure: %s", step, exc_info=True
                 )
-        step_outputs.update(await run_step(step))
+        step_outputs |= await run_step(step)
     return step_outputs
 
 

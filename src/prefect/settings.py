@@ -244,20 +244,14 @@ def debug_mode_log_level(settings, value):
     `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
     when debug mode is enabled.
     """
-    if PREFECT_DEBUG_MODE.value_from(settings):
-        return "DEBUG"
-    else:
-        return value
+    return "DEBUG" if PREFECT_DEBUG_MODE.value_from(settings) else value
 
 
 def only_return_value_in_test_mode(settings, value):
     """
     `value_callback` for `PREFECT_TEST_SETTING` that only allows access during test mode
     """
-    if PREFECT_TEST_MODE.value_from(settings):
-        return value
-    else:
-        return None
+    return value if PREFECT_TEST_MODE.value_from(settings) else None
 
 
 def default_ui_api_url(settings, value):
@@ -384,13 +378,13 @@ def default_database_connection_url(settings, value):
     # If the old one exists and the new one does not, continue using the old one
     if not new_default.exists():
         if old_default.exists():
-            return "sqlite+aiosqlite:///" + str(old_default)
+            return f"sqlite+aiosqlite:///{str(old_default)}"
 
         # Create the new default database with 0600 permissions if it does not exist
         new_default.touch(mode=0o600)
 
     # Otherwise, return the new default
-    return "sqlite+aiosqlite:///" + str(new_default)
+    return f"sqlite+aiosqlite:///{str(new_default)}"
 
 
 def default_ui_url(settings, value):
@@ -2047,9 +2041,7 @@ class ProfilesCollection:
         """
         Retrieve the active profile in this collection.
         """
-        if self.active_name is None:
-            return None
-        return self[self.active_name]
+        return None if self.active_name is None else self[self.active_name]
 
     def set_active(self, name: Optional[str], check: bool = True):
         """
@@ -2242,9 +2234,7 @@ def load_current_profile():
     from prefect.context import SettingsContext
 
     profiles = load_profiles()
-    context = SettingsContext.get()
-
-    if context:
+    if context := SettingsContext.get():
         profiles.set_active(context.profile.name)
 
     return profiles.active_profile

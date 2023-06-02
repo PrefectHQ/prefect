@@ -345,10 +345,7 @@ async def resolve_futures_to_data(
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
-        if isinstance(expr, PrefectFuture):
-            return results_by_future[expr]
-        else:
-            return expr
+        return results_by_future[expr] if isinstance(expr, PrefectFuture) else expr
 
     return visit_collection(
         expr,
@@ -393,10 +390,7 @@ async def resolve_futures_to_states(
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
-        if isinstance(expr, PrefectFuture):
-            return states_by_future[expr]
-        else:
-            return expr
+        return states_by_future[expr] if isinstance(expr, PrefectFuture) else expr
 
     return visit_collection(
         expr,
@@ -423,6 +417,6 @@ def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
 
     # Enforce a maximum length
     if len(call_args) > 100:
-        call_args = call_args[:100] + "..."
+        call_args = f"{call_args[:100]}..."
 
     return f"{name}({call_args})"

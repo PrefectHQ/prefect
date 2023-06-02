@@ -211,12 +211,10 @@ async def _get_and_cache_related_object(
     # from running out of memory only keep `MAX_CACHE_SIZE` entries in the
     # cache.
     if len(cache) > MAX_CACHE_SIZE:
-        oldest_key = sorted(
+        if oldest_key := sorted(
             [(key, timestamp) for key, (_, timestamp) in cache.items()],
             key=lambda k: k[1],
-        )[0][0]
-
-        if oldest_key:
+        )[0][0]:
             del cache[oldest_key]
 
     # Because the role is event specific and can change depending on the

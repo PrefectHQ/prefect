@@ -112,7 +112,7 @@ def mock_webbrowser(monkeypatch):
     ],
 )
 def test_login_with_invalid_key(key, expected_output, respx_mock):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
     )
     invoke_and_assert(
@@ -126,7 +126,7 @@ def test_login_with_key_and_missing_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -147,7 +147,7 @@ def test_login_with_key_and_missing_workspace(respx_mock):
 
 
 def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_200_OK, json=[])
     )
     invoke_and_assert(
@@ -161,7 +161,7 @@ def test_login_with_key_and_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -196,7 +196,7 @@ def test_login_with_non_interactive_missing_args(args):
 
 @pytest.mark.usefixtures("interactive_console")
 def test_login_with_key_and_no_workspaces(respx_mock):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[],
@@ -217,7 +217,7 @@ def test_login_with_key_and_no_workspaces(respx_mock):
 def test_login_with_key_and_select_first_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -247,7 +247,7 @@ def test_login_with_key_and_select_first_workspace(respx_mock):
 def test_login_with_key_and_select_second_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -277,7 +277,7 @@ def test_login_with_key_and_select_second_workspace(respx_mock):
 def test_login_with_interactive_key_single_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -310,7 +310,7 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -354,7 +354,7 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -368,7 +368,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(callback + "/success", content=LoginSuccess(api_key="foo").json())
+        httpx.post(f"{callback}/success", content=LoginSuccess(api_key="foo").json())
 
     mock_webbrowser.open_new_tab.side_effect = post_success
 
@@ -399,7 +399,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
 def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -413,7 +413,7 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(callback + "/failure", content=LoginFailed(reason="Oh no!").json())
+        httpx.post(f"{callback}/failure", content=LoginFailed(reason="Oh no!").json())
 
     mock_webbrowser.open_new_tab.side_effect = post_failure
 
@@ -444,7 +444,7 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
 def test_login_already_logged_in_to_current_profile_no_reauth(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -470,7 +470,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth(respx_mock):
         invoke_and_assert(
             ["cloud", "login"],
             expected_code=0,
-            user_input="n" + readchar.key.ENTER,
+            user_input=f"n{readchar.key.ENTER}",
             expected_output_contains=[
                 "Would you like to reauthenticate? [y/N]",
                 "Using the existing authentication on this profile.",
@@ -489,7 +489,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(resp
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -550,7 +550,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(resp
 def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -613,7 +613,7 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
@@ -673,7 +673,7 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
 def test_login_already_logged_in_to_another_profile(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -734,7 +734,7 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
 def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[foo_workspace.dict(json_compatible=True)],
@@ -860,7 +860,7 @@ def test_set_workspace_updates_profile(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+    respx_mock.get(f"{PREFECT_CLOUD_API_URL.value()}/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[

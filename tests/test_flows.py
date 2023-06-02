@@ -151,9 +151,13 @@ class TestFlow:
             Flow(fn=lambda: 1, name=name)
 
     def test_invalid_run_name(self):
+
+
+
         class InvalidFlowRunNameArg:
-            def format(*args, **kwargs):
+            def format(self, **kwargs):
                 pass
+
 
         with pytest.raises(
             TypeError,
@@ -829,10 +833,7 @@ class TestSubflowCalls:
         @flow
         def recurse(i):
             assert test_task() == 1
-            if i == 0:
-                return i
-            else:
-                return i + recurse(i - 1)
+            return i if i == 0 else i + recurse(i - 1)
 
         @flow
         def parent():
@@ -848,10 +849,7 @@ class TestSubflowCalls:
         @flow
         def recurse(i):
             assert test_task() == 1
-            if i == 0:
-                return i
-            else:
-                return i + recurse(i - 1)
+            return i if i == 0 else i + recurse(i - 1)
 
         assert recurse(5) == 5 + 4 + 3 + 2 + 1
 
@@ -1568,8 +1566,8 @@ class TestFlowRunLogs:
         flow_run_id = state.state_details.flow_run_id
 
         logs = await prefect_client.read_logs()
-        assert all([log.flow_run_id == flow_run_id for log in logs])
-        assert all([log.task_run_id is None for log in logs])
+        assert all(log.flow_run_id == flow_run_id for log in logs)
+        assert all(log.task_run_id is None for log in logs)
 
 
 @pytest.mark.enable_api_log_handler
@@ -1592,7 +1590,7 @@ class TestSubflowRunLogs:
 
         logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
-        assert all([log.task_run_id is None for log in logs])
+        assert all(log.task_run_id is None for log in logs)
         assert "Hello world!" in log_messages, "Parent log message is present"
         assert (
             logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id
@@ -1627,7 +1625,7 @@ class TestSubflowRunLogs:
         logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
-        assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
+        assert all(log.flow_run_id == subflow_run_id for log in task_run_logs)
         assert "Hello smaller world!" in log_messages
         assert (
             logs[log_messages.index("Hello smaller world!")].flow_run_id

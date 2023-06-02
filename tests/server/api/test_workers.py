@@ -923,7 +923,7 @@ class TestGetScheduledRuns:
         )
 
         for work_queue in work_queues:
-            if work_queue.name == "AA" or work_queue.name == "AB":
+            if work_queue.name in ["AA", "AB"]:
                 assert work_queue.last_polled is not None
                 assert work_queue.last_polled > now
             else:

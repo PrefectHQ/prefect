@@ -109,8 +109,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         )
         if cache_key not in self.ENGINES:
             # apply database timeout
-            kwargs = dict()
-            connect_args = dict()
+            kwargs = {}
+            connect_args = {}
 
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout

@@ -52,9 +52,7 @@ async def create_saved_search(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
-
-    return model
+    return result.scalar()
 
 
 @inject_db

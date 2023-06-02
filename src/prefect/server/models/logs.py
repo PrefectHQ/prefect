@@ -23,8 +23,7 @@ LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 
 
 def split_logs_into_batches(logs):
-    for batch in batched_iterable(logs, LOG_BATCH_SIZE):
-        yield batch
+    yield from batched_iterable(logs, LOG_BATCH_SIZE)
 
 
 @inject_db

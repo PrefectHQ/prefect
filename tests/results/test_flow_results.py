@@ -214,7 +214,7 @@ async def test_flow_result_storage_by_instance(prefect_client):
 
 async def test_flow_result_storage_by_slug(prefect_client):
     await LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage").save("test")
-    slug = LocalFileSystem.get_block_type_slug() + "/test"
+    slug = f"{LocalFileSystem.get_block_type_slug()}/test"
 
     @flow(result_storage=slug, persist_result=True)
     def foo():

@@ -41,11 +41,15 @@ class TestDataDocument:
             DataDocument.encode(encoding="foo", data="test")
 
     def test_encode_serializes_data_using_dispatcher(self):
+
+
+
         @register_serializer("foo")
         class FooSerializer(DataDocument):
             @staticmethod
             def dumps(data):
-                return (data + "foo").encode()
+                return f"{data}foo".encode()
+
 
         result = DataDocument.encode(encoding="foo", data="test")
         assert result.encoding == "foo"
@@ -62,11 +66,15 @@ class TestDataDocument:
             datadoc.decode()
 
     def test_encode_deserializes_data_using_dispatcher(self):
+
+
+
         @register_serializer("foo")
         class FooSerializer(DataDocument):
             @staticmethod
             def loads(blob):
-                return blob.decode() + "foo"
+                return f"{blob.decode()}foo"
+
 
         datadoc = DataDocument(encoding="foo", blob=b"test")
         assert datadoc.decode() == "testfoo"

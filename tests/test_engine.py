@@ -2092,7 +2092,7 @@ class TestAPIHealthcheck:
         async with get_client() as client:
             await check_api_reachable(client, fail_message="test")
 
-        expected_url = hosted_api_server + "/"  # httpx client appends trailing /
+        expected_url = f"{hosted_api_server}/"
 
         assert expected_url in API_HEALTHCHECKS
         assert isinstance(API_HEALTHCHECKS[expected_url], float)

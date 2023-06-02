@@ -122,7 +122,7 @@ class TestCreate:
         )
         assert res.exit_code == 0
         client_res = await prefect_client.read_work_pool(pool_name)
-        assert client_res.base_job_template == dict()
+        assert client_res.base_job_template == {}
 
     async def test_default_paused(self, prefect_client):
         pool_name = "my-pool"

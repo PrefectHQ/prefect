@@ -58,7 +58,10 @@ def main(
         is_eager=True,
     ),
 ):
-    if profile and not prefect.context.get_settings_context().profile.name == profile:
+    if (
+        profile
+        and prefect.context.get_settings_context().profile.name != profile
+    ):
         # Generally, the profile should entered by `enter_root_settings_context`.
         # In the cases where it is not (i.e. CLI testing), we will enter it here.
         settings_ctx = prefect.context.use_profile(

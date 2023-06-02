@@ -158,17 +158,17 @@ async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
 
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
         submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
-        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:2])
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[:2])
 
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
         submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
-        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:2])
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[:2])
 
         agent.limiter.release_on_behalf_of(work_queue_flow_run_ids[0])
 
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
         submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
-        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:3])
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[:3])
 
 
 async def test_agent_matches_work_queues_dynamically(

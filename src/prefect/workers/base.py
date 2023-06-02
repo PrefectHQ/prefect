@@ -86,19 +86,16 @@ class BaseJobConfiguration(BaseModel):
     @validator("command")
     def _coerce_command(cls, v):
         """Make sure that empty strings are treated as None"""
-        if not v:
-            return None
-        return v
+        return None if not v else v
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
         """Get default values from base config for all variables that have them."""
-        defaults = dict()
-        for variable_name, attrs in variables.items():
-            if "default" in attrs:
-                defaults[variable_name] = attrs["default"]
-
-        return defaults
+        return {
+            variable_name: attrs["default"]
+            for variable_name, attrs in variables.items()
+            if "default" in attrs
+        }
 
     @classmethod
     @inject_client
@@ -139,10 +136,7 @@ class BaseJobConfiguration(BaseModel):
         configuration = {}
         properties = cls.schema()["properties"]
         for k, v in properties.items():
-            if v.get("template"):
-                template = v["template"]
-            else:
-                template = "{{ " + k + " }}"
+            template = v["template"] if v.get("template") else "{{ " + k + " }}"
             configuration[k] = template
 
         return configuration
@@ -176,11 +170,7 @@ class BaseJobConfiguration(BaseModel):
         else:
             deployment_labels = {}
 
-        if flow is not None:
-            flow_labels = self._base_flow_labels(flow)
-        else:
-            flow_labels = {}
-
+        flow_labels = self._base_flow_labels(flow) if flow is not None else {}
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
@@ -406,9 +396,7 @@ class BaseWorker(abc.ABC):
         """
         load_prefect_collections()
         worker_registry = get_registry_for_type(BaseWorker)
-        if worker_registry is not None:
-            return list(worker_registry.keys())
-        return []
+        return list(worker_registry.keys()) if worker_registry is not None else []
 
     def get_name_slug(self):
         return slugify(self.name)
@@ -455,9 +443,7 @@ class BaseWorker(abc.ABC):
 
     @classmethod
     def __dispatch_key__(cls):
-        if cls.__name__ == "BaseWorker":
-            return None  # The base class is abstract
-        return cls.type
+        return None if cls.__name__ == "BaseWorker" else cls.type
 
     async def setup(self):
         """Prepares the worker to run."""
@@ -809,10 +795,8 @@ class BaseWorker(abc.ABC):
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
-        else:
-            # If the run is not ready to submit, release the concurrency slot
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+        elif self._limiter:
+            self._limiter.release_on_behalf_of(flow_run.id)
 
         self._submitting_flow_run_ids.remove(flow_run.id)
 

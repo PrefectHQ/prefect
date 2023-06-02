@@ -40,9 +40,8 @@ def call_in_loop(
     """
     if __loop is get_running_loop():
         return __fn(*args, **kwargs)
-    else:
-        future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
-        return future.result()
+    future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
+    return future.result()
 
 
 def call_soon_in_loop(

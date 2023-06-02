@@ -34,5 +34,4 @@ async def _get_variable_by_name(
     name: str,
     client: PrefectClient,
 ):
-    variable = await client.read_variable_by_name(name)
-    return variable
+    return await client.read_variable_by_name(name)

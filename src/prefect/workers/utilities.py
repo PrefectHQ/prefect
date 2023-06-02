@@ -24,7 +24,7 @@ async def get_available_work_pool_types() -> Set[str]:
                     exc_info=True,
                 )
 
-    return set([infra_type for infra_type in work_pool_types if infra_type is not None])
+    return {infra_type for infra_type in work_pool_types if infra_type is not None}
 
 
 async def get_default_base_job_template_for_infrastructure_type(

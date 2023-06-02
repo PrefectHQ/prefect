@@ -53,7 +53,9 @@ def include_object(
     # * trigram indexes that already exist
     # * case_insensitive indexes that already exist
     if type_ == "index":
-        if not reflected and any([name.endswith(suffix) for suffix in {"asc", "desc"}]):
+        if not reflected and any(
+            name.endswith(suffix) for suffix in {"asc", "desc"}
+        ):
             return compare_to is None or object.name != compare_to.name
         elif reflected and (
             name.startswith("gin") or name.endswith("case_insensitive")

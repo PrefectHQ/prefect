@@ -164,8 +164,9 @@ class KubernetesJob(Infrastructure):
     @validator("job")
     def ensure_job_includes_all_required_components(cls, value: KubernetesManifest):
         patch = JsonPatch.from_diff(value, cls.base_job_manifest())
-        missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
-        if missing_paths:
+        if missing_paths := sorted(
+            [op["path"] for op in patch if op["op"] == "add"]
+        ):
             raise ValueError(
                 "Job is missing required attributes at the following paths: "
                 f"{', '.join(missing_paths)}"
@@ -175,14 +176,13 @@ class KubernetesJob(Infrastructure):
     @validator("job")
     def ensure_job_has_compatible_values(cls, value: KubernetesManifest):
         patch = JsonPatch.from_diff(value, cls.base_job_manifest())
-        incompatible = sorted(
+        if incompatible := sorted(
             [
                 f"{op['path']} must have value {op['value']!r}"
                 for op in patch
                 if op["op"] == "replace"
             ]
-        )
-        if incompatible:
+        ):
             raise ValueError(
                 "Job has incompatble values for the following attributes: "
                 f"{', '.join(incompatible)}"
@@ -316,7 +316,7 @@ class KubernetesJob(Infrastructure):
             infrastructure_pid
         )
 
-        if not job_namespace == self.namespace:
+        if job_namespace != self.namespace:
             raise InfrastructureNotAvailable(
                 f"Unable to kill job {job_name!r}: The job is running in namespace "
                 f"{job_namespace!r} but this block is configured to use "
@@ -382,8 +382,7 @@ class KubernetesJob(Infrastructure):
         The PID is in the format: "<cluster uid>:<namespace>:<job name>".
         """
         cluster_uid = self._get_cluster_uid()
-        pid = f"{cluster_uid}:{self.namespace}:{job.metadata.name}"
-        return pid
+        return f"{cluster_uid}:{self.namespace}:{job.metadata.name}"
 
     def _parse_infrastructure_pid(
         self, infrastructure_pid: str
@@ -410,17 +409,13 @@ class KubernetesJob(Infrastructure):
 
         See https://github.com/kubernetes/kubernetes/issues/44954
         """
-        # Default to an environment variable
-        env_cluster_uid = os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID")
-        if env_cluster_uid:
+        if env_cluster_uid := os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID"):
             return env_cluster_uid
 
         # Read the UID from the cluster namespace
         with self.get_client() as client:
             namespace = client.read_namespace("kube-system")
-        cluster_uid = namespace.metadata.uid
-
-        return cluster_uid
+        return namespace.metadata.uid
 
     def _configure_kubernetes_library_client(self) -> None:
         """
@@ -529,7 +524,7 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": self._slugify_name(self.name) + "-",
+                    "value": f"{self._slugify_name(self.name)}-",
                 }
             )
         else:
@@ -719,16 +714,11 @@ class KubernetesJob(Infrastructure):
         Returns:
             the slugified job name
         """
-        slug = slugify(
+        return slugify(
             name,
             max_length=45,  # Leave enough space for generateName
             regex_pattern=r"[^a-zA-Z0-9-]+",
         )
-
-        # TODO: Handle the case that the name is an empty string after being
-        # slugified.
-
-        return slug
 
     def _slugify_label_key(self, key: str) -> str:
         """
@@ -794,16 +784,14 @@ class KubernetesJob(Infrastructure):
         Returns:
             The slugified value
         """
-        slug = (
-            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+").strip(
+        return (
+            slugify(
+                value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+"
+            ).strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value
         )
-        # Fallback to the original if we end up with an empty slug, this will allow
-        # Kubernetes to throw the validation error
-
-        return slug
 
     def _get_environment_variables(self):
         # If the API URL has been set by the base environment rather than the by the

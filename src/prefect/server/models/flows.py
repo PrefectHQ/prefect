@@ -48,8 +48,7 @@ async def create_flow(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
-    return model
+    return result.scalar()
 
 
 @inject_db

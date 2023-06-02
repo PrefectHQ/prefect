@@ -350,12 +350,10 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     Raises
         RuntimeError: If called outside of a flow or task run.
     """
-    task_run_ctx = TaskRunContext.get()
-    if task_run_ctx:
+    if task_run_ctx := TaskRunContext.get():
         return task_run_ctx
 
-    flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx:
+    if flow_run_ctx := FlowRunContext.get():
         return flow_run_ctx
 
     raise MissingContextError(
@@ -371,12 +369,10 @@ def get_settings_context() -> SettingsContext:
     Generally, the settings that are being used are a combination of values from the
     profile and environment. See `prefect.context.use_profile` for more details.
     """
-    settings_ctx = SettingsContext.get()
-
-    if not settings_ctx:
+    if settings_ctx := SettingsContext.get():
+        return settings_ctx
+    else:
         raise MissingContextError("No settings context found.")
-
-    return settings_ctx
 
 
 @contextmanager

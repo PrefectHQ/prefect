@@ -172,14 +172,13 @@ async def clone(
     if not deployment_name and not deployment_id:
         exit_with_error("Must pass either a deployment name or deployment ID.")
 
-    if deployment_name:
-        async with get_client() as client:
+    async with get_client() as client:
+        if deployment_name:
             try:
                 deployment = await client.read_deployment_by_name(deployment_name)
             except ObjectNotFound:
                 exit_with_error(f"Deployment {deployment_name!r} not found!")
-    else:
-        async with get_client() as client:
+        else:
             try:
                 deployment = await client.read_deployment(deployment_id)
             except ObjectNotFound:

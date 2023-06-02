@@ -214,7 +214,7 @@ async def api(
         "--factory",
         "prefect.server.api.server:create_app",
         "--host",
-        str(host),
+        host,
         "--port",
         str(port),
         "--log-level",

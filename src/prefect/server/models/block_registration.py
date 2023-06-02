@@ -65,14 +65,13 @@ async def register_block_schema(
     existing_block_schema = await read_block_schema_by_checksum(
         session=session, checksum=block_schema.checksum, version=block_schema.version
     )
-    if existing_block_schema is None:
-        block_schema = await create_block_schema(
-            session=session,
-            block_schema=block_schema,
-        )
-        return block_schema.id
-    else:
+    if existing_block_schema is not None:
         return existing_block_schema.id
+    block_schema = await create_block_schema(
+        session=session,
+        block_schema=block_schema,
+    )
+    return block_schema.id
 
 
 async def register_block_type(

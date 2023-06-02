@@ -49,11 +49,10 @@ def load_logging_config(path: Path) -> dict:
     flat_config = dict_to_flatdict(config)
 
     for key_tup, val in flat_config.items():
-        env_val = os.environ.get(
+        if env_val := os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
             to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
-        )
-        if env_val:
+        ):
             val = env_val
 
         # reassign the updated value

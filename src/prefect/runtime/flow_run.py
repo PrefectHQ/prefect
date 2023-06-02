@@ -59,19 +59,18 @@ def __getattr__(name: str) -> Any:
             raise AttributeError(f"{__name__} has no attribute {name!r}")
 
     real_value = func()
-    if env_key in os.environ:
-        mocked_value = os.environ[env_key]
-        # cast `mocked_value` to the same type as `real_value`
-        try:
-            cast_func = type_cast[type(real_value)]
-            return cast_func(mocked_value)
-        except KeyError:
-            raise ValueError(
-                "This runtime context attribute cannot be mocked using an"
-                " environment variable. Please use monkeypatch instead."
-            )
-    else:
+    if env_key not in os.environ:
         return real_value
+    mocked_value = os.environ[env_key]
+    # cast `mocked_value` to the same type as `real_value`
+    try:
+        cast_func = type_cast[type(real_value)]
+        return cast_func(mocked_value)
+    except KeyError:
+        raise ValueError(
+            "This runtime context attribute cannot be mocked using an"
+            " environment variable. Please use monkeypatch instead."
+        )
 
 
 def __dir__() -> List[str]:

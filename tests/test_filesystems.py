@@ -269,7 +269,7 @@ class TestRemoteFileSystem:
         base = "memory://root"
         fs = RemoteFileSystem(basepath=base)
 
-        assert fs._resolve_path(base) == base + "/"
+        assert fs._resolve_path(base) == f"{base}/"
         assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
         assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
 
@@ -550,7 +550,7 @@ class TestGitHub:
 
     async def test_dir_contents_copied_correctly_with_get_directory_and_from_path(
         self, monkeypatch, tmp_path
-    ):  # noqa
+    ):    # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst
         when `from_path` is included.
 
@@ -582,7 +582,7 @@ class TestGitHub:
             )
             await g.get_directory(local_path=tmp_dst, from_path=sub_dir_name)
 
-            assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
+            assert set(os.listdir(tmp_dst)) == {sub_dir_name}
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
 
     @pytest.mark.parametrize(

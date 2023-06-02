@@ -40,21 +40,21 @@ async def server_process():
 
     # Will connect to the same database as normal test clients
     async with open_process(
-        command=[
-            "prefect",
-            "server",
-            "start",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(port),
-            "--log-level",
-            "INFO",
-        ],
-        stdout=out,
-        stderr=out,
-        env={**os.environ, **get_current_settings().to_environment_variables()},
-    ) as process:
+            command=[
+                "prefect",
+                "server",
+                "start",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
+                "--log-level",
+                "INFO",
+            ],
+            stdout=out,
+            stderr=out,
+            env={**os.environ, **get_current_settings().to_environment_variables()},
+        ) as process:
         process.out = out
         api_url = f"http://localhost:{port}/api"
 
@@ -64,7 +64,7 @@ async def server_process():
             with anyio.move_on_after(STARTUP_TIMEOUT):
                 while True:
                     try:
-                        response = await client.get(api_url + "/health")
+                        response = await client.get(f"{api_url}/health")
                     except httpx.ConnectError:
                         pass
                     else:

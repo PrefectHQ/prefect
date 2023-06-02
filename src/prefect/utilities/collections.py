@@ -53,8 +53,8 @@ class AutoEnum(str, Enum):
         ```
     """
 
-    def _generate_next_value_(name, start, count, last_values):
-        return name
+    def _generate_next_value_(self, start, count, last_values):
+        return self
 
     @staticmethod
     def auto():
@@ -147,7 +147,7 @@ def isiterable(obj: Any) -> bool:
 
 
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
-    if isinstance(obj, Sequence) or isinstance(obj, Set):
+    if isinstance(obj, (Sequence, Set)):
         return obj
     obj = cast(T, obj)  # No longer in the iterable case
     return [obj]
@@ -183,10 +183,7 @@ def extract_instances(
             if isinstance(o, type_):
                 ret[type_].append(o)
 
-    if len(types) == 1:
-        return ret[types[0]]
-
-    return ret
+    return ret[types[0]] if len(types) == 1 else ret
 
 
 def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]]:
@@ -202,10 +199,10 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
     """
     it = iter(iterable)
     while True:
-        batch = tuple(itertools.islice(it, size))
-        if not batch:
+        if batch := tuple(itertools.islice(it, size)):
+            yield batch
+        else:
             break
-        yield batch
 
 
 class StopVisiting(BaseException):
@@ -281,10 +278,7 @@ def visit_collection(
         )
 
     def visit_expression(expr):
-        if context is not None:
-            return visit_fn(expr, context)
-        else:
-            return visit_fn(expr)
+        return visit_fn(expr, context) if context is not None else visit_fn(expr)
 
     # Visit every expression
     try:

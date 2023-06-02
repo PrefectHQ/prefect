@@ -129,10 +129,7 @@ def get_deadline(timeout: Optional[float]):
 
     Uses a monotonic clock.
     """
-    if timeout is None:
-        return None
-
-    return time.monotonic() + timeout
+    return None if timeout is None else time.monotonic() + timeout
 
 
 def get_timeout(deadline: Optional[float]):
@@ -141,10 +138,7 @@ def get_timeout(deadline: Optional[float]):
 
     Uses a monotonic clock.
     """
-    if deadline is None:
-        return None
-
-    return max(0, deadline - time.monotonic())
+    return None if deadline is None else max(0, deadline - time.monotonic())
 
 
 class _AsyncCanceller(anyio._backends._asyncio.CancelScope):

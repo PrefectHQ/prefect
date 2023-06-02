@@ -76,9 +76,7 @@ def flow_features_require_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require its result to be
     persisted.
     """
-    if not flow.cache_result_in_memory:
-        return True
-    return False
+    return not flow.cache_result_in_memory
 
 
 def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
@@ -86,9 +84,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow.retries:
-        return True
-    return False
+    return bool(flow.retries)
 
 
 def task_features_require_result_persistence(task: "Task") -> bool:
@@ -96,11 +92,7 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     Returns `True` if the given task uses features that require its result to be
     persisted.
     """
-    if task.cache_key_fn:
-        return True
-    if not task.cache_result_in_memory:
-        return True
-    return False
+    return True if task.cache_key_fn else not task.cache_result_in_memory
 
 
 def _format_user_supplied_storage_key(key):
@@ -155,8 +147,7 @@ class ResultFactory(pydantic.BaseModel):
         """
         from prefect.context import FlowRunContext
 
-        ctx = FlowRunContext.get()
-        if ctx:
+        if ctx := FlowRunContext.get():
             # This is a child flow run
             return await cls.from_settings(
                 result_storage=flow.result_storage or ctx.result_factory.storage_block,
@@ -489,8 +480,7 @@ class PersistedResult(BaseResult):
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
-        blob = PersistedResultBlob.parse_raw(content)
-        return blob
+        return PersistedResultBlob.parse_raw(content)
 
     @staticmethod
     def _infer_path(storage_block, key) -> str:
@@ -533,8 +523,7 @@ class PersistedResult(BaseResult):
         await storage_block.write_path(key, content=blob.to_bytes())
 
         description = f"Result of type `{type(obj).__name__}`"
-        uri = cls._infer_path(storage_block, key)
-        if uri:
+        if uri := cls._infer_path(storage_block, key):
             if isinstance(storage_block, LocalFileSystem):
                 description += f" persisted to: `{uri}`"
             else:

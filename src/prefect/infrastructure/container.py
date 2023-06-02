@@ -147,15 +147,13 @@ class DockerRegistry(BaseDockerLogin):
 
     @sync_compatible
     async def get_docker_client(self) -> "DockerClient":
-        client = await run_sync_in_worker_thread(
+        return await run_sync_in_worker_thread(
             self._login,
             self.username,
             self.password.get_secret_value(),
             self.registry_url,
             self.reauth,
         )
-
-        return client
 
 
 class DockerContainerResult(InfrastructureResult):
@@ -489,10 +487,7 @@ class DockerContainer(Infrastructure):
         if self.networks:
             return None
 
-        # Check for a local API connection
-        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
-
-        if api_url:
+        if api_url := self.env.get("PREFECT_API_URL", PREFECT_API_URL.value()):
             try:
                 _, netloc, _, _, _, _ = urllib.parse.urlparse(api_url)
             except Exception as exc:
@@ -505,7 +500,7 @@ class DockerContainer(Infrastructure):
             host = netloc.split(":")[0]
 
             # If using a locally hosted API, use a host network on linux
-            if sys.platform == "linux" and (host == "127.0.0.1" or host == "localhost"):
+            if sys.platform == "linux" and host in ["127.0.0.1", "localhost"]:
                 return "host"
 
         # Default to unset

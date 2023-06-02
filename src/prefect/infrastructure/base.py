@@ -99,11 +99,7 @@ class Infrastructure(Block, abc.ABC):
         else:
             deployment_labels = {}
 
-        if flow is not None:
-            flow_labels = self._base_flow_labels(flow)
-        else:
-            flow_labels = {}
-
+        flow_labels = self._base_flow_labels(flow) if flow is not None else {}
         return self.copy(
             update={
                 "env": {**self._base_flow_run_environment(flow_run), **self.env},
@@ -141,9 +137,7 @@ class Infrastructure(Block, abc.ABC):
         """
         Generate a dictionary of environment variables for a flow run job.
         """
-        environment = {}
-        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
-        return environment
+        return {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
 
     @staticmethod
     def _base_deployment_labels(deployment: "Deployment") -> Dict[str, str]:

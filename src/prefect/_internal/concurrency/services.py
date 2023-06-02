@@ -48,7 +48,7 @@ class QueueService(abc.ABC, Generic[T]):
         logger.debug("Starting service %r", self)
         loop_thread = get_global_loop()
 
-        if not asyncio.get_running_loop() == loop_thread._loop:
+        if asyncio.get_running_loop() != loop_thread._loop:
             raise RuntimeError("Services must run on the global loop thread.")
 
         self._loop = loop_thread._loop
@@ -206,9 +206,7 @@ class QueueService(abc.ABC, Generic[T]):
         with cls._instance_lock:
             instances = tuple(cls._instances.values())
 
-            for instance in instances:
-                futures.append(instance._drain())
-
+            futures.extend(instance._drain() for instance in instances)
         if get_running_loop() is not None:
             return (
                 asyncio.wait(

@@ -109,13 +109,12 @@ class Timestamp(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
+        if value.tzinfo is None:
+            raise ValueError("Timestamps must have a timezone.")
+        elif dialect.name == "sqlite":
+            return pendulum.instance(value).in_timezone("UTC")
         else:
-            if value.tzinfo is None:
-                raise ValueError("Timestamps must have a timezone.")
-            elif dialect.name == "sqlite":
-                return pendulum.instance(value).in_timezone("UTC")
-            else:
-                return value
+            return value
 
     def process_result_value(self, value, dialect):
         # retrieve timestamps in their native timezone (or UTC)
@@ -144,20 +143,16 @@ class UUID(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        elif dialect.name == "postgresql":
-            return str(value)
-        elif isinstance(value, uuid.UUID):
+        elif dialect.name == "postgresql" or isinstance(value, uuid.UUID):
             return str(value)
         else:
             return str(uuid.UUID(value))
 
     def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-        else:
+        if value is not None:
             if not isinstance(value, uuid.UUID):
                 value = uuid.UUID(value)
-            return value
+        return value
 
 
 class JSON(TypeDecorator):

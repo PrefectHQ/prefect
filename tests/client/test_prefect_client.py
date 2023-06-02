@@ -1180,7 +1180,7 @@ async def test_create_then_read_flow_run_notification_policy(
 
 
 async def test_read_filtered_logs(session, prefect_client, deployment):
-    flow_runs = [uuid4() for i in range(5)]
+    flow_runs = [uuid4() for _ in range(5)]
     logs = [
         LogCreate(
             name="prefect.flow_runs",
@@ -1428,7 +1428,7 @@ class TestClientWorkQueues:
             interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
         )
 
-        deployment_id = await prefect_client.create_deployment(
+        return await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
             manifest_path="file.json",
@@ -1437,7 +1437,6 @@ class TestClientWorkQueues:
             work_queue_name="wq",
             infrastructure_document_id=infrastructure_document_id,
         )
-        return deployment_id
 
     async def test_create_then_read_work_queue(self, prefect_client):
         queue = await prefect_client.create_work_queue(name="foo")
@@ -1618,8 +1617,8 @@ class TestWorkPools:
         # default pool shows up when running the test class or individuals, but not when running
         # test as a module
         pools = await prefect_client.read_work_pools()
-        existing_name = set([p.name for p in pools])
-        existing_ids = set([p.id for p in pools])
+        existing_name = {p.name for p in pools}
+        existing_ids = {p.id for p in pools}
         work_pool_1 = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-pool-1")
         )
@@ -1627,8 +1626,8 @@ class TestWorkPools:
             work_pool=WorkPoolCreate(name="test-pool-2")
         )
         pools = await prefect_client.read_work_pools()
-        names_after_adding = set([p.name for p in pools])
-        ids_after_adding = set([p.id for p in pools])
+        names_after_adding = {p.name for p in pools}
+        ids_after_adding = {p.id for p in pools}
         assert names_after_adding.symmetric_difference(existing_name) == {
             work_pool_1.name,
             work_pool_2.name,

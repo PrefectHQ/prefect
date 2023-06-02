@@ -226,16 +226,13 @@ def initialize_project(
 
     # hand craft a pull step
     if is_git_based and recipe is None:
-        if has_dockerfile:
-            recipe = "docker-git"
-        else:
-            recipe = "git"
+        recipe = "docker-git" if has_dockerfile else "git"
     elif recipe is None and has_dockerfile:
         recipe = "docker"
     elif recipe is None:
         recipe = "local"
 
-    formatting_kwargs.update(inputs or {})
+    formatting_kwargs |= (inputs or {})
     configuration = configure_project_by_recipe(recipe=recipe, **formatting_kwargs)
 
     project_name = name or dir_name
@@ -273,15 +270,14 @@ async def register_flow(entrypoint: str, force: bool = False):
     try:
         fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
-        if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = (
-                "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
-            )
-            raise ValueError(missing_flow_name_msg)
-        else:
+        if str(exc) != "not enough values to unpack (expected 2, got 1)":
             raise exc
 
+        missing_flow_name_msg = (
+            "Your flow entrypoint must include the name of the function that is"
+            f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+        )
+        raise ValueError(missing_flow_name_msg)
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
 
     fpath = Path(fpath).absolute()
@@ -301,9 +297,8 @@ async def register_flow(entrypoint: str, force: bool = False):
     else:
         flows = {}
 
-    ## quality control
-    if flow.name in flows and flows[flow.name] != entrypoint:
-        if not force:
+    if not force:
+        if flow.name in flows and flows[flow.name] != entrypoint:
             raise ValueError(
                 "Conflicting entry found for flow with name"
                 f" {flow.name!r}:\n{flow.name}: {flows[flow.name]}"

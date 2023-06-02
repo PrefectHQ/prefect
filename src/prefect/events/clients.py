@@ -108,7 +108,7 @@ class PrefectCloudEventsClient(EventsClient):
         )
 
         self._connect = connect(
-            socket_url + "/events/in",
+            f"{socket_url}/events/in",
             extra_headers={"Authorization": f"bearer {api_key}"},
         )
         self._websocket = None

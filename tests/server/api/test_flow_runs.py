@@ -457,8 +457,9 @@ class TestReadFlowRuns:
             assert result["idempotency_key"] != idempotency_key_of_flow_run_to_exclude
 
         # make sure the idempotency key we did not exclude is still in the results
-        assert flow_run_filter_results[0]["idempotency_key"] == str(
-            idempotency_key_of_flow_run_that_should_be_included
+        assert (
+            flow_run_filter_results[0]["idempotency_key"]
+            == idempotency_key_of_flow_run_that_should_be_included
         )
 
     async def test_read_flow_runs_applies_task_run_filter(
@@ -676,9 +677,9 @@ class TestReadFlowRunGraph:
                     task_key=str(r),
                     dynamic_key=str(r * 3),
                     state=states.Completed(),
-                    task_inputs=(
-                        dict(x=[TaskRunResult(id=prev_tr.id)]) if prev_tr else dict()
-                    ),
+                    task_inputs=dict(x=[TaskRunResult(id=prev_tr.id)])
+                    if prev_tr
+                    else {},
                 )
             )
 

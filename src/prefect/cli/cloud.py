@@ -138,16 +138,17 @@ def confirm_logged_in():
 
 
 def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace]:
-    current_api_url = PREFECT_API_URL.value()
-
-    if not current_api_url:
+    if current_api_url := PREFECT_API_URL.value():
+        return next(
+            (
+                workspace
+                for workspace in workspaces
+                if workspace.api_url() == current_api_url
+            ),
+            None,
+        )
+    else:
         return None
-
-    for workspace in workspaces:
-        if workspace.api_url() == current_api_url:
-            return workspace
-
-    return None
 
 
 def prompt_select_from_list(
@@ -187,9 +188,9 @@ def prompt_select_from_list(
 
             if i == current_idx:
                 # Use blue for selected options
-                table.add_row("[bold][blue]> " + option)
+                table.add_row(f"[bold][blue]> {option}")
             else:
-                table.add_row("  " + option)
+                table.add_row(f"  {option}")
         return table
 
     with Live(build_table(), auto_refresh=False, console=console) as live:
@@ -209,7 +210,7 @@ def prompt_select_from_list(
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
-            elif key == readchar.key.ENTER or key == readchar.key.CR:
+            elif key in [readchar.key.ENTER, readchar.key.CR]:
                 selected_option = options[current_idx]
                 if isinstance(selected_option, tuple):
                     selected_option = selected_option[0]
@@ -250,7 +251,7 @@ async def login_with_browser() -> str:
         server_port = server.servers[0].sockets[0].getsockname()[1]
         callback = urllib.parse.quote(f"http://localhost:{server_port}")
         ui_login_url = (
-            PREFECT_CLOUD_UI_URL.value() + f"/auth/client?callback={callback}"
+            f"{PREFECT_CLOUD_UI_URL.value()}/auth/client?callback={callback}"
         )
 
         # Then open the authorization page in a new browser tab
@@ -353,23 +354,23 @@ async def login(
         if not typer.confirm(
             "? Would you like to reauthenticate with this profile?", default=False
         ):
-            if typer.confirm(
-                "? Would you like to switch to an authenticated profile?", default=True
+            if not typer.confirm(
+                "? Would you like to switch to an authenticated profile?",
+                default=True,
             ):
-                profile_name = prompt_select_from_list(
-                    app.console,
-                    "Which authenticated profile would you like to switch to?",
-                    already_logged_in_profiles,
-                )
-
-                profiles.set_active(profile_name)
-                save_profiles(profiles)
-                exit_with_success(
-                    f"Switched to authenticated profile {profile_name!r}."
-                )
-            else:
                 return
 
+            profile_name = prompt_select_from_list(
+                app.console,
+                "Which authenticated profile would you like to switch to?",
+                already_logged_in_profiles,
+            )
+
+            profiles.set_active(profile_name)
+            save_profiles(profiles)
+            exit_with_success(
+                f"Switched to authenticated profile {profile_name!r}."
+            )
     if not key:
         choice = prompt_select_from_list(
             app.console,
@@ -419,7 +420,7 @@ async def login(
             else:
                 hint = ""
 
-            exit_with_error(f"Workspace {workspace_handle!r} not found." + hint)
+            exit_with_error(f"Workspace {workspace_handle!r} not found.{hint}")
     else:
         # Prompt a switch if the number of workspaces is greater than one
         prompt_switch_workspace = len(workspaces) > 1
@@ -443,16 +444,15 @@ async def login(
                 "Which workspace would you like to use?",
                 [(workspace, workspace.handle) for workspace in workspaces],
             )
+        elif current_workspace:
+            workspace = current_workspace
+        elif len(workspaces) > 0:
+            workspace = workspaces[0]
         else:
-            if current_workspace:
-                workspace = current_workspace
-            elif len(workspaces) > 0:
-                workspace = workspaces[0]
-            else:
-                exit_with_error(
-                    "No workspaces found! Create a workspace at"
-                    f" {PREFECT_CLOUD_UI_URL.value()} and try again."
-                )
+            exit_with_error(
+                "No workspaces found! Create a workspace at"
+                f" {PREFECT_CLOUD_UI_URL.value()} and try again."
+            )
 
     update_current_profile(
         {

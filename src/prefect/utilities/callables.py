@@ -55,13 +55,11 @@ def get_parameter_defaults(
     """
     signature = inspect.signature(fn)
 
-    parameter_defaults = {}
-
-    for name, param in signature.parameters.items():
-        if param.default is not signature.empty:
-            parameter_defaults[name] = param.default
-
-    return parameter_defaults
+    return {
+        name: param.default
+        for name, param in signature.parameters.items()
+        if param.default is not signature.empty
+    }
 
 
 def explode_variadic_parameter(
@@ -82,12 +80,14 @@ def explode_variadic_parameter(
         # {"a": 1, "b": 2, "c": 3, "d": 4}
         ```
     """
-    variadic_key = None
-    for key, parameter in inspect.signature(fn).parameters.items():
-        if parameter.kind == parameter.VAR_KEYWORD:
-            variadic_key = key
-            break
-
+    variadic_key = next(
+        (
+            key
+            for key, parameter in inspect.signature(fn).parameters.items()
+            if parameter.kind == parameter.VAR_KEYWORD
+        ),
+        None,
+    )
     if not variadic_key:
         return parameters
 
@@ -117,12 +117,14 @@ def collapse_variadic_parameters(
         ```
     """
     signature_parameters = inspect.signature(fn).parameters
-    variadic_key = None
-    for key, parameter in signature_parameters.items():
-        if parameter.kind == parameter.VAR_KEYWORD:
-            variadic_key = key
-            break
-
+    variadic_key = next(
+        (
+            key
+            for key, parameter in signature_parameters.items()
+            if parameter.kind == parameter.VAR_KEYWORD
+        ),
+        None,
+    )
     missing_parameters = set(parameters.keys()) - set(signature_parameters.keys())
 
     if not variadic_key and missing_parameters:
@@ -152,9 +154,7 @@ def parameters_to_args_kwargs(
     will return an empty tuple and dict.
     """
     function_params = dict(inspect.signature(fn).parameters).keys()
-    # Check for parameters that are not present in the function signature
-    unknown_params = parameters.keys() - function_params
-    if unknown_params:
+    if unknown_params := parameters.keys() - function_params:
         raise SignatureMismatchError.from_bad_params(
             list(function_params), list(parameters.keys())
         )
@@ -274,7 +274,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     for position, param in enumerate(signature.parameters.values()):
         # Pydantic model creation will fail if names collide with the BaseModel type
         if hasattr(pydantic.BaseModel, param.name):
-            name = param.name + "__"
+            name = f"{param.name}__"
             aliases[name] = param.name
         else:
             name = param.name

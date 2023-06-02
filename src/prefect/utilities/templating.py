@@ -181,8 +181,9 @@ async def resolve_block_document_references(
         The template with block documents resolved
     """
     if isinstance(template, dict):
-        block_document_id = template.get("$ref", {}).get("block_document_id")
-        if block_document_id:
+        if block_document_id := template.get("$ref", {}).get(
+            "block_document_id"
+        ):
             block_document = await client.read_block_document(block_document_id)
             return block_document.data
         updated_template = {}
@@ -216,11 +217,7 @@ async def resolve_block_document_references(
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            # Handling for system blocks like Secret that have a value field
-            # These blocks will be replaced by variables in the future and this
-            # logic can be removed at that time.
-            value = block_document.data.get("value", block_document.data)
-            return value
+            return block_document.data.get("value", block_document.data)
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"
@@ -263,10 +260,7 @@ async def resolve_variables(template: T, client: "PrefectClient" = None):
                 VARIABLE_PLACEHOLDER_PREFIX, ""
             )
             variable = await client.read_variable_by_name(name=variable_name)
-            if variable is None:
-                return ""
-            else:
-                return variable.value
+            return "" if variable is None else variable.value
         else:
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.VARIABLE:

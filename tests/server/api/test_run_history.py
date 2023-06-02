@@ -228,10 +228,10 @@ async def test_history(
 
     parsed = parse_response(response)
     assert len(parsed) == expected_bins
-    assert min([r.interval_start for r in parsed]) == start
+    assert min(r.interval_start for r in parsed) == start
     assert parsed[0].interval_end - parsed[0].interval_start == interval
     assert (
-        max([r.interval_start for r in parsed])
+        max(r.interval_start for r in parsed)
         == start + (expected_bins - 1) * interval
     )
 
@@ -251,8 +251,8 @@ async def test_history_returns_maximum_items(client, route):
 
     # only first 500 items returned
     assert len(response.json()) == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert min([r["interval_start"] for r in response.json()]) == str(dt)
-    assert max([r["interval_start"] for r in response.json()]) == str(
+    assert min(r["interval_start"] for r in response.json()) == str(dt)
+    assert max(r["interval_start"] for r in response.json()) == str(
         dt.add(minutes=499)
     )
 

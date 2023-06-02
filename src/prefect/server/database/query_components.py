@@ -192,10 +192,7 @@ class BaseQueryComponents(ABC):
             scheduled_before=scheduled_before,
         )
 
-        # starting with the work queue table, join the limited queues to get the
-        # concurrency information and the scheduled flow runs to load all applicable
-        # runs. this will return all the scheduled runs allowed by the parameters
-        query = (
+        return (
             # return a flow run and work queue id
             sa.select(
                 sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
@@ -217,8 +214,6 @@ class BaseQueryComponents(ABC):
                 scheduled_flow_runs.c.id,
             )
         )
-
-        return query
 
     def _get_scheduled_flow_runs_join(
         self,
@@ -575,8 +570,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        # postgres supports `UPDATE ... FROM` syntax
-        stmt = (
+        return (
             sa.update(fr_model)
             .where(
                 fr_model.id.in_(inserted_flow_run_ids),
@@ -587,7 +581,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             # no need to synchronize as these flow runs are entirely new
             .execution_options(synchronize_session=False)
         )
-        return stmt
 
     async def get_flow_run_notifications_from_queue(
         self, session: AsyncSession, db: "PrefectDBInterface", limit: int
@@ -764,7 +757,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .limit(1)
             .scalar_subquery()
         )
-        stmt = (
+        return (
             sa.update(fr_model)
             .where(
                 fr_model.id.in_(inserted_flow_run_ids),
@@ -773,7 +766,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             # no need to synchronize as these flow runs are entirely new
             .execution_options(synchronize_session=False)
         )
-        return stmt
 
     async def get_flow_run_notifications_from_queue(
         self, session: AsyncSession, db: "PrefectDBInterface", limit: int

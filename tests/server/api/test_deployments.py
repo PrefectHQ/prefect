@@ -1021,7 +1021,7 @@ class TestSetScheduleActive:
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.is_schedule_active
 
     async def test_set_schedule_active_can_be_called_multiple_times(
         self, client, deployment, session
@@ -1036,7 +1036,7 @@ class TestSetScheduleActive:
         assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.is_schedule_active
 
     async def test_set_schedule_active_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
@@ -1056,7 +1056,7 @@ class TestSetScheduleActive:
         assert n_runs == 0
 
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.is_schedule_active
 
     async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
         self, client, deployment, session
@@ -1070,7 +1070,7 @@ class TestSetScheduleActive:
 
         await client.post(f"/deployments/{deployment.id}/set_schedule_active")
         await session.refresh(deployment)
-        assert deployment.is_schedule_active is True
+        assert deployment.is_schedule_active
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 

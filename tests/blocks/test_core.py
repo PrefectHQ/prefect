@@ -770,9 +770,7 @@ class TestAPICompatibility:
         try:
             Secret.register_type_and_schema()
         except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                pass
-            else:
+            if exc.response.status_code != 403:
                 raise exc
 
         block_schema = Secret._to_block_schema()
@@ -872,7 +870,7 @@ class TestAPICompatibility:
             prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
         )
 
-        await Block.load(block_document.block_type.slug + "/" + block_document.name)
+        await Block.load(f"{block_document.block_type.slug}/{block_document.name}")
         mock_load_prefect_collections.assert_called_once()
 
     async def test_load_from_block_base_class(self):

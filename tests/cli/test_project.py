@@ -79,7 +79,7 @@ class TestProjectInit:
                 "project init --name test_project --recipe docker --field tag=my-tag",
                 expected_code=0,
                 temp_dir=str(tempdir),
-                user_input="my-image/foo" + readchar.key.ENTER,
+                user_input=f"my-image/foo{readchar.key.ENTER}",
                 expected_output_contains=[
                     "image_name:",
                 ],

@@ -134,10 +134,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         return hasattr(self, "_data")
 
     def __str__(self) -> str:
-        if self.has_cached_data():
-            return repr(self._data)
-        else:
-            return repr(self)
+        return repr(self._data) if self.has_cached_data() else repr(self)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(encoding={self.encoding!r})"
@@ -273,11 +270,7 @@ def result_from_state_with_data_document(state, raise_on_failure: bool) -> Any:
         stacklevel=3,
     )
 
-    data = None
-
-    if state.data:
-        data = state.data.decode()
-
+    data = state.data.decode() if state.data else None
     from prefect.states import State
 
     if (
@@ -293,7 +286,9 @@ def result_from_state_with_data_document(state, raise_on_failure: bool) -> Any:
             return data
         elif isinstance(data, State):
             data.result(fetch=False)
-        elif isinstance(data, Iterable) and all([isinstance(o, State) for o in data]):
+        elif isinstance(data, Iterable) and all(
+            isinstance(o, State) for o in data
+        ):
             # raise the first failure we find
             for state in data:
                 state.result(fetch=False)

@@ -83,7 +83,7 @@ async def get_deployment(client: PrefectClient, name, deployment_id):
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
-    elif name is None and deployment_id is None:
+    elif name is None:
         exit_with_error("Must provide a deployed flow's name or id")
     else:
         exit_with_error("Only provide a deployed flow's name or id")
@@ -518,8 +518,9 @@ async def run(
             exit_with_error(f"Failed to parse JSON: {exc}")
 
     cli_params = _load_json_key_values(params, "parameter")
-    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
-    if conflicting_keys:
+    if conflicting_keys := set(cli_params.keys()).intersection(
+        multi_params.keys()
+    ):
         app.console.print(
             "The following parameters were specified by `--param` and `--params`, the "
             f"`--param` value will be used: {conflicting_keys}"
@@ -535,10 +536,7 @@ async def run(
         scheduled_start_time = now
         human_dt_diff = " (now)"
     else:
-        if start_in:
-            start_time_raw = "in " + start_in
-        else:
-            start_time_raw = "at " + start_at
+        start_time_raw = f"in {start_in}" if start_in else f"at {start_at}"
         with warnings.catch_warnings():
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
@@ -562,17 +560,16 @@ async def run(
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
         scheduled_start_time = pendulum.instance(start_time_parsed)
-        human_dt_diff = (
-            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
-        )
+        human_dt_diff = f" ({pendulum.format_diff(scheduled_start_time.diff(now))})"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
         flow = await client.read_flow(deployment.flow_id)
 
         deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
-        unknown_keys = set(parameters.keys()).difference(deployment_parameters)
-        if unknown_keys:
+        if unknown_keys := set(parameters.keys()).difference(
+            deployment_parameters
+        ):
             available_parameters = (
                 (
                     "The following parameters are available on the deployment: "
@@ -604,12 +601,7 @@ async def run(
         run_url = "<no dashboard available>"
 
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
-    scheduled_display = (
-        datetime_local_tz.to_datetime_string()
-        + " "
-        + datetime_local_tz.tzname()
-        + human_dt_diff
-    )
+    scheduled_display = f"{datetime_local_tz.to_datetime_string()} {datetime_local_tz.tzname()}{human_dt_diff}"
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
@@ -1006,14 +998,13 @@ async def build(
     try:
         fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
-        if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = (
-                "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
-            )
-            exit_with_error(missing_flow_name_msg)
-        else:
+        if str(exc) != "not enough values to unpack (expected 2, got 1)":
             raise exc
+        missing_flow_name_msg = (
+            "Your flow entrypoint must include the name of the function that is"
+            f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+        )
+        exit_with_error(missing_flow_name_msg)
     try:
         flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
     except Exception as exc:
@@ -1088,7 +1079,7 @@ async def build(
     if param and (params is not None):
         exit_with_error("Can only pass one of `param` or `params` options")
 
-    parameters = dict()
+    parameters = {}
 
     if param:
         for p in param or []:
@@ -1155,7 +1146,6 @@ async def build(
         deployment.work_queue_name, deployment.work_pool_name, work_queue_concurrency
     )
 
-    # we process these separately for informative output
     if not skip_upload:
         if (
             deployment.storage

@@ -151,7 +151,7 @@ async def _construct_full_block_document(
     parent_block_document: Optional[BlockDocument] = None,
     include_secrets: bool = False,
 ) -> Optional[BlockDocument]:
-    if len(block_documents_with_references) == 0:
+    if not block_documents_with_references:
         return None
     if parent_block_document is None:
         parent_block_document = copy(
@@ -450,18 +450,13 @@ async def update_block_document(
             if current_secret is not None:
                 if flat_update_data.get(secret_key) == obfuscate_string(current_secret):
                     flat_update_data[secret_key] = current_secret
-            # Looks for obfuscated values nested under a secret field with a wildcard.
-            # If any obfuscated values are found, we assume that it shouldn't be update,
-            # and they are replaced with the current value for that key to avoid losing
-            # data during update.
             elif "*" in secret_key:
                 wildcard_index = secret_key.index("*")
                 for data_key in flat_update_data.keys():
-                    if (
-                        secret_key[0:wildcard_index] == data_key[0:wildcard_index]
-                    ) and (
+                    if secret_key[:wildcard_index] == data_key[
+                        :wildcard_index
+                    ] and flat_update_data[data_key] == obfuscate(
                         flat_update_data[data_key]
-                        == obfuscate(flat_update_data[data_key])
                     ):
                         flat_update_data[data_key] = flat_current_data[data_key]
 

@@ -25,7 +25,7 @@ class EventsWorker(QueueService[Event]):
 
     @asynccontextmanager
     async def _lifespan(self):
-        self._client = self.client_type(**{k: v for k, v in self.client_options})
+        self._client = self.client_type(**dict(self.client_options))
 
         async with self._client:
             yield

@@ -39,8 +39,8 @@ class BaseOrchestrationPolicy(ABC):
         Returns rules in policy that are valid for the specified state transition.
         """
 
-        transition_rules = []
-        for rule in cls.priority():
-            if from_state in rule.FROM_STATES and to_state in rule.TO_STATES:
-                transition_rules.append(rule)
-        return transition_rules
+        return [
+            rule
+            for rule in cls.priority()
+            if from_state in rule.FROM_STATES and to_state in rule.TO_STATES
+        ]

@@ -96,14 +96,14 @@ def LimitBody() -> Depends:
     """
 
     def get_limit(
-        limit: int = Body(
-            None,
-            description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
-        )
-    ):
+            limit: int = Body(
+                None,
+                description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
+            )
+        ):
         default_limit = PREFECT_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit
-        if not limit >= 0:
+        if limit < 0:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid limit: must be greater than or equal to 0.",

@@ -93,9 +93,7 @@ async def _insert_into_artifact(
     )
 
     result = await session.execute(query)
-    model = result.scalar()
-
-    return model
+    return result.scalar()
 
 
 @inject_db
@@ -111,14 +109,12 @@ async def create_artifact(
             session=session, now=now, db=db, artifact=artifact
         )
 
-    result = await _insert_into_artifact(
+    return await _insert_into_artifact(
         session=session,
         now=now,
         db=db,
         artifact=artifact,
     )
-
-    return result
 
 
 @inject_db

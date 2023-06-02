@@ -139,8 +139,7 @@ class Call(Generic[T]):
         coro = self.context.run(self._run_sync)
 
         if coro is not None:
-            loop = get_running_loop()
-            if loop:
+            if loop := get_running_loop():
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
                 logger.debug(
@@ -253,7 +252,7 @@ class Call(Generic[T]):
 
         # Enforce a maximum length
         if len(call_args) > 100:
-            call_args = call_args[:100] + "..."
+            call_args = f"{call_args[:100]}..."
 
         return f"{name}({call_args})"
 

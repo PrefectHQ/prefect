@@ -46,8 +46,7 @@ def filter_files(
         all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}
     else:
         all_files = set(pathspec.util.iter_tree_files(root))
-    included_files = all_files - ignored_files
-    return included_files
+    return all_files - ignored_files
 
 
 @contextmanager

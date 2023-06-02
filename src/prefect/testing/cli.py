@@ -28,11 +28,7 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
     print(content)
     print()
 
-    if len(content) > 20:
-        display_content = content[:20] + "..."
-    else:
-        display_content = content
-
+    display_content = f"{content[:20]}..." if len(content) > 20 else content
     if should_contain:
         assert (
             content in output

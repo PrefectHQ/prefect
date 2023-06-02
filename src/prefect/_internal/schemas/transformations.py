@@ -62,10 +62,10 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
         # For safety, types defined on the model must match those of the origin
         # We make an exception here for `Optional` where the model can make the same
         # type definition nullable.
-        if (
-            field.type_ != origin_field.type_
-            and not field.type_ == Optional[origin_field.type_]
-        ):
+        if field.type_ not in [
+            origin_field.type_,
+            Optional[origin_field.type_],
+        ]:
             if not issubclass(
                 origin_field.type_,
                 field.type_,

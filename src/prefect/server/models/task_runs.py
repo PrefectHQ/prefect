@@ -131,8 +131,7 @@ async def read_task_run(
         db.TaskRun: the task run
     """
 
-    model = await session.get(db.TaskRun, task_run_id)
-    return model
+    return await session.get(db.TaskRun, task_run_id)
 
 
 @inject_db
@@ -378,10 +377,8 @@ async def set_task_run_state(
     if context.orchestration_error is not None:
         raise context.orchestration_error
 
-    result = OrchestrationResult(
+    return OrchestrationResult(
         state=context.validated_state,
         status=context.response_status,
         details=context.response_details,
     )
-
-    return result

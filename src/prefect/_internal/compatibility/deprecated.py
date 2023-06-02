@@ -68,7 +68,7 @@ def generate_deprecation_message(
         pendulum.from_format(end_date, DEPRECATED_DATEFMT)
 
     if when:
-        when = " when " + when
+        when = f" when {when}"
 
     message = DEPRECATED_WARNING.format(
         name=name, when=when, end_date=end_date, help=help
@@ -196,7 +196,7 @@ def deprecated_field(
 
         @functools.wraps(model_cls.__init__)
         def __init__(__pydantic_self__, **data: Any) -> None:
-            if name in data.keys() and when(data[name]):
+            if name in data and when(data[name]):
                 warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
 
             cls_init(__pydantic_self__, **data)
