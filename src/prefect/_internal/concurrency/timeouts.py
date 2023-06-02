@@ -14,10 +14,7 @@ from typing import Callable, List, Optional, Type
 
 
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect.logging import get_logger
-
-# TODO: We should update the format for this logger to include the current thread
-logger = get_logger("prefect._internal.concurrency.timeouts")
+from prefect._internal.concurrency.inspection import trace
 
 
 class CancelledError(asyncio.CancelledError):
@@ -61,15 +58,15 @@ class CancelContext:
     def cancel(self):
         if self._mark_cancelled():
             if self._cancel is not None:
-                logger.debug("Cancelling %r with %r", self, self._cancel)
+                trace("Cancelling %r with %r", self, self._cancel)
                 self._cancel()
 
             for ctx in self._chained:
-                logger.debug("%r cancelling chained context %r", self, ctx)
+                trace("%r cancelling chained context %r", self, ctx)
                 try:
                     ctx.cancel()
                 except Exception:
-                    logger.warning(
+                    trace(
                         "%r encountered exception cancelling chained context %r",
                         self,
                         ctx,
@@ -79,7 +76,7 @@ class CancelContext:
             return True
 
         else:
-            logger.debug("%r is already finished", self)
+            trace("%r is already finished", self)
             return False
 
     def cancelled(self):
@@ -98,7 +95,7 @@ class CancelContext:
             if self._cancelled:
                 return False  # Already marked as cancelled
 
-            logger.debug("Marked %r as cancelled", self)
+            trace("Marked %r as cancelled", self)
             self._cancelled = True
 
         return True
@@ -109,10 +106,10 @@ class CancelContext:
                 return False  # Do not mark cancelled tasks as completed
 
             if self._completed:
-                logger.debug("%r already completed", self)
+                trace("%r already completed", self)
                 return False  # Already marked as completed
 
-            logger.debug("Marked %r as completed", self)
+            trace("Marked %r as completed", self)
             self._completed = True
             return True
 
@@ -262,7 +259,7 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     if sys.platform.startswith("win"):
         # Timeouts cannot be enforced on Windows
         if timeout is not None:
-            logger.warning(
+            trace(
                 "Entered cancel context on Windows; %.2f timeout will not be enforced.",
                 timeout,
             )
@@ -286,7 +283,7 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
         method_name = "watcher"
 
     with method(timeout, name=name) as ctx:
-        logger.debug(
+        trace(
             "Entered synchronous %s based cancel context %r",
             method_name,
             ctx,
@@ -321,7 +318,7 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
     previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
     def sigalarm_to_error(*args):
-        logger.debug("Cancel fired for alarm based cancel context %r", ctx)
+        trace("Cancel fired for alarm based cancel context %r", ctx)
 
         # Ensure the context is marked as cancelled
         ctx._cancel = None
@@ -335,7 +332,7 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         )
 
     if previous_alarm_handler != signal.SIG_DFL:
-        logger.warning(f"Overriding existing alarm handler {previous_alarm_handler}")
+        trace(f"Overriding existing alarm handler {previous_alarm_handler}")
 
     # Capture alarm signals and raise a timeout
     signal.signal(signal.SIGALRM, sigalarm_to_error)
@@ -360,7 +357,7 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
 
 def timeout_enforcer(event, supervised_thread, ctx, timeout, _send_exception):
     if not event.wait(timeout):
-        logger.debug(
+        trace(
             "Cancel fired for watcher based timeout for thread %r and context %r",
             supervised_thread.name,
             ctx,
@@ -386,14 +383,14 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
 
     def _send_exception(exc):
         if supervised_thread.is_alive():
-            logger.debug("Sending exception to supervised thread %r", supervised_thread)
+            trace("Sending exception to supervised thread %r", supervised_thread)
             try:
                 _send_exception_to_thread(supervised_thread, exc)
             except ValueError:
                 # If the thread is gone; just move on without error
                 pass
             else:
-                logger.debug("Sent exception")
+                trace("Sent exception")
 
     def cancel():
         return _send_exception(CancelledError)
