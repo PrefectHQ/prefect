@@ -3,13 +3,12 @@ import sys
 from unittest.mock import MagicMock, ANY
 import pytest
 
-import prefect
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.projects.steps import run_step
 
 from prefect.projects.steps.utility import run_shell_script
-from prefect.projects.steps.core import run_steps
+from prefect.projects.steps.core import StepExecutionError, run_steps
 
 
 @pytest.fixture
@@ -24,49 +23,62 @@ async def variables(prefect_client: PrefectClient):
 
 class TestRunStep:
     async def test_run_step_runs_importable_functions(self):
-        flow = await run_step(
-            {"prefect.flow": {"__fn": lambda x: 42, "name": "test-name"}}
+        output = await run_step(
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                }
+            },
         )
-        assert isinstance(flow, prefect.Flow)
-        assert flow.name == "test-name"
-        assert flow.fn(None) == 42
+        assert isinstance(output, dict)
+        assert output == {
+            "stdout": "this is a test",
+            "stderr": "",
+        }
 
     async def test_run_step_errors_with_improper_format(self):
         with pytest.raises(ValueError, match="unexpected"):
             await run_step(
-                {"prefect.flow": {"__fn": lambda x: 42, "name": "test-name"}, "jedi": 0}
+                {
+                    "prefect.projects.steps.run_shell_script": {
+                        "script": "echo 'this is a test'"
+                    },
+                    "jedi": 0,
+                }
             )
 
     async def test_run_step_resolves_block_document_references_before_running(self):
-        await Secret(value="secret-name").save(name="test-secret")
+        await Secret(value="echo 'I am a secret!'").save(name="test-secret")
 
-        flow = await run_step(
+        output = await run_step(
             {
-                "prefect.flow": {
-                    "__fn": lambda x: 42,
-                    "name": "{{ prefect.blocks.secret.test-secret }}",
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "{{ prefect.blocks.secret.test-secret }}",
                 }
             }
         )
-        assert isinstance(flow, prefect.Flow)
-        assert flow.name == "secret-name"
-        assert flow.fn(None) == 42
+        assert isinstance(output, dict)
+        assert output == {
+            "stdout": "I am a secret!",
+            "stderr": "",
+        }
 
     async def test_run_step_resolves_variables_before_running(self, variables):
-        flow = await run_step(
+        output = await run_step(
             {
-                "prefect.flow": {
-                    "__fn": lambda x: 42,
-                    "name": (
-                        "{{ prefect.variables.test_variable_1 }}:{{"
-                        " prefect.variables.test_variable_2 }}"
+                "prefect.projects.steps.run_shell_script": {
+                    "script": (
+                        "echo '{{ prefect.variables.test_variable_1 }}:{{"
+                        " prefect.variables.test_variable_2 }}'"
                     ),
                 }
             }
         )
-        assert isinstance(flow, prefect.Flow)
-        assert flow.name == "test_value_1:test_value_2"
-        assert flow.fn(None) == 42
+        assert isinstance(output, dict)
+        assert output == {
+            "stdout": "test_value_1:test_value_2",
+            "stderr": "",
+        }
 
     async def test_run_step_runs_async_functions(self):
         output = await run_step(
@@ -81,7 +93,7 @@ class TestRunStep:
 
 
 class TestRunSteps:
-    async def test_run_steps_runs_multiple_steps(self, variables):
+    async def test_run_steps_runs_multiple_steps(self):
         steps = [
             {
                 "prefect.projects.steps.run_shell_script": {
@@ -91,7 +103,7 @@ class TestRunSteps:
             },
             {
                 "prefect.projects.steps.run_shell_script": {
-                    "script": "bash -c echo Don't Panic: {{ why_not_to_panic.stdout }}"
+                    "script": r"echo Don\'t Panic: {{ why_not_to_panic.stdout }}"
                 }
             },
         ]
@@ -107,7 +119,12 @@ class TestRunSteps:
 
     async def test_run_steps_handles_error_gracefully(self, variables):
         steps = [
-            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1}},
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
             {
                 "nonexistent.module": {
                     "__fn": lambda x: x * 2,
@@ -115,40 +132,30 @@ class TestRunSteps:
                 }
             },
         ]
-        with pytest.raises(ImportError):
+        with pytest.raises(StepExecutionError, match="nonexistent.module"):
             await run_steps(steps, {})
-
-    async def test_run_steps_correctly_updates_step_outputs(self, variables):
-        steps = [
-            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1, "id": "step_1"}},
-            {
-                "prefect.flow": {
-                    "__fn": lambda x: x * 2,
-                    "value": "{{ step_output_step_1 }}",
-                    "id": "step_2",
-                }
-            },
-        ]
-        step_outputs = await run_steps(steps, {})
-        assert step_outputs.get("step_output_step_1") == 2
-        assert step_outputs.get("step_output_step_2") == 4
 
     async def test_run_steps_prints_step_names(
         self,
     ):
         mock_print = MagicMock()
         steps = [
-            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1, "id": "step_1"}},
             {
-                "prefect.flow": {
-                    "__fn": lambda x: x * 2,
-                    "value": "{{ step_output_step_1 }}",
-                    "id": "step_2",
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": (
+                        'bash -c echo "Don\'t Panic: {{ why_not_to_panic.stdout }}"'
+                    )
                 }
             },
         ]
         await run_steps(steps, {}, print_function=mock_print)
-        mock_print.assert_any_call(" > Running [blue]flow[/] step...")
+        mock_print.assert_any_call(" > Running run_shell_script step...")
 
 
 class TestGitCloneStep:
