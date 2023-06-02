@@ -146,7 +146,7 @@ def test_sync_waiter_timeout_in_main_thread():
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        call.set_timeout(0.5)
+        call.set_timeout(0.1)
         runner.submit(call)
 
         t0 = time.time()
@@ -209,7 +209,7 @@ async def test_async_waiter_timeout_in_main_thread():
 
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        call.set_timeout(0.5)
+        call.set_timeout(0.1)
         runner.submit(call)
 
         t0 = time.time()
