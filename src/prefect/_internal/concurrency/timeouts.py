@@ -391,7 +391,6 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
     if timeout is not None:
         enforcer = threading.Thread(
             target=timeout_enforcer,
-            daemon=True,
             name=f"TimeoutWatcher-{timeout:.2f}",
         )
         enforcer.start()
