@@ -220,8 +220,8 @@ class Call(Generic[T]):
                         ctx.chain(self.cancel_context, bidirectional=True)
                         result = await coro
         except BaseException as exc:
-            logger.debug("Encountered exception in async call %r", self, exc_info=True)
             self.future.set_exception(exc)
+            logger.debug("Encountered exception in async call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
