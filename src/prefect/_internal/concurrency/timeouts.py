@@ -355,6 +355,17 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         signal.signal(signal.SIGALRM, previous_alarm_handler)
 
 
+def timeout_enforcer(event, supervised_thread, ctx, timeout, _send_exception):
+    if not event.wait(timeout):
+        logger.debug(
+            "Cancel fired for watcher based timeout for thread %r and context %r",
+            supervised_thread.name,
+            ctx,
+        )
+        if ctx.mark_cancelled():
+            _send_exception(TimeoutError)
+
+
 @contextlib.contextmanager
 def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] = None):
     """
@@ -379,22 +390,13 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
 
     ctx = CancelContext(timeout=timeout, cancel=cancel, name=name)
 
-    def timeout_enforcer():
-        if not event.wait(timeout):
-            logger.debug(
-                "Cancel fired for watcher based timeout for thread %r and context %r",
-                supervised_thread.name,
-                ctx,
-            )
-            if ctx.mark_cancelled():
-                _send_exception(TimeoutError)
-
     if timeout is not None:
         enforcer = threading.Thread(
             target=timeout_enforcer,
+            daemon=True,
             name=f"timeout-watcher {name or '<unnamed>'} {timeout:.2f}",
+            args=(event, supervised_thread, ctx, timeout, _send_exception),
         )
-        _ENFORCERS[supervised_thread] = enforcer
         enforcer.start()
 
     try:
@@ -402,8 +404,6 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
     finally:
         event.set()
         ctx.mark_completed()
-        if enforcer:
-            enforcer.join()
 
 
 def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):
