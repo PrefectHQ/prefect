@@ -6,8 +6,44 @@ from types import FrameType
 import linecache
 import sys
 import threading
+import time
 import dis
 from typing import List
+import functools
+import traceback
+
+
+@functools.cache
+def trace_on() -> bool:
+    # We cache this to avoid overhead but to also delay checking the value until the
+    # first debug statement is printed. This is not typically how we handle settings
+    # but for low-level debug prints we shall.
+
+    from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TEST_MODE
+
+    return PREFECT_DEBUG_MODE.value() or PREFECT_TEST_MODE.value()
+
+
+def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
+    """
+    Print a trace debugging message.
+    """
+    if trace_on():
+        prefix = f"{round(time.monotonic(), 3)} | {threading.current_thread().name} | "
+        message = message % args
+        message = message % kwargs
+
+        try:
+            print(prefix + message, file=sys.stderr)
+
+            if exc_info:
+                traceback.print_exc(file=sys.stderr)
+
+            sys.stderr.flush()
+
+        except (TimeoutError, OSError):
+            pass  # Ignore timeouts or bad file descriptors on trace output
+
 
 """
 The following functions are dervived from dask/distributed which is licensed under the 
