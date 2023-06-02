@@ -613,7 +613,7 @@ def my_flow():
         future = show(3)
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     my_flow()
 ```
 
