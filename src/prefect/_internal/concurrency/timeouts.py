@@ -134,8 +134,8 @@ class CancelContext:
 
     def __repr__(self) -> str:
         timeout = f" timeout={self._timeout:.2f}" if self._timeout else ""
-        name = repr(self._name) if self._name else f"at {hex(id(self))}"
-        return f"<CancelContext {name}>{timeout}>"
+        name = "for {self._name}" if self._name else ""
+        return f"<CancelContext {name} at {hex(id(self))} {timeout}>"
 
 
 def get_deadline(timeout: Optional[float]):
