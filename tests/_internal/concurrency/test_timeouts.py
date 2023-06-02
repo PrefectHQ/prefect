@@ -241,6 +241,21 @@ async def test_cancel_async_manually():
     assert t1 - t0 < 1
 
 
+async def test_cancel_async_from_another_thread():
+    t0 = time.perf_counter()
+    with pytest.raises(CancelledError):
+        with cancel_async_after(None) as ctx:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(asyncio.sleep, 1)
+                with concurrent.futures.ThreadPoolExecutor() as thread:
+                    thread.submit(ctx.cancel)
+
+    t1 = time.perf_counter()
+
+    assert ctx.cancelled()
+    assert t1 - t0 < 1
+
+
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_manually_in_main_thread():
     t0 = time.perf_counter()

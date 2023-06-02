@@ -13,7 +13,7 @@ import time
 from typing import Callable, List, Optional, Type
 
 
-from prefect._internal.concurrency.event_loop import call_in_loop
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.logging import get_logger
 
 # TODO: We should update the format for this logger to include the current thread
@@ -169,7 +169,11 @@ def cancel_async_at(deadline: Optional[float]):
     _handle = None
 
     def cancel():
-        return call_in_loop(loop, current_task.cancel)
+        if loop is get_running_loop():
+            current_task.cancel()
+        else:
+            # `Task.cancel`` is not thread safe
+            loop.call_soon_threadsafe(current_task.cancel)
 
     try:
         with CancelContext(timeout=get_timeout(deadline), cancel=cancel) as ctx:
