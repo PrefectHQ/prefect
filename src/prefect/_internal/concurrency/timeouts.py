@@ -392,6 +392,10 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
             else:
                 trace("Sent exception")
 
+        # Wait for the supervised thread to exit its context
+        trace("Waiting for supervised thread to exit...")
+        event.wait()
+
     def cancel():
         return _send_exception(CancelledError)
 
