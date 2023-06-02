@@ -9,6 +9,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.projects.steps import run_step
 
 from prefect.projects.steps.utility import run_shell_script
+from prefect.projects.steps.core import run_steps
 
 
 @pytest.fixture
@@ -77,6 +78,77 @@ class TestRunStep:
         )
         assert output.returncode == 0
         assert output.stdout.decode().strip() == "hello world"
+
+
+class TestRunSteps:
+    async def test_run_steps_runs_multiple_steps(self, variables):
+        steps = [
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "bash -c echo Don't Panic: {{ why_not_to_panic.stdout }}"
+                }
+            },
+        ]
+        step_outputs = await run_steps(steps, {})
+        assert step_outputs == {
+            "why_not_to_panic": {
+                "stdout": "this is a test",
+                "stderr": "",
+            },
+            "stdout": "Don't Panic: this is a test",
+            "stderr": "",
+        }
+
+    async def test_run_steps_handles_error_gracefully(self, variables):
+        steps = [
+            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1}},
+            {
+                "nonexistent.module": {
+                    "__fn": lambda x: x * 2,
+                    "value": "{{ step_output_1 }}",
+                }
+            },
+        ]
+        with pytest.raises(ImportError):
+            await run_steps(steps, {})
+
+    async def test_run_steps_correctly_updates_step_outputs(self, variables):
+        steps = [
+            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1, "id": "step_1"}},
+            {
+                "prefect.flow": {
+                    "__fn": lambda x: x * 2,
+                    "value": "{{ step_output_step_1 }}",
+                    "id": "step_2",
+                }
+            },
+        ]
+        step_outputs = await run_steps(steps, {})
+        assert step_outputs.get("step_output_step_1") == 2
+        assert step_outputs.get("step_output_step_2") == 4
+
+    async def test_run_steps_prints_step_names(
+        self,
+    ):
+        mock_print = MagicMock()
+        steps = [
+            {"prefect.flow": {"__fn": lambda x: x + 1, "value": 1, "id": "step_1"}},
+            {
+                "prefect.flow": {
+                    "__fn": lambda x: x * 2,
+                    "value": "{{ step_output_step_1 }}",
+                    "id": "step_2",
+                }
+            },
+        ]
+        await run_steps(steps, {}, print_function=mock_print)
+        mock_print.assert_any_call(" > Running [blue]flow[/] step...")
 
 
 class TestGitCloneStep:

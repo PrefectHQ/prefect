@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import typer
 import typer.core
@@ -27,13 +27,13 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.logging.loggers import get_logger
 from prefect.projects import find_prefect_directory, register_flow
-from prefect.projects.steps import run_step
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
+
+from prefect.projects.steps.core import run_steps
 
 
 @app.command()
@@ -452,11 +452,15 @@ async def _run_single_deploy(
     step_outputs = {}
     if build_steps:
         app.console.print("Running deployment build steps...")
-    step_outputs.update(await _run_steps(build_steps, step_outputs))
+    step_outputs.update(
+        await run_steps(build_steps, step_outputs, print_function=app.console.print)
+    )
 
     if push_steps:
         app.console.print("Running deployment push steps...")
-    step_outputs.update(await _run_steps(push_steps, step_outputs))
+    step_outputs.update(
+        await run_steps(push_steps, step_outputs, print_function=app.console.print)
+    )
 
     variable_overrides = {}
     for variable in variables or []:
@@ -710,24 +714,6 @@ async def _prompt_create_work_pool(
     )
     console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
     return work_pool
-
-
-async def _run_steps(
-    steps: List[Dict[str, Any]],
-    step_outputs: Dict[str, Any],
-):
-    step_outputs = deepcopy(step_outputs)
-    for step in steps:
-        step_name = list(step.keys())[0].split(".")[-1]
-        try:
-            app.console.print(f" > Running [blue]{step_name}[/] step...")
-        except Exception:
-            if PREFECT_DEBUG_MODE:
-                get_logger().warning(
-                    "Step has unexpected structure: %s", step, exc_info=True
-                )
-        step_outputs.update(await run_step(step))
-    return step_outputs
 
 
 DEFAULT_DEPLOYMENT = None

@@ -410,3 +410,18 @@ def distinct(
             continue
         seen.add(key(item))
         yield item
+
+
+def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -> Any:
+    if isinstance(keys, str):
+        keys = keys.replace("[", ".").replace("]", "").split(".")
+    try:
+        for key in keys:
+            try:
+                key = int(key)
+            except ValueError:
+                pass
+            dct = dct[key]
+        return dct
+    except (TypeError, KeyError, IndexError):
+        return default

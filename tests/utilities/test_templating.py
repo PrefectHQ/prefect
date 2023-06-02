@@ -173,6 +173,30 @@ class TestApplyValues:
         template = "Hello {{prefect.blocks.document.name}}!"
         assert apply_values(template, {"name": "Alice"}) == template
 
+    def test_apply_values_with_dot_delimited_placeholder_str(self):
+        template = "Hello {{ person.name }}!"
+        assert apply_values(template, {"person": {"name": "Arthur"}}) == "Hello Arthur!"
+
+    def test_apply_values_with_dot_delimited_placeholder_str_with_list(self):
+        template = "Hello {{ people[0].name }}!"
+        assert (
+            apply_values(template, {"people": [{"name": "Arthur"}]}) == "Hello Arthur!"
+        )
+
+    def test_apply_values_with_dot_delimited_placeholder_dict(self):
+        template = {"right now we need": "{{ people.superman }}"}
+        values = {"people": {"superman": {"first_name": "Superman", "age": 30}}}
+        assert apply_values(template, values) == {
+            "right now we need": {"first_name": "Superman", "age": 30}
+        }
+
+    def test_apply_values_with_dot_delimited_placeholder_with_list(self):
+        template = {"right now we need": "{{ people[0] }}"}
+        values = {"people": [{"first_name": "Superman", "age": 30}]}
+        assert apply_values(template, values) == {
+            "right now we need": {"first_name": "Superman", "age": 30}
+        }
+
 
 class TestResolveBlockDocumentReferences:
     @pytest.fixture
