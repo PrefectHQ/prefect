@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", str, int, float, bool, dict, list, None)
 
-PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.-\[\]]+)\s*}})")
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 
