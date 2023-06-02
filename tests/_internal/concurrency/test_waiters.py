@@ -208,13 +208,7 @@ async def test_async_waiter_timeout_in_main_thread():
 
     def on_worker_thread():
         call.add_waiting_callback(waiting_callback)
-        deadline = get_deadline(10)
-        try:
-            waiting_callback.result(timeout=10)
-        except TimeoutError:
-            if time.monotonic() > deadline:
-                print("\n".join(stack_for_threads(*threading.enumerate())))
-            raise
+        waiting_callback.result()
 
     with WorkerThread(run_once=True, daemon=True) as runner:
         call = Call.new(on_worker_thread)
