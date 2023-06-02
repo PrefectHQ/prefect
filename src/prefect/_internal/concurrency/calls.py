@@ -196,7 +196,7 @@ class Call(Generic[T]):
         except BaseException as exc:
             self.cancel_context.mark_completed()
             self.future.set_exception(exc)
-            # trace("Encountered exception in call %r", self, exc_info=True)
+            trace("Encountered exception in call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
@@ -216,7 +216,7 @@ class Call(Generic[T]):
                         result = await coro
         except BaseException as exc:
             self.future.set_exception(exc)
-            # trace("Encountered exception in async call %r", self, exc_info=True)
+            trace("Encountered exception in async call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
