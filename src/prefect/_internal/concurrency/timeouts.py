@@ -75,8 +75,12 @@ class CancelContext:
                         ctx,
                         exc_info=True,
                     )
+
+            return True
+
         else:
             logger.debug("%r is already finished", self)
+            return False
 
     def cancelled(self):
         with self._lock:
@@ -320,7 +324,8 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         logger.debug("Cancel fired for alarm based cancel context %r", ctx)
 
         # Ensure the context is marked as cancelled
-        ctx._mark_cancelled()
+        ctx._cancel = None
+        ctx.cancel()
 
         # Cancel this context
         raise (
@@ -375,6 +380,8 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
             except ValueError:
                 # If the thread is gone; just move on without error
                 pass
+            else:
+                logger.debug("Sent exception")
 
     def cancel():
         return _send_exception(CancelledError)
