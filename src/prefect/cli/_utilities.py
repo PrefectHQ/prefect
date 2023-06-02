@@ -136,7 +136,7 @@ def prompt_select_from_table(
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
-            elif key == readchar.key.ENTER or key == readchar.key.CR:
+            elif key in [readchar.key.ENTER, readchar.key.CR]:
                 selected_row = data[current_idx]
 
             live.update(build_table(), refresh=True)

@@ -141,31 +141,23 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
-    env = {}
-
     expected_config["incremental"] = False
 
-    # Test setting a value for a simple key
-    env["PREFECT_LOGGING_HANDLERS_API_LEVEL"] = "API_LEVEL_VAL"
     expected_config["handlers"]["api"]["level"] = "API_LEVEL_VAL"
 
-    # Test setting a value for the root logger
-    env["PREFECT_LOGGING_ROOT_LEVEL"] = "ROOT_LEVEL_VAL"
     expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
-    # Test setting a value where the a key contains underscores
-    env["PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT"] = "UNDERSCORE_KEY_VAL"
     expected_config["formatters"]["standard"]["flow_run_fmt"] = "UNDERSCORE_KEY_VAL"
-
-    # Test setting a value where the key contains a period
-    env["PREFECT_LOGGING_LOGGERS_PREFECT_EXTRA_LEVEL"] = "VAL"
 
     expected_config["loggers"]["prefect.extra"]["level"] = "VAL"
 
-    # Test setting a value that does not exist in the yaml config and should not be
-    # set in the expected_config since there is no value to override
-    env["PREFECT_LOGGING_FOO"] = "IGNORED"
-
+    env = {
+        "PREFECT_LOGGING_HANDLERS_API_LEVEL": "API_LEVEL_VAL",
+        "PREFECT_LOGGING_ROOT_LEVEL": "ROOT_LEVEL_VAL",
+        "PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT": "UNDERSCORE_KEY_VAL",
+        "PREFECT_LOGGING_LOGGERS_PREFECT_EXTRA_LEVEL": "VAL",
+        "PREFECT_LOGGING_FOO": "IGNORED",
+    }
     for var, value in env.items():
         monkeypatch.setenv(var, value)
 
@@ -217,11 +209,7 @@ async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deplo
 
 @pytest.mark.parametrize("name", ["default", None, ""])
 def test_get_logger_returns_prefect_logger_by_default(name):
-    if name == "default":
-        logger = get_logger()
-    else:
-        logger = get_logger(name)
-
+    logger = get_logger() if name == "default" else get_logger(name)
     assert logger.name == "prefect"
 
 
@@ -729,7 +717,7 @@ class TestAPILogWorker:
                 )
                 == log_dict
             )
-        assert len(set(log.message for log in logs)) == count, "Each log is unique"
+        assert len({log.message for log in logs}) == count, "Each log is unique"
 
     @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(

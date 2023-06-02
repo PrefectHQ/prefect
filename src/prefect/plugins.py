@@ -91,11 +91,10 @@ def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
                     file=sys.stderr,
                 )
                 results[value] = exc
-        else:
-            if prefect.settings.PREFECT_DEBUG_MODE:
-                print(
-                    "Loaded extra entrypoint {value!r} successfully.", file=sys.stderr
-                )
+        elif prefect.settings.PREFECT_DEBUG_MODE:
+            print(
+                "Loaded extra entrypoint {value!r} successfully.", file=sys.stderr
+            )
 
     return results
 
@@ -119,8 +118,7 @@ def load_prefect_collections() -> Dict[str, ModuleType]:
                 f"Warning!  Failed to load collection {name!r}:"
                 f" {type(result).__name__}: {result}"
             )
-        else:
-            if prefect.settings.PREFECT_DEBUG_MODE:
-                print(f"Loaded collection {name!r}.")
+        elif prefect.settings.PREFECT_DEBUG_MODE:
+            print(f"Loaded collection {name!r}.")
 
     return collections

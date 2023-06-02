@@ -38,10 +38,7 @@ async def provide_task_orchestration_parameters():
         "task_orchestration_parameters_provider"
     )
 
-    if parameter_provider is None:
-        return dict()
-
-    return await parameter_provider()
+    return {} if parameter_provider is None else await parameter_provider()
 
 
 async def provide_flow_orchestration_parameters():
@@ -49,10 +46,7 @@ async def provide_flow_orchestration_parameters():
         "flow_orchestration_parameters_provider"
     )
 
-    if parameter_provider is None:
-        return dict()
-
-    return await parameter_provider()
+    return {} if parameter_provider is None else await parameter_provider()
 
 
 @contextmanager

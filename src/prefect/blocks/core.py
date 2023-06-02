@@ -205,9 +205,7 @@ class Block(BaseModel, ABC):
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
             schema["block_type_slug"] = model.get_block_type_slug()
-            # Ensures args and code examples aren't included in the schema
-            description = model.get_description()
-            if description:
+            if description := model.get_description():
                 schema["description"] = description
             else:
                 # Prevent the description of the base class from being included in the schema
@@ -322,8 +320,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def _get_current_package_version(cls):
-        current_module = inspect.getmodule(cls)
-        if current_module:
+        if current_module := inspect.getmodule(cls):
             top_level_module = sys.modules[
                 current_module.__name__.split(".")[0] or "__main__"
             ]
@@ -367,10 +364,9 @@ class Block(BaseModel, ABC):
         )
         fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
         if fields_for_checksum.get("definitions"):
-            non_block_definitions = _get_non_block_reference_definitions(
+            if non_block_definitions := _get_non_block_reference_definitions(
                 fields_for_checksum, fields_for_checksum["definitions"]
-            )
-            if non_block_definitions:
+            ):
                 fields_for_checksum["definitions"] = non_block_definitions
             else:
                 # Pop off definitions entirely instead of empty dict for consistency
@@ -937,27 +933,26 @@ class Block(BaseModel, ABC):
                 block_document=self._to_block_document(name=name)
             )
         except prefect.exceptions.ObjectAlreadyExists as err:
-            if overwrite:
-                block_document_id = self._block_document_id
-                if block_document_id is None:
-                    existing_block_document = await client.read_block_document_by_name(
-                        name=name, block_type_slug=self.get_block_type_slug()
-                    )
-                    block_document_id = existing_block_document.id
-                await client.update_block_document(
-                    block_document_id=block_document_id,
-                    block_document=self._to_block_document(name=name),
-                )
-                block_document = await client.read_block_document(
-                    block_document_id=block_document_id
-                )
-            else:
+            if not overwrite:
                 raise ValueError(
                     "You are attempting to save values with a name that is already in"
                     " use for this block type. If you would like to overwrite the"
                     " values that are saved, then save with `overwrite=True`."
                 ) from err
 
+            block_document_id = self._block_document_id
+            if block_document_id is None:
+                existing_block_document = await client.read_block_document_by_name(
+                    name=name, block_type_slug=self.get_block_type_slug()
+                )
+                block_document_id = existing_block_document.id
+            await client.update_block_document(
+                block_document_id=block_document_id,
+                block_document=self._to_block_document(name=name),
+            )
+            block_document = await client.read_block_document(
+                block_document_id=block_document_id
+            )
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
@@ -978,15 +973,11 @@ class Block(BaseModel, ABC):
                 the specified name already exists.
 
         """
-        document_id = await self._save(name=name, overwrite=overwrite, client=client)
-
-        return document_id
+        return await self._save(name=name, overwrite=overwrite, client=client)
 
     def _iter(self, *, include=None, exclude=None, **kwargs):
         # Injects the `block_type_slug` into serialized payloads for dispatch
-        for key_value in super()._iter(include=include, exclude=exclude, **kwargs):
-            yield key_value
-
+        yield from super()._iter(include=include, exclude=exclude, **kwargs)
         # Respect inclusion and exclusion still
         if include and "block_type_slug" not in include:
             return
@@ -1000,21 +991,17 @@ class Block(BaseModel, ABC):
         Create an instance of the Block subclass type if a `block_type_slug` is
         present in the data payload.
         """
-        block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug:
+        if block_type_slug := kwargs.pop("block_type_slug", None):
             subcls = lookup_type(cls, dispatch_key=block_type_slug)
             m = super().__new__(subcls)
-            # NOTE: This is a workaround for an obscure issue where copied models were
-            #       missing attributes. This pattern is from Pydantic's
-            #       `BaseModel._copy_and_set_values`.
-            #       The issue this fixes could not be reproduced in unit tests that
-            #       directly targeted dispatch handling and was only observed when
-            #       copying then saving infrastructure blocks on deployment models.
-            object.__setattr__(m, "__dict__", kwargs)
-            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
-            return m
         else:
             m = super().__new__(cls)
-            object.__setattr__(m, "__dict__", kwargs)
-            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
-            return m
+        # NOTE: This is a workaround for an obscure issue where copied models were
+        #       missing attributes. This pattern is from Pydantic's
+        #       `BaseModel._copy_and_set_values`.
+        #       The issue this fixes could not be reproduced in unit tests that
+        #       directly targeted dispatch handling and was only observed when
+        #       copying then saving infrastructure blocks on deployment models.
+        object.__setattr__(m, "__dict__", kwargs)
+        object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+        return m

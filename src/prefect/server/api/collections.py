@@ -40,7 +40,7 @@ async def get_collection_view(view: str):
         view_filename = f"{view}.json"
 
         async with httpx.AsyncClient() as client:
-            resp = await client.get(repo_url + f"/views/{view_filename}")
+            resp = await client.get(f"{repo_url}/views/{view_filename}")
             resp.raise_for_status()
 
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = resp.json()

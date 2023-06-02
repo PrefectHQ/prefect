@@ -16,18 +16,18 @@ class DBSingleton(type):
 
     _instances = dict()
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         unique_key = (
-            cls.__name__,
+            self.__name__,
             kwargs["database_config"]._unique_key(),
             kwargs["query_components"]._unique_key(),
             kwargs["orm"]._unique_key(),
         )
-        if unique_key not in cls._instances:
-            cls._instances[unique_key] = super(DBSingleton, cls).__call__(
+        if unique_key not in self._instances:
+            self._instances[unique_key] = super(DBSingleton, self).__call__(
                 *args, **kwargs
             )
-        return cls._instances[unique_key]
+        return self._instances[unique_key]
 
 
 class PrefectDBInterface(metaclass=DBSingleton):

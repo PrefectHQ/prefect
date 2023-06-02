@@ -89,8 +89,12 @@ class TestAlembicCommands:
         try:
             jobs = []
             for _ in range(0, 2):
-                jobs.append(run_sync_in_worker_thread(alembic_downgrade))
-                jobs.append(run_sync_in_worker_thread(alembic_upgrade))
+                jobs.extend(
+                    (
+                        run_sync_in_worker_thread(alembic_downgrade),
+                        run_sync_in_worker_thread(alembic_upgrade),
+                    )
+                )
             await asyncio.gather(*jobs)
         finally:
             # Ensure we're back at the latest revision

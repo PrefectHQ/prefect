@@ -49,9 +49,7 @@ async def create_work_queue(
         default_agent_work_pool = await models.workers.read_work_pool_by_name(
             session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
-        if default_agent_work_pool:
-            data["work_pool_id"] = default_agent_work_pool.id
-        else:
+        if not default_agent_work_pool:
             default_agent_work_pool = await models.workers.create_work_pool(
                 session=session,
                 work_pool=schemas.actions.WorkPoolCreate(
@@ -65,8 +63,7 @@ async def create_work_queue(
                     session=session,
                     work_queue_id=default_agent_work_pool.default_queue_id,
                 )
-            data["work_pool_id"] = default_agent_work_pool.id
-
+        data["work_pool_id"] = default_agent_work_pool.id
     # Set the priority to be the max priority + 1
     # This will make the new queue the lowest priority
     if data["priority"] is None:
@@ -76,15 +73,10 @@ async def create_work_queue(
         )
         priorities = (await session.execute(priorities_query)).scalars().all()
 
-        priority = None
-        for i, p in enumerate(sorted(priorities)):
-            # if a rank was skipped (e.g. the set priority is different than the
-            # enumerated priority) then we can "take" that spot for this work
-            # queue
-            if i + 1 != p:
-                priority = i + 1
-                break
-
+        priority = next(
+            (i + 1 for i, p in enumerate(sorted(priorities)) if i + 1 != p),
+            None,
+        )
         # otherwise take the maximum priority plus one
         if priority is None:
             priority = max(priorities, default=0) + 1
@@ -263,19 +255,7 @@ async def get_runs_in_work_queue(
     if not work_queue:
         raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
 
-    if work_queue.filter is None:
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            db=db,
-            limit_per_queue=limit,
-            work_queue_ids=[work_queue_id],
-            scheduled_before=scheduled_before,
-        )
-        result = await session.execute(query)
-        return result.scalars().unique().all()
-
-    # if the work queue has a filter, it's a deprecated tag-based work queue
-    # and uses an old approach
-    else:
+    if work_queue.filter is not None:
         return await _legacy_get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
@@ -283,6 +263,14 @@ async def get_runs_in_work_queue(
             scheduled_before=scheduled_before,
             limit=limit,
         )
+    query = db.queries.get_scheduled_flow_runs_from_work_queues(
+        db=db,
+        limit_per_queue=limit,
+        work_queue_ids=[work_queue_id],
+        scheduled_before=scheduled_before,
+    )
+    result = await session.execute(query)
+    return result.scalars().unique().all()
 
 
 @inject_db
@@ -382,18 +370,17 @@ async def _ensure_work_queue_exists(
                 session=session,
                 work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
             )
-        else:
-            if name != "default":
-                work_queue = await models.workers.create_work_queue(
-                    session=session,
-                    work_pool_id=default_pool.id,
-                    work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
-                )
-            else:
-                work_queue = await models.work_queues.read_work_queue(
-                    session=session, work_queue_id=default_pool.default_queue_id
-                )
+        elif name == "default":
+            work_queue = await models.work_queues.read_work_queue(
+                session=session, work_queue_id=default_pool.default_queue_id
+            )
 
+        else:
+            work_queue = await models.workers.create_work_queue(
+                session=session,
+                work_pool_id=default_pool.id,
+                work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
+            )
     return work_queue
 
 

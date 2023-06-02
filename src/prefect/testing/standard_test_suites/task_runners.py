@@ -71,7 +71,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @task
         def task_c(b):
-            return b + "c"
+            return f"{b}c"
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
@@ -95,7 +95,7 @@ class TaskRunnerStandardTestSuite(ABC):
         @task
         def task_c(b):
             # This task attempts to use the upstream data and should fail too
-            return b + "c"
+            return f"{b}c"
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():

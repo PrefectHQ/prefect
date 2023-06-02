@@ -97,7 +97,7 @@ def experimental(
 
     if help:
         # Ensure help ends in a trailing space
-        help = help.rstrip() + " "
+        help = f"{help.rstrip()} "
 
     warn_message = EXPERIMENTAL_WARNING.format(feature=feature, group=group, help=help)
     error_message = EXPERIMENTAL_ERROR.format(feature=feature, group=group, help=help)
@@ -229,7 +229,7 @@ def experimental_field(
             # Call the original init
             cls_init(__pydantic_self__, **data)
             # Perform warning check
-            if name in data.keys() and when(data[name]):
+            if name in data and when(data[name]):
                 experimental_check()
             field = __pydantic_self__.__fields__.get(name)
             if field is not None:

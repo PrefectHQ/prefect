@@ -213,14 +213,13 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
-        if not name:
-            if not hasattr(self.fn, "__name__"):
-                self.name = type(self.fn).__name__
-            else:
-                self.name = self.fn.__name__
-        else:
+        if name:
             self.name = name
 
+        elif not hasattr(self.fn, "__name__"):
+            self.name = type(self.fn).__name__
+        else:
+            self.name = self.fn.__name__
         if task_run_name is not None:
             if not isinstance(task_run_name, str) and not callable(task_run_name):
                 raise TypeError(

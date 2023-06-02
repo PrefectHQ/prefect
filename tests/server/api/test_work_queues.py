@@ -324,7 +324,7 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == len(runs_wq2) == 3
         assert all(r.work_queue_name == work_queue.name for r in runs_wq1)
         assert all(r.work_queue_name == work_queue_2.name for r in runs_wq2)
-        assert set([r.id for r in runs_wq1]) != set([r.id for r in runs_wq2])
+        assert {r.id for r in runs_wq1} != {r.id for r in runs_wq2}
 
     @pytest.mark.parametrize("limit", [2, 0])
     async def test_get_runs_in_queue_limit(
@@ -414,10 +414,7 @@ class TestGetRunsInWorkQueue:
         session,
     ):
         now = pendulum.now("UTC")
-        response = await client.post(
-            f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(),
-        )
+        response = await client.post(f"/work_queues/{work_queue.id}/get_runs", json={})
         assert response.status_code == status.HTTP_200_OK
 
         session.expunge_all()
@@ -430,7 +427,7 @@ class TestGetRunsInWorkQueue:
         # We do not want to record this as an actual poll event.
         ui_response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(),
+            json={},
             headers={"X-PREFECT-UI": "true"},
         )
         assert ui_response.status_code == status.HTTP_200_OK

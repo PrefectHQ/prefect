@@ -280,7 +280,7 @@ class TestCreateBlockDocument:
             "/block_documents/",
             json=dict(
                 name=name,
-                data=dict(),
+                data={},
                 block_schema_id=str(block_schemas[0].id),
                 block_type_id=str(block_schemas[0].block_type_id),
             ),
@@ -305,7 +305,7 @@ class TestCreateBlockDocument:
             "/block_documents/",
             json=dict(
                 name=name,
-                data=dict(),
+                data={},
                 block_schema_id=str(block_schemas[0].id),
                 block_type_id=str(block_schemas[0].block_type_id),
             ),
@@ -328,8 +328,7 @@ class TestReadBlockDocument:
 class TestReadBlockDocuments:
     @pytest.fixture(autouse=True)
     async def block_documents(self, session, block_schemas):
-        block_documents = []
-        block_documents.append(
+        block_documents = [
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -338,7 +337,7 @@ class TestReadBlockDocuments:
                     block_type_id=block_schemas[0].block_type_id,
                 ),
             )
-        )
+        ]
         block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
@@ -1148,8 +1147,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.get(
-            f"/block_documents/{secret_block_document.id}",
-            params=dict(),
+            f"/block_documents/{secret_block_document.id}", params={}
         )
         block = schemas.core.BlockDocument.parse_obj(response.json())
 
@@ -1176,7 +1174,7 @@ class TestSecretBlockDocuments:
     ):
         response = await client.get(
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
-            params=dict(),
+            params={},
         )
         blocks = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
@@ -1210,7 +1208,7 @@ class TestSecretBlockDocuments:
     ):
         response = await client.get(
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
-            params=dict(),
+            params={},
         )
         block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
 
@@ -1236,10 +1234,7 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_obfuscates_results(
         self, client, secret_block_document
     ):
-        response = await client.post(
-            "/block_documents/filter",
-            json=dict(),
-        )
+        response = await client.post("/block_documents/filter", json={})
         blocks = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )

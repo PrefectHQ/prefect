@@ -39,8 +39,7 @@ STORAGE = {}
 
 @kv_api_app.get("/storage/{key}")
 async def read_key(key: str):
-    result = STORAGE.get(key)
-    return result
+    return STORAGE.get(key)
 
 
 @kv_api_app.post("/storage/{key}")

@@ -191,7 +191,7 @@ class Flow(Generic[P, R]):
         if not version:
             try:
                 version = file_hash(flow_file)
-            except (FileNotFoundError, TypeError, OSError):
+            except (TypeError, OSError):
                 pass  # `getsourcefile` can return null values and "<stdin>" for objects in repls
         self.version = version
 
@@ -393,13 +393,11 @@ class Flow(Generic[P, R]):
             # exception is not picklable when using a cythonized pydantic installation
             raise ParameterTypeError.from_validation_error(exc) from None
 
-        # Get the updated parameter dict with cast values from the model
-        cast_parameters = {
+        return {
             k: v
             for k, v in model._iter()
             if k in model.__fields_set__ or model.__fields__[k].default_factory
         }
-        return cast_parameters
 
     def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -786,7 +784,7 @@ def select_flow(
     flows = {f.name: f for f in flows}
 
     # Add a leading space if given, otherwise use an empty string
-    from_message = (" " + from_message) if from_message else ""
+    from_message = f" {from_message}" if from_message else ""
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
 
@@ -806,10 +804,7 @@ def select_flow(
             ),
         )
 
-    if flow_name:
-        return flows[flow_name]
-    else:
-        return list(flows.values())[0]
+    return flows[flow_name] if flow_name else list(flows.values())[0]
 
 
 def load_flows_from_script(path: str) -> List[Flow]:

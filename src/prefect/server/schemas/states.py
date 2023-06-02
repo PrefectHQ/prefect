@@ -378,9 +378,7 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    if pause_expiration_time is None and timeout_seconds is None:
-        pass
-    else:
+    if pause_expiration_time is not None or timeout_seconds is not None:
         state_details.pause_timeout = pause_expiration_time or (
             pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
         )

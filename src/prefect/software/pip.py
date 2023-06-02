@@ -58,13 +58,11 @@ def _is_editable_install(dist: "importlib_metadata.Distribution") -> bool:
     site_packages = site.getsitepackages() + [site.getusersitepackages()]
 
     dist_location = dist.locate_file("")
-    for site_package_dir in site_packages:
-        if _is_same_path(dist_location, site_package_dir) or _is_child_path(
-            dist_location, site_package_dir
-        ):
-            return False
-
-    return True
+    return not any(
+        _is_same_path(dist_location, site_package_dir)
+        or _is_child_path(dist_location, site_package_dir)
+        for site_package_dir in site_packages
+    )
 
 
 def _remove_distributions_required_by_others(

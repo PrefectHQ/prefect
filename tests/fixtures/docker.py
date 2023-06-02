@@ -92,11 +92,10 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
                     "The --disable-docker-image-builds flag is set, but "
                     f"there is no local {image_name} image"
                 )
-            if not version_is_right:
-                raise Exception(
-                    "The --disable-docker-image-builds flag is set, but "
-                    f"{image_name} includes {image_version}, not {prefect.__version__}"
-                )
+            raise Exception(
+                "The --disable-docker-image-builds flag is set, but "
+                f"{image_name} includes {image_version}, not {prefect.__version__}"
+            )
         else:
             CliRunner().invoke(dev_app, ["build-image"])
 

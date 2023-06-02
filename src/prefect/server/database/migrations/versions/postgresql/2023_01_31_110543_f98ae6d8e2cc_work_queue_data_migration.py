@@ -155,11 +155,9 @@ def downgrade():
 
     connection = op.get_bind()
 
-    # Delete all non-default queues and pools
-    default_pool_id_result = connection.execute(
+    if default_pool_id_result := connection.execute(
         sa.text("SELECT id FROM work_pool WHERE name = 'default-agent-pool'")
-    ).fetchone()
-    if default_pool_id_result:
+    ).fetchone():
         default_pool_id = default_pool_id_result[0]
         connection.execute(
             sa.text(
@@ -171,9 +169,9 @@ def downgrade():
     ).fetchall()
 
     with op.get_context().autocommit_block():
-        for row in queue_rows:
-            batch_size = 250
+        batch_size = 250
 
+        for row in queue_rows:
             while True:
                 result = connection.execute(
                     sa.text(

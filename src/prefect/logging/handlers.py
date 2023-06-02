@@ -93,25 +93,23 @@ class APILogHandler(logging.Handler):
 
         Use `aflush` from async contexts instead.
         """
-        loop = get_running_loop()
-        if loop:
-            if in_global_loop():  # Guard against internal misuse
-                raise RuntimeError(
-                    "Cannot call `APILogWorker.flush` from the global event loop; it"
-                    " would block the event loop and cause a deadlock. Use"
-                    " `APILogWorker.aflush` instead."
-                )
-
-            # Not ideal, but this method is called by the stdlib and cannot return a
-            # coroutine so we just schedule the drain in a new thread and continue
-            from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
-            return None
-        else:
+        if not (loop := get_running_loop()):
             # We set a timeout of 5s because we don't want to block forever if the worker
             # is stuck. This can occur when the handler is being shutdown and the
             # `logging._lock` is held but the worker is attempting to emit logs resulting
             # in a deadlock.
             return APILogWorker.drain_all(timeout=5)
+        if in_global_loop():  # Guard against internal misuse
+            raise RuntimeError(
+                "Cannot call `APILogWorker.flush` from the global event loop; it"
+                " would block the event loop and cause a deadlock. Use"
+                " `APILogWorker.aflush` instead."
+            )
+
+        # Not ideal, but this method is called by the stdlib and cannot return a
+        # coroutine so we just schedule the drain in a new thread and continue
+        from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
+        return None
 
     @classmethod
     def aflush(cls):

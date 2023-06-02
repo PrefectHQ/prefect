@@ -80,9 +80,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     @validator("anchor_date", always=True)
     def default_anchor_date(cls, v):
-        if v is None:
-            return pendulum.now("UTC")
-        return pendulum.instance(v)
+        return pendulum.now("UTC") if v is None else pendulum.instance(v)
 
     @validator("timezone", always=True)
     def default_timezone(cls, v, *, values, **kwargs):
@@ -90,17 +88,9 @@ class IntervalSchedule(PrefectBaseModel):
         if v and v not in pendulum.tz.timezones:
             raise ValueError(f'Invalid timezone: "{v}"')
 
-        # otherwise infer the timezone from the anchor date
         elif v is None and values.get("anchor_date"):
             tz = values["anchor_date"].tz.name
-            if tz in pendulum.tz.timezones:
-                return tz
-            # sometimes anchor dates have "timezones" that are UTC offsets
-            # like "-04:00". This happens when parsing ISO8601 strings.
-            # In this case we, the correct inferred localization is "UTC".
-            else:
-                return "UTC"
-
+            return tz if tz in pendulum.tz.timezones else "UTC"
         return v
 
     async def get_dates(
@@ -148,13 +138,7 @@ class IntervalSchedule(PrefectBaseModel):
             List[pendulum.DateTime]: a list of dates
         """
         if n is None:
-            # if an end was supplied, we do our best to supply all matching dates (up to
-            # MAX_ITERATIONS)
-            if end is not None:
-                n = MAX_ITERATIONS
-            else:
-                n = 1
-
+            n = MAX_ITERATIONS if end is not None else 1
         if start is None:
             start = pendulum.now("UTC")
 
@@ -308,11 +292,7 @@ class CronSchedule(PrefectBaseModel):
         if n is None:
             # if an end was supplied, we do our best to supply all matching dates (up to
             # MAX_ITERATIONS)
-            if end is not None:
-                n = MAX_ITERATIONS
-            else:
-                n = 1
-
+            n = MAX_ITERATIONS if end is not None else 1
         elif self.timezone:
             start = start.in_tz(self.timezone)
 
@@ -411,8 +391,8 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         elif isinstance(rrule, dateutil.rrule.rruleset):
             dtstarts = [rr._dtstart for rr in rrule._rrule if rr._dtstart is not None]
-            unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
-            unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
+            unique_dstarts = {pendulum.instance(d).in_tz("UTC") for d in dtstarts}
+            unique_timezones = {d.tzinfo for d in dtstarts if d.tzinfo is not None}
 
             if len(unique_timezones) > 1:
                 raise ValueError(
@@ -486,16 +466,10 @@ class RRuleSchedule(PrefectBaseModel):
                 localized_exrules.append(exr.replace(**kwargs))
             rrule._exrule = localized_exrules
 
-            # update rdates
-            localized_rdates = []
-            for rd in rrule._rdate:
-                localized_rdates.append(rd.replace(tzinfo=timezone))
+            localized_rdates = [rd.replace(tzinfo=timezone) for rd in rrule._rdate]
             rrule._rdate = localized_rdates
 
-            # update exdates
-            localized_exdates = []
-            for exd in rrule._exdate:
-                localized_exdates.append(exd.replace(tzinfo=timezone))
+            localized_exdates = [exd.replace(tzinfo=timezone) for exd in rrule._exdate]
             rrule._exdate = localized_exdates
 
             return rrule
@@ -558,13 +532,7 @@ class RRuleSchedule(PrefectBaseModel):
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
         if n is None:
-            # if an end was supplied, we do our best to supply all matching dates (up
-            # to MAX_ITERATIONS)
-            if end is not None:
-                n = MAX_ITERATIONS
-            else:
-                n = 1
-
+            n = MAX_ITERATIONS if end is not None else 1
         dates = set()
         counter = 0
 

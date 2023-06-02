@@ -182,10 +182,7 @@ def delete(name: str):
 
     profiles.remove_profile(name)
 
-    verb = "Removed"
-    if name == "default":
-        verb = "Reset"
-
+    verb = "Reset" if name == "default" else "Removed"
     prefect.settings.save_profiles(profiles)
     exit_with_success(f"{verb} profile {name!r}.")
 
@@ -270,25 +267,24 @@ async def check_orion_connection():
         # if the Cloud 2.0 API exists and fails to authenticate, notify the user
         return ConnectionStatus.CLOUD_UNAUTHORIZED
     except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-            # if the route does not exist, attmpt to connect as a hosted Prefect
-            # instance
-            try:
-                # inform the user if Prefect API endpoints exist, but there are
-                # connection issues
-                client = get_client(httpx_settings=httpx_settings)
-                connect_error = await client.api_healthcheck()
-                if connect_error is not None:
-                    return ConnectionStatus.ORION_ERROR
-                elif client.server_type == ServerType.EPHEMERAL:
-                    # if the client is using an ephemeral Prefect app, inform the user
-                    return ConnectionStatus.EPHEMERAL
-                else:
-                    return ConnectionStatus.ORION_CONNECTED
-            except Exception as exc:
-                return ConnectionStatus.ORION_ERROR
-        else:
+        if exc.response.status_code != status.HTTP_404_NOT_FOUND:
             return ConnectionStatus.CLOUD_ERROR
+        # if the route does not exist, attmpt to connect as a hosted Prefect
+        # instance
+        try:
+            # inform the user if Prefect API endpoints exist, but there are
+            # connection issues
+            client = get_client(httpx_settings=httpx_settings)
+            connect_error = await client.api_healthcheck()
+            if connect_error is not None:
+                return ConnectionStatus.ORION_ERROR
+            elif client.server_type == ServerType.EPHEMERAL:
+                # if the client is using an ephemeral Prefect app, inform the user
+                return ConnectionStatus.EPHEMERAL
+            else:
+                return ConnectionStatus.ORION_CONNECTED
+        except Exception as exc:
+            return ConnectionStatus.ORION_ERROR
     except TypeError:
         # if no Prefect API URL has been set, httpx will throw a TypeError
         try:

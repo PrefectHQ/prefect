@@ -31,11 +31,7 @@ def lower_clamp_multiple(k):
     c * average_interval) where the probability mass between the lower bound and the
     median is equal to the probability mass between the median and the upper bound.
     """
-    if k >= 50:
-        # return 0 for large values of `k` to prevent numerical overflow
-        return 0.0
-
-    return math.log(max(2**k / (2**k - 1), 1e-10), 2)
+    return 0.0 if k >= 50 else math.log(max(2**k / (2**k - 1), 1e-10), 2)
 
 
 def clamped_poisson_interval(average_interval, clamping_factor=0.3):

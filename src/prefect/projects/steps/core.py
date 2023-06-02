@@ -26,8 +26,7 @@ RESERVED_KEYWORDS = {"requires"}
 
 def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = None):
     try:
-        step_func = import_object(fully_qualified_name)
-        return step_func
+        return import_object(fully_qualified_name)
     except ImportError:
         if requires:
             print(
@@ -37,14 +36,9 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
         else:
             raise
 
-    if not isinstance(requires, list):
-        packages = [requires]
-    else:
-        packages = requires
-
+    packages = [requires] if not isinstance(requires, list) else requires
     subprocess.check_call([sys.executable, "-m", "pip", "install", ",".join(packages)])
-    step_func = import_object(fully_qualified_name)
-    return step_func
+    return import_object(fully_qualified_name)
 
 
 async def run_step(step: dict) -> dict:

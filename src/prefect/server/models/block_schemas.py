@@ -70,11 +70,9 @@ async def create_block_schema(
     insert_values["checksum"] = checksum
 
     if definitions:
-        # Get non block definitions for saving to the DB.
-        non_block_definitions = _get_non_block_reference_definitions(
+        if non_block_definitions := _get_non_block_reference_definitions(
             insert_values["fields"], definitions
-        )
-        if non_block_definitions:
+        ):
             insert_values["fields"]["definitions"] = (
                 _get_non_block_reference_definitions(
                     insert_values["fields"], definitions
@@ -239,12 +237,8 @@ def _get_fields_for_child_schema(
         for reference_string in reference_strings:
             definition_key = reference_string.replace("#/definitions/", "")
             potential_sub_block_schema_fields = definitions[definition_key]
-            # Determines the definition to use when registering a child
-            # block schema by verifying that the block type name stored in
-            # the definition matches the name of the block type that we're
-            # currently trying to register a block schema for.
             if (
-                definitions[definition_key]["block_type_slug"]
+                potential_sub_block_schema_fields["block_type_slug"]
                 == reference_block_type.slug
             ):
                 # Once we've found the matching definition, we no longer
@@ -363,7 +357,7 @@ def _construct_full_block_schema(
     Returns:
         BlockSchema: A block schema with a fully reconstructed fields attribute
     """
-    if len(block_schemas_with_references) == 0:
+    if not block_schemas_with_references:
         return None
     root_block_schema = (
         copy(root_block_schema)
@@ -528,10 +522,7 @@ def _construct_block_schema_fields_with_block_references(
                 block_schema_fields_copy["block_schema_references"][
                     name
                 ] = new_block_schema_reference
-            else:
-                # List of block references for this key already exist and the block
-                # reference that we are attempting add isn't present
-                if (
+            elif (
                     isinstance(
                         block_schema_fields_copy["block_schema_references"][name],
                         list,
@@ -539,19 +530,17 @@ def _construct_block_schema_fields_with_block_references(
                     and new_block_schema_reference
                     not in block_schema_fields_copy["block_schema_references"][name]
                 ):
-                    block_schema_fields_copy["block_schema_references"][name].append(
-                        new_block_schema_reference
-                    )
-                # A single block reference for this key already exists and it does not
-                # match the block reference that we are attempting to add
-                elif (
-                    block_schema_fields_copy["block_schema_references"][name]
-                    != new_block_schema_reference
-                ):
-                    block_schema_fields_copy["block_schema_references"][name] = [
-                        block_schema_fields_copy["block_schema_references"][name],
-                        new_block_schema_reference,
-                    ]
+                block_schema_fields_copy["block_schema_references"][name].append(
+                    new_block_schema_reference
+                )
+            elif (
+                block_schema_fields_copy["block_schema_references"][name]
+                != new_block_schema_reference
+            ):
+                block_schema_fields_copy["block_schema_references"][name] = [
+                    block_schema_fields_copy["block_schema_references"][name],
+                    new_block_schema_reference,
+                ]
     return block_schema_fields_copy
 
 
@@ -765,7 +754,9 @@ async def read_available_block_capabilities(
     query = sa.select(
         db.json_arr_agg(db.cast_to_json(db.BlockSchema.capabilities.distinct()))
     )
-    capability_combinations = (await session.execute(query)).scalars().first() or list()
+    capability_combinations = (
+        await session.execute(query)
+    ).scalars().first() or []
     if db.uses_json_strings and isinstance(capability_combinations, str):
         capability_combinations = json.loads(capability_combinations)
     return list({c for capabilities in capability_combinations for c in capabilities})

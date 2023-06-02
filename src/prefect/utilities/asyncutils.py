@@ -395,8 +395,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
 
     async def __aexit__(self, *tb):
         try:
-            retval = await self._task_group.__aexit__(*tb)
-            return retval
+            return await self._task_group.__aexit__(*tb)
         finally:
             del self._task_group
 
@@ -418,6 +417,5 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
     """
     keys = []
     async with create_gather_task_group() as tg:
-        for call in calls:
-            keys.append(tg.start_soon(call))
+        keys.extend(tg.start_soon(call) for call in calls)
     return [tg.get_result(key) for key in keys]

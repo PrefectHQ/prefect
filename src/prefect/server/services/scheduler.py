@@ -127,7 +127,7 @@ class Scheduler(LoopService):
                 - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
         now = pendulum.now("UTC")
-        query = (
+        return (
             sa.select(db.Deployment.id)
             .select_from(db.Deployment)
             # TODO: on Postgres, this could be replaced with a lateral join that
@@ -154,7 +154,8 @@ class Scheduler(LoopService):
             # having EITHER fewer than three runs OR runs not scheduled far enough out
             .having(
                 sa.or_(
-                    sa.func.count(db.FlowRun.next_scheduled_start_time) < self.min_runs,
+                    sa.func.count(db.FlowRun.next_scheduled_start_time)
+                    < self.min_runs,
                     sa.func.max(db.FlowRun.next_scheduled_start_time)
                     < now + self.min_scheduled_time,
                 )
@@ -162,7 +163,6 @@ class Scheduler(LoopService):
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)
         )
-        return query
 
     async def _collect_flow_runs(
         self,
@@ -299,7 +299,7 @@ class RecentDeploymentsScheduler(Scheduler):
         """
         Returns a sqlalchemy query for selecting deployments to schedule
         """
-        query = (
+        return (
             sa.select(db.Deployment.id)
             .where(
                 db.Deployment.is_schedule_active.is_(True),
@@ -315,7 +315,6 @@ class RecentDeploymentsScheduler(Scheduler):
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)
         )
-        return query
 
 
 if __name__ == "__main__":

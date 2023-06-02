@@ -35,10 +35,7 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
 
 
 def _cast_to_call(call_like: Union[Callable[[], T], Call[T]]) -> Call[T]:
-    if isinstance(call_like, Call):
-        return call_like
-    else:
-        return create_call(call_like)
+    return call_like if isinstance(call_like, Call) else create_call(call_like)
 
 
 class _base(abc.ABC):

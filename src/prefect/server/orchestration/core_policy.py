@@ -186,7 +186,7 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
                 )
             )
             run_limits = {limit.tag: limit for limit in filtered_limits}
-            for tag, cl in run_limits.items():
+            for cl in run_limits.values():
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
@@ -211,8 +211,7 @@ class CacheInsertion(BaseOrchestrationRule):
         if not validated_state or not context.session:
             return
 
-        cache_key = validated_state.state_details.cache_key
-        if cache_key:
+        if cache_key := validated_state.state_details.cache_key:
             new_cache_item = db.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,
@@ -553,8 +552,8 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             )
             return
 
-        if initial_state.state_details.pause_reschedule:
-            if not context.run.deployment_id:
+        if not context.run.deployment_id:
+            if initial_state.state_details.pause_reschedule:
                 await self.reject_transition(
                     state=None,
                     reason="Cannot reschedule a paused flow run without a deployment.",
@@ -811,7 +810,7 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
                     f" run: {flow_run.id}."
                 ),
             )
-        elif not flow_run.state.type == StateType.RUNNING:
+        elif flow_run.state.type != StateType.RUNNING:
             # task runners should abort task run execution
             await self.abort_transition(
                 reason="The enclosing flow must be running to begin task execution.",

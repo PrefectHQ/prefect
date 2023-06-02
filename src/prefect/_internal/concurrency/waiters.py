@@ -103,8 +103,7 @@ class SyncWaiter(Waiter[T]):
         finally:
             # Call done callbacks
             while self._done_callbacks:
-                callback = self._done_callbacks.pop()
-                if callback:
+                if callback := self._done_callbacks.pop():
                     callback.run()
 
     def add_done_callback(self, callback: Call):
@@ -198,15 +197,13 @@ class AsyncWaiter(Waiter[T]):
         finally:
             # Call done callbacks
             while self._done_callbacks:
-                callback = self._done_callbacks.pop()
-                if callback:
+                if callback := self._done_callbacks.pop():
                     # We shield against cancellation so we can run the callback
                     with anyio.CancelScope(shield=True):
                         await self._run_done_callback(callback)
 
     async def _run_done_callback(self, callback: Call):
-        coro = callback.run()
-        if coro:
+        if coro := callback.run():
             await coro
 
     def add_done_callback(self, callback: Call):

@@ -42,9 +42,7 @@ class PrefectFilterBaseModel(PrefectBaseModel):
     def as_sql_filter(self, db: "PrefectDBInterface") -> "BooleanClauseList":
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)
-        if not filters:
-            return True
-        return sa.and_(*filters)
+        return True if not filters else sa.and_(*filters)
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         """Return a list of boolean filter statements based on filter parameters"""
@@ -60,10 +58,10 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
     )
 
     def as_sql_filter(self, db: "PrefectDBInterface") -> "BooleanClauseList":
-        filters = self._get_filter_list(db)
-        if not filters:
+        if filters := self._get_filter_list(db):
+            return sa.and_(*filters) if self.operator == Operator.and_ else sa.or_(*filters)
+        else:
             return True
-        return sa.and_(*filters) if self.operator == Operator.and_ else sa.or_(*filters)
 
 
 class FlowFilterId(PrefectFilterBaseModel):
@@ -1130,8 +1128,6 @@ class BlockSchemaFilterVersion(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
-        pass
-
         filters = []
         if self.any_ is not None:
             filters.append(db.BlockSchema.version.in_(self.any_))

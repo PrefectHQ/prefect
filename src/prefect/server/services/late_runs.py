@@ -87,7 +87,7 @@ class MarkLateRuns(LoopService):
             scheduled_to_start_before: the maximum next scheduled start time of
                 scheduled flow runs to consider in the returned query
         """
-        query = (
+        return (
             sa.select(
                 db.FlowRun.id,
                 db.FlowRun.next_scheduled_start_time,
@@ -95,13 +95,15 @@ class MarkLateRuns(LoopService):
             .where(
                 # The next scheduled start time is in the past, including the mark late
                 # after buffer
-                (db.FlowRun.next_scheduled_start_time <= scheduled_to_start_before),
+                (
+                    db.FlowRun.next_scheduled_start_time
+                    <= scheduled_to_start_before
+                ),
                 db.FlowRun.state_type == states.StateType.SCHEDULED,
                 db.FlowRun.state_name == "Scheduled",
             )
             .limit(self.batch_size)
         )
-        return query
 
     async def _mark_flow_run_as_late(
         self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun

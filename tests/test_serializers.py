@@ -121,14 +121,16 @@ class TestBaseSerializer:
         assert isinstance(model.serializer, Bar)
 
     def test_serializers_can_be_created_by_type_string(self):
+
+
+
         class Foo(pydantic.BaseModel):
             serializer: Serializer
 
             @pydantic.validator("serializer", pre=True)
             def cast_type_to_dict(cls, value):
-                if isinstance(value, str):
-                    return {"type": value}
-                return value
+                return {"type": value} if isinstance(value, str) else value
+
 
         class Bar(Serializer):
             type = "bar"

@@ -267,15 +267,10 @@ async def create_work_queue(
         )
         priorities = (await session.execute(priorities_query)).scalars().all()
 
-        priority = None
-        for i, p in enumerate(sorted(priorities)):
-            # if a rank was skipped (e.g. the set priority is different than the
-            # enumerated priority) then we can "take" that spot for this work
-            # queue
-            if i + 1 != p:
-                priority = i + 1
-                break
-
+        priority = next(
+            (i + 1 for i, p in enumerate(sorted(priorities)) if i + 1 != p),
+            None,
+        )
         # otherwise take the maximum priority plus one
         if priority is None:
             priority = max(priorities, default=0) + 1

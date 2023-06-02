@@ -33,8 +33,8 @@ def test_printing_the_server_manifest_with_no_args():
 
             server_container = manifest["spec"]["template"]["spec"]["containers"][0]
             assert server_container["image"] == get_prefect_image_name()
-            assert server_container["command"][0:3] == ["prefect", "server", "start"]
-            assert server_container["command"][0:3] == ["prefect", "server", "start"]
+            assert server_container["command"][:3] == ["prefect", "server", "start"]
+            assert server_container["command"][:3] == ["prefect", "server", "start"]
             assert server_container["command"][5:] == [
                 "--log-level",
                 str(PREFECT_LOGGING_SERVER_LEVEL.value()),

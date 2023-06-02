@@ -93,31 +93,32 @@ class PrefectAgent:
             self.default_infrastructure_document_id = None
 
     async def update_matched_agent_work_queues(self):
-        if self.work_queue_prefix:
-            if self.work_pool_name:
-                matched_queues = await self.client.read_work_queues(
-                    work_pool_name=self.work_pool_name,
-                    work_queue_filter=WorkQueueFilter(
-                        name=WorkQueueFilterName(startswith_=self.work_queue_prefix)
-                    ),
+        if not self.work_queue_prefix:
+            return
+        if self.work_pool_name:
+            matched_queues = await self.client.read_work_queues(
+                work_pool_name=self.work_pool_name,
+                work_queue_filter=WorkQueueFilter(
+                    name=WorkQueueFilterName(startswith_=self.work_queue_prefix)
+                ),
+            )
+        else:
+            matched_queues = await self.client.match_work_queues(
+                self.work_queue_prefix
+            )
+        matched_queues = {q.name for q in matched_queues}
+        if matched_queues != self.work_queues:
+            new_queues = matched_queues - self.work_queues
+            removed_queues = self.work_queues - matched_queues
+            if new_queues:
+                self.logger.info(
+                    f"Matched new work queues: {', '.join(new_queues)}"
                 )
-            else:
-                matched_queues = await self.client.match_work_queues(
-                    self.work_queue_prefix
+            if removed_queues:
+                self.logger.info(
+                    f"Work queues no longer matched: {', '.join(removed_queues)}"
                 )
-            matched_queues = set(q.name for q in matched_queues)
-            if matched_queues != self.work_queues:
-                new_queues = matched_queues - self.work_queues
-                removed_queues = self.work_queues - matched_queues
-                if new_queues:
-                    self.logger.info(
-                        f"Matched new work queues: {', '.join(new_queues)}"
-                    )
-                if removed_queues:
-                    self.logger.info(
-                        f"Work queues no longer matched: {', '.join(removed_queues)}"
-                    )
-            self.work_queues = matched_queues
+        self.work_queues = matched_queues
 
     async def get_work_queues(self) -> AsyncIterator[WorkQueue]:
         """
@@ -400,12 +401,9 @@ class PrefectAgent:
                 )
                 infra_block = Block._from_block_document(infra_document)
 
-            # Add flow run metadata to the infrastructure
-            prepared_infrastructure = infra_block.prepare_for_flow_run(
+            return infra_block.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
             )
-            return prepared_infrastructure
-
         ## get infra
         infra_document = await self.client.read_block_document(
             deployment.infrastructure_document_id
@@ -430,14 +428,9 @@ class PrefectAgent:
         infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
 
-        # TODO: Here the agent may update the infrastructure with agent-level settings
-
-        # Add flow run metadata to the infrastructure
-        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(
+        return infrastructure_block.prepare_for_flow_run(
             flow_run, deployment=deployment, flow=flow
         )
-
-        return prepared_infrastructure
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -477,10 +470,8 @@ class PrefectAgent:
 
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
-        else:
-            # If the run is not ready to submit, release the concurrency slot
-            if self.limiter:
-                self.limiter.release_on_behalf_of(flow_run.id)
+        elif self.limiter:
+            self.limiter.release_on_behalf_of(flow_run.id)
 
         self.submitting_flow_run_ids.remove(flow_run.id)
 

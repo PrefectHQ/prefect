@@ -62,11 +62,7 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
 
     See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
     """
-    if __model_cls:
-        __model_cls.__reduce__ = _reduce_model
-        __model_cls.__reduce_kwargs__ = kwargs
-        return __model_cls
-    else:
+    if not __model_cls:
         return cast(
             Callable[[Type[M]], Type[M]],
             partial(
@@ -74,6 +70,9 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
                 **kwargs,
             ),
         )
+    __model_cls.__reduce__ = _reduce_model
+    __model_cls.__reduce_kwargs__ = kwargs
+    return __model_cls
 
 
 def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
@@ -216,11 +215,11 @@ class PartialModel(Generic[M]):
         # in our custom `setattr` implementation.
         self.model_cls = __model_cls
 
-        for name in kwargs.keys():
+        for name in kwargs:
             self.raise_if_not_in_model(name)
 
     def finalize(self, **kwargs: Any) -> M:
-        for name in kwargs.keys():
+        for name in kwargs:
             self.raise_if_already_set(name)
             self.raise_if_not_in_model(name)
         return self.model_cls(**self.fields, **kwargs)

@@ -11,10 +11,7 @@ class Requirement:
 
     @classmethod
     def validate(cls, value):
-        if not isinstance(value, cls):
-            # Attempt to parse the string representation of the input type
-            return cls(str(value))
-        return value
+        return cls(str(value)) if not isinstance(value, cls) else value
 
     def __eq__(self, other: object) -> bool:
         """

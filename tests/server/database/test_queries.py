@@ -620,9 +620,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 15
 
         # first 3 runs are from all three queues
-        assert all(
-            [r.work_queue_id in (wq_aa.id, wq_ab.id, wq_ac.id) for r in runs[:3]]
-        )
+        assert all(r.work_queue_id in (wq_aa.id, wq_ab.id, wq_ac.id) for r in runs[:3])
         # runs are in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) == runs
 
@@ -645,11 +643,11 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 15
 
         # first 5 runs are from wq_aa
-        assert all([r.work_queue_id == wq_aa.id for r in runs[:5]])
+        assert all(r.work_queue_id == wq_aa.id for r in runs[:5])
         # next 5 runs are from wq_ab
-        assert all([r.work_queue_id == wq_ab.id for r in runs[5:10]])
+        assert all(r.work_queue_id == wq_ab.id for r in runs[5:10])
         # next 5 runs are from wq_ac
-        assert all([r.work_queue_id == wq_ac.id for r in runs[10:15]])
+        assert all(r.work_queue_id == wq_ac.id for r in runs[10:15])
 
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs
@@ -676,11 +674,11 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 30
 
         # first 10 runs are from wq_aa or wq_ba
-        assert all([r.work_queue_id in (wq_aa.id, wq_ba.id) for r in runs[:10]])
+        assert all(r.work_queue_id in (wq_aa.id, wq_ba.id) for r in runs[:10])
         # next 10 runs are from wq_ab or wq_bb
-        assert all([r.work_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20]])
+        assert all(r.work_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20])
         # next 10 runs are from wq_ac or wq_bc
-        assert all([r.work_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30]])
+        assert all(r.work_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30])
 
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs

@@ -33,8 +33,7 @@ DEFAULT_PATH = (
 def run_flows(search_path: Union[str, Path]):
     count = 0
     print(f"Running integration tests with client version: {__version__}")
-    server_version = os.environ.get("TEST_SERVER_VERSION")
-    if server_version:
+    if server_version := os.environ.get("TEST_SERVER_VERSION"):
         print(f"and server version: {server_version}")
 
     for file in sorted(Path(search_path).glob("*.py")):

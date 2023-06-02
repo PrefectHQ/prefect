@@ -79,14 +79,13 @@ def get_logger(name: str = None) -> logging.Logger:
     if name:
         # Append the name if given but allow explicit full names e.g. "prefect.test"
         # should not become "prefect.prefect.test"
-        if not name.startswith(parent_logger.name + "."):
-            logger = parent_logger.getChild(name)
-        else:
-            logger = logging.getLogger(name)
+        return (
+            parent_logger.getChild(name)
+            if not name.startswith(f"{parent_logger.name}.")
+            else logging.getLogger(name)
+        )
     else:
-        logger = parent_logger
-
-    return logger
+        return parent_logger
 
 
 def get_run_logger(

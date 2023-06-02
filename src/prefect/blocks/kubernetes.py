@@ -48,9 +48,7 @@ class KubernetesClusterConfig(Block):
 
     @validator("config", pre=True)
     def parse_yaml_config(cls, value):
-        if isinstance(value, str):
-            return yaml.safe_load(value)
-        return value
+        return yaml.safe_load(value) if isinstance(value, str) else value
 
     @classmethod
     def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:

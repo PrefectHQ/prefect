@@ -1200,7 +1200,7 @@ class TestOutputFlag:
         )
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
-        assert build_kwargs["output"] == Path(output_path + ".yaml")
+        assert build_kwargs["output"] == Path(f"{output_path}.yaml")
 
 
 class TestOtherStuff:

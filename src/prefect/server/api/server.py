@@ -154,16 +154,11 @@ def is_client_retryable_exception(exc: Exception):
     if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
         exc.orig, sqlite3.OperationalError
     ):
-        if getattr(exc.orig, "sqlite_errorname", None) in {
+        return getattr(exc.orig, "sqlite_errorname", None) in {
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
-        }:
-            return True
-        else:
-            # Avoid falling through to the generic `DBAPIError` case below
-            return False
-
-    if isinstance(
+        }
+    return isinstance(
         exc,
         (
             sqlalchemy.exc.DBAPIError,
@@ -173,10 +168,7 @@ def is_client_retryable_exception(exc: Exception):
             sqlalchemy.exc.InvalidRequestError,
             sqlalchemy.orm.exc.DetachedInstanceError,
         ),
-    ):
-        return True
-
-    return False
+    )
 
 
 async def custom_internal_exception_handler(request: Request, exc: Exception):

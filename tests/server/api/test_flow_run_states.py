@@ -39,4 +39,4 @@ class TestReadFlowRunStateByFlowRunId:
         )
         assert response.status_code == status.HTTP_200_OK
         response_state_ids = {state["id"] for state in response.json()}
-        assert response_state_ids == set([str(state.id) for state in flow_run_states])
+        assert response_state_ids == {str(state.id) for state in flow_run_states}

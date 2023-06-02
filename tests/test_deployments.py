@@ -789,15 +789,16 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True
-        ) as router:
+                base_url=PREFECT_API_URL.value(), assert_all_mocked=True
+            ) as router:
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
-                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+                "GET", re.compile(f"{PREFECT_API_URL.value()}/flow_runs/.*")
             ).mock(
                 return_value=Response(
-                    200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+                    200,
+                    json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}},
                 )
             )
 
@@ -820,17 +821,18 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(),
-            assert_all_mocked=True,
-            assert_all_called=False,
-        ) as router:
+                base_url=PREFECT_API_URL.value(),
+                assert_all_mocked=True,
+                assert_all_called=False,
+            ) as router:
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
-                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+                "GET", re.compile(f"{PREFECT_API_URL.value()}/flow_runs/.*")
             ).mock(
                 return_value=Response(
-                    200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+                    200,
+                    json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}},
                 )
             )
 
@@ -864,14 +866,14 @@ class TestRunDeployment:
         )
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(),
-            assert_all_mocked=True,
-            assert_all_called=False,
-        ) as router:
+                base_url=PREFECT_API_URL.value(),
+                assert_all_mocked=True,
+                assert_all_called=False,
+            ) as router:
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
             flow_polls = router.request(
-                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+                "GET", re.compile(f"{PREFECT_API_URL.value()}/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
             run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)

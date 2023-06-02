@@ -244,9 +244,7 @@ class CompressedSerializer(Serializer):
 
     @pydantic.validator("serializer", pre=True)
     def cast_type_names_to_serializers(cls, value):
-        if isinstance(value, str):
-            return Serializer(type=value)
-        return value
+        return Serializer(type=value) if isinstance(value, str) else value
 
     @pydantic.validator("compressionlib")
     def check_compressionlib(cls, value):

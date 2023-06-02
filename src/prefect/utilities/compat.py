@@ -110,8 +110,7 @@ if sys.version_info < (3, 8) and sys.platform != "win32":
             pass
 
         def __del__(self, _warn=warnings.warn):
-            threads = [t for t in list(self._threads.values()) if t.is_alive()]
-            if threads:
+            if threads := [t for t in list(self._threads.values()) if t.is_alive()]:
                 _warn(
                     f"{self.__class__} has registered but not finished child processes",
                     ResourceWarning,

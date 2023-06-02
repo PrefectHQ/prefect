@@ -123,10 +123,7 @@ def inject_db(fn: Callable) -> Callable:
         inject(kwargs)
         return fn(*args, **kwargs)
 
-    if inspect.iscoroutinefunction(fn):
-        return async_wrapper
-
-    return sync_wrapper
+    return async_wrapper if inspect.iscoroutinefunction(fn) else sync_wrapper
 
 
 @contextmanager

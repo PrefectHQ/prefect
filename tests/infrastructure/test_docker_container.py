@@ -807,7 +807,7 @@ def test_container_name_collision(docker: "DockerClient"):
     result = container.run()
     _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
     created_container: "Container" = docker.containers.get(container_id)
-    assert created_container.name == base_name + "-1"
+    assert created_container.name == f"{base_name}-1"
 
 
 @pytest.mark.service("docker")

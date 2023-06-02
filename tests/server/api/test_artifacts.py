@@ -277,9 +277,7 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert all(
-            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
-        )
+        assert all(item["flow_run_id"] == str(flow_run_id) for item in response.json())
 
     async def test_read_artifacts_with_artifact_task_run_id_filter(
         self, artifacts, client
@@ -293,9 +291,7 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
-        assert all(
-            [item["task_run_id"] == str(task_run_id) for item in response.json()]
-        )
+        assert all(item["task_run_id"] == str(task_run_id) for item in response.json())
 
     async def test_read_artifacts_with_artifact_type_filter_any(
         self, artifacts, client
@@ -323,7 +319,7 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=artifact_type_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert all([item["type"] != artifact_type for item in response.json()])
+        assert all(item["type"] != artifact_type for item in response.json())
 
     async def test_read_artifacts_with_multiple_filters(
         self, artifacts, flow_run, task_run, client
@@ -337,12 +333,8 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=multiple_filters)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
-        assert all(
-            [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
-        )
-        assert all(
-            [item["task_run_id"] == str(task_run.id) for item in response.json()]
-        )
+        assert all(item["flow_run_id"] == str(flow_run.id) for item in response.json())
+        assert all(item["task_run_id"] == str(task_run.id) for item in response.json())
 
     async def test_read_artifacts_with_flow_run_filter(self, artifacts, client):
         flow_run_id = artifacts[0]["flow_run_id"]
@@ -354,9 +346,7 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert all(
-            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
-        )
+        assert all(item["flow_run_id"] == str(flow_run_id) for item in response.json())
 
     async def test_read_artifacts_with_task_run_filter(self, artifacts, client):
         task_run_id = artifacts[0]["task_run_id"]
@@ -368,9 +358,7 @@ class TestReadArtifacts:
         response = await client.post("/artifacts/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
-        assert all(
-            [item["task_run_id"] == str(task_run_id) for item in response.json()]
-        )
+        assert all(item["task_run_id"] == str(task_run_id) for item in response.json())
 
     async def test_read_artifacts_with_limit(self, artifacts, client):
         response = await client.post("/artifacts/filter", json={"limit": 1})
@@ -400,10 +388,8 @@ class TestReadArtifacts:
         assert len(response.json()) == len(artifacts)
         # assert they are sorted correctly
         assert all(
-            [
-                response.json()[i]["updated"] >= response.json()[i + 1]["updated"]
-                for i in range(len(response.json()) - 1)
-            ]
+            response.json()[i]["updated"] >= response.json()[i + 1]["updated"]
+            for i in range(len(response.json()) - 1)
         )
 
     async def test_read_artifacts_returns_empty_list(self, client):
@@ -566,9 +552,7 @@ class TestReadLatestArtifacts:
         response = await client.post("/artifacts/latest/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert all(
-            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
-        )
+        assert all(item["flow_run_id"] == str(flow_run_id) for item in response.json())
 
     async def test_read_artifacts_with_task_run_filter(self, artifacts, client):
         task_run_id = artifacts[2]["task_run_id"]
@@ -580,9 +564,7 @@ class TestReadLatestArtifacts:
         response = await client.post("/artifacts/latest/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
-        assert all(
-            [item["task_run_id"] == str(task_run_id) for item in response.json()]
-        )
+        assert all(item["task_run_id"] == str(task_run_id) for item in response.json())
 
     async def test_read_artifacts_returns_empty_list(self, client):
         response = await client.post("/artifacts/latest/filter")
@@ -603,9 +585,7 @@ class TestReadLatestArtifacts:
         response = await client.post("/artifacts/latest/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert all(
-            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
-        )
+        assert all(item["flow_run_id"] == str(flow_run_id) for item in response.json())
 
     async def test_read_artifacts_with_artifact_task_run_id_filter(
         self, artifacts, client
@@ -621,9 +601,7 @@ class TestReadLatestArtifacts:
         response = await client.post("/artifacts/latest/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
-        assert all(
-            [item["task_run_id"] == str(task_run_id) for item in response.json()]
-        )
+        assert all(item["task_run_id"] == str(task_run_id) for item in response.json())
 
     async def test_reading_latest_artifacts_by_flow_name(self, flow_artifacts, client):
         flow_name = flow_artifacts[0]["name"]

@@ -48,27 +48,27 @@ def get_state_result(
         # Fetch defaults to `True` for sync users or async users who have opted in
         fetch = True
 
-    if not fetch:
-        if fetch is None and in_async_main_thread():
-            warnings.warn(
-                (
-                    "State.result() was called from an async context but not awaited. "
-                    "This method will be updated to return a coroutine by default in "
-                    "the future. Pass `fetch=True` and `await` the call to get rid of "
-                    "this warning."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        # Backwards compatibility
-        if isinstance(state.data, DataDocument):
-            return result_from_state_with_data_document(
-                state, raise_on_failure=raise_on_failure
-            )
-        else:
-            return state.data
-    else:
+    if fetch:
         return _get_state_result(state, raise_on_failure=raise_on_failure)
+    if fetch is None and in_async_main_thread():
+        warnings.warn(
+            (
+                "State.result() was called from an async context but not awaited. "
+                "This method will be updated to return a coroutine by default in "
+                "the future. Pass `fetch=True` and `await` the call to get rid of "
+                "this warning."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Backwards compatibility
+    return (
+        result_from_state_with_data_document(
+            state, raise_on_failure=raise_on_failure
+        )
+        if isinstance(state.data, DataDocument)
+        else state.data
+    )
 
 
 @sync_compatible
@@ -167,13 +167,7 @@ async def exception_to_crashed_state(
             f" {format_exception(exc)}"
         )
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
-    else:
-        # Attach the exception for local usage, will not be available when retrieved
-        # from the API
-        data = exc
-
+    data = await result_factory.create_result(exc) if result_factory else exc
     return Crashed(message=state_message, data=data)
 
 
@@ -191,16 +185,7 @@ async def exception_to_failed_state(
             raise ValueError(
                 "Exception was not passed and no active exception could be found."
             )
-    else:
-        pass
-
-    if result_factory:
-        data = await result_factory.create_result(exc)
-    else:
-        # Attach the exception for local usage, will not be available when retrieved
-        # from the API
-        data = exc
-
+    data = await result_factory.create_result(exc) if result_factory else exc
     existing_message = kwargs.pop("message", "")
     if existing_message and not existing_message.endswith(" "):
         existing_message += " "
@@ -277,7 +262,7 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
                 f"{states.not_final_count}/{states.total_count} states are not final."
             )
         else:
-            message = "Given states: " + states.counts_message()
+            message = f"Given states: {states.counts_message()}"
 
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
@@ -289,11 +274,7 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         )
 
     # Generators aren't portable, implicitly convert them to a list.
-    if isinstance(retval, GeneratorType):
-        data = list(retval)
-    else:
-        data = retval
-
+    data = list(retval) if isinstance(retval, GeneratorType) else retval
     # Otherwise, they just gave data and this is a completed retval
     return Completed(data=await result_factory.create_result(data))
 
@@ -414,7 +395,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         and isinstance(obj, (list, set, tuple))
         and obj
     ):
-        return all([is_state(o) for o in obj])
+        return all(is_state(o) for o in obj)
     else:
         return False
 
@@ -572,9 +553,7 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    if pause_expiration_time is None and timeout_seconds is None:
-        pass
-    else:
+    if pause_expiration_time is not None or timeout_seconds is not None:
         state_details.pause_timeout = pause_expiration_time or (
             pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
         )

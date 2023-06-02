@@ -29,10 +29,7 @@ def flaky_on_windows(fn, **kwargs):
     """
     Mark a test as flaky for repeated test runs if on Windows.
     """
-    if sys.platform == "win32":
-        return pytest.mark.flaky(**kwargs)(fn)
-    else:
-        return fn
+    return pytest.mark.flaky(**kwargs)(fn) if sys.platform == "win32" else fn
 
 
 def exceptions_equal(a, b):
@@ -242,5 +239,5 @@ async def assert_uses_result_storage(
 
 
 def a_test_step(**kwargs):
-    kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
+    kwargs |= {"output1": 1, "output2": ["b", 2, 3]}
     return kwargs

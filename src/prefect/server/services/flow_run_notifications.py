@@ -136,13 +136,12 @@ class FlowRunNotifications(LoopService):
             flow_run_id=notification_dict["flow_run_id"]
         )
 
-        message = message_template.format(
+        return message_template.format(
             **{
                 k: notification_dict[k]
                 for k in schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
             }
         )
-        return message
 
     def get_ui_url_for_flow_run_id(self, flow_run_id: UUID) -> str:
         """

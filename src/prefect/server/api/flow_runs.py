@@ -49,7 +49,7 @@ async def create_flow_run(
     flow_run = schemas.core.FlowRun(**flow_run.dict())
 
     # pass the request version to the orchestration engine to support compatibility code
-    orchestration_parameters.update({"api-version": api_version})
+    orchestration_parameters["api-version"] = api_version
 
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
@@ -208,16 +208,14 @@ async def resume_flow_run(
         state = flow_run.state
 
         if state is None or state.type != schemas.states.StateType.PAUSED:
-            result = OrchestrationResult(
+            return OrchestrationResult(
                 state=None,
                 status=schemas.responses.SetStateStatus.ABORT,
                 details=schemas.responses.StateAbortDetails(
                     reason="Cannot resume a flow run that is not paused."
                 ),
             )
-            return result
-
-        orchestration_parameters.update({"api-version": api_version})
+        orchestration_parameters["api-version"] = api_version
 
         if state.state_details.pause_reschedule:
             orchestration_result = await models.flow_runs.set_flow_run_state(
@@ -330,7 +328,7 @@ async def set_flow_run_state(
     """Set a flow run state, invoking any orchestration rules."""
 
     # pass the request version to the orchestration engine to support compatibility code
-    orchestration_parameters.update({"api-version": api_version})
+    orchestration_parameters["api-version"] = api_version
 
     now = pendulum.now()
 

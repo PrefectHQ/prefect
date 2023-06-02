@@ -84,9 +84,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     @validator("working_dir")
     def validate_command(cls, v):
         """Make sure that the working directory is formatted for the current platform."""
-        if v:
-            return relative_path_to_current_platform(v)
-        return v
+        return relative_path_to_current_platform(v) if v else v
 
     def prepare_for_flow_run(
         self,

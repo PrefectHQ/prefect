@@ -128,13 +128,11 @@ class PrefectBaseModel(BaseModel):
             for _, field in self.__fields__.items()
             if field.field_info.extra.get("experimental")
         ]
-        experimental_fields_to_exclude = [
+        if experimental_fields_to_exclude := [
             field.name
             for field in experimental_fields
             if not experiment_enabled(field.field_info.extra["experimental-group"])
-        ]
-
-        if experimental_fields_to_exclude:
+        ]:
             kwargs["exclude"] = (kwargs.get("exclude") or set()).union(
                 experimental_fields_to_exclude
             )
@@ -184,7 +182,7 @@ class PrefectBaseModel(BaseModel):
             A new copy of the model
         """
         if reset_fields:
-            update = update or dict()
+            update = update or {}
             for field in self._reset_fields():
                 update.setdefault(field, self.__fields__[field].get_default())
         return super().copy(update=update, **kwargs)

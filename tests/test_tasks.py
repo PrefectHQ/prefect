@@ -417,8 +417,7 @@ class TestTaskRun:
     def test_task_returns_generator_implicit_list(self):
         @task
         def my_generator(n):
-            for i in range(n):
-                yield i
+            yield from range(n)
 
         @flow
         def my_flow():
@@ -1973,7 +1972,7 @@ class TestTaskInputs:
             x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
-    @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
+    @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2}, (1, 2)])
     async def test_task_inputs_populated_with_collection_result_upstream(
         self, result, prefect_client, flow_with_upstream_downstream
     ):
@@ -2026,7 +2025,7 @@ class TestTaskInputs:
 
         @task
         def task_2(task_2_input):
-            return (task_2_input + " Bark!",)
+            return (f"{task_2_input} Bark!", )
 
         @task
         def task_3(task_3_input):
@@ -2225,9 +2224,7 @@ class TestSubflowWaitForTasks:
         @task
         async def waiter_task(event, delay):
             await sleep(delay)
-            if event.is_set():
-                pass
-            else:
+            if not event.is_set():
                 raise RuntimeError("The event hasn't been set!")
 
         @flow
@@ -2248,9 +2245,7 @@ class TestSubflowWaitForTasks:
         @task
         async def waiter_task(event, delay):
             await sleep(delay)
-            if event.is_set():
-                pass
-            else:
+            if not event.is_set():
                 raise RuntimeError("The event hasn't been set!")
 
         @flow
@@ -2462,10 +2457,10 @@ class TestTaskRunLogs:
 
         logs = await prefect_client.read_logs()
         assert logs, "There should be logs"
-        assert all([log.flow_run_id == flow_run_id for log in logs])
+        assert all(log.flow_run_id == flow_run_id for log in logs)
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
-        assert all([log.task_run_id == task_run_id for log in task_run_logs])
+        assert all(log.task_run_id == task_run_id for log in task_run_logs)
 
 
 class TestTaskWithOptions:
@@ -3153,7 +3148,7 @@ class TestTaskMap:
         def my_flow(mock_item, nums):
             sleepy_task.map(nums, unmapped(mock_item))
 
-        nums = [i for i in range(10, 0, -1)]
+        nums = list(range(10, 0, -1))
 
         mock_item = MagicMock()
         my_flow(mock_item, nums)
@@ -3184,7 +3179,7 @@ class TestTaskMap:
         async def my_flow(mock_item, nums):
             sleepy_task.map(nums, unmapped(mock_item))
 
-        nums = [i for i in range(10, 0, -1)]
+        nums = list(range(10, 0, -1))
 
         mock_item = MagicMock()
         await my_flow(mock_item, nums)
@@ -3215,7 +3210,7 @@ class TestTaskMap:
         async def my_flow(mock_item, nums):
             await sleepy_task.map(nums, unmapped(mock_item))
 
-        nums = [i for i in range(10, 0, -1)]
+        nums = list(range(10, 0, -1))
 
         mock_item = MagicMock()
         await my_flow(mock_item, nums)

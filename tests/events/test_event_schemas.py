@@ -100,9 +100,9 @@ def test_json_representation():
 
 
 def test_limit_on_labels(monkeypatch: pytest.MonkeyPatch):
-    labels = {"prefect.resource.id": "the.thing"}
-    labels.update({str(i): str(i) for i in range(10)})
-
+    labels = {"prefect.resource.id": "the.thing"} | {
+        str(i): str(i) for i in range(10)
+    }
     monkeypatch.setattr("prefect.events.schemas.MAXIMUM_LABELS_PER_RESOURCE", 10)
     with pytest.raises(ValidationError, match="maximum number of labels"):
         Resource(__root__=labels)

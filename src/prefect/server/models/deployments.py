@@ -521,8 +521,6 @@ async def _generate_scheduled_flow_runs(
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule
     """
-    runs = []
-
     # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
@@ -545,31 +543,29 @@ async def _generate_scheduled_flow_runs(
     if auto_scheduled:
         tags = ["auto-scheduled"] + tags
 
-    for date in dates:
-        runs.append(
-            {
-                "id": uuid4(),
-                "flow_id": deployment.flow_id,
-                "deployment_id": deployment_id,
-                "work_queue_name": deployment.work_queue_name,
-                "work_queue_id": deployment.work_queue_id,
-                "parameters": deployment.parameters,
-                "infrastructure_document_id": deployment.infrastructure_document_id,
-                "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": tags,
-                "auto_scheduled": auto_scheduled,
-                "state": schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ).dict(),
-                "state_type": schemas.states.StateType.SCHEDULED,
-                "state_name": "Scheduled",
-                "next_scheduled_start_time": date,
-                "expected_start_time": date,
-            }
-        )
-
-    return runs
+    return [
+        {
+            "id": uuid4(),
+            "flow_id": deployment.flow_id,
+            "deployment_id": deployment_id,
+            "work_queue_name": deployment.work_queue_name,
+            "work_queue_id": deployment.work_queue_id,
+            "parameters": deployment.parameters,
+            "infrastructure_document_id": deployment.infrastructure_document_id,
+            "idempotency_key": f"scheduled {deployment.id} {date}",
+            "tags": tags,
+            "auto_scheduled": auto_scheduled,
+            "state": schemas.states.Scheduled(
+                scheduled_time=date,
+                message="Flow run scheduled",
+            ).dict(),
+            "state_type": schemas.states.StateType.SCHEDULED,
+            "state_name": "Scheduled",
+            "next_scheduled_start_time": date,
+            "expected_start_time": date,
+        }
+        for date in dates
+    ]
 
 
 @inject_db
@@ -617,13 +613,11 @@ async def _insert_scheduled_flow_runs(
     )
     inserted_flow_run_ids = (await session.execute(inserted_rows)).scalars().all()
 
-    # insert flow run states that correspond to the newly-insert rows
-    insert_flow_run_states = [
+    if insert_flow_run_states := [
         {"id": uuid4(), "flow_run_id": r["id"], **r["state"]}
         for r in runs
         if r["id"] in inserted_flow_run_ids
-    ]
-    if insert_flow_run_states:
+    ]:
         # this syntax (insert statement, values to insert) is most efficient
         # because it uses a single bind parameter
         await session.execute(

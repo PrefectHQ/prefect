@@ -734,7 +734,7 @@ class Workspace(PrefectBaseModel):
         """
         The full handle of the workspace as `account_handle` / `workspace_handle`
         """
-        return self.account_handle + "/" + self.workspace_handle
+        return f"{self.account_handle}/{self.workspace_handle}"
 
     def api_url(self) -> str:
         """
@@ -1346,7 +1346,7 @@ class WorkPool(ObjectBaseModel):
 
     @validator("base_job_template")
     def validate_base_job_template(cls, v):
-        if v == dict():
+        if v == {}:
             return v
 
         job_config = v.get("job_configuration")
@@ -1435,7 +1435,7 @@ class Artifact(ObjectBaseModel):
             return v
         for key in v.keys():
             if len(str(v[key])) > max_metadata_length:
-                v[key] = str(v[key])[:max_metadata_length] + "..."
+                v[key] = f"{str(v[key])[:max_metadata_length]}..."
         return v
 
 

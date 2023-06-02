@@ -72,13 +72,14 @@ class PrefectTyper(typer.Typer):
 
         self.deprecated = deprecated
         if self.deprecated:
-            if not deprecated_name:
+            if deprecated_name:
+                self.deprecated_message = generate_deprecation_message(
+                    name=f"The {deprecated_name!r} command group",
+                    start_date=deprecated_start_date,
+                    help=deprecated_help,
+                )
+            else:
                 raise ValueError("Provide the name of the deprecated command group.")
-            self.deprecated_message = generate_deprecation_message(
-                name=f"The {deprecated_name!r} command group",
-                start_date=deprecated_start_date,
-                help=deprecated_help,
-            )
 
     def add_typer(
         self,

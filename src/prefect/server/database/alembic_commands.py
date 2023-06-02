@@ -33,9 +33,7 @@ def alembic_config():
     if not alembic_dir.joinpath("alembic.ini").exists():
         raise ValueError(f"Couldn't find alembic.ini at {alembic_dir}/alembic.ini")
 
-    alembic_cfg = Config(alembic_dir / "alembic.ini")
-
-    return alembic_cfg
+    return Config(alembic_dir / "alembic.ini")
 
 
 @with_alembic_lock

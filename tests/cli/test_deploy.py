@@ -814,7 +814,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=f"deploy ./flows/hello.py:my_flow -p {work_pool.name}",
             expected_code=0,
-            user_input="test-prompt-name" + readchar.key.ENTER,
+            user_input=f"test-prompt-name{readchar.key.ENTER}",
             expected_output_contains=[
                 "Deployment name",
             ],
@@ -1509,7 +1509,7 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy --all",
             expected_code=0,
-            user_input="y" + readchar.key.ENTER + "test-name-2" + readchar.key.ENTER,
+            user_input=f"y{readchar.key.ENTER}test-name-2{readchar.key.ENTER}",
             expected_output_contains=[
                 "Discovered unnamed deployment.",
                 "Would you like to give this deployment a name and deploy it?",
