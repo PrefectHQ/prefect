@@ -77,8 +77,12 @@ class CancelContext:
                         ctx,
                         exc_info=True,
                     )
+
+            return True
+
         else:
             logger.debug("%r is already finished", self)
+            return False
 
     def cancelled(self):
         with self._lock:
@@ -322,7 +326,8 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         logger.debug("Cancel fired for alarm based cancel context %r", ctx)
 
         # Ensure the context is marked as cancelled
-        ctx._mark_cancelled()
+        ctx._cancel = None
+        ctx.cancel()
 
         # Cancel this context
         raise (
@@ -362,7 +367,8 @@ def timeout_enforcer(event, supervised_thread, ctx, timeout, _send_exception):
             supervised_thread.name,
             ctx,
         )
-        if ctx._mark_cancelled():
+        ctx._cancel = None
+        if ctx.cancel():
             _send_exception(TimeoutError)
 
 
@@ -382,12 +388,14 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
 
     def _send_exception(exc):
         if supervised_thread.is_alive():
-            print("Sending exception to supervised thread %r", supervised_thread)
+            logger.debug("Sending exception to supervised thread %r", supervised_thread)
             try:
                 _send_exception_to_thread(supervised_thread, exc)
             except ValueError:
                 # If the thread is gone; just move on without error
                 pass
+            else:
+                logger.debug("Sent exception")
 
     def cancel():
         return _send_exception(CancelledError)
