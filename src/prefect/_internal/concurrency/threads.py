@@ -263,7 +263,7 @@ def in_global_loop() -> bool:
     return get_global_loop()._loop == get_running_loop()
 
 
-def wait_for_global_loop_exit() -> None:
+def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:
     """
     Shutdown the global loop and wait for it to exit.
     """
@@ -273,4 +273,4 @@ def wait_for_global_loop_exit() -> None:
     if threading.get_ident() == loop_thread.thread.ident:
         raise RuntimeError("Cannot wait for the loop thread from inside itself.")
 
-    loop_thread.thread.join()
+    loop_thread.thread.join(timeout)
