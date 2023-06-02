@@ -366,6 +366,7 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
     Note this will not interrupt sys calls like `sleep`.
     """
     event = threading.Event()
+    enforcer = None
     supervised_thread = threading.current_thread()
 
     def _send_exception(exc):
@@ -378,8 +379,7 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
     ctx = CancelContext(timeout=timeout, cancel=cancel)
 
     def timeout_enforcer():
-        time.sleep(timeout)
-        if not event.is_set():
+        if not event.wait(timeout):
             logger.debug(
                 "Cancel fired for watcher based timeout for thread %r and context %r",
                 supervised_thread.name,
@@ -401,6 +401,8 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
     finally:
         event.set()
         ctx.mark_completed()
+        if enforcer:
+            enforcer.join()
 
 
 def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):
