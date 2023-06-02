@@ -16,11 +16,11 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import asyncio
+import contextlib
 import logging
 import os
 import signal
 import prefect.plugins
-import contextlib
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
@@ -35,12 +35,23 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+import prefect.plugins
+from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect._internal.concurrency.timeouts import get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.objects import (
+    StateDetails,
+    StateType,
+    TaskRunInput,
+    TaskRunResult,
+)
+from prefect.client.schemas.responses import SetStateStatus
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -49,6 +60,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.events import Event, emit_event
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -73,15 +85,11 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.results import BaseResult, ResultFactory
-from prefect.server.schemas.core import TaskRunInput, TaskRunResult
-from prefect.server.schemas.filters import FlowRunFilter
-from prefect.server.schemas.responses import SetStateStatus
-from prefect.server.schemas.sorting import FlowRunSort
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
 )
 from prefect.states import (
     Paused,
@@ -114,6 +122,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
+from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -174,6 +183,12 @@ def enter_flow_run_engine_from_flow_call(
         [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
     )
 
+    # WARNING: You must define any context managers here to pass to our concurrency
+    # api instead of entering them in here in the engine entrypoint. Otherwise, async
+    # flows will not use the context as this function _exits_ to return an awaitable to
+    # the user. Generally, you should enter contexts _within_ the async `begin_run`
+    # instead but if you need to enter a context from the main thread you'll need to do
+    # it here.
     contexts = [capture_sigterm()]
 
     if flow.isasync and (
@@ -259,8 +274,17 @@ async def create_then_begin_flow_run(
 
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
+    logger = flow_run_logger(flow_run, flow)
+
+    ui_url = PREFECT_UI_URL.value()
+    if ui_url:
+        logger.info(
+            f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+            extra={"send_to_api": False},
+        )
+
     if state.is_failed():
-        flow_run_logger(flow_run).error(state.message)
+        logger.error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as"
             " failed."
@@ -528,7 +552,15 @@ async def create_and_begin_subflow_run(
         parent_logger.info(
             f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
         )
+
         logger = flow_run_logger(flow_run, flow)
+        ui_url = PREFECT_UI_URL.value()
+        if ui_url:
+            logger.info(
+                f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+                extra={"send_to_api": False},
+            )
+
         result_factory = await ResultFactory.from_flow(
             flow, client=parent_flow_run_context.client
         )
@@ -788,7 +820,7 @@ async def orchestrate_flow_run(
                     f"Received new state {state} when proposing final state"
                     f" {terminal_state}"
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         if not state.is_final():
@@ -797,7 +829,7 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -1137,7 +1169,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             # We need to wait for futures to be submitted before we can get the task
             # run id but we want to do so asynchronously
             futures.add(obj)
-        elif isinstance(obj, State):
+        elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         else:
@@ -1538,6 +1570,12 @@ async def orchestrate_task_run(
         else PREFECT_TASKS_REFRESH_CACHE.value()
     )
 
+    # Emit an event to capture that the task run was in the `PENDING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run, initial_state=None, validated_state=task_run.state
+    )
+    last_state = task_run.state
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
@@ -1546,6 +1584,15 @@ async def orchestrate_task_run(
         ),
         task_run_id=task_run.id,
     )
+
+    # Emit an event to capture the result of proposing a `RUNNING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run,
+        initial_state=last_state,
+        validated_state=state,
+        follows=last_event,
+    )
+    last_state = state
 
     # flag to ensure we only update the task run name once
     run_name_set = False
@@ -1638,6 +1685,13 @@ async def orchestrate_task_run(
                     terminal_state.state_details.cache_key = cache_key
 
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+            last_event = _emit_task_run_state_change_event(
+                task_run=task_run,
+                initial_state=last_state,
+                validated_state=state,
+                follows=last_event,
+            )
+            last_state = state
 
             await _run_task_hooks(
                 task=task,
@@ -1651,7 +1705,7 @@ async def orchestrate_task_run(
                         f"Received new state {state} when proposing final state"
                         f" {terminal_state}"
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
 
             if not state.is_final():
@@ -1661,10 +1715,17 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
+                last_event = _emit_task_run_state_change_event(
+                    task_run=task_run,
+                    initial_state=last_state,
+                    validated_state=state,
+                    follows=last_event,
+                )
+                last_state = state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -1776,20 +1837,18 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exc)
-            await client.set_flow_run_state(
-                state=state,
-                flow_run_id=flow_run.id,
-            )
+            flow_run_state = await propose_state(client, state, flow_run_id=flow_run.id)
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
-            # Only `on_crashed` flow run state change hook is called here
-            # We call the hook after the state is set to `CRASHED`
+            # Only `on_crashed` and `on_cancellation` flow run state change hooks can be called here.
+            # We call the hooks after the state change proposal to `CRASHED` is validated
+            # or rejected (if it is in a `CANCELLING` state).
             await _run_flow_hooks(
                 flow=flow,
                 flow_run=flow_run,
-                state=state,
+                state=flow_run_state,
             )
 
         # Reraise the exception
@@ -1856,7 +1915,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             futures.add(expr)
-        if isinstance(expr, State):
+        if is_state(expr):
             states.add(expr)
 
         return expr
@@ -1895,7 +1954,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             state = expr._final_state
-        elif isinstance(expr, State):
+        elif is_state(expr):
             state = expr
         else:
             return expr
@@ -1970,8 +2029,8 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.server.schemas.states] representation of the flow or task run
-            state
+        a [State model][prefect.client.schemas.objects.State] representation of the
+            flow or task run state
 
     Raises:
         ValueError: if neither task_run_id or flow_run_id is provided
@@ -2023,6 +2082,8 @@ async def propose_state(
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
         # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
         if response.state.state_details:
             state.state_details = response.state.state_details
         return state
@@ -2210,7 +2271,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure, on_completion, and on_crashed hooks for a flow, making sure to
+    """Run the on_failure, on_completion, on_cancellation, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2218,6 +2279,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_cancelling() and flow.on_cancellation:
+        hooks = flow.on_cancellation
     elif state.is_crashed() and flow.on_crashed:
         hooks = flow.on_crashed
 
@@ -2260,6 +2323,60 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
 
     # Create a 10 minute cache for the healthy response
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
+
+
+def _emit_task_run_state_change_event(
+    task_run: TaskRun,
+    initial_state: Optional[State],
+    validated_state: State,
+    follows: Optional[Event] = None,
+) -> Event:
+    state_message_truncation_length = 100_000
+
+    return emit_event(
+        id=validated_state.id,
+        occurred=validated_state.timestamp,
+        event=f"prefect.task-run.{validated_state.name}",
+        payload={
+            "intended": {
+                "from": str(initial_state.type.value) if initial_state else None,
+                "to": str(validated_state.type.value) if validated_state else None,
+            },
+            "initial_state": (
+                {
+                    "type": str(initial_state.type.value),
+                    "name": initial_state.name,
+                    "message": truncated_to(
+                        state_message_truncation_length, initial_state.message
+                    ),
+                }
+                if initial_state
+                else None
+            ),
+            "validated_state": {
+                "type": str(validated_state.type.value),
+                "name": validated_state.name,
+                "message": truncated_to(
+                    state_message_truncation_length, validated_state.message
+                ),
+            },
+        },
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": truncated_to(
+                state_message_truncation_length, validated_state.message
+            ),
+            "prefect.state-name": validated_state.name or "",
+            "prefect.state-timestamp": (
+                validated_state.timestamp.isoformat()
+                if validated_state and validated_state.timestamp
+                else ""
+            ),
+            "prefect.state-type": str(validated_state.type.value),
+        },
+        follows=follows,
+    )
 
 
 if __name__ == "__main__":

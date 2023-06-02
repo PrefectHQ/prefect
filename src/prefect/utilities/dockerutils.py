@@ -49,7 +49,12 @@ def get_prefect_image_name(
         flavor: An optional alternative image flavor to build, like 'conda'
     """
     parsed_version = (prefect_version or prefect.__version__).split("+")
-    prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
+    is_prod_build = len(parsed_version) == 1
+    prefect_version = (
+        parsed_version[0]
+        if is_prod_build
+        else "sha-" + prefect.__version_info__["full-revisionid"][:7]
+    )
 
     python_version = python_version or python_version_minor()
 
@@ -61,7 +66,8 @@ def get_prefect_image_name(
         regex_pattern=r"[^a-zA-Z0-9_.-]+",
     )
 
-    return f"prefecthq/prefect:{tag}"
+    image = "prefect" if is_prod_build else "prefect-dev"
+    return f"prefecthq/{image}:{tag}"
 
 
 @contextmanager

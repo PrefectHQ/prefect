@@ -28,6 +28,13 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 import prefect
 import prefect.exceptions
 from prefect.blocks.fields import SecretDict
+from prefect.client.schemas import (
+    DEFAULT_BLOCK_SCHEMA_VERSION,
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+    BlockTypeUpdate,
+)
 from prefect.client.utilities import inject_client
 from prefect.events.instrument import (
     ResourceTuple,
@@ -36,13 +43,6 @@ from prefect.events.instrument import (
     instrument_method_calls_on_class_instances,
 )
 from prefect.logging.loggers import disable_logger
-from prefect.server.schemas.actions import BlockTypeUpdate
-from prefect.server.schemas.core import (
-    DEFAULT_BLOCK_SCHEMA_VERSION,
-    BlockDocument,
-    BlockSchema,
-    BlockType,
-)
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type

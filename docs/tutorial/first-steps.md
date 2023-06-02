@@ -15,7 +15,7 @@ Let's start with the basics, defining the central components of Prefect workflow
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.se
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.
 
 Some important points about flows:
 
@@ -74,7 +74,7 @@ api_result = call_api("http://time.jsontest.com/")
 print(api_result)
 ```
 
-Let's run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dicionary returned by the API call, we wrap it in a `print` function.
+Let's run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dictionary returned by the API call, we wrap it in a `print` function.
 
 <div class="terminal">
 ```bash

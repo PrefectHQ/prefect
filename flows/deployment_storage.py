@@ -48,7 +48,9 @@ async def read_flow_run(flow_run_id):
 
 def main():
     # We must create an ignore file
-    Path(".prefectignore").touch()
+    file = Path(".prefectignore")
+    if not file.exists():
+        file.touch()
 
     # Create deployment
     deployment = Deployment.build_from_flow(

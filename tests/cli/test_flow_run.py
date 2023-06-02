@@ -6,7 +6,7 @@ import pytest
 import prefect.exceptions
 from prefect import flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-from prefect.server.schemas.actions import LogCreate
+from prefect.client.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -35,12 +35,12 @@ def goodbye_flow():
 
 
 @sync_compatible
-async def assert_flow_run_is_deleted(orion_client, flow_run_id: UUID):
+async def assert_flow_run_is_deleted(prefect_client, flow_run_id: UUID):
     """
     Make sure that the flow run created for our CLI test is actually deleted.
     """
     with pytest.raises(prefect.exceptions.ObjectNotFound):
-        await orion_client.read_flow_run(flow_run_id)
+        await prefect_client.read_flow_run(flow_run_id)
 
 
 def assert_flow_runs_in_result(result, expected, unexpected=None):
@@ -61,29 +61,29 @@ def assert_flow_runs_in_result(result, expected, unexpected=None):
 
 
 @pytest.fixture
-async def scheduled_flow_run(orion_client):
-    return await orion_client.create_flow_run(
+async def scheduled_flow_run(prefect_client):
+    return await prefect_client.create_flow_run(
         name="scheduled_flow_run", flow=hello_flow, state=Scheduled()
     )
 
 
 @pytest.fixture
-async def completed_flow_run(orion_client):
-    return await orion_client.create_flow_run(
+async def completed_flow_run(prefect_client):
+    return await prefect_client.create_flow_run(
         name="completed_flow_run", flow=hello_flow, state=Completed()
     )
 
 
 @pytest.fixture
-async def running_flow_run(orion_client):
-    return await orion_client.create_flow_run(
+async def running_flow_run(prefect_client):
+    return await prefect_client.create_flow_run(
         name="running_flow_run", flow=goodbye_flow, state=Running()
     )
 
 
 @pytest.fixture
-async def late_flow_run(orion_client):
-    return await orion_client.create_flow_run(
+async def late_flow_run(prefect_client):
+    return await prefect_client.create_flow_run(
         name="late_flow_run", flow=goodbye_flow, state=Late()
     )
 
@@ -97,14 +97,14 @@ def test_delete_flow_run_fails_correctly():
     )
 
 
-def test_delete_flow_run_succeeds(orion_client, flow_run):
+def test_delete_flow_run_succeeds(prefect_client, flow_run):
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
         expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
         expected_code=0,
     )
 
-    assert_flow_run_is_deleted(orion_client, flow_run.id)
+    assert_flow_run_is_deleted(prefect_client, flow_run.id)
 
 
 def test_ls_no_args(
@@ -226,11 +226,11 @@ class TestCancelFlowRun:
             Retrying,
         ],
     )
-    async def test_non_terminal_states_set_to_cancelling(self, orion_client, state):
+    async def test_non_terminal_states_set_to_cancelling(self, prefect_client, state):
         """Should set the state of the flow to Cancelling. Does not include Scheduled
         states, because they should be set to Cancelled instead.
         """
-        before = await orion_client.create_flow_run(
+        before = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
@@ -245,7 +245,7 @@ class TestCancelFlowRun:
                 f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
             ),
         )
-        after = await orion_client.read_flow_run(before.id)
+        after = await prefect_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
         assert after.state.type == StateType.CANCELLING
@@ -258,9 +258,9 @@ class TestCancelFlowRun:
             Late,
         ],
     )
-    async def test_scheduled_states_set_to_cancelled(self, orion_client, state):
+    async def test_scheduled_states_set_to_cancelled(self, prefect_client, state):
         """Should set the state of the flow run to Cancelled."""
-        before = await orion_client.create_flow_run(
+        before = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
@@ -275,16 +275,16 @@ class TestCancelFlowRun:
                 f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
             ),
         )
-        after = await orion_client.read_flow_run(before.id)
+        after = await prefect_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
         assert after.state.type == StateType.CANCELLED
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(
-        self, orion_client, state
+        self, prefect_client, state
     ):
-        before = await orion_client.create_flow_run(
+        before = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
@@ -299,7 +299,7 @@ class TestCancelFlowRun:
                 f"Flow run '{before.id}' was unable to be cancelled."
             ),
         )
-        after = await orion_client.read_flow_run(before.id)
+        after = await prefect_client.read_flow_run(before.id)
 
         assert after.state.name == before.state.name
         assert after.state.type == before.state.type
@@ -314,9 +314,9 @@ class TestCancelFlowRun:
 
 
 @pytest.fixture()
-def flow_run_factory(orion_client):
+def flow_run_factory(prefect_client):
     async def create_flow_run(num_logs: int):
-        flow_run = await orion_client.create_flow_run(
+        flow_run = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow
         )
 
@@ -330,7 +330,7 @@ def flow_run_factory(orion_client):
             )
             for i in range(num_logs)
         ]
-        await orion_client.create_logs(logs)
+        await prefect_client.create_logs(logs)
 
         return flow_run
 

@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
@@ -8,15 +8,16 @@ from fastapi import status
 
 import prefect.context
 import prefect.settings
+from prefect.client.base import PrefectHttpxClient
 from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
 from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
 
 
 def get_cloud_client(
-    host: str = None,
-    api_key: str = None,
-    httpx_settings: dict = None,
+    host: Optional[str] = None,
+    api_key: Optional[str] = None,
+    httpx_settings: Optional[dict] = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
     """
@@ -56,7 +57,7 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
-        self._client = httpx.AsyncClient(**httpx_settings)
+        self._client = PrefectHttpxClient(**httpx_settings)
 
     async def api_healthcheck(self):
         """
@@ -70,6 +71,9 @@ class CloudClient:
 
     async def read_workspaces(self) -> List[Workspace]:
         return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
+
+    async def read_worker_metadata(self) -> Dict[str, Any]:
+        return await self.get("collections/views/aggregate-worker-metadata")
 
     async def __aenter__(self):
         await self._client.__aenter__()
