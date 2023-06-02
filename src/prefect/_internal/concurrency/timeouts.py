@@ -9,6 +9,7 @@ import os
 import signal
 import sys
 import threading
+import logging
 import time
 from typing import Callable, List, Optional, Type
 
@@ -18,6 +19,9 @@ from prefect.logging import get_logger
 
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
+
+
+logging.logThreads = 0
 
 
 class CancelledError(asyncio.CancelledError):
