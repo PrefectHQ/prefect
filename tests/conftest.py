@@ -215,7 +215,7 @@ def event_loop(request):
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
+    loop.set_debug(False)
     loop.slow_callback_duration = 0.25
 
     try:
