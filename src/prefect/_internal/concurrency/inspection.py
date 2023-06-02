@@ -29,8 +29,10 @@ def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
     Print a trace debugging message.
     """
     if trace_on():
-        prefix = f"{time.monotonic()} | {threading.current_thread().name} | "
-        print(prefix + message.format(*args, **kwargs), file=sys.stderr)
+        prefix = f"{round(time.monotonic(), 3)} | {threading.current_thread().name} | "
+        message = message % args
+        message = message % kwargs
+        print(prefix + message, file=sys.stderr)
 
         if exc_info:
             traceback.print_exc(file=sys.stderr)
