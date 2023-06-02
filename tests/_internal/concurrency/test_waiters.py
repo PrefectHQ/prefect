@@ -141,7 +141,7 @@ def test_sync_waiter_timeout_in_main_thread():
         def on_worker_thread():
             call.add_waiting_callback(waiting_callback)
             # Wait for the result, should timeout
-            waiting_callback.result()
+            waiting_callback.result(timeout=10)
 
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
@@ -203,7 +203,7 @@ async def test_async_waiter_timeout_in_main_thread():
 
         def on_worker_thread():
             call.add_waiting_callback(waiting_callback)
-            waiting_callback.result()
+            waiting_callback.result(timeout=10)
 
         call = Call.new(on_worker_thread)
 
