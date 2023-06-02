@@ -14,7 +14,12 @@ from rich.panel import Panel
 import prefect
 import prefect.context
 import prefect.settings
-from prefect.cli._utilities import exit_with_error, prompt, prompt_select_from_table
+from prefect.cli._utilities import (
+    exit_with_error,
+    prompt,
+    confirm,
+    prompt_select_from_table,
+)
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
@@ -424,29 +429,7 @@ async def _run_single_deploy(
     base_deploy["parameters"].update(parameters)
 
     # update schedule
-    schedule = None
-    if cron:
-        cron_kwargs = {"cron": cron, "timezone": timezone}
-        schedule = CronSchedule(
-            **{k: v for k, v in cron_kwargs.items() if v is not None}
-        )
-    elif interval:
-        interval_kwargs = {
-            "interval": timedelta(seconds=interval),
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        schedule = IntervalSchedule(
-            **{k: v for k, v in interval_kwargs.items() if v is not None}
-        )
-    elif rrule:
-        try:
-            schedule = RRuleSchedule(**json.loads(rrule))
-            if timezone:
-                # override timezone if specified via CLI argument
-                schedule.timezone = timezone
-        except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    schedule = _construct_schedule(cron, timezone, interval, rrule, interval_anchor)
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
@@ -612,8 +595,10 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
                     )
                 app.console.print("Discovered unnamed deployment.", style="yellow")
                 app.console.print_json(data=base_deploy)
-                if typer.confirm(
-                    "Would you like to give this deployment a name and deploy it?"
+                if confirm(
+                    "Would you like to give this deployment a name and deploy it?",
+                    default=True,
+                    console=app.console,
                 ):
                     base_deploy["name"] = prompt("Deployment name")
                 else:
@@ -676,12 +661,13 @@ async def _prompt_create_work_pool(
     console: Console,
     client: PrefectClient = None,
 ):
-    if not typer.confirm(
+    if not confirm(
         (
             "Looks like you don't have any work pools this flow can be deployed to."
             " Would you like to create one?"
         ),
         default=True,
+        console=app.console,
     ):
         raise ValueError(
             "A work pool is required to deploy this flow. Please specify a work pool"
@@ -728,6 +714,87 @@ async def _run_steps(
                 )
         step_outputs.update(await run_step(step))
     return step_outputs
+
+
+def _construct_schedule(
+    cron: Optional[str] = None,
+    timezone: Optional[str] = None,
+    interval: Optional[int] = None,
+    interval_anchor: Optional[str] = None,
+    rrule: Optional[str] = None,
+):
+    schedule = None
+    if cron:
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
+    elif interval:
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
+    elif rrule:
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    else:
+        if confirm(
+            "Would you like to schedule when this flow runs?",
+            default=True,
+            console=app.console,
+        ):
+            schedule_cls = _prompt_schedule_type(app.console)
+            for field in schedule_cls.__fields__.values():
+                prompt(field.name)
+
+    return schedule
+
+
+def _prompt_schedule_type(console):
+    selection = prompt_select_from_table(
+        console,
+        "What type of schedule would you like to use?",
+        [
+            {"header": "Schedule Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        [
+            {
+                "type": "Cron",
+                "description": (
+                    "Allows you to define recurring flow runs based on a specified"
+                    " pattern using cron syntax."
+                ),
+                "cls": CronSchedule,
+            },
+            {
+                "type": "Interval",
+                "description": (
+                    "Allows you to set flow runs to be executed at fixed time"
+                    " intervals."
+                ),
+                "cls": IntervalSchedule,
+            },
+            {
+                "type": "RRule",
+                "description": (
+                    "Allows you to define recurring flow runs using RFC 2445 recurrence"
+                    " rules."
+                ),
+                "cls": RRuleSchedule,
+            },
+        ],
+    )
+    return selection["cls"]
 
 
 DEFAULT_DEPLOYMENT = None

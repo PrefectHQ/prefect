@@ -11,7 +11,7 @@ import typer.core
 from click.exceptions import ClickException
 from rich.table import Table
 from rich.live import Live
-from rich.prompt import Prompt
+from rich.prompt import Prompt, Confirm
 
 from prefect.exceptions import MissingProfileError
 from prefect.settings import PREFECT_TEST_MODE
@@ -60,6 +60,11 @@ def with_cli_exception_handling(fn):
 def prompt(message, **kwargs):
     """Utility to prompt the user for input with consistent styling"""
     return Prompt.ask(f"[bold][green]?[/] {message}[/]", **kwargs)
+
+
+def confirm(message, **kwargs):
+    """Utility to prompt the user for confirmation with consistent styling"""
+    return Confirm.ask(f"[bold][green]?[/] {message}[/]", **kwargs)
 
 
 def prompt_select_from_table(
