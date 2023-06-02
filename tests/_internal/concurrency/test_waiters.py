@@ -206,7 +206,7 @@ async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
     waiting_callback = Call.new(asyncio.sleep, 1)
 
-    with WorkerThread(run_once=True) as runner:
+    with WorkerThread(run_once=True, daemon=True) as runner:
 
         def on_worker_thread():
             call.add_waiting_callback(waiting_callback)
