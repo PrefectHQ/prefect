@@ -206,18 +206,17 @@ async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
     waiting_callback = Call.new(asyncio.sleep, 1)
 
+    def on_worker_thread():
+        call.add_waiting_callback(waiting_callback)
+        deadline = get_deadline(10)
+        try:
+            waiting_callback.result(timeout=10)
+        except TimeoutError:
+            if time.monotonic() > deadline:
+                print("\n".join(stack_for_threads(*threading.enumerate())))
+            raise
+
     with WorkerThread(run_once=True, daemon=True) as runner:
-
-        def on_worker_thread():
-            call.add_waiting_callback(waiting_callback)
-            deadline = get_deadline(10)
-            try:
-                waiting_callback.result(timeout=10)
-            except TimeoutError:
-                if time.monotonic() > deadline:
-                    print("\n".join(stack_for_threads(*threading.enumerate())))
-                raise
-
         call = Call.new(on_worker_thread)
 
         waiter = AsyncWaiter(call)
