@@ -536,12 +536,13 @@ def check_thread_leak():
         else:
             time.sleep(0.01)
 
-        # Wait 5 seconds to display the thread state
+        # Give leaked threads a 5 second grace period to teardown
         if time.time() > start + 5:
             lines: list[str] = [f"{len(bad_threads)} thread(s) were leaked from test\n"]
             lines += [
                 f"\t{hex(thread.ident)} - {thread.name}\n" for thread in bad_threads
             ]
+            lines.append("")  # Append a blank line for readability
 
             # TODO: This is the laziest way to dump the stacks. We could do something
             #       better in the future. See dask.distributed's implementation for
