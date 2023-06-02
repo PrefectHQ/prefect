@@ -5,7 +5,6 @@ Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
 import asyncio
 import contextlib
 import ctypes
-import math
 import os
 import signal
 import sys
@@ -13,10 +12,8 @@ import threading
 import time
 from typing import Callable, List, Optional, Type
 
-import anyio
-import anyio._backends._asyncio
 
-from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.event_loop import call_in_loop
 from prefect.logging import get_logger
 
 # TODO: We should update the format for this logger to include the current thread
@@ -156,40 +153,6 @@ def get_timeout(deadline: Optional[float]):
     return max(0, deadline - time.monotonic())
 
 
-class _AsyncCanceller(anyio._backends._asyncio.CancelScope):
-    """
-    Implementation for cancellation of async tasks.
-    Uses `anyio.CancelScope` to enforce cancellation, it's complicated otherwise.
-
-    Extends the cancel scope implementation to report cancellation to the context before
-    performing cancellation of async tasks. Otherwise, when an async calls within the
-    scope is cancelled they can be incorrectly be marked as completed without being
-    cancelled even if the cancel context here is chained to the call's cancel context.
-
-    Uses the `asyncio` cancel scope instead of the generic `anyio.CancelScope` as a base
-    because inheriting from their public class doesn't work — the `__new__`
-    implementation bypasses the additions in this subclass.
-    """
-
-    def __init__(self, deadline: float) -> None:
-        super().__init__(deadline=deadline)
-        timeout = max(0, deadline - time.monotonic()) if deadline else None
-        self.context = CancelContext(timeout=timeout, cancel=self.cancel)
-        self._loop = asyncio.get_running_loop()
-
-    def cancel(self):
-        self.context.mark_cancelled()
-        # Cancellation must be called from the event loop that owns the scope
-        if get_running_loop() != self._loop:
-            return call_soon_in_loop(self._loop, super().cancel).result()
-        else:
-            return super().cancel()
-
-    def __exit__(self, *exc_info) -> Optional[bool]:
-        self.context.mark_completed()
-        return super().__exit__(*exc_info)
-
-
 @contextlib.contextmanager
 def cancel_async_at(deadline: Optional[float]):
     """
@@ -201,18 +164,34 @@ def cancel_async_at(deadline: Optional[float]):
 
     Yields a `CancelContext`.
     """
+    current_task = asyncio.current_task()
+    loop = asyncio.get_running_loop()
+    _handle = None
+
+    def cancel():
+        return call_in_loop(loop, current_task.cancel)
+
     try:
-        with _AsyncCanceller(
-            deadline=deadline if deadline is not None else math.inf
-        ) as scope:
-            yield scope.context
-    finally:
-        if scope.cancel_called:
-            raise (
-                TimeoutError()
-                if deadline is not None and time.monotonic() >= deadline
-                else CancelledError()
-            )
+        with CancelContext(timeout=get_timeout(deadline), cancel=cancel) as ctx:
+            if deadline is not None:
+                _handle = loop.call_at(deadline, ctx.cancel)
+            yield ctx
+
+            # Throw the cancelled error if it did not raise
+            if ctx.cancelled():
+                raise asyncio.CancelledError()
+
+    except asyncio.CancelledError as exc:
+        raise (
+            TimeoutError()
+            if deadline is not None and time.monotonic() >= deadline
+            else CancelledError()
+        ) from exc
+    else:
+        if _handle:
+            # It is not necessary to cancel the deadline handle, but it's nice to clean
+            # it up early if we can
+            _handle.cancel()
 
 
 @contextlib.contextmanager
