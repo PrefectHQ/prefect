@@ -16,12 +16,9 @@ import anyio
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect.logging import get_logger
+from prefect._internal.concurrency.inspection import trace
 
 T = TypeVar("T")
-
-# TODO: We should update the format for this logger to include the current thread
-logger = get_logger("prefect._internal.concurrency.waiters")
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -74,7 +71,7 @@ class SyncWaiter(Waiter[T]):
         return call
 
     def _handle_waiting_callbacks(self):
-        logger.debug("Waiter %r watching for callbacks", self)
+        trace("Waiter %r watching for callbacks", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
@@ -150,7 +147,7 @@ class AsyncWaiter(Waiter[T]):
         self._early_submissions = []
 
     async def _handle_waiting_callbacks(self):
-        logger.debug("Waiter %r watching for callbacks", self)
+        trace("Waiter %r watching for callbacks", self)
         tasks = []
 
         try:
