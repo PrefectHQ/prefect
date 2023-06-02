@@ -136,7 +136,7 @@ class CancelContext:
 
     def __repr__(self) -> str:
         timeout = f" timeout={self._timeout:.2f}" if self._timeout else ""
-        name = "for {self._name}" if self._name else ""
+        name = f"for {self._name}" if self._name else ""
         return f"<CancelContext {name} at {hex(id(self))} {timeout}>"
 
 
