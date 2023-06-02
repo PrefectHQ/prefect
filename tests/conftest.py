@@ -19,7 +19,6 @@ WARNING: Prefect settings cannot be modified in async fixtures.
 import asyncio
 import logging
 import pathlib
-import faulthandler
 import sys
 import threading
 import time
@@ -40,6 +39,7 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
+from prefect._internal.concurrency.inspection import stack_for_threads
 
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.settings import (
@@ -520,9 +520,9 @@ def check_thread_leak():
 
     yield
 
-    # We don't eagerly tear down the global loop thread in most tests so let is shutdown
-    # instead of treating it as a leak.
-    wait_for_global_loop_exit(timeout=5.0)
+    # We don't eagerly tear down the global loop thread in most tests so mark it as
+    # shutdown before checking for leaks
+    wait_for_global_loop_exit(timeout=0)
 
     start = time.time()
     while True:
@@ -542,11 +542,5 @@ def check_thread_leak():
             lines += [
                 f"\t{hex(thread.ident)} - {thread.name}\n" for thread in bad_threads
             ]
-            lines.append("")  # Append a blank line for readability
-
-            # TODO: This is the laziest way to dump the stacks. We could do something
-            #       better in the future. See dask.distributed's implementation for
-            #       inspiration.
-            faulthandler.dump_traceback(sys.stderr, all_threads=True)
-
+            lines += stack_for_threads(*bad_threads)
             pytest.fail("\n".join(lines), pytrace=False)

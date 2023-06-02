@@ -1,7 +1,6 @@
-import faulthandler
-import sys
 import threading
 import time
+from prefect._internal.concurrency.inspection import stack_for_threads
 
 import pytest
 
@@ -33,11 +32,5 @@ def check_thread_leak():
             lines += [
                 f"\t{hex(thread.ident)} - {thread.name}\n" for thread in bad_threads
             ]
-            lines.append("")  # Append a blank line for readability
-
-            # TODO: This is the laziest way to dump the stacks. We could do something
-            #       better in the future. See dask.distributed's implementation for
-            #       inspiration.
-            faulthandler.dump_traceback(sys.stderr, all_threads=True)
-
+            lines += stack_for_threads(*bad_threads)
             pytest.fail("\n".join(lines), pytrace=False)
