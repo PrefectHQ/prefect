@@ -20,13 +20,10 @@ from prefect._internal.concurrency.timeouts import (
     cancel_async_at,
     cancel_sync_at,
 )
-from prefect.logging import get_logger
+from prefect._internal.concurrency.inspection import trace
 
 T = TypeVar("T")
 P = ParamSpec("P")
-
-
-logger = get_logger("prefect._internal.concurrency.calls")
 
 
 # Tracks the current call being executed
@@ -85,7 +82,7 @@ class Call(Generic[T]):
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
         self.cancel_context = CancelContext(timeout=timeout, name=self.fn.__name__)
-        logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
+        trace("Set cancel context %r for call %r", self.cancel_context, self)
 
     def set_runner(self, portal: "Portal") -> None:
         """
@@ -125,10 +122,10 @@ class Call(Generic[T]):
         """
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
-            logger.debug("Skipping execution of cancelled call %r", self)
+            trace("Skipping execution of cancelled call %r", self)
             return None
 
-        logger.debug(
+        trace(
             "Running call %r in thread %r with cancel context %r",
             self,
             threading.current_thread().name,
@@ -142,9 +139,7 @@ class Call(Generic[T]):
             if loop:
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
-                logger.debug(
-                    "Scheduling coroutine for call %r in running loop %r", self, loop
-                )
+                trace("Scheduling coroutine for call %r in running loop %r", self, loop)
                 task = self.context.run(loop.create_task, self._run_async(coro))
 
                 # Prevent tasks from being garbage collected before completion
@@ -158,7 +153,7 @@ class Call(Generic[T]):
 
             else:
                 # Otherwise, execute the function here
-                logger.debug("Executing coroutine for call %r in new loop", self)
+                trace("Executing coroutine for call %r in new loop", self)
                 return self.context.run(asyncio.run, self._run_async(coro))
 
         return None
@@ -201,13 +196,13 @@ class Call(Generic[T]):
         except BaseException as exc:
             self.cancel_context.mark_completed()
             self.future.set_exception(exc)
-            # logger.debug("Encountered exception in call %r", self, exc_info=True)
+            # trace("Encountered exception in call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
             self.cancel_context.mark_completed()  # noqa: F821
             self.future.set_result(result)  # noqa: F821
-            logger.debug("Finished call %r", self)  # noqa: F821
+            trace("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
         try:
@@ -216,17 +211,17 @@ class Call(Generic[T]):
                     with cancel_async_at(
                         self.cancel_context.deadline, name=self.cancel_context.name
                     ) as ctx:
-                        logger.debug("%r using async cancel scope %r", self, ctx)
+                        trace("%r using async cancel scope %r", self, ctx)
                         ctx.chain(self.cancel_context, bidirectional=True)
                         result = await coro
         except BaseException as exc:
             self.future.set_exception(exc)
-            # logger.debug("Encountered exception in async call %r", self, exc_info=True)
+            # trace("Encountered exception in async call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
             self.future.set_result(result)  # noqa: F821
-            logger.debug("Finished async call %r", self)  # noqa: F821
+            trace("Finished async call %r", self)  # noqa: F821
 
     def __call__(self) -> T:
         """

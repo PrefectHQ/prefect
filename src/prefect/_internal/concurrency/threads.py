@@ -12,9 +12,7 @@ from typing import List, Optional
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect.logging import get_logger
-
-logger = get_logger("prefect._internal.concurrency.threads")
+from prefect._internal.concurrency.inspection import trace
 
 
 class WorkerThread(Portal):
@@ -91,14 +89,14 @@ class WorkerThread(Portal):
             self._run_until_shutdown()
         except BaseException:
             # Log exceptions that crash the thread
-            logger.exception("%s encountered exception", self.name)
+            trace("%s encountered exception", self.name, exc_info=True)
             raise
 
     def _run_until_shutdown(self):
         while True:
             call = self._queue.get()
             if call is None:
-                logger.info("Exiting worker thread %r", self.name)
+                trace("Exiting worker thread %r", self.name)
                 break  # shutdown requested
 
             task = call.run()
@@ -197,7 +195,7 @@ class EventLoopThread(Portal):
             asyncio.run(self._run_until_shutdown())
         except BaseException:
             # Log exceptions that crash the thread
-            logger.exception("%s encountered exception", self.name)
+            trace("%s encountered exception", self.name)
             raise
 
     async def _run_until_shutdown(self):

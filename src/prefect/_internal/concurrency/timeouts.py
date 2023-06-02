@@ -19,8 +19,6 @@ from prefect.logging import get_logger
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
 
-_ENFORCERS = {}
-
 
 class CancelledError(asyncio.CancelledError):
     pass
