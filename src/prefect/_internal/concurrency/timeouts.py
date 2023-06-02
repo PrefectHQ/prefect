@@ -383,7 +383,11 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
     def _send_exception(exc):
         if supervised_thread.is_alive():
             print("Sending exception to supervised thread %r", supervised_thread)
-            _send_exception_to_thread(supervised_thread, exc)
+            try:
+                _send_exception_to_thread(supervised_thread, exc)
+            except ValueError:
+                # If the thread is gone; just move on without error
+                pass
 
     def cancel():
         return _send_exception(CancelledError)
