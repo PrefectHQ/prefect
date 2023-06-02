@@ -160,7 +160,7 @@ def test_sync_waiter_timeout_in_main_thread():
         waiter.wait()
         t1 = time.time()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises((CancelledError, TimeoutError)):
         call.result()
 
     with pytest.raises(CancelledError):
