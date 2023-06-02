@@ -402,6 +402,7 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
         ctx.mark_completed()
         if enforcer:
             enforcer.join()
+            del enforcer
 
 
 def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):
