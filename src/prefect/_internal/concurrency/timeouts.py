@@ -63,6 +63,8 @@ class CancelContext:
             if self._cancel is not None:
                 logger.debug("Cancelling %r with %r", self, self._cancel)
                 self._cancel()
+        else:
+            logger.debug("%r is already finished", self)
 
     def cancelled(self):
         with self._lock:
