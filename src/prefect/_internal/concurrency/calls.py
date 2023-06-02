@@ -60,9 +60,7 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
-    cancel_context: CancelContext = dataclasses.field(
-        default_factory=lambda: CancelContext(timeout=None)
-    )
+    cancel_context: CancelContext
     runner: Optional["Portal"] = None
     waiter: Optional["Portal"] = None
 
@@ -74,6 +72,7 @@ class Call(Generic[T]):
             args=args,
             kwargs=kwargs,
             context=contextvars.copy_context(),
+            cancel_context=CancelContext(timeout=None, name=__fn.__name__),
         )
 
     def set_timeout(self, timeout: Optional[float] = None) -> None:
@@ -85,7 +84,7 @@ class Call(Generic[T]):
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
-        self.cancel_context = CancelContext(timeout=timeout)
+        self.cancel_context = CancelContext(timeout=timeout, name=self.fn.__name__)
         logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
 
     def set_runner(self, portal: "Portal") -> None:
@@ -189,7 +188,9 @@ class Call(Generic[T]):
     def _run_sync(self):
         try:
             with set_current_call(self):
-                with cancel_sync_at(self.cancel_context.deadline) as ctx:
+                with cancel_sync_at(
+                    self.cancel_context.deadline, name=self.cancel_context.name
+                ) as ctx:
                     ctx.chain(self.cancel_context, bidirectional=True)
                     result = self.fn(*self.args, **self.kwargs)
 
@@ -212,7 +213,9 @@ class Call(Generic[T]):
         try:
             with set_current_call(self):
                 with self.cancel_context:
-                    with cancel_async_at(self.cancel_context.deadline) as ctx:
+                    with cancel_async_at(
+                        self.cancel_context.deadline, name=self.cancel_context.name
+                    ) as ctx:
                         logger.debug("%r using async cancel scope %r", self, ctx)
                         ctx.chain(self.cancel_context, bidirectional=True)
                         result = await coro
