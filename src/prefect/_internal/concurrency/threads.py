@@ -13,6 +13,7 @@ from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.inspection import trace
+from prefect._internal.concurrency.timeouts import CancelledError
 
 
 class WorkerThread(Portal):
@@ -87,6 +88,8 @@ class WorkerThread(Portal):
         """
         try:
             self._run_until_shutdown()
+        except CancelledError:
+            trace("%s was cancelled", self.name, exc_info=True)
         except BaseException:
             # Log exceptions that crash the thread
             trace("%s encountered exception", self.name, exc_info=True)
