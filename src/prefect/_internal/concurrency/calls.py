@@ -221,7 +221,7 @@ class Call(Generic[T]):
                         result = await coro
         except BaseException as exc:
             self.future.set_exception(exc)
-            logger.debug("Encountered exception in async call %r", self, exc_info=True)
+            # logger.debug("Encountered exception in async call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
