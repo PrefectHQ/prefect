@@ -59,10 +59,22 @@ class CancelContext:
         return self._deadline
 
     def cancel(self):
-        if self.mark_cancelled():
+        if self._mark_cancelled():
             if self._cancel is not None:
                 logger.debug("Cancelling %r with %r", self, self._cancel)
                 self._cancel()
+
+            for ctx in self._chained:
+                logger.debug("%r cancelling chained context %r", self, ctx)
+                try:
+                    ctx.cancel()
+                except Exception:
+                    logger.warning(
+                        "%r encountered exception cancelling chained context %r",
+                        self,
+                        ctx,
+                        exc_info=True,
+                    )
         else:
             logger.debug("%r is already finished", self)
 
@@ -74,7 +86,7 @@ class CancelContext:
         with self._lock:
             return self._completed
 
-    def mark_cancelled(self) -> bool:
+    def _mark_cancelled(self) -> bool:
         with self._lock:
             if self._completed:
                 return False  # Do not mark completed tasks as cancelled
@@ -84,18 +96,6 @@ class CancelContext:
 
             logger.debug("Marked %r as cancelled", self)
             self._cancelled = True
-
-        for ctx in self._chained:
-            logger.debug("%r cancelling chained context %r", self, ctx)
-            try:
-                ctx.cancel()
-            except Exception:
-                logger.warning(
-                    "%r encountered exception cancelling chained context %r",
-                    self,
-                    ctx,
-                    exc_info=True,
-                )
 
         return True
 
@@ -320,7 +320,7 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         logger.debug("Cancel fired for alarm based cancel context %r", ctx)
 
         # Ensure the context is marked as cancelled
-        ctx.mark_cancelled()
+        ctx._mark_cancelled()
 
         # Cancel this context
         raise (
