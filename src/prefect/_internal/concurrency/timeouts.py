@@ -9,7 +9,6 @@ import os
 import signal
 import sys
 import threading
-import logging
 import time
 from typing import Callable, List, Optional, Type
 
@@ -20,8 +19,7 @@ from prefect.logging import get_logger
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
 
-
-logging.logThreads = 0
+_ENFORCERS = {}
 
 
 class CancelledError(asyncio.CancelledError):
@@ -396,6 +394,7 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
             target=timeout_enforcer,
             name=f"timeout-watcher {name or '<unnamed>'} {timeout:.2f}",
         )
+        _ENFORCERS[supervised_thread] = enforcer
         enforcer.start()
 
     try:
@@ -405,7 +404,6 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
         ctx.mark_completed()
         if enforcer:
             enforcer.join()
-            del enforcer
 
 
 def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):
