@@ -1,12 +1,13 @@
 import asyncio
 import time
-
+import threading
 import pytest
 
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import WorkerThread
-from prefect._internal.concurrency.timeouts import CancelledError
+from prefect._internal.concurrency.timeouts import CancelledError, get_deadline
 from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
+from prefect._internal.concurrency.inspection import stack_for_threads
 
 
 def fake_fn(*args, **kwargs):
@@ -141,7 +142,13 @@ def test_sync_waiter_timeout_in_main_thread():
         def on_worker_thread():
             call.add_waiting_callback(waiting_callback)
             # Wait for the result, should timeout
-            waiting_callback.result(timeout=10)
+            deadline = get_deadline(10)
+            try:
+                waiting_callback.result(timeout=10)
+            except TimeoutError:
+                if time.monotonic() > deadline:
+                    print(stack_for_threads(*threading.enumerate()))
+                raise
 
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
@@ -203,7 +210,13 @@ async def test_async_waiter_timeout_in_main_thread():
 
         def on_worker_thread():
             call.add_waiting_callback(waiting_callback)
-            waiting_callback.result(timeout=10)
+            deadline = get_deadline(10)
+            try:
+                waiting_callback.result(timeout=10)
+            except TimeoutError:
+                if time.monotonic() > deadline:
+                    print(stack_for_threads(*threading.enumerate()))
+                raise
 
         call = Call.new(on_worker_thread)
 
