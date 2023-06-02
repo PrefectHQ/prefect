@@ -90,7 +90,11 @@ def stack_for_threads(*threads: threading.Thread) -> List[str]:
             lines.append(
                 f"------ Call stack of {thread.name} ({hex(thread.ident)}) -----"
             )
-            lines.append("".join(call_stack(frames[thread.ident])))
+            thread_frames = frames.get(thread.ident)
+            if thread_frames:
+                lines.append("".join(call_stack(thread_frames)))
+            else:
+                lines.append("No stack frames found")
     finally:
         del frames
 
