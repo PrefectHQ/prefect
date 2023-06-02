@@ -17,14 +17,12 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     the settings context change. See `test_database_connection_url` for example.
 """
 import asyncio
-
+import logging
+import pathlib
 import faulthandler
 import sys
 import threading
 import time
-
-import logging
-import pathlib
 import shutil
 import tempfile
 from pathlib import Path
@@ -42,6 +40,8 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
+
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -511,14 +511,18 @@ def disable_workers():
         yield
 
 
-@pytest.fixture(autouse=True, scope="session")
-def check_session_thread_leak():
+@pytest.fixture(autouse=True)
+def check_thread_leak():
     """
-    Checks for threads created in the test session and left running.
+    Checks for threads created in a test and left running.
     """
     active_threads_start = threading.enumerate()
 
     yield
+
+    # We don't eagerly tear down the global loop thread in most tests so let is shutdown
+    # instead of treating it as a leak.
+    wait_for_global_loop_exit(timeout=5.0)
 
     start = time.time()
     while True:
