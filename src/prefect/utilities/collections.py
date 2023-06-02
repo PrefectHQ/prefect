@@ -413,13 +413,44 @@ def distinct(
 
 
 def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -> Any:
+    """
+    Fetch a value from a nested dictionary or list using a sequence of keys.
+
+    This function allows to fetch a value from a deeply nested structure
+    of dictionaries and lists using either a dot-separated string or a list
+    of keys. If a requested key does not exist, the function returns the
+    provided default value.
+
+    Args:
+        dct: The nested dictionary or list from which to fetch the value.
+        keys: The sequence of keys to use for access. Can be a
+            dot-separated string or a list of keys. List indices can be included
+            in the sequence as either integer keys or as string indices in square
+            brackets.
+        default: The default value to return if the requested key path does not
+            exist. Defaults to None.
+
+    Returns:
+        The fetched value if the key exists, or the default value if it does not.
+
+    Examples:
+    >>> get_from_dict({'a': {'b': {'c': [1, 2, 3, 4]}}}, 'a.b.c[1]')
+    2
+    >>> get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, ['a', 'b', 1, 'c', 1])
+    2
+    >>> get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default')
+    'default'
+    """
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
     try:
         for key in keys:
             try:
+                # Try to cast to int to handle list indices
                 key = int(key)
             except ValueError:
+                # If it's not an int, use the key as-is
+                # for dict lookup
                 pass
             dct = dct[key]
         return dct
