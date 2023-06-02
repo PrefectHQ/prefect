@@ -32,7 +32,7 @@ def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
         prefix = f"{round(time.monotonic(), 3)} | {threading.current_thread().name} | "
         message = message % args
         message = message % kwargs
-        print(prefix + message, file=sys.stderr)
+        print(prefix + message, file=sys.stderr, flush=True)
 
         if exc_info:
             traceback.print_exc(file=sys.stderr)
