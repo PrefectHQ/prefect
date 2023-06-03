@@ -51,8 +51,7 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
 
 
-# Generic type var for capturing the inner return type of async funcs
-T = TypeVar("T")
+T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
@@ -207,23 +206,23 @@ class Task(Generic[P, R]):
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
         # Validate if hook passed is list and contains callables
-        hook_types = [on_completion, on_failure]
+        hook_categories = [on_completion, on_failure]
         hook_names = ["on_completion", "on_failure"]
-        for hook, hook_name in zip(hook_types, hook_names):
-            if hook is not None:
+        for hooks, hook_name in zip(hook_categories, hook_names):
+            if hooks is not None:
                 try:
-                    hook = list(hook)
+                    hooks = list(hooks)
                 except TypeError:
                     raise TypeError(
                         f"Expected iterable for '{hook_name}'; got"
-                        f" {type(hook).__name__} instead."
+                        f" {type(hooks).__name__} instead."
                     )
 
-                for hook_item in hook:
-                    if not callable(hook_item):
+                for hook, hook_name in zip(hooks, hook_names):
+                    if not callable(hook):
                         raise TypeError(
-                            f"Expected callables in {hook}; got"
-                            f" {type(hook_item).__name__} instead."
+                            f"Expected callables in {hook_name}; got"
+                            f" {type(hook).__name__} instead."
                         )
 
         if not callable(fn):

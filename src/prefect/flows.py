@@ -160,23 +160,23 @@ class Flow(Generic[P, R]):
         ] = None,
     ):
         # Validate if hook passed is list and contains callables
-        hook_types = [on_completion, on_failure, on_cancellation, on_crashed]
+        hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
         hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
-        for hook, hook_name in zip(hook_types, hook_names):
-            if hook is not None:
+        for hooks, hook_name in zip(hook_categories, hook_names):
+            if hooks is not None:
                 try:
-                    hook = list(hook)
+                    hooks = list(hooks)
                 except TypeError:
                     raise TypeError(
                         f"Expected iterable for '{hook_name}'; got"
-                        f" {type(hook).__name__} instead."
+                        f" {type(hooks).__name__} instead."
                     )
 
-                for hook_item in hook:
-                    if not callable(hook_item):
+                for hook, hook_name in zip(hooks, hook_names):
+                    if not callable(hook):
                         raise TypeError(
-                            f"Expected callables in {hook}; got"
-                            f" {type(hook_item).__name__} instead."
+                            f"Expected callables in {hook_name}; got"
+                            f" {type(hook).__name__} instead."
                         )
 
         if not callable(fn):
