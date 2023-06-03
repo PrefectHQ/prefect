@@ -1,6 +1,7 @@
 """
 Command line interface for working with webhooks
 """
+
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 
