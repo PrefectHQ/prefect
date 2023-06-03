@@ -109,6 +109,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         Load a saved Teams webhook and send a message:
         ```python
         from prefect.blocks.notifications import MicrosoftTeamsWebhook
+
         teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
         teams_webhook_block.notify("Hello from Prefect!")
         ```
@@ -139,6 +140,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         Load a saved PagerDuty webhook and send a message:
         ```python
         from prefect.blocks.notifications import PagerDutyWebHook
+
         pagerduty_webhook_block = PagerDutyWebHook.load("BLOCK_NAME")
         pagerduty_webhook_block.notify("Hello from Prefect!")
         ```
@@ -245,6 +247,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
         Load a saved `TwilioSMS` block and send a message:
         ```python
         from prefect.blocks.notifications import TwilioSMS
+
         twilio_webhook_block = TwilioSMS.load("BLOCK_NAME")
         twilio_webhook_block.notify("Hello from Prefect!")
         ```
@@ -309,6 +312,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
         Load a saved Opsgenie webhook and send a message:
         ```python
         from prefect.blocks.notifications import OpsgenieWebhook
+
         opsgenie_webhook_block = OpsgenieWebhook.load("BLOCK_NAME")
         opsgenie_webhook_block.notify("Hello from Prefect!")
         ```
@@ -423,7 +427,6 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         from prefect.blocks.notifications import MattermostWebhook
 
         mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
-
         mattermost_webhook_block.notify("Hello from Prefect!")
         ```
     """
@@ -483,6 +486,109 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 channels=self.channels,
                 include_image=self.include_image,
                 port=self.port,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
+class TelegramWebhook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided Telegram webhook.
+    See [Apprise notify_Telegram docs](https://github.com/caronc/apprise/wiki/Notify_Telegram) for more info.
+
+
+    Examples:
+        Load a saved Telegram webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import TelegramWebhook
+
+        telegram_webhook_block = TelegramWebhook.load("BLOCK_NAME")
+        telegram_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided Telegram webhook."
+    _block_type_name = "Telegram Webhook"
+    _block_type_slug = "telegram-webhook"
+    _logo_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/240px-Telegram_logo.svg.png"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TelegramWebhook"
+
+    bot_token: SecretStr = Field(
+        description=(
+            "The token that identifies the bot you created through the BotFather."
+        ),
+    )
+
+    chat_id: str = Field(
+        description=(
+            "Identify the users you want your bot to deliver your notifications to. You"
+            " must specify at least 1 chat_id. If you do not specify a chat_id, the"
+            " notification script will attempt to detect the bot owner's (you) chat_id"
+            " and use that."
+        ),
+    )
+
+    include_image: bool = Field(
+        default=False,
+        description=(
+            "You can optionally append the argument of ?image=Yes to the end of your"
+            " URL to have a Telegram message generated before the actual notice which"
+            " uploads the image associated with it. Due to the services limitations,"
+            " Telegram doesn't allow you to post an image inline with a text message."
+            " But you can send a message that just contains an image. If this flag is"
+            " set to true, apprise will send an image notification followed by the"
+            " notice itself. Since receiving 2 messages for every 1 notice could be"
+            " annoying to some, this has been made an option that defaults to being"
+            " disabled."
+        ),
+    )
+
+    silent: Optional[Literal["yes", "no"]] = Field(
+        default=None,
+        description=(
+            "A yes/no flag allowing you to send the notification in a silent fashion."
+            " By default this is set to no."
+        ),
+    )
+
+    preview: Optional[Literal["yes", "no"]] = Field(
+        default=None,
+        description=(
+            "A yes/no flag allowing you to display webpage previews of your post. By"
+            " default this is set to no."
+        ),
+    )
+
+    topic_id: Optional[SecretStr] = Field(
+        default=None,
+        description="The thread topic ID.",
+    )
+
+    detect_owner: bool = Field(
+        default=True,
+        description=(
+            "If detect_owner is set to True, we will attempt to determine who the bot"
+            " owner is based on the first person who messaged it. This is not a fool"
+            " proof way of doing things as over time Telegram removes the message"
+            " history for the bot.  So what appears (later on) to be the first message"
+            " to it, maybe another user who sent it a message much later.  Users who"
+            " set this flag should update their Apprise URL later to directly include"
+            " the user that we should message."
+        ),
+    )
+
+    def block_initialization(self) -> None:
+        from apprise.plugins.NotifyTelegram import NotifyTelegram
+
+        url = SecretStr(
+            NotifyTelegram(
+                bot_token=self.bot_token.get_secret_value(),
+                targets=self.chat_id,
+                include_image=self.include_image,
+                silent=self.silent,
+                preview=self.preview,
+                topic=self.topic_id,
+                detect_owner=self.detect_owner,
             ).url()
         )
         self._start_apprise_client(url)

@@ -3,6 +3,7 @@ from typing import Type
 from unittest.mock import patch
 
 import cloudpickle
+from pydantic import SecretStr
 import pytest
 
 import prefect
@@ -12,6 +13,7 @@ from prefect.blocks.notifications import (
     OpsgenieWebhook,
     PagerDutyWebHook,
     PREFECT_NOTIFY_TYPE_DEFAULT,
+    TelegramWebhook,
     TwilioSMS,
 )
 from prefect.testing.utilities import AsyncMock
@@ -286,6 +288,85 @@ class TestPagerDutyWebhook:
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
             )
+
+
+class TestTelegramWebhook:
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            tg_block = TelegramWebhook(
+                bot_token=SecretStr("0123456789:qwertyuiopasdfghjklzxcvbnm"),
+                chat_id="123456789",
+            )
+            await tg_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"tgram://{tg_block.bot_token.get_secret_value().replace(':', '%3A')}/%40{tg_block.chat_id}"
+                "/?image=False&detect=yes&silent=no&preview=no&format=html&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            tg_block = TelegramWebhook(
+                bot_token=SecretStr("0123456789:qwertyuiopasdfghjklzxcvbnm"),
+                chat_id="123456789",
+            )
+            tg_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"tgram://{tg_block.bot_token.get_secret_value().replace(':', '%3A')}/%40{tg_block.chat_id}"
+                "/?image=False&detect=yes&silent=no&preview=no&format=html&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_with_multiple_channels(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            tg_block = TelegramWebhook(
+                bot_token=SecretStr("0123456789:qwertyuiopasdfghjklzxcvbnm"),
+                chat_id="123456789,987654321",
+            )
+            tg_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"tgram://{tg_block.bot_token.get_secret_value().replace(':', '%3A')}/%40{'/%40'.join(tg_block.chat_id.split(','))}"
+                "/?image=False&detect=yes&silent=no&preview=no&format=html&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_is_picklable(self):
+        reload_modules()
+        block = TelegramWebhook(
+            bot_token=SecretStr("0123456789:qwertyuiopasdfghjklzxcvbnm"),
+            chat_id="123456789",
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, TelegramWebhook)
 
 
 class TestTwilioSMS:
