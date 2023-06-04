@@ -218,10 +218,10 @@ class Task(Generic[P, R]):
                         f" {type(hooks).__name__} instead."
                     )
 
-                for hook, hook_name in zip(hooks, hook_names):
+                for hook in hooks:
                     if not callable(hook):
                         raise TypeError(
-                            f"Expected callables in {hook_name}; got"
+                            f"Expected callables in '{hook_name}'; got"
                             f" {type(hook).__name__} instead."
                         )
 
