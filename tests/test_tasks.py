@@ -3404,6 +3404,28 @@ def create_async_hook(mock_obj):
 
 
 class TestTaskHooksOnCompletion:
+    def test_on_completion_hooks_is_iterable(self):
+        def test():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match="Expected iterable for 'on_completion'; got function instead.",
+        ):
+
+            @flow(on_completion=test)
+            def my_flow():
+                pass
+
+    def test_on_completion_hooks_contains_callables(self):
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_completion'; got str instead."
+        ):
+
+            @flow(on_completion=["test"])
+            def my_flow():
+                pass
+
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -3500,6 +3522,27 @@ class TestTaskHooksOnCompletion:
 
 
 class TestTaskHooksOnFailure:
+    def test_on_failure_hooks_is_iterable(self):
+        def test():
+            pass
+
+        with pytest.raises(
+            TypeError, match="Expected iterable for 'on_failure'; got function instead."
+        ):
+
+            @flow(on_failure=test)
+            def my_flow():
+                pass
+
+    def test_on_failure_hooks_contains_callables(self):
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_failure'; got str instead."
+        ):
+
+            @flow(on_failure=["test"])
+            def my_flow():
+                pass
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
