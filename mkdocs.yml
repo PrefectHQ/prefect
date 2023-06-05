@@ -11,8 +11,8 @@ extra_css:
     - stylesheets/termynal.css
     - stylesheets/extra.css
 extra_javascript:
-    - js/termynal.js
     - js/custom.js
+    - js/termynal.js
 markdown_extensions:
     - admonition
     - attr_list
@@ -78,8 +78,8 @@ theme:
             name: Switch to light mode
 plugins:
     mike:
-      canonical_version: latest
-      version_selector: true
+        canonical_version: latest
+        version_selector: true
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -299,8 +299,10 @@ extra:
     version:
         provider: mike
     analytics:
-        provider: google
+        provider: custom
         property: G-3M31G9B0QJ
+        amplitude_key: !ENV [AMPLITUDE_API_KEY, ""]
+        amplitude_url: !ENV [AMPLITUDE_URL, "https://api2.amplitude.com/2/httpapi"]
     social:
         - icon: fontawesome/brands/slack
           link: https://www.prefect.io/slack/

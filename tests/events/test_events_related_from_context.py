@@ -5,7 +5,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext
 from prefect.events.related import (
     MAX_CACHE_SIZE,
     related_resources_from_run_context,
@@ -135,7 +135,7 @@ async def test_can_exclude_by_resource_id(prefect_client):
     assert f"prefect.flow-run.{flow_run.id}" not in related
 
 
-async def test_gets_flow_run_from_task_run_context(prefect_client):
+async def test_gets_related_from_task_run_context(prefect_client):
     @task
     async def test_task():
         # Clear the FlowRunContext to simulated a task run in a remote worker.
@@ -144,14 +144,16 @@ async def test_gets_flow_run_from_task_run_context(prefect_client):
 
     @flow
     async def test_flow():
-        return await test_task()
+        return await test_task._run()
 
     state = await test_flow._run()
+    task_state = await state.result()
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
+    task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
 
-    related = await state.result()
+    related = await task_state.result()
 
     assert related == [
         RelatedResource(
@@ -159,6 +161,13 @@ async def test_gets_flow_run_from_task_run_context(prefect_client):
                 "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                 "prefect.resource.role": "flow-run",
                 "prefect.resource.name": flow_run.name,
+            }
+        ),
+        RelatedResource(
+            __root__={
+                "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+                "prefect.resource.role": "task-run",
+                "prefect.resource.name": task_run.name,
             }
         ),
         RelatedResource(
@@ -183,26 +192,6 @@ async def test_caches_related_objects(spy_client):
 
     await test_flow()
 
-    spy_client.client.read_flow.assert_called_once()
-
-
-async def test_caches_from_task_run_context(spy_client):
-    @task
-    async def test_task():
-        FlowRunContext.__var__.set(None)
-        task_run_context = TaskRunContext.get()
-        assert task_run_context is not None
-        with mock.patch("prefect.client.orchestration.get_client", lambda: spy_client):
-            await related_resources_from_run_context()
-            await related_resources_from_run_context()
-
-    @flow
-    async def test_flow():
-        return await test_task()
-
-    await test_flow()
-
-    spy_client.client.read_flow_run.assert_called_once()
     spy_client.client.read_flow.assert_called_once()
 
 

@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import ArtifactCreate
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.server.schemas.actions import ArtifactCreate
 from prefect.utilities.asyncutils import sync_compatible
 
 

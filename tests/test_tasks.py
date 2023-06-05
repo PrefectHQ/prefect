@@ -12,6 +12,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
+from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
@@ -23,13 +24,11 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
-from prefect.server.schemas.core import TaskRunResult
-from prefect.server.schemas.states import StateType
 from prefect.settings import (
-    PREFECT_TASKS_REFRESH_CACHE,
-    temporary_settings,
     PREFECT_DEBUG_MODE,
     PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASKS_REFRESH_CACHE,
+    temporary_settings,
 )
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
@@ -2432,11 +2431,11 @@ class TestTaskRunLogs:
         assert "NameError" in error_log
         assert "x + y" in error_log
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, prefect_client):
+    async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @task
         def my_task():
             logger = get_run_logger()
-            logger.info("Hello world!", extra={"send_to_orion": False})
+            logger.info("Hello world!", extra={"send_to_api": False})
 
         @flow
         def my_flow():

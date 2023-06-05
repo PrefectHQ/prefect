@@ -45,8 +45,8 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow
+    from prefect.client.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -138,7 +138,7 @@ class ProcessWorker(BaseWorker):
     )
     _display_name = "Local Subprocess"
     _documentation_url = (
-        "https://docs.prefect.io/latest/api-ref/prefect/workers/process/",
+        "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
     )
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
     _is_beta = True
