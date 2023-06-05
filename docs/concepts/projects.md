@@ -359,6 +359,24 @@ Once you've confirmed that these fields are set to their desired values, this st
 !!! note Some steps require Prefect integrations
     Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
 
+!!! tip "Pass output to downstream steps"
+    Each deployment action can be composed of multiple steps.  For example, if you wanted to build a Docker image tagged with the current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
+
+    ```yaml
+    build:
+        - prefect.projects.steps.run_shell_script:
+            id: get-commit-hash
+            script: git rev-parse --short HEAD
+            stream_output: false
+        - prefect_docker.projects.steps.build_docker_image:
+            requires: prefect-docker
+            image_name: my-image
+            image_tag: "{{ get-commit-hash.stdout }}"
+            dockerfile: auto
+    ```
+
+    Note that the `id` field is used on the `run_shell_script` step so that its output can be referenced in the next step.
+
 ### The Push Section
 
 The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations.
