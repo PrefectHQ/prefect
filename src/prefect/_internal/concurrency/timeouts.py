@@ -403,7 +403,8 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
                 supervised_thread.name,
                 ctx,
             )
-            if ctx.mark_cancelled():
+            ctx._cancel = None  # Avoid sending a `CancelledError`
+            if ctx.cancel():
                 _send_exception(TimeoutError)
 
     if timeout is not None:
