@@ -382,8 +382,12 @@ def default_database_connection_url(settings, value):
     new_default = home / "prefect.db"
 
     # If the old one exists and the new one does not, continue using the old one
-    if old_default.exists() and not new_default.exists():
-        return "sqlite+aiosqlite:///" + str(old_default)
+    if not new_default.exists():
+        if old_default.exists():
+            return "sqlite+aiosqlite:///" + str(old_default)
+
+        # Create the new default database with 0600 permissions if it does not exist
+        new_default.touch(mode=0o600)
 
     # Otherwise, return the new default
     return "sqlite+aiosqlite:///" + str(new_default)
@@ -1210,6 +1214,16 @@ Whether or not to enable experimental Prefect artifacts.
 PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect artifacts are used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to enable the experimental workspace dashboard.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
 
@@ -2189,6 +2203,8 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
     Any existing data not present in the given `profiles` will be deleted.
     """
+    if not path.exists():
+        path.touch(mode=0o600)
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 

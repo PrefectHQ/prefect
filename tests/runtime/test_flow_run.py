@@ -24,9 +24,61 @@ class TestAttributeAccessPatterns:
         assert "id" in dir(flow_run)
         assert "foo" not in dir(flow_run)
 
-    async def test_attribute_override_via_env_var(self, monkeypatch):
+    async def test_new_attribute_via_env_var(self, monkeypatch):
         monkeypatch.setenv(name="PREFECT__RUNTIME__FLOW_RUN__NEW_KEY", value="foobar")
         assert flow_run.new_key == "foobar"
+
+    @pytest.mark.parametrize(
+        "attribute_name, attribute_value, env_value, expected_value",
+        [
+            # check allowed types for existing attributes
+            ("bool_attribute", True, "False", False),
+            ("int_attribute", 10, "20", 20),
+            ("float_attribute", 10.5, "20.5", 20.5),
+            ("str_attribute", "foo", "bar", "bar"),
+            (
+                "datetime_attribute",
+                pendulum.DateTime(2022, 1, 1, 0, tzinfo=pendulum.UTC),
+                "2023-05-13 20:00:00",
+                pendulum.DateTime(2023, 5, 13, 20, tzinfo=pendulum.UTC),
+            ),
+        ],
+    )
+    async def test_attribute_override_via_env_var(
+        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
+    ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(flow_run.FIELDS, attribute_name, lambda: attribute_value)
+
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__FLOW_RUN__{attribute_name.upper()}",
+            value=env_value,
+        )
+        flow_run_attr = getattr(flow_run, attribute_name)
+        # check the type of the flow_run attribute
+        assert isinstance(flow_run_attr, type(expected_value))
+        # check the flow_run attribute value is expected_value
+        assert flow_run_attr == expected_value
+
+    @pytest.mark.parametrize(
+        "attribute_name, attribute_value",
+        [
+            # complex types (list and dict) not allowed to be mocked using environment variables
+            ("list_of_values", [1, 2, 3]),
+            ("dict_of_values", {"foo": "bar"}),
+        ],
+    )
+    async def test_attribute_override_via_env_var_not_allowed(
+        self, monkeypatch, attribute_name, attribute_value
+    ):
+        # mock attribute_name to be a function that generates attribute_value
+        monkeypatch.setitem(flow_run.FIELDS, attribute_name, lambda: attribute_value)
+
+        monkeypatch.setenv(
+            name=f"PREFECT__RUNTIME__FLOW_RUN__{attribute_name.upper()}", value="foo"
+        )
+        with pytest.raises(ValueError, match="cannot be mocked"):
+            getattr(flow_run, attribute_name)
 
 
 class TestID:

@@ -382,5 +382,17 @@ Logged events are also persisted to the Prefect database. A log record includes 
 
 For more information, see [Log schema](/api-ref/server/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.
 
-## Extra loggers
-You also have the ability to add custom loggers with `PREFECT_LOGGING_EXTRA_LOGGERS`.
+## Including logs from other libraries
+
+By default, Prefect won't capture log statements from libraries that your flows
+and tasks use. You can tell Prefect to include logs from these libraries with
+the `PREFECT_LOGGING_EXTRA_LOGGERS` setting.
+
+To use this setting, specify one or more Python library names to include,
+separated by commas. For example, if you want to make sure Prefect captures Dask
+and SciPy logging statements with your flow and task run logs:
+
+    PREFECT_LOGGING_EXTRA_LOGGERS=dask,scipy
+    
+You can set this setting as an environment variable or in a profile. See
+[Settings](/concepts/settings/) for more details about how to use settings.

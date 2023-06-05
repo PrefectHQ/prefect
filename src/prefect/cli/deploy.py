@@ -14,7 +14,15 @@ from rich.panel import Panel
 import prefect
 import prefect.context
 import prefect.settings
-from prefect.cli._utilities import exit_with_error, prompt, prompt_select_from_table
+from prefect.cli._utilities import (
+    exit_with_error,
+)
+from prefect.cli._prompts import (
+    prompt,
+    confirm,
+    prompt_select_from_table,
+    prompt_schedule,
+)
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
@@ -150,6 +158,14 @@ async def deploy(
             " provided, this flag will be ignored."
         ),
     ),
+    ci: bool = typer.Option(
+        False,
+        "--ci",
+        help=(
+            "Run this command in CI mode. This will disable interactive prompts and"
+            " will error if any required arguments are not provided."
+        ),
+    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
@@ -223,6 +239,7 @@ async def deploy(
                     project=project,
                     names=names,
                     deploy_all=deploy_all,
+                    ci=ci,
                 )
             elif len(names) == 1:
                 deployment = next(
@@ -239,12 +256,10 @@ async def deploy(
                     )
                     options["name"] = names[0]
                 await _run_single_deploy(
-                    base_deploy=deployment,
-                    project=project,
-                    options=options,
+                    base_deploy=deployment, project=project, options=options, ci=ci
                 )
             else:
-                if not is_interactive():
+                if not is_interactive() or ci:
                     exit_with_error(
                         "Discovered multiple deployments declared in deployment.yaml,"
                         " but no name was given. Please specify the name of at least"
@@ -267,6 +282,7 @@ async def deploy(
                     base_deploy=selected_deployment,
                     project=project,
                     options=options,
+                    ci=ci,
                 )
         elif len(deployments) <= 1:
             if len(names) > 1:
@@ -281,13 +297,14 @@ async def deploy(
                     base_deploy=deployments[0] if deployments else {},
                     project=project,
                     options=options,
+                    ci=ci,
                 )
     except ValueError as exc:
         exit_with_error(str(exc))
 
 
 async def _run_single_deploy(
-    base_deploy: Dict, project: Dict, options: Optional[Dict] = None
+    base_deploy: Dict, project: Dict, options: Optional[Dict] = None, ci: bool = False
 ):
     base_deploy = deepcopy(base_deploy) if base_deploy else {}
     project = deepcopy(project) if project else {}
@@ -388,9 +405,9 @@ async def _run_single_deploy(
     base_deploy["entrypoint"] = entrypoint
 
     if not name:
-        if not is_interactive():
+        if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
-        name = prompt("Deployment name")
+        name = prompt("Deployment name", default="default")
 
     ## parse parameters
     # minor optimization in case we already loaded the flow
@@ -424,29 +441,14 @@ async def _run_single_deploy(
     base_deploy["parameters"].update(parameters)
 
     # update schedule
-    schedule = None
-    if cron:
-        cron_kwargs = {"cron": cron, "timezone": timezone}
-        schedule = CronSchedule(
-            **{k: v for k, v in cron_kwargs.items() if v is not None}
-        )
-    elif interval:
-        interval_kwargs = {
-            "interval": timedelta(seconds=interval),
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        schedule = IntervalSchedule(
-            **{k: v for k, v in interval_kwargs.items() if v is not None}
-        )
-    elif rrule:
-        try:
-            schedule = RRuleSchedule(**json.loads(rrule))
-            if timezone:
-                # override timezone if specified via CLI argument
-                schedule.timezone = timezone
-        except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    schedule = _construct_schedule(
+        cron=cron,
+        timezone=timezone,
+        interval=interval,
+        rrule=rrule,
+        interval_anchor=interval_anchor,
+        ci=ci,
+    )
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
@@ -511,7 +513,7 @@ async def _run_single_deploy(
 
                 # dont allow submitting to prefect-agent typed work pools
                 if work_pool.type == "prefect-agent":
-                    if not is_interactive():
+                    if not is_interactive() or ci:
                         raise ValueError(
                             "Cannot create a project-style deployment with work pool of"
                             " type 'prefect-agent'. If you wish to use an agent with"
@@ -537,7 +539,7 @@ async def _run_single_deploy(
                     style="red",
                 )
         else:
-            if not is_interactive():
+            if not is_interactive() or ci:
                 raise ValueError(
                     "A work pool is required to deploy this flow. Please specify a work"
                     " pool name via the '--pool' flag or in your deployment.yaml file."
@@ -579,13 +581,24 @@ async def _run_single_deploy(
 
         if base_deploy["work_pool"]["name"] is not None:
             app.console.print(
-                "\nTo execute flow runs from this deployment, start a worker that"
-                f" pulls work from the {base_deploy['work_pool']['name']!r} work pool:"
+                "\nTo execute flow runs from this deployment, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {base_deploy['work_pool']['name']!r} work pool:"
             )
             app.console.print(
                 (
                     "\n\t$ prefect worker start --pool"
-                    f" {base_deploy['work_pool']['name']!r}\n"
+                    f" {base_deploy['work_pool']['name']!r}"
+                ),
+                style="blue",
+            )
+            app.console.print(
+                "\nTo schedule a run for this deployment, use the following command:"
+            )
+            app.console.print(
+                (
+                    "\n\t$ prefect deployment run"
+                    f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
                 ),
                 style="blue",
             )
@@ -601,7 +614,9 @@ async def _run_single_deploy(
             )
 
 
-async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False):
+async def _run_multi_deploy(
+    base_deploys, project, names=None, deploy_all=False, ci=False
+):
     base_deploys = deepcopy(base_deploys) if base_deploys else []
     project = deepcopy(project) if project else {}
     names = names or []
@@ -610,16 +625,19 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
         app.console.print("Deploying all deployments for current project...")
         for base_deploy in base_deploys:
             if base_deploy.get("name") is None:
-                if not is_interactive():
+                if not is_interactive() or ci:
                     app.console.print(
                         "Discovered unnamed deployment. Skipping...", style="yellow"
                     )
+                    continue
                 app.console.print("Discovered unnamed deployment.", style="yellow")
                 app.console.print_json(data=base_deploy)
-                if typer.confirm(
-                    "Would you like to give this deployment a name and deploy it?"
+                if confirm(
+                    "Would you like to give this deployment a name and deploy it?",
+                    default=True,
+                    console=app.console,
                 ):
-                    base_deploy["name"] = prompt("Deployment name")
+                    base_deploy["name"] = prompt("Deployment name", default="default")
                 else:
                     app.console.print("Skipping unnamed deployment.", style="yellow")
                     continue
@@ -680,12 +698,13 @@ async def _prompt_create_work_pool(
     console: Console,
     client: PrefectClient = None,
 ):
-    if not typer.confirm(
+    if not confirm(
         (
             "Looks like you don't have any work pools this flow can be deployed to."
             " Would you like to create one?"
         ),
         default=True,
+        console=app.console,
     ):
         raise ValueError(
             "A work pool is required to deploy this flow. Please specify a work pool"
@@ -714,6 +733,52 @@ async def _prompt_create_work_pool(
     )
     console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
     return work_pool
+
+
+def _construct_schedule(
+    cron: Optional[str] = None,
+    timezone: Optional[str] = None,
+    interval: Optional[int] = None,
+    interval_anchor: Optional[str] = None,
+    rrule: Optional[str] = None,
+    ci: bool = False,
+):
+    schedule = None
+    if cron:
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
+    elif interval:
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
+    elif rrule:
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+    else:
+        if (
+            not ci
+            and is_interactive()
+            and confirm(
+                "Would you like to schedule when this flow runs?",
+                default=True,
+                console=app.console,
+            )
+        ):
+            schedule = prompt_schedule(app.console)
+
+    return schedule
 
 
 DEFAULT_DEPLOYMENT = None

@@ -152,7 +152,7 @@ def enter_flow_run_engine_from_flow_call(
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed."
             " Consider updating the script to only call the flow if executed"
-            f' directly:\n\n\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+            f' directly:\n\n\tif __name__ == "__main__":\n\t\t{flow.fn.__name__}()'
         )
         return None
 
@@ -280,7 +280,7 @@ async def create_then_begin_flow_run(
     if ui_url:
         logger.info(
             f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
-            extra={"send_to_orion": False},
+            extra={"send_to_api": False},
         )
 
     if state.is_failed():
@@ -558,7 +558,7 @@ async def create_and_begin_subflow_run(
         if ui_url:
             logger.info(
                 f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         result_factory = await ResultFactory.from_flow(
@@ -820,7 +820,7 @@ async def orchestrate_flow_run(
                     f"Received new state {state} when proposing final state"
                     f" {terminal_state}"
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         if not state.is_final():
@@ -829,7 +829,7 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -1705,7 +1705,7 @@ async def orchestrate_task_run(
                         f"Received new state {state} when proposing final state"
                         f" {terminal_state}"
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
 
             if not state.is_final():
@@ -1715,7 +1715,7 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
