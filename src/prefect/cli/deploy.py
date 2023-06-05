@@ -589,7 +589,7 @@ async def _run_single_deploy(
                 style="blue",
             )
             app.console.print(
-                "\nTo schedule an run for this deployment, use the following command:"
+                "\nTo schedule a run for this deployment, use the following command:"
             )
             app.console.print(
                 (
