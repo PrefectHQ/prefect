@@ -69,7 +69,7 @@ jobs:
           - "postgres:14"
           - "sqlite"
         os:
-          - ${{ needs.isinternal.outputs.status == 'true' && 'oss-test-runner' || 'ubuntu-latest' }}
+          - "ubuntu-latest"
         python-version:
           - "3.7"
           - "3.8"
