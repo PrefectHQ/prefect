@@ -144,15 +144,8 @@ def test_sync_waiter_timeout_in_main_thread():
     with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
-            call.add_waiting_callback(waiting_callback)
-            # Wait for the result, should timeout
-            deadline = get_deadline(10)
-            try:
-                waiting_callback.result(timeout=10)
-            except TimeoutError:
-                if time.monotonic() > deadline:
-                    print("\n".join(stack_for_threads(*threading.enumerate())))
-                raise
+            waiter.submit(waiting_callback)
+            waiting_callback.result()
 
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
@@ -213,7 +206,8 @@ async def test_async_waiter_timeout_in_main_thread():
     with WorkerThread(run_once=True) as runner:
 
         def on_worker_thread():
-            call.add_waiting_callback(waiting_callback)
+            waiter.submit(waiting_callback)
+
             deadline = get_deadline(10)
             try:
                 waiting_callback.result(timeout=10)
@@ -314,7 +308,7 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
         def on_worker_thread():
             # Send exception to the main thread
             callback = Call.new(raise_fn, exception_cls("test"))
-            call.add_waiting_callback(callback)
+            waiter.submit(callback)
             return callback
 
         call = Call.new(on_worker_thread)
@@ -374,7 +368,7 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
         def on_worker_thread():
             # Send exception to the main thread
             callback = Call.new(raise_fn, exception_cls("test"))
-            call.add_waiting_callback(callback)
+            waiter.submit(callback)
             return callback
 
         call = Call.new(on_worker_thread)

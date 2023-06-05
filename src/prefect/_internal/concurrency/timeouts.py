@@ -13,10 +13,9 @@ import time
 from typing import Callable, List, Optional, Type
 
 
-from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect._internal.concurrency.event_loop import get_running_loop, call_in_loop
 from prefect.logging import get_logger
 
-# TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
 
 
@@ -42,10 +41,11 @@ class CancelContext:
         name: Optional[str] = None,
     ) -> None:
         self._timeout = timeout
-        self._deadline = get_deadline(timeout)
+        self._deadline = None
         self._cancelled: bool = False
         self._chained: List["CancelContext"] = []
         self._lock = threading.Lock()
+        self._started = False
         self._completed = False
         self._cancel = cancel
         self._name = name
@@ -60,13 +60,20 @@ class CancelContext:
 
     @property
     def deadline(self) -> Optional[float]:
+        if not self.started():
+            raise RuntimeError("Deadline accessed before `start` called")
         return self._deadline
 
     def cancel(self):
         if self._mark_cancelled():
             if self._cancel is not None:
                 logger.debug("Cancelling %r with %r", self, self._cancel)
-                self._cancel()
+                if self._loop:
+                    # Cancellation is not thread safe sometimes and this can be called
+                    # by another thread via chaining
+                    call_in_loop(self._loop, self._cancel)
+                else:
+                    self._cancel()
 
             for ctx in self._chained:
                 logger.debug("%r cancelling chained context %r", self, ctx)
@@ -120,6 +127,16 @@ class CancelContext:
             self._completed = True
             return True
 
+    def start(self):
+        # Start can be called multiple times without effect
+        with self._lock:
+            if not self._started:
+                self._deadline = get_deadline(self._timeout)
+                self._started = True
+
+    def started(self):
+        return self._started
+
     def chain(self, ctx: "CancelContext", bidirectional: bool = False) -> None:
         """
         When this context is cancelled, cancel the given context as well.
@@ -137,6 +154,7 @@ class CancelContext:
             ctx.chain(self)
 
     def __enter__(self):
+        self.start()
         return self
 
     def __exit__(self, *_):
@@ -334,7 +352,7 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         # Cancel this context
         raise (
             TimeoutError()
-            if timeout is not None and time.monotonic() >= ctx._deadline
+            if timeout is not None and time.monotonic() >= ctx.deadline
             else CancelledError()
         )
 

@@ -62,7 +62,6 @@ class Call(Generic[T]):
     context: contextvars.Context
     cancel_context: CancelContext
     runner: Optional["Portal"] = None
-    waiter: Optional["Portal"] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -79,7 +78,7 @@ class Call(Generic[T]):
         """
         Set the timeout for the call.
 
-        WARNING: The timeout begins immediately, not when the call starts.
+        The timeout begins when the call starts.
         """
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
@@ -95,27 +94,6 @@ class Call(Generic[T]):
             raise RuntimeError("The portal is already set for this call.")
 
         self.runner = portal
-
-    def set_waiter(self, portal: "Portal") -> None:
-        """
-        Set a portal to run callbacks while waiting for this call.
-        """
-        if self.waiter is not None:
-            raise RuntimeError("A waiter has already been set for this call.")
-
-        self.waiter = portal
-
-    def add_waiting_callback(self, call: "Call") -> None:
-        """
-        Send a callback to the waiter.
-        """
-        if self.waiter is None:
-            raise RuntimeError("No waiter has been configured.")
-
-        if self.future.done():
-            raise RuntimeError("The call is already done.")
-
-        self.waiter.submit(call)
 
     def run(self) -> Optional[Awaitable[T]]:
         """
@@ -188,6 +166,7 @@ class Call(Generic[T]):
     def _run_sync(self):
         try:
             with set_current_call(self):
+                self.cancel_context.start()
                 with cancel_sync_at(
                     self.cancel_context.deadline, name=self.cancel_context.name
                 ) as ctx:

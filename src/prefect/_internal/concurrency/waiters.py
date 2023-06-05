@@ -6,7 +6,9 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
+from collections import deque
 import inspect
+import weakref
 import queue
 import threading
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
@@ -20,8 +22,33 @@ from prefect.logging import get_logger
 
 T = TypeVar("T")
 
-# TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.waiters")
+
+
+# Waiters are stored in a stack for each thread
+_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+    """
+    Get the current waiter for a thread.
+
+    Returns `None` if one does not exist.
+    """
+    waiters = _WAITERS_BY_THREAD.get(thread)
+    return waiters[-1] if waiters else None
+
+
+def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
+    """
+    Add a waiter for a thread.
+    """
+    if thread not in _WAITERS_BY_THREAD:
+        _WAITERS_BY_THREAD[thread] = deque()
+
+    _WAITERS_BY_THREAD[thread].append(waiter)
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -36,10 +63,11 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        call.set_waiter(self)
         self._call = call
         self._owner_thread = threading.current_thread()
 
+        # Set the waiter for the current thread
+        add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
     @abc.abstractmethod
@@ -69,6 +97,9 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError(f"The call {self._call} is already done.")
+
         self._queue.put_nowait(call)
         call.set_runner(self)
         return call
@@ -114,6 +145,7 @@ class SyncWaiter(Waiter[T]):
             # Wait for the future to be done
             self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
 
 
@@ -133,6 +165,11 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError(f"The call {self._call} is already done.")
+
+        call.set_runner(self)
+
         if not self._queue:
             # If the loop is not yet available, just push the call to a stack
             self._early_submissions.append(call)
@@ -140,13 +177,13 @@ class AsyncWaiter(Waiter[T]):
 
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
-        call.set_runner(self)
         return call
 
     def _resubmit_early_submissions(self):
         assert self._queue
         for call in self._early_submissions:
-            self.submit(call)
+            # We must put items in the queue from the event loop that owns it
+            call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         self._early_submissions = []
 
     async def _handle_waiting_callbacks(self):
@@ -220,4 +257,5 @@ class AsyncWaiter(Waiter[T]):
             # Wait for the future to be done
             await self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call

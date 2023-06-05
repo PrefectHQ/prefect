@@ -21,6 +21,7 @@ import logging
 import os
 import signal
 import prefect.plugins
+import threading
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
@@ -179,6 +180,7 @@ def enter_flow_run_engine_from_flow_call(
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
+        user_thread=threading.current_thread(),
     )
 
     # On completion of root flows, wait for the global thread to ensure that
@@ -233,7 +235,11 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     setup_logging()
 
     state = from_sync.wait_for_call_in_loop_thread(
-        create_call(retrieve_flow_then_begin_flow_run, flow_run_id),
+        create_call(
+            retrieve_flow_then_begin_flow_run,
+            flow_run_id,
+            user_thread=threading.current_thread(),
+        ),
         contexts=[capture_sigterm()],
     )
 
@@ -248,6 +254,7 @@ async def create_then_begin_flow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -295,7 +302,11 @@ async def create_then_begin_flow_run(
         )
     else:
         state = await begin_flow_run(
-            flow=flow, flow_run=flow_run, parameters=parameters, client=client
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            client=client,
+            user_thread=user_thread,
         )
 
     if return_type == "state":
@@ -308,7 +319,9 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: PrefectClient
+    flow_run_id: UUID,
+    client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -371,6 +384,7 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run=flow_run,
         parameters=parameters,
         client=client,
+        user_thread=user_thread,
     )
 
 
@@ -379,6 +393,7 @@ async def begin_flow_run(
     flow_run: FlowRun,
     parameters: Dict[str, Any],
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -451,6 +466,7 @@ async def begin_flow_run(
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
+            user_thread=user_thread,
         )
 
     if terminal_or_paused_state.is_paused():
@@ -490,6 +506,7 @@ async def create_and_begin_subflow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -621,6 +638,7 @@ async def create_and_begin_subflow_run(
                         result_factory=result_factory,
                         log_prints=log_prints,
                     ),
+                    user_thread=user_thread,
                 )
 
     # Display the full state (including the result) if debugging
@@ -649,6 +667,7 @@ async def orchestrate_flow_run(
     interruptible: bool,
     client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
+    user_thread: threading.Thread,
 ) -> State:
     """
     Executes a flow run.
@@ -733,7 +752,7 @@ async def orchestrate_flow_run(
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
                 # This check for a parent call is needed for cases where the engine
-                # was entered directly which should only occur during testing
+                # was entered directly during testing
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -743,8 +762,8 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.call_soon_in_waiter_thread(
-                        flow_call, timeout=flow.timeout_seconds
+                    from_async.call_soon_in_waiting_thread(
+                        flow_call, thread=user_thread, timeout=flow.timeout_seconds
                     )
                 else:
                     from_async.call_soon_in_new_thread(

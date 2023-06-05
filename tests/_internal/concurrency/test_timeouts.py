@@ -39,6 +39,27 @@ async def test_cancel_context():
     cancel.assert_called_once_with()
 
 
+async def test_cancel_context_deadline_not_set_yet():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    with pytest.raises(RuntimeError, match="Deadline accessed before `start` called"):
+        ctx.deadline
+
+
+async def test_cancel_context_deadline_set_on_start():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    ctx.start()
+    assert ctx.deadline == pytest.approx(time.monotonic() + 1, abs=0.25)
+
+
+async def test_cancel_context_deadline_set_on_context_manager():
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
+    with ctx:
+        assert ctx.deadline == pytest.approx(time.monotonic() + 1, abs=0.25)
+
+
 async def test_cancel_context_chain():
     cancel1 = MagicMock()
     cancel2 = MagicMock()
@@ -398,3 +419,29 @@ def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
     assert ctx.cancelled()
     assert t1 - t0 < 1
     mock_alarm_signal_handler.assert_not_called()
+
+
+def test_cancel_sync_after_nested_in_main_thread_inner_fails():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(2) as ctx:
+            with cancel_sync_after(0.1) as ctx:
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert ctx.cancelled()
+    assert t1 - t0 < 1
+
+
+@pytest.mark.xfail
+def test_cancel_sync_after_nested_in_main_thread_outer_fails():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as outer:
+            # xfail: Overrides the inner handler and does not raise
+            with cancel_sync_after(2):
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert outer.cancelled()
+    assert t1 - t0 < 1
