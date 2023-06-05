@@ -375,7 +375,7 @@ Once you've confirmed that these fields are set to their desired values, this st
             dockerfile: auto
     ```
 
-    Note that the `id` field is used on the `run_shell_script` step so that its output can be referenced in the next step.
+    Note that the `id` field is used in the `run_shell_script` step so that its output can be referenced in the next step.
 
 ### The Push Section
 
