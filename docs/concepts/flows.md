@@ -266,7 +266,7 @@ A task that represents a subflow will be annotated as such in its `state_details
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
     
 !!! warning "Cancelling subflow runs"
-    A deployment is required for cancellation of a flow run. This means that subflow runs created without run_deployment cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment). 
+    A deployment is required for cancellation of a flow run. This means that subflow runs created without `run_deployment` cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment). 
     
 
 ```python
@@ -770,7 +770,7 @@ You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, o
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 !!! warning "An agent is required"
-    Flow run cancellation requires the flow run to be submitted by an agent or worker and for an agent or worker to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet. This means that subflow runs created without run_deployment cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment).  
+    Flow run cancellation requires the flow run to be submitted by an agent or worker and for an agent or worker to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet. This means that subflow runs created without `run_deployment` cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment).  
 
 Support for cancellation is included for all core library infrastructure types:
 
