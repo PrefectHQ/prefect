@@ -129,7 +129,6 @@ def test_sync_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
-@pytest.mark.timeout(0)  # pytest-timeout causes a deadlock in this test
 def test_sync_waiter_timeout_in_main_thread():
     """
     In this test, a timeout is raised due to a slow call that is sent back to the main
@@ -195,7 +194,6 @@ async def test_async_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
-@pytest.mark.timeout(0)  # pytest-timeout causes a deadlock in this test
 async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
     waiting_callback = Call.new(asyncio.sleep, 1)
