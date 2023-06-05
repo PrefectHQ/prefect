@@ -11,6 +11,7 @@ import pytest
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
     CancelledError,
+    TimeoutError,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,

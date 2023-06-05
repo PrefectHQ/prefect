@@ -24,6 +24,10 @@ class CancelledError(asyncio.CancelledError):
     pass
 
 
+class TimeoutError(CancelledError):
+    pass
+
+
 class CancelContext:
     """
     Tracks if a cancel context manager was cancelled.
