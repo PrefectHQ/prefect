@@ -265,8 +265,8 @@ A task that represents a subflow will be annotated as such in its `state_details
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
     
-!!! warning "Cancelling sub flow runs"
-    Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
+!!! warning "Cancelling subflow runs"
+    Subflow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/#prefect.deployments.run_deployment). 
     
 
 ```python
