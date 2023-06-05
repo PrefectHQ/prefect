@@ -7,6 +7,7 @@ import sys
 
 import pendulum
 import rich.console
+from rich.theme import Theme
 import typer
 import typer.core
 
@@ -75,6 +76,7 @@ def main(
     app.console = rich.console.Console(
         highlight=False,
         color_system="auto" if PREFECT_CLI_COLORS else None,
+        theme=Theme({"prompt.choices": "bold blue"}),
         # `soft_wrap` disables wrapping when `True`
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
     )
