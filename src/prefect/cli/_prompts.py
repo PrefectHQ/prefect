@@ -132,6 +132,9 @@ class IntervalValuePrompt(PromptBase[timedelta]):
 
 
 def prompt_interval_schedule(console):
+    """
+    Prompt the user for an interval in seconds.
+    """
     interval = IntervalValuePrompt.ask(
         "[bold][green]?[/] Seconds between scheduled runs",
         console=console,
@@ -168,6 +171,9 @@ class CronTimezonePrompt(PromptBase[str]):
 
 
 def prompt_cron_schedule(console):
+    """
+    Prompt the user for a cron string and timezone.
+    """
     cron = CronStringPrompt.ask(
         "[bold][green]?[/] Cron string",
         console=console,
@@ -207,6 +213,9 @@ class RRuleTimezonePrompt(PromptBase[str]):
 
 
 def prompt_rrule_schedule(console):
+    """
+    Prompts the user to enter an RRule string and timezone.
+    """
     rrule = RRuleStringPrompt.ask(
         "[bold][green]?[/] RRule string",
         console=console,
@@ -222,7 +231,9 @@ def prompt_rrule_schedule(console):
 
 
 def prompt_schedule_type(console):
-    """ """
+    """
+    Prompts the user to select a schedule type from a list of options.
+    """
     selection = prompt_select_from_table(
         console,
         "What type of schedule would you like to use?",

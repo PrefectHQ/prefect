@@ -1187,7 +1187,7 @@ class TestSchedules:
             ),
             expected_code=0,
             expected_output_contains=[
-                "? Interval (in seconds)",
+                "? Seconds between scheduled runs",
                 "Please enter a valid interval denoted in seconds",
                 "Interval must be greater than 0",
             ],
