@@ -230,17 +230,17 @@ def prompt_schedule_type(console):
         ],
         [
             {
-                "type": "Cron",
-                "description": (
-                    "Allows you to define recurring flow runs based on a specified"
-                    " pattern using cron syntax."
-                ),
-            },
-            {
                 "type": "Interval",
                 "description": (
                     "Allows you to set flow runs to be executed at fixed time"
                     " intervals."
+                ),
+            },
+            {
+                "type": "Cron",
+                "description": (
+                    "Allows you to define recurring flow runs based on a specified"
+                    " pattern using cron syntax."
                 ),
             },
             {

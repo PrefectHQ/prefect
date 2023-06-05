@@ -807,12 +807,13 @@ class TestProjectDeploy:
             expected_output_contains="An entrypoint or flow name must be provided.",
         )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_interactive(self, work_pool, prefect_client):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -p {work_pool.name}",
+            command=(
+                f"deploy ./flows/hello.py:my_flow -p {work_pool.name} --interval 3600"
+            ),
             expected_code=0,
             user_input="test-prompt-name" + readchar.key.ENTER,
             expected_output_contains=[
@@ -839,14 +840,13 @@ class TestProjectDeploy:
             ],
         )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_work_pool_interactive(
         self, work_pool, prefect_client
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name",
+            command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
             user_input=readchar.key.ENTER,
             expected_output_contains=[
@@ -879,8 +879,7 @@ class TestProjectDeploy:
             ),
         )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_prefect_agent_work_pool_interactive(
         self, work_pool, prefect_client, default_agent_pool
     ):
@@ -888,7 +887,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p"
-                f" {default_agent_pool.name}"
+                f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
             user_input=readchar.key.ENTER,
@@ -908,14 +907,13 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == work_pool.name
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_no_available_work_pool_interactive(
         self, prefect_client, default_agent_pool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name",
+            command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
             user_input=(
                 # Accept creating a new work pool
@@ -1158,6 +1156,170 @@ class TestSchedules:
             expected_code=1,
             expected_output="Only one schedule type can be provided.",
         )
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_interval_schedule_interactive(
+        self, prefect_client, work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                +
+                # Select interval schedule
+                readchar.key.ENTER
+                +
+                # Enter invalid interval
+                "bad interval"
+                + readchar.key.ENTER
+                +
+                # Enter another invalid interval
+                "0"
+                + readchar.key.ENTER
+                +
+                # Enter valid interval
+                "42"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "? Interval (in seconds)",
+                "Please enter a valid interval denoted in seconds",
+                "Interval must be greater than 0",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.interval == timedelta(seconds=42)
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_cron_schedule_interactive(self, prefect_client, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                +
+                # Select cron schedule
+                readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # Enter invalid cron string
+                "bad cron string"
+                + readchar.key.ENTER
+                +
+                # Enter cron
+                "* * * * *"
+                + readchar.key.ENTER
+                +
+                # Enter invalid timezone
+                "bad timezone"
+                + readchar.key.ENTER
+                +
+                # Select default timezone
+                readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "? Cron string",
+                "Please enter a valid cron string",
+                "? Timezone",
+                "Please enter a valid timezone",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule.cron == "* * * * *"
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_rrule_schedule_interactive(self, prefect_client, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                +
+                # Select rrule schedule
+                readchar.key.DOWN
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # Enter invalid rrule string
+                "bad rrule string"
+                + readchar.key.ENTER
+                +
+                # Enter valid rrule string
+                "FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z"
+                + readchar.key.ENTER
+                # Enter invalid timezone
+                + "bad timezone"
+                + readchar.key.ENTER
+                +
+                # Select default timezone
+                readchar.key.ENTER
+            ),
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert (
+            deployment.schedule.rrule
+            == "FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z"
+        )
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_no_schedule_interactive(self, prefect_client, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Decline schedule creation
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule is None
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_no_schedule_interactive_with_ci_flag(
+        self, prefect_client, work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --pool"
+                f" {work_pool.name} --ci"
+            ),
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule is None
 
 
 class TestMultiDeploy:
@@ -1442,8 +1604,9 @@ class TestMultiDeploy:
         )
         deployment.name = "from-cli-name"
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_deploy_without_name_in_deployment_yaml(
-        self, project_dir, prefect_client, work_pool
+        self, prefect_client, work_pool
     ):
         # Create multiple deployments with one missing a name
         deployments = {
@@ -1452,11 +1615,13 @@ class TestMultiDeploy:
                     "entrypoint": "./flows/hello.py:my_flow",
                     "name": "test-name-1",
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
                 {
                     "entrypoint": "./flows/hello.py:my_flow",
                     # Missing name
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
             ]
         }
@@ -1479,8 +1644,7 @@ class TestMultiDeploy:
                 "An important name/test-name-2"
             )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_deployment_yaml_interactive(
         self, prefect_client, work_pool
     ):
@@ -1491,11 +1655,13 @@ class TestMultiDeploy:
                     "entrypoint": "./flows/hello.py:my_flow",
                     "name": "test-name-1",
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
                 {
                     "entrypoint": "./flows/hello.py:my_flow",
                     # Missing name
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
             ]
         }
@@ -1521,8 +1687,7 @@ class TestMultiDeploy:
             "An important name/test-name-2"
         )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_deployment_yaml_interactive_user_skips(
         self, prefect_client: PrefectClient, work_pool
     ):
@@ -1533,11 +1698,13 @@ class TestMultiDeploy:
                     "entrypoint": "./flows/hello.py:my_flow",
                     "name": "test-name-1",
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
                 {
                     "entrypoint": "./flows/hello.py:my_flow",
                     # Missing name
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
             ]
         }
@@ -1551,7 +1718,7 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy --all",
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input="n" + readchar.key.ENTER,
             expected_output_contains=[
                 "Discovered unnamed deployment.",
                 "Would you like to give this deployment a name and deploy it?",
@@ -1847,8 +2014,7 @@ class TestMultiDeploy:
             ],
         )
 
-    @pytest.mark.usefixtures("interactive_console")
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_select_from_existing_deployments(
         self, work_pool, prefect_client
     ):
@@ -1858,11 +2024,13 @@ class TestMultiDeploy:
                     "name": "test-name-1",
                     "description": "test-description-1",
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
                 {
                     "name": "test-name-2",
                     "description": "test-description-2",
                     "work_pool": {"name": work_pool.name},
+                    "schedule": {"interval": 3600},
                 },
             ]
         }

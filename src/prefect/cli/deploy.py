@@ -158,6 +158,14 @@ async def deploy(
             " provided, this flag will be ignored."
         ),
     ),
+    ci: bool = typer.Option(
+        False,
+        "--ci",
+        help=(
+            "Run this command in CI mode. This will disable interactive prompts and"
+            " will error if any required arguments are not provided."
+        ),
+    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
@@ -231,6 +239,7 @@ async def deploy(
                     project=project,
                     names=names,
                     deploy_all=deploy_all,
+                    ci=ci,
                 )
             elif len(names) == 1:
                 deployment = next(
@@ -247,12 +256,10 @@ async def deploy(
                     )
                     options["name"] = names[0]
                 await _run_single_deploy(
-                    base_deploy=deployment,
-                    project=project,
-                    options=options,
+                    base_deploy=deployment, project=project, options=options, ci=ci
                 )
             else:
-                if not is_interactive():
+                if not is_interactive() or ci:
                     exit_with_error(
                         "Discovered multiple deployments declared in deployment.yaml,"
                         " but no name was given. Please specify the name of at least"
@@ -275,6 +282,7 @@ async def deploy(
                     base_deploy=selected_deployment,
                     project=project,
                     options=options,
+                    ci=ci,
                 )
         elif len(deployments) <= 1:
             if len(names) > 1:
@@ -289,13 +297,14 @@ async def deploy(
                     base_deploy=deployments[0] if deployments else {},
                     project=project,
                     options=options,
+                    ci=ci,
                 )
     except ValueError as exc:
         exit_with_error(str(exc))
 
 
 async def _run_single_deploy(
-    base_deploy: Dict, project: Dict, options: Optional[Dict] = None
+    base_deploy: Dict, project: Dict, options: Optional[Dict] = None, ci: bool = False
 ):
     base_deploy = deepcopy(base_deploy) if base_deploy else {}
     project = deepcopy(project) if project else {}
@@ -396,7 +405,7 @@ async def _run_single_deploy(
     base_deploy["entrypoint"] = entrypoint
 
     if not name:
-        if not is_interactive():
+        if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
         name = prompt("Deployment name", default="default")
 
@@ -432,7 +441,14 @@ async def _run_single_deploy(
     base_deploy["parameters"].update(parameters)
 
     # update schedule
-    schedule = _construct_schedule(cron, timezone, interval, rrule, interval_anchor)
+    schedule = _construct_schedule(
+        cron=cron,
+        timezone=timezone,
+        interval=interval,
+        rrule=rrule,
+        interval_anchor=interval_anchor,
+        ci=ci,
+    )
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
@@ -493,7 +509,7 @@ async def _run_single_deploy(
 
                 # dont allow submitting to prefect-agent typed work pools
                 if work_pool.type == "prefect-agent":
-                    if not is_interactive():
+                    if not is_interactive() or ci:
                         raise ValueError(
                             "Cannot create a project-style deployment with work pool of"
                             " type 'prefect-agent'. If you wish to use an agent with"
@@ -519,7 +535,7 @@ async def _run_single_deploy(
                     style="red",
                 )
         else:
-            if not is_interactive():
+            if not is_interactive() or ci:
                 raise ValueError(
                     "A work pool is required to deploy this flow. Please specify a work"
                     " pool name via the '--pool' flag or in your deployment.yaml file."
@@ -594,7 +610,9 @@ async def _run_single_deploy(
             )
 
 
-async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False):
+async def _run_multi_deploy(
+    base_deploys, project, names=None, deploy_all=False, ci=False
+):
     base_deploys = deepcopy(base_deploys) if base_deploys else []
     project = deepcopy(project) if project else {}
     names = names or []
@@ -603,10 +621,11 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
         app.console.print("Deploying all deployments for current project...")
         for base_deploy in base_deploys:
             if base_deploy.get("name") is None:
-                if not is_interactive():
+                if not is_interactive() or ci:
                     app.console.print(
                         "Discovered unnamed deployment. Skipping...", style="yellow"
                     )
+                    continue
                 app.console.print("Discovered unnamed deployment.", style="yellow")
                 app.console.print_json(data=base_deploy)
                 if confirm(
@@ -736,6 +755,7 @@ def _construct_schedule(
     interval: Optional[int] = None,
     interval_anchor: Optional[str] = None,
     rrule: Optional[str] = None,
+    ci: bool = False,
 ):
     schedule = None
     if cron:
@@ -761,10 +781,14 @@ def _construct_schedule(
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
     else:
-        if is_interactive() and confirm(
-            "Would you like to schedule when this flow runs?",
-            default=True,
-            console=app.console,
+        if (
+            not ci
+            and is_interactive()
+            and confirm(
+                "Would you like to schedule when this flow runs?",
+                default=True,
+                console=app.console,
+            )
         ):
             schedule = prompt_schedule(app.console)
 
