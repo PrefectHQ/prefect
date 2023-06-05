@@ -16,9 +16,17 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.timeouts import (
-    CancelContext,
+    CancelledError,
+    TimeoutError,
     cancel_async_at,
+    get_deadline,
     cancel_sync_at,
+)
+from concurrent.futures._base import (
+    CANCELLED,
+    CANCELLED_AND_NOTIFIED,
+    FINISHED,
+    RUNNING,
 )
 
 from prefect._internal.concurrency.inspection import trace
@@ -47,31 +55,97 @@ def set_current_call(call: "Call"):
         current_call.reset(token)
 
 
+class Future(concurrent.futures.Future):
+    def __init__(self) -> None:
+        super().__init__()
+        self._cancel_scope = None
+        self.deadline = None
+        self._timed_out = False
+
+    def set_running_or_notify_cancel(self, timeout: Optional[float] = None):
+        self.deadline = get_deadline(timeout)
+        return super().set_running_or_notify_cancel()
+
+    @contextlib.contextmanager
+    def enforce_async_deadline(self):
+        try:
+            with cancel_async_at(self.deadline) as self._cancel_scope:
+                yield
+        except (CancelledError, TimeoutError) as exc:
+            # Report cancellation
+            if self._cancel_scope.cancelled():
+                self._timed_out = isinstance(exc, TimeoutError)
+                self.cancel()
+            raise
+
+    @contextlib.contextmanager
+    def enforce_sync_deadline(self):
+        try:
+            with cancel_sync_at(self.deadline) as self._cancel_scope:
+                yield
+        except (CancelledError, TimeoutError) as exc:
+            # Report cancellation
+            if self._cancel_scope.cancelled():
+                self._timed_out = isinstance(exc, TimeoutError)
+                self.cancel()
+            raise
+
+    def cancel(self):
+        """Cancel the future if possible.
+
+        Returns True if the future was cancelled, False otherwise. A future cannot be
+        cancelled if it has already completed.
+        """
+        with self._condition:
+            # Unlike the stdlib, we allow attempted cancellation of RUNNING futures
+            if self._state in [RUNNING]:
+                if self._cancel_scope is None:
+                    return False
+                elif not self._cancel_scope.cancelled():
+                    # Perfom cancellation
+                    if not self._cancel_scope.cancel():
+                        return False
+
+            if self._state in [FINISHED]:
+                return False
+
+            if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
+                return True
+
+            self._state = CANCELLED
+            self._condition.notify_all()
+
+        self._invoke_callbacks()
+        return True
+
+    def timed_out(self) -> bool:
+        with self._condition:
+            return self._timed_out
+
+
 @dataclasses.dataclass
 class Call(Generic[T]):
     """
     A deferred function call.
     """
 
-    future: concurrent.futures.Future
+    future: Future
     fn: Callable[..., T]
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
-    cancel_context: CancelContext
+    timeout: float
     runner: Optional["Portal"] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
         return cls(
-            future=concurrent.futures.Future(),
+            future=Future(),
             fn=__fn,
             args=args,
             kwargs=kwargs,
             context=contextvars.copy_context(),
-            cancel_context=CancelContext(
-                timeout=None, name=getattr(__fn, "__name__", str(__fn))
-            ),
+            timeout=None,
         )
 
     def set_timeout(self, timeout: Optional[float] = None) -> None:
@@ -83,10 +157,7 @@ class Call(Generic[T]):
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
-        self.cancel_context = CancelContext(
-            timeout=timeout, name=self.cancel_context.name
-        )
-        trace("Set cancel context %r for call %r", self.cancel_context, self)
+        self.timeout = timeout
 
     def set_runner(self, portal: "Portal") -> None:
         """
@@ -104,15 +175,15 @@ class Call(Generic[T]):
         All exceptions during execution of the call are captured.
         """
         # Do not execute if the future is cancelled
-        if not self.future.set_running_or_notify_cancel():
+        if not self.future.set_running_or_notify_cancel(self.timeout):
             trace("Skipping execution of cancelled call %r", self)
             return None
 
         trace(
-            "Running call %r in thread %r with cancel context %r",
+            "Running call %r in thread %r with timeout %s",
             self,
             threading.current_thread().name,
-            self.cancel_context,
+            self.timeout,
         )
 
         coro = self.context.run(self._run_sync)
@@ -147,7 +218,14 @@ class Call(Generic[T]):
 
         Not safe for use from asynchronous contexts.
         """
-        return self.future.result(timeout=timeout)
+        try:
+            return self.future.result(timeout=timeout)
+        except concurrent.futures._base.CancelledError as exc:
+            if self.cancelled():
+                if self.future.timed_out():
+                    raise TimeoutError() from exc
+                raise CancelledError() from exc
+            raise
 
     async def aresult(self):
         """
@@ -155,22 +233,28 @@ class Call(Generic[T]):
 
         For use from asynchronous contexts.
         """
-        return await asyncio.wrap_future(self.future)
+        try:
+            return await asyncio.wrap_future(self.future)
+        except asyncio.CancelledError as exc:
+            if self.cancelled():
+                if self.future.timed_out():
+                    raise TimeoutError() from exc
+                raise CancelledError() from exc
+            raise
 
     def cancelled(self) -> bool:
         """
         Check if the call was cancelled.
         """
-        return self.cancel_context.cancelled() or self.future.cancelled()
+        return self.future.cancelled()
+
+    def cancel(self) -> bool:
+        return self.future.cancel()
 
     def _run_sync(self):
         try:
             with set_current_call(self):
-                self.cancel_context.start()
-                with cancel_sync_at(
-                    self.cancel_context.deadline, name=self.cancel_context.name
-                ) as ctx:
-                    ctx.chain(self.cancel_context, bidirectional=True)
+                with self.future.enforce_sync_deadline():
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -178,29 +262,24 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
-            self.cancel_context.mark_completed()
-            self.future.set_exception(exc)
             trace("Encountered exception in call %r", self, exc_info=True)
+            if not self.future.cancelled():
+                self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:
-            self.cancel_context.mark_completed()  # noqa: F821
             self.future.set_result(result)  # noqa: F821
             trace("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
         try:
             with set_current_call(self):
-                with self.cancel_context:
-                    with cancel_async_at(
-                        self.cancel_context.deadline, name=self.cancel_context.name
-                    ) as ctx:
-                        trace("%r using async cancel scope %r", self, ctx)
-                        ctx.chain(self.cancel_context, bidirectional=True)
-                        result = await coro
+                with self.future.enforce_async_deadline():
+                    result = await coro
         except BaseException as exc:
-            self.future.set_exception(exc)
             trace("Encountered exception in async call %r", self, exc_info=True)
+            if not self.future.cancelled():
+                self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:

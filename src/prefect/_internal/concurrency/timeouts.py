@@ -6,11 +6,14 @@ import asyncio
 import contextlib
 import ctypes
 import os
+import abc
+import math
 import signal
+import anyio
 import sys
 import threading
 import time
-from typing import Callable, List, Optional, Type
+from typing import Callable, Optional, Type
 
 
 from prefect._internal.concurrency.event_loop import get_running_loop
@@ -21,70 +24,32 @@ class CancelledError(asyncio.CancelledError):
     pass
 
 
-class TimeoutError(CancelledError):
+class TimeoutError(CancelledError, TimeoutError):
     pass
 
 
-class CancelContext:
-    """
-    Tracks if a cancel context manager was cancelled.
-
-    A context cannot be marked as cancelled after it is reported as completed.
-    """
-
-    def __init__(
-        self,
-        timeout: Optional[float],
-        cancel: Optional[Callable[[], None]] = None,
-        name: Optional[str] = None,
-    ) -> None:
-        self._timeout = timeout
-        self._deadline = None
-        self._cancelled: bool = False
-        self._chained: List["CancelContext"] = []
-        self._lock = threading.Lock()
-        self._started = False
+class CancelScope(abc.ABC):
+    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
+        self.name = name
+        self.deadline = None
+        self._cancelled = False
         self._completed = False
-        self._cancel = cancel
-        self._name = name
+        self._started = False
+        self.timeout = timeout
+        self._lock = threading.Lock()
+        self._callbacks = []
+        super().__init__()
 
-    @property
-    def name(self) -> Optional[str]:
-        return self._name
+    def __enter__(self):
+        with self._lock:
+            self.deadline = get_deadline(self.timeout)
+            self.started = True
+        return self
 
-    @property
-    def timeout(self) -> Optional[float]:
-        return self._timeout
-
-    @property
-    def deadline(self) -> Optional[float]:
-        if not self.started():
-            raise RuntimeError("Deadline accessed before `start` called")
-        return self._deadline
-
-    def cancel(self):
-        if self._mark_cancelled():
-            if self._cancel is not None:
-                trace("Cancelling %r with %r", self, self._cancel)
-                self._cancel()
-
-            for ctx in self._chained:
-                trace("%r cancelling chained context %r", self, ctx)
-                try:
-                    ctx.cancel()
-                except Exception:
-                    trace(
-                        "%r encountered exception cancelling chained context %r",
-                        self,
-                        ctx,
-                        exc_info=True,
-                    )
-
-            return True
-
-        else:
-            trace("%r is already finished", self)
-            return False
+    def __exit__(self, *_):
+        with self._lock:
+            if not self._cancelled:
+                self._completed = True
 
     def cancelled(self):
         with self._lock:
@@ -94,69 +59,138 @@ class CancelContext:
         with self._lock:
             return self._completed
 
-    def _mark_cancelled(self) -> bool:
+    def cancel(self) -> bool:
         with self._lock:
+            if not self.started:
+                raise RuntimeError("Scope has not been entered.")
+
             if self._completed:
-                return False  # Do not mark completed tasks as cancelled
+                return False
 
             if self._cancelled:
-                return False  # Already marked as cancelled
+                return True
 
-            trace("Marked %r as cancelled", self)
             self._cancelled = True
+
+        for callback in self._callbacks:
+            callback()
 
         return True
 
-    def mark_completed(self) -> bool:
-        with self._lock:
-            if self._cancelled:
-                return False  # Do not mark cancelled tasks as completed
+    def add_cancel_callback(self, callback: Callable[[], None]):
+        self._callbacks.append(callback)
 
-            if self._completed:
-                trace("%r already completed", self)
-                return False  # Already marked as completed
 
-            trace("Marked %r as completed", self)
-            self._completed = True
-            return True
-
-    def start(self):
-        # Start can be called multiple times without effect
-        with self._lock:
-            if not self._started:
-                self._deadline = get_deadline(self._timeout)
-                self._started = True
-
-    def started(self):
-        return self._started
-
-    def chain(self, ctx: "CancelContext", bidirectional: bool = False) -> None:
-        """
-        When this context is cancelled, cancel the given context as well.
-
-        If this context is already cancelled, the given context will be cancelled
-        immediately.
-        """
-        with self._lock:
-            if self._cancelled:
-                ctx.cancel()
-            else:
-                self._chained.append(ctx)
-
-        if bidirectional:
-            ctx.chain(self)
+class AsyncCancelScope(CancelScope):
+    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
+        super().__init__(name=name, timeout=timeout)
+        self.loop = None
 
     def __enter__(self):
-        self.start()
+        self.loop = asyncio.get_running_loop()
+
+        super().__enter__()
+
+        # Use anyio as the cancellation enforcer because it's very complicated and they
+        # have done a good job
+        self._inner = anyio.CancelScope(
+            deadline=self.deadline if self.deadline is not None else math.inf
+        ).__enter__()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._inner.cancel_called:
+            # Mark as cancelled
+            self.cancel(throw=False)
+
+        super().__exit__(exc_type, exc_val, exc_tb)
+
+        if self.cancelled():
+            throws = (
+                TimeoutError
+                if self.timeout is not None and time.monotonic() >= self.deadline
+                else CancelledError
+            )
+
+            # Ensure cancellation error is propagated on exit
+            raise throws() from exc_val
+
+        return False
+
+    def cancel(self, throw: bool = True):
+        if not super().cancel():
+            return False
+
+        if throw:
+            if self.loop is get_running_loop():
+                self._inner.cancel()
+            else:
+                # `Task.cancel` is not thread safe
+                self.loop.call_soon_threadsafe(self._inner.cancel)
+
+        return True
+
+
+class SyncCancelScope(CancelScope):
+    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
+        super().__init__(name, timeout)
+
+    def __enter__(self):
+        super().__enter__()
+
+        if sys.platform.startswith("win"):
+            # Timeouts cannot be enforced on Windows
+            if self.timeout is not None:
+                trace(
+                    (
+                        "Entered cancel scope on Windows; %.2f timeout will not be"
+                        " enforced."
+                    ),
+                    self.timeout,
+                )
+            self._throw_cancel = lambda: None
+            return self
+
+        self.thread = threading.current_thread()
+        existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+
+        if (
+            self.thread is threading.main_thread()
+            # Avoid nested alarm handlers; it's hard to follow and they will interfere with
+            # each other
+            and not existing_alarm_handler
+            # Avoid using an alarm when there is no timeout; it's better saved for that case
+            and self.timeout is not None
+        ):
+            method = _alarm_based_timeout
+            method_name = "alarm"
+        else:
+            method = _watcher_thread_based_timeout
+            method_name = "watcher"
+
+        self._method = method(self)
+        self._throw_cancel = self._method.__enter__()
+        trace(
+            "Entered synchronous %s based cancel scope %r",
+            method_name,
+            self,
+        )
         return self
 
     def __exit__(self, *_):
-        self.mark_completed()
+        retval = super().__exit__(*_)
+        self._method.__exit__(*_)
+        return retval
 
-    def __repr__(self) -> str:
-        timeout = f" timeout={self._timeout:.2f}" if self._timeout else ""
-        name = f"for {self._name!r}" if self._name else ""
-        return f"<CancelContext {name} at {hex(id(self))} {timeout}>"
+    def cancel(self, throw: bool = True):
+        if not super().cancel():
+            return False
+
+        if throw:
+            self._throw_cancel()
+
+        return True
 
 
 def get_deadline(timeout: Optional[float]):
@@ -194,40 +228,8 @@ def cancel_async_at(deadline: Optional[float], name: Optional[str] = None):
 
     Yields a `CancelContext`.
     """
-    current_task = asyncio.current_task()
-    loop = asyncio.get_running_loop()
-    _handle = None
-
-    def cancel():
-        if loop is get_running_loop():
-            current_task.cancel()
-        else:
-            # `Task.cancel`` is not thread safe
-            loop.call_soon_threadsafe(current_task.cancel)
-
-    try:
-        with CancelContext(
-            timeout=get_timeout(deadline), cancel=cancel, name=name
-        ) as ctx:
-            if deadline is not None:
-                _handle = loop.call_at(deadline, ctx.cancel)
-            yield ctx
-
-            # Throw the cancelled error if it did not raise
-            if ctx.cancelled():
-                raise asyncio.CancelledError()
-
-    except asyncio.CancelledError as exc:
-        raise (
-            TimeoutError()
-            if deadline is not None and time.monotonic() >= deadline
-            else CancelledError()
-        ) from exc
-    else:
-        if _handle:
-            # It is not necessary to cancel the deadline handle, but it's nice to clean
-            # it up early if we can
-            _handle.cancel()
+    with AsyncCancelScope(timeout=get_timeout(deadline), name=name) as ctx:
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -274,43 +276,12 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
 
     Yields a `CancelContext`.
     """
-    if sys.platform.startswith("win"):
-        # Timeouts cannot be enforced on Windows
-        if timeout is not None:
-            trace(
-                "Entered cancel context on Windows; %.2f timeout will not be enforced.",
-                timeout,
-            )
-        yield CancelContext(timeout=None, cancel=lambda: None, name=name)
-        return
-
-    existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
-
-    if (
-        threading.current_thread() is threading.main_thread()
-        # Avoid nested alarm handlers; it's hard to follow and they will interfere with
-        # each other
-        and not existing_alarm_handler
-        # Avoid using an alarm when there is no timeout; it's better saved for that case
-        and timeout is not None
-    ):
-        method = _alarm_based_timeout
-        method_name = "alarm"
-    else:
-        method = _watcher_thread_based_timeout
-        method_name = "watcher"
-
-    with method(timeout, name=name) as ctx:
-        trace(
-            "Entered synchronous %s based cancel context %r",
-            method_name,
-            ctx,
-        )
+    with SyncCancelScope(timeout=timeout, name=name) as ctx:
         yield ctx
 
 
 @contextlib.contextmanager
-def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
+def _alarm_based_timeout(scope: CancelScope):
     """
     Enforce a timeout using an alarm.
 
@@ -326,28 +297,21 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
     if current_thread is not threading.main_thread():
         raise ValueError("Alarm based timeouts can only be used in the main thread.")
 
-    # Create a context that raises an alarm signal on cancellation
-    ctx = CancelContext(
-        timeout=timeout,
-        cancel=lambda: os.kill(os.getpid(), signal.SIGALRM),
-        name=name,
-    )
-
     previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
+    def cancel():
+        os.kill(os.getpid(), signal.SIGALRM)
+
     def sigalarm_to_error(*args):
-        trace("Cancel fired for alarm based cancel context %r", ctx)
+        trace("Cancel fired for alarm based cancel scope %r", scope)
 
-        # Ensure the context is marked as cancelled
-        ctx._cancel = None
-        ctx.cancel()
-
-        # Cancel this context
-        raise (
-            TimeoutError()
-            if timeout is not None and time.monotonic() >= ctx.deadline
-            else CancelledError()
-        )
+        if scope.cancel(throw=False):
+            # Cancel this context
+            raise (
+                TimeoutError()
+                if scope.timeout is not None and time.monotonic() >= scope.deadline
+                else CancelledError()
+            )
 
     if previous_alarm_handler != signal.SIG_DFL:
         trace(f"Overriding existing alarm handler {previous_alarm_handler}")
@@ -356,26 +320,23 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
     signal.signal(signal.SIGALRM, sigalarm_to_error)
 
     # Set a timer to raise an alarm signal
-    if timeout is not None:
+    if scope.timeout is not None:
         # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
-        previous_timer = signal.setitimer(signal.ITIMER_REAL, timeout)
+        previous_timer = signal.setitimer(signal.ITIMER_REAL, scope.timeout)
 
     try:
-        with ctx:
-            yield ctx
+        yield cancel
     finally:
-        if timeout is not None:
+        if scope.timeout is not None:
             # Restore the previous timer
             signal.setitimer(signal.ITIMER_REAL, *previous_timer)
-
-        ctx.mark_completed()
 
         # Restore the previous signal handler
         signal.signal(signal.SIGALRM, previous_alarm_handler)
 
 
 @contextlib.contextmanager
-def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] = None):
+def _watcher_thread_based_timeout(scope: SyncCancelScope):
     """
     Enforce a timeout using a watcher thread.
 
@@ -402,36 +363,35 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
         # Wait for the supervised thread to exit its context
         trace("Waiting for supervised thread to exit...")
         event.wait()
+        trace("All done!")
 
     def cancel():
         return _send_exception(CancelledError)
 
-    ctx = CancelContext(timeout=timeout, cancel=cancel, name=name)
-
     def timeout_enforcer():
-        if not event.wait(timeout):
+        if not event.wait(scope.timeout):
             trace(
-                "Cancel fired for watcher based timeout for thread %r and context %r",
+                "Cancel fired for watcher based timeout for thread %r and scope %r",
                 supervised_thread.name,
-                ctx,
+                scope,
             )
-            ctx._cancel = None  # Avoid sending a `CancelledError`
-            if ctx.cancel():
+            scope._cancel = None  # Avoid sending a `CancelledError`
+            if scope.cancel(throw=False):
                 _send_exception(TimeoutError)
 
-    if timeout is not None:
+    if scope.timeout is not None:
         enforcer = threading.Thread(
             target=timeout_enforcer,
-            name=f"timeout-watcher {name or '<unnamed>'} {timeout:.2f}",
+            name=f"timeout-watcher {scope.name or '<unnamed>'} {scope.timeout:.2f}",
         )
         enforcer.start()
 
     try:
-        yield ctx
+        yield cancel
     finally:
         event.set()
-        ctx.mark_completed()
         if enforcer:
+            trace("Joining enforcer thread %r", enforcer)
             enforcer.join()
 
 

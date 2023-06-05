@@ -111,7 +111,7 @@ class SyncWaiter(Waiter[T]):
 
             # Ensure that callbacks are cancelled if the parent call is cancelled so
             # waiting never runs longer than the call
-            self._call.cancel_context.chain(callback.cancel_context)
+            self._call.future._cancel_scope.add_cancel_callback(callback.future.cancel)
             callback.run()
             del callback
 
@@ -145,6 +145,15 @@ class SyncWaiter(Waiter[T]):
 
         _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
+
+
+def chain_cancellation(from_future, to_future):
+    def callback(_):
+        if from_future.cancelled():
+            trace("Cancelling %r due to cancellation in %r", to_future, from_future)
+            to_future.cancel()
+
+    from_future.add_done_callback(callback)
 
 
 class AsyncWaiter(Waiter[T]):
@@ -196,7 +205,9 @@ class AsyncWaiter(Waiter[T]):
 
                 # Ensure that callbacks are cancelled if the parent call is cancelled so
                 # waiting never runs longer than the call
-                self._call.cancel_context.chain(callback.cancel_context)
+                self._call.future._cancel_scope.add_cancel_callback(
+                    callback.future.cancel
+                )
                 retval = callback.run()
                 if inspect.isawaitable(retval):
                     tasks.append(retval)

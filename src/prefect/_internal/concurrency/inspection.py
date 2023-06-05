@@ -13,7 +13,7 @@ import functools
 import traceback
 
 
-@functools.lru_cache(maxsize=1)
+@functools.lru_cache
 def trace_on() -> bool:
     # We cache this to avoid overhead but to also delay checking the value until the
     # first debug statement is printed. This is not typically how we handle settings
@@ -29,7 +29,7 @@ def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
     Print a trace debugging message.
     """
     if trace_on():
-        prefix = f"{round(time.monotonic(), 3)} | {threading.current_thread().name} | "
+        prefix = f"{time.monotonic():.2f} | {threading.current_thread().name:<16} | "
         message = message % args
         message = message % kwargs
 
