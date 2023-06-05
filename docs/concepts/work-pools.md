@@ -12,8 +12,7 @@ tags:
     - priority
 ---
 
-![flow-deployment-end-to-end](https://github.com/PrefectHQ/prefect/assets/42048900/c0829d9e-73d1-4bb3-95b7-5b48be8570ae)
-
+![flow-deployment-end-to-end](https://github.com/PrefectHQ/prefect/assets/42048900/b1cfad38-6215-43c0-be4b-d1852c7563dd)
 
 # Work Pools, Workers & Agents
 
