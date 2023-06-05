@@ -383,12 +383,12 @@ def _watcher_thread_based_timeout(timeout: Optional[float], name: Optional[str] 
                 _send_exception_to_thread(supervised_thread, exc)
             except ValueError:
                 # If the thread is gone; just move on without error
-                trace("Thread missing!")
+                logger.debug("Thread missing!")
             else:
                 logger.debug("Sent exception")
 
         # Wait for the supervised thread to exit its context
-        trace("Waiting for supervised thread to exit...")
+        logger.debug("Waiting for supervised thread to exit...")
         event.wait()
 
     def cancel():
