@@ -1,5 +1,23 @@
 """
 Utility project steps that are useful for managing a project's deployment lifecycle.
+
+Steps within this module can be used within a `build`, `push`, or `pull` deployment action.
+
+Example:
+    Use the `run_shell_script` setp to retrieve the short Git commit hash of the current 
+        repository and use it as a Docker image tag:
+    ```yaml
+    build:
+        - prefect.projects.steps.run_shell_script:
+            id: get-commit-hash
+            script: git rev-parse --short HEAD
+            stream_output: false
+        - prefect_docker.projects.steps.build_docker_image:
+            requires: prefect-docker
+            image_name: my-image
+            image_tag: "{{ get-commit-hash.stdout }}"
+            dockerfile: auto
+    ```
 """
 from typing_extensions import TypedDict
 from anyio import create_task_group
@@ -82,7 +100,7 @@ async def run_shell_script(
                 id: get-commit-hash
                 script: git rev-parse --short HEAD
                 stream_output: false
-            - prefect.projects.steps.build_docker_image:
+            - prefect_docker.projects.steps.build_docker_image:
                 requires: prefect-docker
                 image_name: my-image
                 image_tag: "{{ get-commit-hash.stdout }}"
