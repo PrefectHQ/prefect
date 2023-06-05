@@ -133,7 +133,7 @@ class IntervalValuePrompt(PromptBase[timedelta]):
 
 def prompt_interval_schedule(console):
     interval = IntervalValuePrompt.ask(
-        "[bold][green]?[/] Duration between scheduled runs (in seconds)",
+        "[bold][green]?[/] Seconds between scheduled runs",
         console=console,
         default="3600",
     )
