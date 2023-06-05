@@ -421,27 +421,30 @@ def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
     mock_alarm_signal_handler.assert_not_called()
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_inner_fails():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
-        with cancel_sync_after(2) as ctx:
-            with cancel_sync_after(0.1) as ctx:
-                time.sleep(1)
+        with cancel_sync_after(2) as outer:
+            with cancel_sync_after(0.1) as inner:
+                for _ in range(10):
+                    time.sleep(0.1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled()
+    assert inner.cancelled()
+    assert not outer.cancelled()
     assert t1 - t0 < 1
 
 
-@pytest.mark.xfail
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_outer_fails():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
         with cancel_sync_after(0.1) as outer:
-            # xfail: Overrides the inner handler and does not raise
-            with cancel_sync_after(2):
+            with cancel_sync_after(2) as inner:
                 time.sleep(1)
     t1 = time.perf_counter()
 
     assert outer.cancelled()
+    assert not inner.cancelled()
     assert t1 - t0 < 1

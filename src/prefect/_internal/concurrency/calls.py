@@ -71,7 +71,9 @@ class Call(Generic[T]):
             args=args,
             kwargs=kwargs,
             context=contextvars.copy_context(),
-            cancel_context=CancelContext(timeout=None, name=__fn.__name__),
+            cancel_context=CancelContext(
+                timeout=None, name=getattr(__fn, "__name__", str(__fn))
+            ),
         )
 
     def set_timeout(self, timeout: Optional[float] = None) -> None:
@@ -83,7 +85,9 @@ class Call(Generic[T]):
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
-        self.cancel_context = CancelContext(timeout=timeout, name=self.fn.__name__)
+        self.cancel_context = CancelContext(
+            timeout=timeout, name=self.cancel_context.name
+        )
         logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
 
     def set_runner(self, portal: "Portal") -> None:

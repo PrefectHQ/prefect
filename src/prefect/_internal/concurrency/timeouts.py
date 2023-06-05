@@ -13,7 +13,7 @@ import time
 from typing import Callable, List, Optional, Type
 
 
-from prefect._internal.concurrency.event_loop import get_running_loop, call_in_loop
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.logging import get_logger
 
 logger = get_logger("prefect._internal.concurrency.timeouts")
@@ -68,12 +68,7 @@ class CancelContext:
         if self._mark_cancelled():
             if self._cancel is not None:
                 logger.debug("Cancelling %r with %r", self, self._cancel)
-                if self._loop:
-                    # Cancellation is not thread safe sometimes and this can be called
-                    # by another thread via chaining
-                    call_in_loop(self._loop, self._cancel)
-                else:
-                    self._cancel()
+                self._cancel()
 
             for ctx in self._chained:
                 logger.debug("%r cancelling chained context %r", self, ctx)
@@ -368,7 +363,8 @@ def _alarm_based_timeout(timeout: Optional[float], name: Optional[str] = None):
         previous_timer = signal.setitimer(signal.ITIMER_REAL, timeout)
 
     try:
-        yield ctx
+        with ctx:
+            yield ctx
     finally:
         if timeout is not None:
             # Restore the previous timer

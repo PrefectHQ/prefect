@@ -115,6 +115,8 @@ async def test_from_async_call_soon_in_waiting_thread_from_loop_thread(work):
     )
     assert result
 
+    wait_for_global_loop_exit()
+
 
 async def test_from_async_call_soon_in_waiting_thread_allows_concurrency():
     last_task_run = None
