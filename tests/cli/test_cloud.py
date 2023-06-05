@@ -9,7 +9,7 @@ import readchar
 from fastapi import status
 from typer import Exit
 
-from prefect.cli.cloud import LoginFailed, LoginSuccess
+from prefect.cli.cloud.cloud import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context, use_profile
 from prefect.logging.configuration import setup_logging

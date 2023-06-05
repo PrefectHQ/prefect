@@ -15,7 +15,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
+from prefect.cli.cloud.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
