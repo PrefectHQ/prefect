@@ -115,7 +115,7 @@
   })
 
   const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter], { interval: 30000 })
-  const activeFlowRunsCount = computed(() => flowRunsCountSubscription.response ?? [])
+  const activeFlowRunsCount = computed(() => flowRunsCountSubscription.response ?? 0)
 
 
   usePageTitle(title)
