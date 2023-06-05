@@ -5,6 +5,7 @@ import time
 import pytest
 
 from prefect._internal.concurrency.calls import Call
+from prefect._internal.concurrency.timeouts import TimeoutError
 
 
 def identity(x):

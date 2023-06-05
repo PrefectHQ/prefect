@@ -5,7 +5,11 @@ import pytest
 
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import WorkerThread
-from prefect._internal.concurrency.timeouts import CancelledError, get_deadline
+from prefect._internal.concurrency.timeouts import (
+    CancelledError,
+    get_deadline,
+    TimeoutError,
+)
 from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
 from prefect._internal.concurrency.inspection import stack_for_threads
 

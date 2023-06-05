@@ -40,7 +40,11 @@ from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect._internal.concurrency.timeouts import CancelledError, get_deadline
+from prefect._internal.concurrency.timeouts import (
+    CancelledError,
+    get_deadline,
+    TimeoutError,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
