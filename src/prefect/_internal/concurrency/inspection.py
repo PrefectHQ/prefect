@@ -41,8 +41,8 @@ def trace(message, *args, exc_info: bool = False, **kwargs) -> None:
 
             sys.stderr.flush()
 
-        except TimeoutError:
-            pass  # Ignore timeouts on trace output
+        except (TimeoutError, OSError):
+            pass  # Ignore timeouts or bad file descriptors on trace output
 
 
 """
