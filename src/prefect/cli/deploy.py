@@ -16,9 +16,12 @@ import prefect.context
 import prefect.settings
 from prefect.cli._utilities import (
     exit_with_error,
+)
+from prefect.cli._prompts import (
     prompt,
     confirm,
     prompt_select_from_table,
+    prompt_schedule,
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
@@ -395,7 +398,7 @@ async def _run_single_deploy(
     if not name:
         if not is_interactive():
             raise ValueError("A deployment name must be provided.")
-        name = prompt("Deployment name")
+        name = prompt("Deployment name", default="default")
 
     ## parse parameters
     # minor optimization in case we already loaded the flow
@@ -558,13 +561,24 @@ async def _run_single_deploy(
 
         if base_deploy["work_pool"]["name"] is not None:
             app.console.print(
-                "\nTo execute flow runs from this deployment, start a worker that"
-                f" pulls work from the {base_deploy['work_pool']['name']!r} work pool:"
+                "\nTo execute flow runs from this deployment, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {base_deploy['work_pool']['name']!r} work pool:"
             )
             app.console.print(
                 (
                     "\n\t$ prefect worker start --pool"
-                    f" {base_deploy['work_pool']['name']!r}\n"
+                    f" {base_deploy['work_pool']['name']!r}"
+                ),
+                style="blue",
+            )
+            app.console.print(
+                "\nTo schedule an run for this deployment, use the following command:"
+            )
+            app.console.print(
+                (
+                    "\n\t$ prefect deployment run"
+                    f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
                 ),
                 style="blue",
             )
@@ -600,7 +614,7 @@ async def _run_multi_deploy(base_deploys, project, names=None, deploy_all=False)
                     default=True,
                     console=app.console,
                 ):
-                    base_deploy["name"] = prompt("Deployment name")
+                    base_deploy["name"] = prompt("Deployment name", default="default")
                 else:
                     app.console.print("Skipping unnamed deployment.", style="yellow")
                     continue
@@ -747,54 +761,14 @@ def _construct_schedule(
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
     else:
-        if confirm(
+        if is_interactive() and confirm(
             "Would you like to schedule when this flow runs?",
             default=True,
             console=app.console,
         ):
-            schedule_cls = _prompt_schedule_type(app.console)
-            for field in schedule_cls.__fields__.values():
-                prompt(field.name)
+            schedule = prompt_schedule(app.console)
 
     return schedule
-
-
-def _prompt_schedule_type(console):
-    selection = prompt_select_from_table(
-        console,
-        "What type of schedule would you like to use?",
-        [
-            {"header": "Schedule Type", "key": "type"},
-            {"header": "Description", "key": "description"},
-        ],
-        [
-            {
-                "type": "Cron",
-                "description": (
-                    "Allows you to define recurring flow runs based on a specified"
-                    " pattern using cron syntax."
-                ),
-                "cls": CronSchedule,
-            },
-            {
-                "type": "Interval",
-                "description": (
-                    "Allows you to set flow runs to be executed at fixed time"
-                    " intervals."
-                ),
-                "cls": IntervalSchedule,
-            },
-            {
-                "type": "RRule",
-                "description": (
-                    "Allows you to define recurring flow runs using RFC 2445 recurrence"
-                    " rules."
-                ),
-                "cls": RRuleSchedule,
-            },
-        ],
-    )
-    return selection["cls"]
 
 
 DEFAULT_DEPLOYMENT = None
