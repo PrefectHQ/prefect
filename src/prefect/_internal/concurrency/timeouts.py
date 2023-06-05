@@ -17,6 +17,7 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.logging import get_logger
 
 logger = get_logger("prefect._internal.concurrency.timeouts")
+logger.disabled = True
 
 
 class CancelledError(asyncio.CancelledError):
