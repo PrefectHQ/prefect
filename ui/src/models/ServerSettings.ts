@@ -1,4 +1,4 @@
-import { LogLevel } from "@prefecthq/prefect-ui-library";
+import { LogLevel } from '@prefecthq/prefect-ui-library'
 
 export type ServerSettings = {
 
