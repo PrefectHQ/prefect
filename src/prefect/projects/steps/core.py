@@ -65,7 +65,7 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
 
     Steps are assumed to be in the format `{"importable.func.name": {"kwarg1": "value1", ...}}`.
 
-    The 'id and 'requires' keywords is reserved for specific purposes and will be removed from the
+    The 'id and 'requires' keywords are reserved for specific purposes and will be removed from the
     inputs before passing to the step function:
 
     This keyword is used to specify packages that should be installed before running the step.

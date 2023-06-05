@@ -58,7 +58,7 @@ async def run_shell_script(
     stream_output: bool = True,
 ) -> RunShellScriptResult:
     """
-    Runs a one or more shell commands in a subprocess. Returns the standard
+    Runs one or more shell commands in a subprocess. Returns the standard
     output and standard error of the script.
 
     Args:
