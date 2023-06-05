@@ -93,9 +93,9 @@ def apply_values(
     multiple placeholders, the placeholders will be replaced with the
     corresponding variable values.
 
-    If a template contains a placeholder that is not in `values`, UNSET will
+    If a template contains a placeholder that is not in `values`, NotSet will
     be returned to signify that no placeholder replacement occurred. If
-    `template` is a dictionary that contains a key with a value of UNSET,
+    `template` is a dictionary that contains a key with a value of NotSet,
     the key will be removed in the return value unless `remove_notset` is set to False.
 
     Args:
@@ -124,10 +124,7 @@ def apply_values(
             return get_from_dict(values, list(placeholders)[0].name, NotSet)
         else:
             for full_match, name, placeholder_type in placeholders:
-                if (
-                    get_from_dict(values, name) is not None
-                    and placeholder_type is PlaceholderType.STANDARD
-                ):
+                if placeholder_type is PlaceholderType.STANDARD:
                     template = template.replace(
                         full_match, str(get_from_dict(values, name, ""))
                     )
