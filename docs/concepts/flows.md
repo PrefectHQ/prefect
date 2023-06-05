@@ -266,7 +266,7 @@ A task that represents a subflow will be annotated as such in its `state_details
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
     
 !!! warning "Cancelling subflow runs"
-    Subflow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/#prefect.deployments.run_deployment). 
+    A deployment is required for cancellation of a flow run. This means that subflows created without run_deployment cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment). 
     
 
 ```python
@@ -772,7 +772,7 @@ When cancellation is requested, the flow run is moved to a "Cancelling" state. T
 !!! warning "An agent is required"
     Flow run cancellation requires the flow run to be submitted by an agent or worker and for an agent or worker to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet. 
 
-    Sub flow runs can only be cancelled by cancelling their parent flow run.  If you know you may need to cancel a sub flow run indpendent of its parent, we recommend using [run_deployment](https://docs.prefect.io/latest/api-ref/prefect/deployments/?h=run_deployment#prefect.deployments.run_deployment). 
+    A deployment is required for cancellation of a flow run. This means that subflows created without run_deployment cannot be cancelled without cancelling the parent flow run.  If you know you may need to cancel a subflow run independent of its parent, we recommend using [run_deployment](/api-ref/prefect/deployments/#prefect.deployments.run_deployment).  
 
 Support for cancellation is included for all core library infrastructure types:
 
