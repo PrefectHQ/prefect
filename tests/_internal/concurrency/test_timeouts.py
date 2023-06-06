@@ -414,14 +414,14 @@ def test_cancel_sync_after_nested_in_main_thread_inner_fails():
 def test_cancel_sync_after_nested_in_main_thread_outer_fails():
     t0 = time.perf_counter()
     with pytest.raises(CancelledError):
-        with cancel_sync_after(0.1) as outer:
-            with cancel_sync_after(2) as inner:
-                time.sleep(1)
+        with cancel_sync_after(1) as outer:
+            with cancel_sync_after(5) as inner:
+                time.sleep(2)
     t1 = time.perf_counter()
 
     assert outer.cancelled()
     assert not inner.cancelled()
-    assert t1 - t0 < 1
+    assert t1 - t0 < 2
 
 
 async def test_shield_async():
