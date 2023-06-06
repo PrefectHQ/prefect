@@ -783,19 +783,25 @@ async def orchestrate_flow_run(
             name = message = None
             if (
                 # Flow run timeouts
-                isinstance(exc, (CancelledError, TimeoutError))
+                isinstance(exc, CancelledError)
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
                 and flow_call.cancelled()
             ):
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
+                # Construct a new exception as `TimeoutError`
+                original = exc
+                exc = TimeoutError()
+                exc.__cause__ = original
                 message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
             else:
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
                 logger.exception("Encountered exception during execution:")
+
             terminal_state = await exception_to_failed_state(
+                exc=exc,
                 name=name,
                 message=message,
                 result_factory=flow_run_context.result_factory,

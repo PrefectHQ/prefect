@@ -16,6 +16,7 @@ from prefect._internal.concurrency.timeouts import (
     cancel_sync_after,
     cancel_sync_at,
     get_deadline,
+    shield,
 )
 
 
@@ -379,3 +380,89 @@ def test_cancel_sync_after_nested_in_main_thread_outer_fails():
     assert outer.cancelled()
     assert not inner.cancelled()
     assert t1 - t0 < 1
+
+
+async def test_shield_async():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_async_after(0.1) as scope:
+            with shield():
+                await asyncio.sleep(1)
+            await asyncio.sleep(1)
+    t1 = time.perf_counter()
+
+    assert scope.cancelled()
+    assert t1 - t0 > 1
+    assert t1 - t0 < 2
+
+
+async def test_shield_async_nested():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_async_after(0.1) as scope:
+            with shield():
+                await asyncio.sleep(0.5)
+                with shield():
+                    await asyncio.sleep(0.5)
+            await asyncio.sleep(1)
+    t1 = time.perf_counter()
+
+    assert scope.cancelled()
+    assert t1 - t0 > 1
+    assert t1 - t0 < 2
+
+
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+def test_shield_sync_in_main_thread():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as scope:
+            with shield():
+                time.sleep(1)
+            time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert scope.cancelled()
+    assert t1 - t0 > 1
+    assert t1 - t0 < 2
+
+
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+def test_shield_sync_in_main_thread_nested():
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as scope:
+            with shield():
+                time.sleep(0.5)
+                with shield():
+                    time.sleep(0.5)
+            time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert scope.cancelled()
+    assert t1 - t0 > 1
+    assert t1 - t0 < 2
+
+
+def test_shield_sync_in_worker_thread_nested():
+    def on_worker_thread():
+        t0 = time.perf_counter()
+        with pytest.raises(TimeoutError):
+            with cancel_sync_after(0.1) as scope:
+                with shield():
+                    for _ in range(5):
+                        time.sleep(0.1)
+                    with shield():
+                        for _ in range(5):
+                            time.sleep(0.1)
+                for _ in range(10):
+                    time.sleep(0.1)
+        t1 = time.perf_counter()
+        return t1 - t0, scope
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(on_worker_thread)
+        elapsed_time, scope = future.result()
+
+    assert elapsed_time > 1
+    assert elapsed_time < 2

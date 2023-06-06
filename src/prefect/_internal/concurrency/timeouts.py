@@ -8,24 +8,103 @@ import ctypes
 import os
 import abc
 import math
+import concurrent.futures
 import signal
 import anyio
 import sys
 import threading
 import time
-from typing import Callable, Optional, Type
+from typing import Callable, Optional, Type, Dict
 
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.inspection import trace
 
+_THREAD_SHIELDS: Dict[threading.Thread, "ThreadShield"] = {}
+_THREAD_SHIELDS_LOCK = threading.Lock()
 
-class CancelledError(asyncio.CancelledError):
+
+class ThreadShield:
+    """
+    A wrapper around a reentrant lock for shielding a thread from remote exceptions.
+    This can be used in two ways:
+
+    1. As a context manager from _another_ thread to wait until the shield is released
+      by a target before sending an exception.
+
+    2. From the current thread, using `set_exception` to throw the exception when the
+      shield is released.
+
+    A reentrant lock means that shields can be nested and the exception will only be
+    raised when the last context is exited.
+    """
+
+    def __init__(self):
+        # Uses the Python implementation of the RLock instead of the C implementation
+        # because we need to inspect `_count` directly to check if the lock is active
+        # which is needed for delayed exception raising during alarms
+        self._lock = threading._RLock()
+        self._exception = None
+
+    def __enter__(self) -> None:
+        self._lock.__enter__()
+
+    def __exit__(self, *exc_info):
+        retval = self._lock.__exit__(*exc_info)
+
+        # Raise the exception if this is the last shield to exit
+        if not self.active() and self._exception:
+            # Clear the exception to prevent it from being raised again
+            exc = self._exception
+            self._exception = None
+            raise exc from None
+
+        return retval
+
+    def set_exception(self, exc: Exception):
+        self._exception = exc
+
+    def active(self) -> bool:
+        """
+        Returns true if the shield is active.
+        """
+        return self._lock._count > 0
+
+
+class CancelledError(asyncio.CancelledError, concurrent.futures.CancelledError):
     pass
 
 
 class TimeoutError(CancelledError, TimeoutError):
     pass
+
+
+def _get_thread_shield(thread) -> ThreadShield:
+    with _THREAD_SHIELDS_LOCK:
+        if thread not in _THREAD_SHIELDS:
+            _THREAD_SHIELDS[thread] = ThreadShield()
+
+        # Perform garbage collection for old threads
+        for thread_ in tuple(_THREAD_SHIELDS.keys()):
+            if not thread_.is_alive():
+                _THREAD_SHIELDS.pop(thread_)
+
+        return _THREAD_SHIELDS[thread]
+
+
+@contextlib.contextmanager
+def shield():
+    """
+    Prevent code from within the scope from being cancelled.
+
+    """
+    with (
+        anyio.CancelScope(shield=True)
+        if get_running_loop()
+        else contextlib.nullcontext()
+    ):
+        with _get_thread_shield(threading.current_thread()):
+            yield
 
 
 class CancelScope(abc.ABC):
@@ -300,18 +379,25 @@ def _alarm_based_timeout(scope: CancelScope):
     previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
     def cancel():
-        os.kill(os.getpid(), signal.SIGALRM)
+        with _get_thread_shield(threading.main_thread()):
+            os.kill(os.getpid(), signal.SIGALRM)
 
     def sigalarm_to_error(*args):
         trace("Cancel fired for alarm based cancel scope %r", scope)
-
         if scope.cancel(throw=False):
             # Cancel this context
-            raise (
+            exc = (
                 TimeoutError()
                 if scope.timeout is not None and time.monotonic() >= scope.deadline
                 else CancelledError()
             )
+
+            shield = _get_thread_shield(threading.main_thread())
+            if shield.active():
+                trace("Thread shield active; delaying exception")
+                shield.set_exception(exc)
+            else:
+                raise exc
 
     if previous_alarm_handler != signal.SIG_DFL:
         trace(f"Overriding existing alarm handler {previous_alarm_handler}")
@@ -352,13 +438,14 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
     def _send_exception(exc):
         if supervised_thread.is_alive():
             trace("Sending exception to supervised thread %r", supervised_thread)
-            try:
-                _send_exception_to_thread(supervised_thread, exc)
-            except ValueError:
-                # If the thread is gone; just move on without error
-                trace("Thread missing!")
-            else:
-                trace("Sent exception")
+            with _get_thread_shield(supervised_thread):
+                try:
+                    _send_exception_to_thread(supervised_thread, exc)
+                except ValueError:
+                    # If the thread is gone; just move on without error
+                    trace("Thread missing!")
+                else:
+                    trace("Sent exception")
 
         # Wait for the supervised thread to exit its context
         trace("Waiting for supervised thread to exit...")
@@ -375,9 +462,9 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
                 supervised_thread.name,
                 scope,
             )
-            scope._cancel = None  # Avoid sending a `CancelledError`
             if scope.cancel(throw=False):
-                _send_exception(TimeoutError)
+                with _get_thread_shield(supervised_thread):
+                    _send_exception(TimeoutError)
 
     if scope.timeout is not None:
         enforcer = threading.Thread(
