@@ -13,13 +13,6 @@ class SafeLogger(logging.Logger):
 
         return level >= logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
 
-    def _log(self, *args, **kwargs):
-        from prefect._internal.concurrency.timeouts import shield
-
-        # Prevent interrupts from firing while emitting a log
-        with shield():
-            super()._log(*args, **kwargs)
-
     def getChild(self, suffix: str):
         logger = super().getChild(suffix)
         logger.__class__ = SafeLogger
