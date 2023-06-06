@@ -1674,13 +1674,17 @@ async def orchestrate_task_run(
                 name = message = None
                 if (
                     # Task run timeouts
-                    isinstance(exc, TimeoutError)
+                    isinstance(exc, CancelledError)
                     and timeout_scope
                     # Only update the message if the timeout was actually encountered since
                     # this could be a timeout in the user's code
                     and timeout_scope.cancel_called
                 ):
                     name = "TimedOut"
+                    # Construct a new exception as `TimeoutError`
+                    original = exc
+                    exc = TimeoutError()
+                    exc.__cause__ = original
                     message = (
                         f"Task run exceeded timeout of {task.timeout_seconds} seconds"
                     )
