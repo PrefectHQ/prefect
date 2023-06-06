@@ -61,4 +61,7 @@ class SafeLogger(logging.Logger):
             super()._log(*args, **kwargs)
 
 
-logger = SafeLogger("prefect._internal.concurrency")
+# Use `getLogger` to retain `logger.Manager` behavior
+logger = logging.getLogger("prefect._internal.concurrency")
+# Update the class to inject patched behavior
+logger.__class__ = SafeLogger
