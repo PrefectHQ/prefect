@@ -151,7 +151,7 @@ class CancelScope(abc.ABC):
 
     def timedout(self) -> bool:
         with self._lock:
-            if not self._end_time:
+            if not self._end_time or not self._deadline:
                 return False
             return self._cancelled and self._end_time > self._deadline
 

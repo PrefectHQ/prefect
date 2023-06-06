@@ -62,11 +62,12 @@ class Future(concurrent.futures.Future):
     Used by `Call`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: Optional[str] = None) -> None:
         super().__init__()
         self._cancel_scope = None
         self._deadline = None
         self._cancel_callbacks = []
+        self._name = name
         self._timed_out = False
 
     def set_running_or_notify_cancel(self, timeout: Optional[float] = None):
@@ -75,36 +76,17 @@ class Future(concurrent.futures.Future):
 
     @contextlib.contextmanager
     def enforce_async_deadline(self):
-        # TODO: Consider moving to `Call` interface instead
-        try:
-            with cancel_async_at(self._deadline) as self._cancel_scope:
-                for callback in self._cancel_callbacks:
-                    self._cancel_scope.add_cancel_callback(callback)
-                yield
-        except CancelledError:
-            # Report cancellation
-            if self._cancel_scope.timedout():
-                self._timed_out = True
-                self.cancel()
-            elif self._cancel_scope.cancelled():
-                self.cancel()
-            raise
+        with cancel_async_at(self._deadline, name=self._name) as self._cancel_scope:
+            for callback in self._cancel_callbacks:
+                self._cancel_scope.add_cancel_callback(callback)
+            yield self._cancel_scope
 
     @contextlib.contextmanager
     def enforce_sync_deadline(self):
-        try:
-            with cancel_sync_at(self._deadline) as self._cancel_scope:
-                for callback in self._cancel_callbacks:
-                    self._cancel_scope.add_cancel_callback(callback)
-                yield
-        except CancelledError:
-            # Report cancellation
-            if self._cancel_scope.timedout():
-                self._timed_out = True
-                self.cancel()
-            elif self._cancel_scope.cancelled():
-                self.cancel()
-            raise
+        with cancel_sync_at(self._deadline, name=self._name) as self._cancel_scope:
+            for callback in self._cancel_callbacks:
+                self._cancel_scope.add_cancel_callback(callback)
+            yield self._cancel_scope
 
     def add_cancel_callback(self, callback: Callable[[], None]):
         """
@@ -215,7 +197,7 @@ class Call(Generic[T]):
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
         return cls(
-            future=Future(),
+            future=Future(name=getattr(__fn, "__name__", str(__fn))),
             fn=__fn,
             args=args,
             kwargs=kwargs,
@@ -324,23 +306,28 @@ class Call(Generic[T]):
         return self.future.cancel()
 
     def _run_sync(self):
+        cancel_scope = None
         try:
             with set_current_call(self):
-                with self.future.enforce_sync_deadline():
+                with self.future.enforce_sync_deadline() as cancel_scope:
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
                 return result
 
+        except CancelledError:
+            # Report cancellation
+            if cancel_scope.timedout():
+                self.future._timed_out = True
+                self.future.cancel()
+            elif cancel_scope.cancelled():
+                self.future.cancel()
+            else:
+                raise
         except BaseException as exc:
             logger.debug("Encountered exception in call %r", self, exc_info=True)
-
-            # Do not set the exception if the future was cancelled as it's an invalid
-            # transition — also avoid taking a condition here to check for cancellation
-            # as it can deadlock
-            if not self.future._state == CANCELLED:
-                self.future.set_exception(exc)
+            self.future.set_exception(exc)
 
             # Prevent reference cycle in `exc`
             del self
@@ -349,19 +336,24 @@ class Call(Generic[T]):
             logger.debug("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
+        cancel_scope = None
         try:
             with set_current_call(self):
-                with self.future.enforce_async_deadline():
+                with self.future.enforce_async_deadline() as cancel_scope:
                     result = await coro
+        except CancelledError:
+            # Report cancellation
+            if cancel_scope.timedout():
+                self.future._timed_out = True
+                self.future.cancel()
+            elif cancel_scope.cancelled():
+                self.future.cancel()
+            else:
+                raise
         except BaseException as exc:
             logger.debug("Encountered exception in async call %r", self, exc_info=True)
 
-            # Do not set the exception if the future was cancelled as it's an invalid
-            # transition — also avoid taking a condition here to check for cancellation
-            # as it can deadlock
-            if not self.future._state == CANCELLED:
-                self.future.set_exception(exc)
-
+            self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:
