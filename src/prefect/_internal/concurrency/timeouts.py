@@ -207,10 +207,6 @@ class AsyncCancelScope(CancelScope):
 
 
 class SyncCancelScope(CancelScope):
-    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
-        super().__init__(name, timeout)
-        self._method = None
-
     def __enter__(self):
         super().__enter__()
 
@@ -224,6 +220,7 @@ class SyncCancelScope(CancelScope):
                     ),
                     self.timeout,
                 )
+            self._method = None
             self._throw_cancel = lambda: None
             return self
 
