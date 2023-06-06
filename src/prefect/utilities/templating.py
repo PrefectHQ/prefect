@@ -5,13 +5,15 @@ from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, Type, TypeVar, Uni
 from prefect.client.utilities import inject_client
 from prefect.utilities.annotations import NotSet
 
+from prefect.utilities.collections import get_from_dict
+
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
 T = TypeVar("T", str, int, float, bool, dict, list, None)
 
-PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.-]+)\s*}})")
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 
@@ -91,9 +93,9 @@ def apply_values(
     multiple placeholders, the placeholders will be replaced with the
     corresponding variable values.
 
-    If a template contains a placeholder that is not in `values`, UNSET will
+    If a template contains a placeholder that is not in `values`, NotSet will
     be returned to signify that no placeholder replacement occurred. If
-    `template` is a dictionary that contains a key with a value of UNSET,
+    `template` is a dictionary that contains a key with a value of NotSet,
     the key will be removed in the return value unless `remove_notset` is set to False.
 
     Args:
@@ -118,16 +120,14 @@ def apply_values(
         ):
             # If there is only one variable with no surrounding text,
             # we can replace it. If there is no variable value, we
-            # return UNSET to indicate that the value should not be included.
-            return values.get(list(placeholders)[0].name, NotSet)
+            # return NotSet to indicate that the value should not be included.
+            return get_from_dict(values, list(placeholders)[0].name, NotSet)
         else:
             for full_match, name, placeholder_type in placeholders:
-                if (
-                    name in values
-                    and values[name] is not None
-                    and placeholder_type is PlaceholderType.STANDARD
-                ):
-                    template = template.replace(full_match, str(values.get(name, "")))
+                if placeholder_type is PlaceholderType.STANDARD:
+                    template = template.replace(
+                        full_match, str(get_from_dict(values, name, ""))
+                    )
             return template
     elif isinstance(template, dict):
         updated_template = {}

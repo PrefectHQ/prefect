@@ -13,6 +13,7 @@ from prefect.utilities.collections import (
     StopVisiting,
     dict_to_flatdict,
     flatdict_to_dict,
+    get_from_dict,
     isiterable,
     remove_nested_keys,
     visit_collection,
@@ -516,3 +517,25 @@ class TestIsIterable:
     @pytest.mark.parametrize("obj", [5, Exception(), True, "hello", bytes()])
     def test_not_iterable(self, obj):
         assert not isiterable(obj)
+
+
+class TestGetFromDict:
+    @pytest.mark.parametrize(
+        "dct, keys, expected, default",
+        [
+            ({}, "a.b.c", None, None),
+            ({"a": {"b": {"c": [1, 2, 3, 4]}}}, "a.b.c[1]", 2, None),
+            ({"a": {"b": {"c": [1, 2, 3, 4]}}}, "a.b.c.1", 2, None),
+            ({"a": {"b": [0, {"c": [1, 2]}]}}, "a.b.1.c.1", 2, None),
+            ({"a": {"b": [0, {"c": [1, 2]}]}}, ["a", "b", 1, "c", 1], 2, None),
+            ({"a": {"b": [0, {"c": [1, 2]}]}}, "a.b.1.c.2", None, None),
+            (
+                {"a": {"b": [0, {"c": [1, 2]}]}},
+                "a.b.1.c.2",
+                "default_value",
+                "default_value",
+            ),
+        ],
+    )
+    def test_get_from_dict(self, dct, keys, expected, default):
+        assert get_from_dict(dct, keys, default) == expected

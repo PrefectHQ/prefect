@@ -157,7 +157,7 @@ def enter_flow_run_engine_from_flow_call(
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed."
             " Consider updating the script to only call the flow if executed"
-            f' directly:\n\n\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+            f' directly:\n\n\tif __name__ == "__main__":\n\t\t{flow.fn.__name__}()'
         )
         return None
 
