@@ -66,6 +66,7 @@ class Future(concurrent.futures.Future):
         super().__init__()
         self._cancel_scope = None
         self._deadline = None
+        self._cancel_callbacks = []
 
     def set_running_or_notify_cancel(self, timeout: Optional[float] = None):
         self._deadline = get_deadline(timeout)
@@ -76,6 +77,8 @@ class Future(concurrent.futures.Future):
         # TODO: Consider moving to `Call` interface instead
         try:
             with cancel_async_at(self._deadline) as self._cancel_scope:
+                for callback in self._cancel_callbacks:
+                    self._cancel_scope.add_cancel_callback(callback)
                 yield
         except CancelledError:
             # Report cancellation
@@ -87,12 +90,28 @@ class Future(concurrent.futures.Future):
     def enforce_sync_deadline(self):
         try:
             with cancel_sync_at(self._deadline) as self._cancel_scope:
+                for callback in self._cancel_callbacks:
+                    self._cancel_scope.add_cancel_callback(callback)
                 yield
         except CancelledError:
             # Report cancellation
             if self._cancel_scope.cancelled():
                 self.cancel()
             raise
+
+    def add_cancel_callback(self, callback: Callable[[], None]):
+        """
+        Add a callback to be enforced on cancellation.
+
+        Unlike "done" callbacks, this callback will be invoked _before_ the future is
+        cancelled. If added after the future is cancelled, nothing will happen.
+        """
+        if self._cancel_scope:
+            # Add callback to current cancel scope if it exists
+            self._cancel_scope.add_cancel_callback(callback)
+
+        # Also add callbacks to tracking list
+        self._cancel_callbacks.append(callback)
 
     def cancel(self):
         """Cancel the future if possible.
@@ -115,6 +134,12 @@ class Future(concurrent.futures.Future):
 
             if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
                 return True
+
+            # Normally cancel callbacks are handled by the cancel scope but if there
+            # is not one let's respect them still
+            if not self._cancel_scope:
+                for callback in self._cancel_callbacks:
+                    callback()
 
             self._state = CANCELLED
             self._condition.notify_all()
