@@ -24,7 +24,7 @@ import prefect.plugins
 import threading
 import sys
 import time
-from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
@@ -775,31 +775,26 @@ async def orchestrate_flow_run(
             paused_flow_run = await client.read_flow_run(flow_run.id)
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
-        except Exception as exc:
-            name = message = None
-            if (
-                # Flow run timeouts
-                isinstance(exc, CancelledError)
-                # Only update the message if the timeout was actually encountered since
-                # this could be a timeout in the user's code
-                and flow_call.cancelled()
-            ):
-                # TODO: Cancel task runs if feasible
-                name = "TimedOut"
-                # Construct a new exception as `TimeoutError`
-                original = exc
-                exc = TimeoutError()
-                exc.__cause__ = original
-                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
-            else:
-                # Generic exception in user code
-                message = "Flow run encountered an exception."
-                logger.exception("Encountered exception during execution:")
-
+        except CancelledError as exc:
+            if not flow_call.cancelled():
+                # If the flow call was not cancelled by us; this is a crash
+                raise
+            # Construct a new exception as `TimeoutError`
+            original = exc
+            exc = TimeoutError()
+            exc.__cause__ = original
+            logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
-                exc=exc,
-                name=name,
-                message=message,
+                exc,
+                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+                result_factory=flow_run_context.result_factory,
+                name="TimedOut",
+            )
+        except Exception:
+            # Generic exception in user code
+            logger.exception("Encountered exception during execution:")
+            terminal_state = await exception_to_failed_state(
+                message="Flow run encountered an exception.",
                 result_factory=flow_run_context.result_factory,
             )
         else:
@@ -1624,14 +1619,6 @@ async def orchestrate_task_run(
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-        # Need to create timeout_context from inside of loop so that a
-        # new context is created on retries
-        timeout_context = (
-            anyio.fail_after(task.timeout_seconds)
-            if task.timeout_seconds
-            else nullcontext()
-        )
-
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
@@ -1639,64 +1626,56 @@ async def orchestrate_task_run(
             update={"task_run": task_run, "start_time": pendulum.now("UTC")}
         ):
             try:
-                with timeout_context as timeout_scope:
-                    args, kwargs = parameters_to_args_kwargs(
-                        task.fn, resolved_parameters
+                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+                # update task run name
+                if not run_name_set and task.task_run_name:
+                    task_run_name = _resolve_custom_task_run_name(
+                        task=task, parameters=resolved_parameters
                     )
-                    # update task run name
-                    if not run_name_set and task.task_run_name:
-                        task_run_name = _resolve_custom_task_run_name(
-                            task=task, parameters=resolved_parameters
-                        )
-                        await client.set_task_run_name(
-                            task_run_id=task_run.id, name=task_run_name
-                        )
-                        logger.extra["task_run_name"] = task_run_name
-                        logger.debug(
-                            f"Renamed task run {task_run.name!r} to {task_run_name!r}"
-                        )
-                        task_run.name = task_run_name
-                        run_name_set = True
-
-                    if PREFECT_DEBUG_MODE.value():
-                        logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            "Beginning execution...", extra={"state_message": True}
-                        )
-
-                    call = from_async.call_soon_in_new_thread(
-                        create_call(task.fn, *args, **kwargs)
+                    await client.set_task_run_name(
+                        task_run_id=task_run.id, name=task_run_name
                     )
-                    result = await call.aresult()
-
-            except Exception as exc:
-                name = message = None
-                if (
-                    # Task run timeouts
-                    isinstance(exc, CancelledError)
-                    and timeout_scope
-                    # Only update the message if the timeout was actually encountered since
-                    # this could be a timeout in the user's code
-                    and timeout_scope.cancel_called
-                ):
-                    name = "TimedOut"
-                    # Construct a new exception as `TimeoutError`
-                    original = exc
-                    exc = TimeoutError()
-                    exc.__cause__ = original
-                    message = (
-                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    logger.extra["task_run_name"] = task_run_name
+                    logger.debug(
+                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
                     )
-                    logger.exception(message)
+                    task_run.name = task_run_name
+                    run_name_set = True
+
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
-                    message = "Task run encountered an exception:"
-                    logger.exception("Encountered exception during execution:")
+                    logger.debug(
+                        "Beginning execution...", extra={"state_message": True}
+                    )
 
+                call = from_async.call_soon_in_new_thread(
+                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
+                )
+                result = await call.aresult()
+
+            except CancelledError as exc:
+                if not call.cancelled():
+                    # If the task call was not cancelled by us; this is a crash
+                    raise
+                # Construct a new exception as `TimeoutError`
+                original = exc
+                exc = TimeoutError()
+                exc.__cause__ = original
+                logger.exception("Encountered exception during execution:")
                 terminal_state = await exception_to_failed_state(
                     exc,
-                    name=name,
-                    message=message,
+                    message=(
+                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    ),
+                    result_factory=task_run_context.result_factory,
+                    name="TimedOut",
+                )
+            except Exception as exc:
+                logger.exception("Encountered exception during execution:")
+                terminal_state = await exception_to_failed_state(
+                    exc,
+                    message="Task run encountered an exception",
                     result_factory=task_run_context.result_factory,
                 )
             else:

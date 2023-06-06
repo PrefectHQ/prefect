@@ -267,7 +267,10 @@ class Call(Generic[T]):
 
         For use from asynchronous contexts.
         """
-        return await asyncio.wrap_future(self.future)
+        try:
+            return await asyncio.wrap_future(self.future)
+        except asyncio.exceptions.CancelledError as exc:
+            raise CancelledError() from exc
 
     def cancelled(self) -> bool:
         """
