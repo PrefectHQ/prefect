@@ -118,7 +118,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
     if tb is not None:
         formatted = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
     else:
-        formatted = f"{exc_type}: {exc}"
+        formatted = f"{exc_type.__name__}: {exc}"
 
     # Trim `prefect` module paths from our exception types
     if exc_type.__module__.startswith("prefect."):
