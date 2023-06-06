@@ -426,8 +426,8 @@ def _alarm_based_timeout(scope: CancelScope):
     previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
     def cancel():
-        with _get_thread_shield(threading.main_thread()):
-            os.kill(os.getpid(), signal.SIGALRM)
+        logger.debug("Sending alarm signal to main thread...")
+        os.kill(os.getpid(), signal.SIGALRM)
 
     def sigalarm_to_error(*args):
         logger.debug("Cancel fired for alarm based cancel scope %r", scope)

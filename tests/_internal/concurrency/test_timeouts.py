@@ -245,27 +245,37 @@ async def test_cancel_async_from_another_thread():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_manually_in_main_thread():
     t0 = time.perf_counter()
-    event = threading.Event()
+    main_thread_ready = threading.Event()
+    cancel_sent = threading.Event()
 
     with pytest.raises(CancelledError):
         # Set a timeout or we'll use a watcher thread instead of an alarm
         with cancel_sync_after(timeout=10) as scope:
 
             def cancel_when_sleeping():
-                event.wait()
+                main_thread_ready.wait()
                 scope.cancel()
+                cancel_sent.set()
 
             # Start cancellation in another thread
             thread = threading.Thread(target=cancel_when_sleeping, daemon=True)
             thread.start()
 
-            # Sleep in the main thread
-            event.set()
+            # Signal that the thread can send cancellation
+            main_thread_ready.set()
+
+            # Wait for the cancel_sent thread to cancel the scope
+            cancel_sent.wait()
+
+            # Then sleep
             time.sleep(2)
 
     t1 = time.perf_counter()
     assert scope.cancelled()
     assert t1 - t0 < 2
+
+    # Shutdown the thread
+    thread.join()
 
 
 def test_cancel_sync_manually_in_worker_thread():
