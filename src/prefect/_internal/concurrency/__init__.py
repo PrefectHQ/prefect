@@ -51,7 +51,7 @@ class SafeLogger(logging.Logger):
         # deadlocks during complex concurrency handling
         from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
 
-        return level > logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
+        return level >= logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
 
     def _log(self, *args, **kwargs):
         from prefect._internal.concurrency.timeouts import shield
