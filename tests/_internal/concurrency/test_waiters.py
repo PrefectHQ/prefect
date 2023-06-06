@@ -4,10 +4,7 @@ import pytest
 
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import WorkerThread
-from prefect._internal.concurrency.timeouts import (
-    CancelledError,
-    TimeoutError,
-)
+from prefect._internal.concurrency.timeouts import CancelledError
 from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
 
 
@@ -117,7 +114,6 @@ def test_sync_waiter_timeout_in_worker_thread():
     waiter.wait()
     t1 = time.time()
 
-    # The call has a timeout error too
     with pytest.raises(CancelledError):
         call.result()
 
@@ -154,7 +150,7 @@ def test_sync_waiter_timeout_in_main_thread():
         waiter.wait()
         t1 = time.time()
 
-    with pytest.raises((CancelledError, TimeoutError)):
+    with pytest.raises(CancelledError):
         call.result()
 
     with pytest.raises(CancelledError):
@@ -216,13 +212,10 @@ async def test_async_waiter_timeout_in_main_thread():
         await waiter.wait()
         t1 = time.time()
 
-    with pytest.raises((CancelledError, TimeoutError)):
-        # A cancelled or timeout can be raised depending on if result is retrieved
-        # before or after the `on_worker_thread` function is cancelled
+    with pytest.raises(CancelledError):
         call.result()
 
     with pytest.raises(CancelledError):
-        # This call had no timeout attached so it just gets cancelled
         waiting_callback.result()
 
     assert t1 - t0 < 1
@@ -253,7 +246,6 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
 
         assert t1 - t0 < 1
 
-    # The call has a timeout error too
     with pytest.raises(CancelledError):
         call.result()
 

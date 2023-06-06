@@ -17,7 +17,6 @@ from typing_extensions import ParamSpec
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.timeouts import (
     CancelledError,
-    TimeoutError,
     cancel_async_at,
     get_deadline,
     cancel_sync_at,

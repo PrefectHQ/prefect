@@ -10,7 +10,6 @@ import pytest
 
 from prefect._internal.concurrency.timeouts import (
     CancelledError,
-    TimeoutError,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
@@ -32,7 +31,7 @@ def mock_alarm_signal_handler():
 
 async def test_cancel_async_after():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             await asyncio.sleep(1)
     t1 = time.perf_counter()
@@ -44,7 +43,7 @@ async def test_cancel_async_after():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_in_main_thread():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             time.sleep(1)
     t1 = time.perf_counter()
@@ -56,7 +55,7 @@ def test_cancel_sync_after_in_main_thread():
 def test_cancel_sync_after_in_worker_thread():
     def on_worker_thread():
         t0 = time.perf_counter()
-        with pytest.raises(TimeoutError):
+        with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as scope:
                 # this timeout method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -148,7 +147,7 @@ def test_cancel_sync_after_not_cancelled_in_worker_thread():
 
 async def test_cancel_async_at():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_async_at(get_deadline(timeout=0.1)) as scope:
             await asyncio.sleep(1)
     t1 = time.perf_counter()
@@ -160,7 +159,7 @@ async def test_cancel_async_at():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_at():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_at(get_deadline(timeout=0.1)) as scope:
             time.sleep(1)
     t1 = time.perf_counter()
@@ -271,7 +270,7 @@ def test_cancel_sync_manually_in_worker_thread():
 def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
     t0 = time.perf_counter()
     with cancel_sync_after(1) as outer_scope:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -288,7 +287,7 @@ def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
 def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
     t0 = time.perf_counter()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
             with cancel_sync_after(2) as inner_scope:
                 time.sleep(1)
@@ -302,7 +301,7 @@ def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
 def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
     t0 = time.perf_counter()
     with cancel_sync_after(1) as outer_scope:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -320,7 +319,7 @@ def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
 def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
     t0 = time.perf_counter()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
             with cancel_sync_after(2) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
@@ -340,7 +339,7 @@ def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
 def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
     t0 = time.perf_counter()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             # this cancel method does not interrupt sleep calls, the timeout is
             # raised on the next instruction
@@ -356,7 +355,7 @@ def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_inner_fails():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(2) as outer:
             with cancel_sync_after(0.1) as inner:
                 for _ in range(10):
@@ -371,7 +370,7 @@ def test_cancel_sync_after_nested_in_main_thread_inner_fails():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_outer_fails():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as outer:
             with cancel_sync_after(2) as inner:
                 time.sleep(1)
@@ -384,7 +383,7 @@ def test_cancel_sync_after_nested_in_main_thread_outer_fails():
 
 async def test_shield_async():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(1)
@@ -398,7 +397,7 @@ async def test_shield_async():
 
 async def test_shield_async_nested():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(0.5)
@@ -415,7 +414,7 @@ async def test_shield_async_nested():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_shield_sync_in_main_thread():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(1)
@@ -430,7 +429,7 @@ def test_shield_sync_in_main_thread():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_shield_sync_in_main_thread_nested():
     t0 = time.perf_counter()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(0.5)
@@ -447,7 +446,7 @@ def test_shield_sync_in_main_thread_nested():
 def test_shield_sync_in_worker_thread_nested():
     def on_worker_thread():
         t0 = time.perf_counter()
-        with pytest.raises(TimeoutError):
+        with pytest.raises(CancelledError):
             with cancel_sync_after(0.1) as scope:
                 with shield():
                     for _ in range(5):

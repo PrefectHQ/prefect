@@ -80,10 +80,6 @@ class CancelledError(asyncio.CancelledError):
     pass
 
 
-class TimeoutError(CancelledError, TimeoutError):
-    pass
-
-
 def _get_thread_shield(thread) -> ThreadShield:
     with _THREAD_SHIELDS_LOCK:
         if thread not in _THREAD_SHIELDS:
@@ -190,15 +186,9 @@ class AsyncCancelScope(CancelScope):
 
         super().__exit__(exc_type, exc_val, exc_tb)
 
-        if self.cancelled():
-            throws = (
-                TimeoutError
-                if self.timeout is not None and time.monotonic() >= self.deadline
-                else CancelledError
-            )
-
+        if self.cancelled() and exc_type is not CancelledError:
             # Ensure cancellation error is propagated on exit
-            raise throws() from exc_val
+            raise CancelledError() from exc_val
 
         return False
 
@@ -390,19 +380,12 @@ def _alarm_based_timeout(scope: CancelScope):
     def sigalarm_to_error(*args):
         trace("Cancel fired for alarm based cancel scope %r", scope)
         if scope.cancel(throw=False):
-            # Cancel this context
-            exc = (
-                TimeoutError()
-                if scope.timeout is not None and time.monotonic() >= scope.deadline
-                else CancelledError()
-            )
-
             shield = _get_thread_shield(threading.main_thread())
             if shield.active():
-                trace("Thread shield active; delaying exception")
-                shield.set_exception(exc)
+                trace("Thread shield active; delaying exception...")
+                shield.set_exception(CancelledError())
             else:
-                raise exc
+                raise CancelledError()
 
     if previous_alarm_handler != signal.SIG_DFL:
         trace(f"Overriding existing alarm handler {previous_alarm_handler}")
@@ -449,13 +432,10 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
                 except ValueError:
                     # If the thread is gone; just move on without error
                     trace("Thread missing!")
-                else:
-                    trace("Sent exception")
 
         # Wait for the supervised thread to exit its context
         trace("Waiting for supervised thread to exit...")
         event.wait()
-        trace("All done!")
 
     def cancel():
         return _send_exception(CancelledError)
@@ -469,7 +449,7 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
             )
             if scope.cancel(throw=False):
                 with _get_thread_shield(supervised_thread):
-                    _send_exception(TimeoutError)
+                    cancel()
 
     if scope.timeout is not None:
         enforcer = threading.Thread(
