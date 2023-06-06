@@ -39,17 +39,26 @@ respectively.
 
 
 import logging
-from prefect.logging import get_logger
-
-logger = get_logger("prefect._internal.concurrency")
 
 
-def is_enabled_for(level: int):
-    from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
+class SafeLogger(logging.Logger):
+    """
+    A logger with extensions for safe emission of logs in our concurrency tooling.
+    """
 
-    return level > logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
+    def isEnabledFor(self, level: int):
+        # Override `logger.isEnabledFor` to avoid taking a logging lock which can cause
+        # deadlocks during complex concurrency handling
+        from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
+
+        return level > logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
+
+    def _log(self, *args, **kwargs):
+        from prefect._internal.concurrency.timeouts import shield
+
+        # Prevent interrupts from firing while emitting a log
+        with shield():
+            super()._log(*args, **kwargs)
 
 
-# Override `logger.isEnabledFor` to avoid taking a logging lock which can cause
-# deadlocks during complex concurrency handling
-logger.isEnabledFor = is_enabled_for
+logger = SafeLogger("prefect._internal.concurrency")
