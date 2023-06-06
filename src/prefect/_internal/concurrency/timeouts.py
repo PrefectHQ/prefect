@@ -111,29 +111,47 @@ def shield():
 class CancelScope(abc.ABC):
     def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
         self.name = name
-        self.deadline = None
+        self._deadline = None
         self._cancelled = False
         self._completed = False
         self._started = False
-        self.timeout = timeout
+        self._start_time = None
+        self._end_time = None
+        self._timeout = timeout
         self._lock = threading.Lock()
         self._callbacks = []
         super().__init__()
 
     def __enter__(self):
         with self._lock:
-            self.deadline = get_deadline(self.timeout)
-            self.started = True
+            self._deadline = get_deadline(self._timeout)
+            self._started = True
+            self._start_time = time.monotonic()
         return self
 
     def __exit__(self, *_):
         with self._lock:
             if not self._cancelled:
                 self._completed = True
+            self._end_time = time.monotonic()
 
-    def cancelled(self):
+    @property
+    def timeout(self):
+        return self._timeout
+
+    def started(self) -> bool:
+        with self._lock:
+            return self._started
+
+    def cancelled(self) -> bool:
         with self._lock:
             return self._cancelled
+
+    def timedout(self) -> bool:
+        with self._lock:
+            if not self._end_time:
+                return False
+            return self._cancelled and self._end_time > self._deadline
 
     def completed(self):
         with self._lock:
@@ -174,7 +192,7 @@ class AsyncCancelScope(CancelScope):
         # Use anyio as the cancellation enforcer because it's very complicated and they
         # have done a good job
         self._inner = anyio.CancelScope(
-            deadline=self.deadline if self.deadline is not None else math.inf
+            deadline=self._deadline if self._deadline is not None else math.inf
         ).__enter__()
 
         return self
@@ -212,13 +230,13 @@ class SyncCancelScope(CancelScope):
 
         if sys.platform.startswith("win"):
             # Timeouts cannot be enforced on Windows
-            if self.timeout is not None:
+            if self._timeout is not None:
                 logger.debug(
                     (
                         "Entered cancel scope on Windows; %.2f timeout will not be"
                         " enforced."
                     ),
-                    self.timeout,
+                    self._timeout,
                 )
             self._method = None
             self._throw_cancel = lambda: None
@@ -233,7 +251,7 @@ class SyncCancelScope(CancelScope):
             # each other
             and not existing_alarm_handler
             # Avoid using an alarm when there is no timeout; it's better saved for that case
-            and self.timeout is not None
+            and self._timeout is not None
         ):
             method = _alarm_based_timeout
             method_name = "alarm"

@@ -776,7 +776,7 @@ async def orchestrate_flow_run(
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
         except CancelledError as exc:
-            if not flow_call.cancelled():
+            if not flow_call.timedout():
                 # If the flow call was not cancelled by us; this is a crash
                 raise
             # Construct a new exception as `TimeoutError`
@@ -1655,7 +1655,7 @@ async def orchestrate_task_run(
                 result = await call.aresult()
 
             except CancelledError as exc:
-                if not call.cancelled():
+                if not call.timedout():
                     # If the task call was not cancelled by us; this is a crash
                     raise
                 # Construct a new exception as `TimeoutError`

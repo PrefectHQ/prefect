@@ -67,6 +67,7 @@ class Future(concurrent.futures.Future):
         self._cancel_scope = None
         self._deadline = None
         self._cancel_callbacks = []
+        self._timed_out = False
 
     def set_running_or_notify_cancel(self, timeout: Optional[float] = None):
         self._deadline = get_deadline(timeout)
@@ -84,6 +85,8 @@ class Future(concurrent.futures.Future):
             # Report cancellation
             if self._cancel_scope.cancelled():
                 self.cancel()
+            if self._cancel_scope.timedout():
+                self._timed_out = True
             raise
 
     @contextlib.contextmanager
@@ -97,6 +100,8 @@ class Future(concurrent.futures.Future):
             # Report cancellation
             if self._cancel_scope.cancelled():
                 self.cancel()
+            if self._cancel_scope.timedout():
+                self._timed_out = True
             raise
 
     def add_cancel_callback(self, callback: Callable[[], None]):
@@ -112,6 +117,10 @@ class Future(concurrent.futures.Future):
 
         # Also add callbacks to tracking list
         self._cancel_callbacks.append(callback)
+
+    def timedout(self) -> bool:
+        with self._condition:
+            return self._timed_out
 
     def cancel(self):
         """Cancel the future if possible.
@@ -302,6 +311,12 @@ class Call(Generic[T]):
         Check if the call was cancelled.
         """
         return self.future.cancelled()
+
+    def timedout(self) -> bool:
+        """
+        Check if the call timed out.
+        """
+        return self.future.timedout()
 
     def cancel(self) -> bool:
         return self.future.cancel()
