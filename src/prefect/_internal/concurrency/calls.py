@@ -85,7 +85,8 @@ class Future(concurrent.futures.Future):
             # Report cancellation
             if self._cancel_scope.timedout():
                 self._timed_out = True
-            if self._cancel_scope.cancelled():
+                self.cancel()
+            elif self._cancel_scope.cancelled():
                 self.cancel()
             raise
 
@@ -100,7 +101,8 @@ class Future(concurrent.futures.Future):
             # Report cancellation
             if self._cancel_scope.timedout():
                 self._timed_out = True
-            if self._cancel_scope.cancelled():
+                self.cancel()
+            elif self._cancel_scope.cancelled():
                 self.cancel()
             raise
 
