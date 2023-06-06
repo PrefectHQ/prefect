@@ -1694,6 +1694,7 @@ async def orchestrate_task_run(
                     logger.exception("Encountered exception during execution:")
 
                 terminal_state = await exception_to_failed_state(
+                    exc,
                     name=name,
                     message=message,
                     result_factory=task_run_context.result_factory,
