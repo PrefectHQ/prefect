@@ -95,6 +95,9 @@ class Future(concurrent.futures.Future):
         Unlike "done" callbacks, this callback will be invoked _before_ the future is
         cancelled. If added after the future is cancelled, nothing will happen.
         """
+        # If we were to invoke cancel callbacks the same as "done" callbacks, we
+        # would not propagate chained cancellation in waiters in time to actually
+        # interrupt calls.
         if self._cancel_scope:
             # Add callback to current cancel scope if it exists
             self._cancel_scope.add_cancel_callback(callback)
@@ -287,7 +290,7 @@ class Call(Generic[T]):
         """
         try:
             return await asyncio.wrap_future(self.future)
-        except asyncio.exceptions.CancelledError as exc:
+        except asyncio.CancelledError as exc:
             raise CancelledError() from exc
 
     def cancelled(self) -> bool:
