@@ -13,8 +13,7 @@ from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.timeouts import CancelledError
-
-from prefect._internal.concurrency.inspection import trace
+from prefect._internal.concurrency import logger
 
 
 class WorkerThread(Portal):
@@ -90,17 +89,17 @@ class WorkerThread(Portal):
         try:
             self._run_until_shutdown()
         except CancelledError:
-            trace("%s was cancelled", self.name, exc_info=True)
+            logger.exception("%s was cancelled", self.name)
         except BaseException:
             # Log exceptions that crash the thread
-            trace("%s encountered exception", self.name, exc_info=True)
+            logger.exception("%s encountered exception", self.name)
             raise
 
     def _run_until_shutdown(self):
         while True:
             call = self._queue.get()
             if call is None:
-                trace("Exiting worker thread %r", self.name)
+                logger.info("Exiting worker thread %r", self.name)
                 break  # shutdown requested
 
             task = call.run()
@@ -199,7 +198,7 @@ class EventLoopThread(Portal):
             asyncio.run(self._run_until_shutdown())
         except BaseException:
             # Log exceptions that crash the thread
-            trace("%s encountered exception", self.name, exc_info=True)
+            logger.exception("%s encountered exception", self.name)
             raise
 
     async def _run_until_shutdown(self):

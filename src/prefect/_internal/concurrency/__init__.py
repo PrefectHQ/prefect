@@ -36,3 +36,20 @@ Instead, a simple API is exposed in the  `concurrency.api` module. The API is sp
 `api.from_sync` and `api.from_async` for use from synchronous and asynchronous contexts
 respectively.
 """
+
+
+import logging
+from prefect.logging import get_logger
+
+logger = get_logger("prefect._internal.concurrency")
+
+
+def is_enabled_for(level: int):
+    from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
+
+    return level > logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
+
+
+# Override `logger.isEnabledFor` to avoid taking a logging lock which can cause
+# deadlocks during complex concurrency handling
+logger.isEnabledFor = is_enabled_for

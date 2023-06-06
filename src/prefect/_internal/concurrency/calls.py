@@ -27,8 +27,8 @@ from concurrent.futures._base import (
     FINISHED,
     RUNNING,
 )
+from prefect._internal.concurrency import logger
 
-from prefect._internal.concurrency.inspection import trace
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -215,10 +215,10 @@ class Call(Generic[T]):
         """
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel(self.timeout):
-            trace("Skipping execution of cancelled call %r", self)
+            logger.debug("Skipping execution of cancelled call %r", self)
             return None
 
-        trace(
+        logger.debug(
             "Running call %r in thread %r with timeout %s",
             self,
             threading.current_thread().name,
@@ -232,7 +232,9 @@ class Call(Generic[T]):
             if loop:
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
-                trace("Scheduling coroutine for call %r in running loop %r", self, loop)
+                logger.debug(
+                    "Scheduling coroutine for call %r in running loop %r", self, loop
+                )
                 task = self.context.run(loop.create_task, self._run_async(coro))
 
                 # Prevent tasks from being garbage collected before completion
@@ -246,7 +248,7 @@ class Call(Generic[T]):
 
             else:
                 # Otherwise, execute the function here
-                trace("Executing coroutine for call %r in new loop", self)
+                logger.debug("Executing coroutine for call %r in new loop", self)
                 return self.context.run(asyncio.run, self._run_async(coro))
 
         return None
@@ -287,7 +289,7 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
-            trace("Encountered exception in call %r", self, exc_info=True)
+            logger.debug("Encountered exception in call %r", self, exc_info=True)
 
             # Do not set the exception if the future was cancelled as it's an invalid
             # transition — also avoid taking a condition here to check for cancellation
@@ -299,7 +301,7 @@ class Call(Generic[T]):
             del self
         else:
             self.future.set_result(result)  # noqa: F821
-            trace("Finished call %r", self)  # noqa: F821
+            logger.debug("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
         try:
@@ -307,7 +309,7 @@ class Call(Generic[T]):
                 with self.future.enforce_async_deadline():
                     result = await coro
         except BaseException as exc:
-            trace("Encountered exception in async call %r", self, exc_info=True)
+            logger.debug("Encountered exception in async call %r", self, exc_info=True)
 
             # Do not set the exception if the future was cancelled as it's an invalid
             # transition — also avoid taking a condition here to check for cancellation
@@ -319,7 +321,7 @@ class Call(Generic[T]):
             del self
         else:
             self.future.set_result(result)  # noqa: F821
-            trace("Finished async call %r", self)  # noqa: F821
+            logger.debug("Finished async call %r", self)  # noqa: F821
 
     def __call__(self) -> T:
         """

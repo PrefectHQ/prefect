@@ -17,7 +17,7 @@ from typing import Callable, Optional, Type, Dict
 
 
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.inspection import trace
+from prefect._internal.concurrency import logger
 
 _THREAD_SHIELDS: Dict[threading.Thread, "ThreadShield"] = {}
 _THREAD_SHIELDS_LOCK = threading.Lock()
@@ -216,7 +216,7 @@ class SyncCancelScope(CancelScope):
         if sys.platform.startswith("win"):
             # Timeouts cannot be enforced on Windows
             if self.timeout is not None:
-                trace(
+                logger.debug(
                     (
                         "Entered cancel scope on Windows; %.2f timeout will not be"
                         " enforced."
@@ -245,7 +245,7 @@ class SyncCancelScope(CancelScope):
 
         self._method = method(self)
         self._throw_cancel = self._method.__enter__()
-        trace(
+        logger.debug(
             "Entered synchronous %s based cancel scope %r",
             method_name,
             self,
@@ -378,17 +378,17 @@ def _alarm_based_timeout(scope: CancelScope):
             os.kill(os.getpid(), signal.SIGALRM)
 
     def sigalarm_to_error(*args):
-        trace("Cancel fired for alarm based cancel scope %r", scope)
+        logger.debug("Cancel fired for alarm based cancel scope %r", scope)
         if scope.cancel(throw=False):
             shield = _get_thread_shield(threading.main_thread())
             if shield.active():
-                trace("Thread shield active; delaying exception...")
+                logger.debug("Thread shield active; delaying exception...")
                 shield.set_exception(CancelledError())
             else:
                 raise CancelledError()
 
     if previous_alarm_handler != signal.SIG_DFL:
-        trace(f"Overriding existing alarm handler {previous_alarm_handler}")
+        logger.warning(f"Overriding existing alarm handler {previous_alarm_handler}")
 
     # Capture alarm signals and raise a timeout
     signal.signal(signal.SIGALRM, sigalarm_to_error)
@@ -425,16 +425,16 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
 
     def _send_exception(exc):
         if supervised_thread.is_alive():
-            trace("Sending exception to supervised thread %r", supervised_thread)
+            logger.debug("Sending exception to supervised thread %r", supervised_thread)
             with _get_thread_shield(supervised_thread):
                 try:
                     _send_exception_to_thread(supervised_thread, exc)
                 except ValueError:
                     # If the thread is gone; just move on without error
-                    trace("Thread missing!")
+                    logger.debug("Thread missing!")
 
         # Wait for the supervised thread to exit its context
-        trace("Waiting for supervised thread to exit...")
+        logger.debug("Waiting for supervised thread to exit...")
         event.wait()
 
     def cancel():
@@ -442,7 +442,7 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
 
     def timeout_enforcer():
         if not event.wait(scope.timeout):
-            trace(
+            logger.debug(
                 "Cancel fired for watcher based timeout for thread %r and scope %r",
                 supervised_thread.name,
                 scope,
@@ -463,7 +463,7 @@ def _watcher_thread_based_timeout(scope: SyncCancelScope):
     finally:
         event.set()
         if enforcer:
-            trace("Joining enforcer thread %r", enforcer)
+            logger.debug("Joining enforcer thread %r", enforcer)
             enforcer.join()
 
 

@@ -18,7 +18,7 @@ import anyio
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect._internal.concurrency.inspection import trace
+from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 
@@ -103,7 +103,7 @@ class SyncWaiter(Waiter[T]):
         return call
 
     def _handle_waiting_callbacks(self):
-        trace("Waiter %r watching for callbacks", self)
+        logger.debug("Waiter %r watching for callbacks", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
@@ -150,7 +150,9 @@ class SyncWaiter(Waiter[T]):
 def chain_cancellation(from_future, to_future):
     def callback(_):
         if from_future.cancelled():
-            trace("Cancelling %r due to cancellation in %r", to_future, from_future)
+            logger.debug(
+                "Cancelling %r due to cancellation in %r", to_future, from_future
+            )
             to_future.cancel()
 
     from_future.add_done_callback(callback)
@@ -194,7 +196,7 @@ class AsyncWaiter(Waiter[T]):
         self._early_submissions = []
 
     async def _handle_waiting_callbacks(self):
-        trace("Waiter %r watching for callbacks", self)
+        logger.debug("Waiter %r watching for callbacks", self)
         tasks = []
 
         try:

@@ -16,7 +16,7 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
 from prefect._internal.concurrency.timeouts import get_deadline, get_timeout
-from prefect._internal.concurrency.inspection import trace
+from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 
@@ -42,7 +42,7 @@ class QueueService(abc.ABC, Generic[T]):
         )
 
     def start(self):
-        trace("Starting service %r", self)
+        logger.debug("Starting service %r", self)
         loop_thread = get_global_loop()
 
         if not asyncio.get_running_loop() == loop_thread._loop:
@@ -86,7 +86,7 @@ class QueueService(abc.ABC, Generic[T]):
 
         with self._lock:
             if not at_exit:  # The logger may not be available during interpreter exit
-                trace("Stopping service %r", self)
+                logger.debug("Stopping service %r", self)
 
             # Stop sending work to this instance
             self._remove_instance()
@@ -103,7 +103,7 @@ class QueueService(abc.ABC, Generic[T]):
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
-            trace("Service %r enqueing item %r", self, item)
+            logger.debug("Service %r enqueing item %r", self, item)
             self._queue.put_nowait(self._prepare_item(item))
 
     def _prepare_item(self, item: T) -> T:
@@ -123,11 +123,10 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
             # The logging call yields to another thread, so we must remove the instance
             # before reporting the failure to prevent retrieval of a dead instance
-            trace(
+            logger.exception(
                 "Service %r failed with %s pending items.",
                 type(self).__name__,
                 self._queue.qsize(),
-                exc_info=True,
             )
         finally:
             self._remove_instance()
@@ -145,18 +144,15 @@ class QueueService(abc.ABC, Generic[T]):
             ).aresult()
 
             if item is None:
-                trace("Exiting service %r", self)
+                logger.debug("Exiting service %r", self)
                 break
 
             try:
-                trace("Service %r handling item %r", self, item)
+                logger.debug("Service %r handling item %r", self, item)
                 await self._handle(item)
             except Exception:
-                trace(
-                    "Service %r failed to process item %r",
-                    type(self).__name__,
-                    item,
-                    exc_info=True,
+                logger.exception(
+                    "Service %r failed to process item %r", type(self).__name__, item
                 )
 
     @abc.abstractmethod
@@ -177,7 +173,7 @@ class QueueService(abc.ABC, Generic[T]):
         Internal implementation for `drain`. Returns a future for sync/async interfaces.
         """
         if not at_exit:  # The logger may not be available during interpreter exit
-            trace("Draining service %r", self)
+            logger.debug("Draining service %r", self)
 
         self._stop(at_exit=at_exit)
 
@@ -296,7 +292,7 @@ class BatchedQueueService(QueueService[T]):
 
                     batch.append(item)
                     batch_size += self._get_size(item)
-                    trace(
+                    logger.debug(
                         "Service %r added item %r to batch (size %s/%s)",
                         self,
                         item,
@@ -311,7 +307,7 @@ class BatchedQueueService(QueueService[T]):
             if not batch:
                 continue
 
-            trace(
+            logger.debug(
                 "Service %r processing batch of size %s",
                 self,
                 batch_size,
@@ -319,11 +315,10 @@ class BatchedQueueService(QueueService[T]):
             try:
                 await self._handle_batch(batch)
             except Exception:
-                trace(
+                logger.exception(
                     "Service %r failed to process batch of size %s",
                     self,
                     batch_size,
-                    exc_info=True,
                 )
 
     @abc.abstractmethod
