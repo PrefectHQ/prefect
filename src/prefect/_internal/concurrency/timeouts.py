@@ -8,7 +8,6 @@ import ctypes
 import os
 import abc
 import math
-import concurrent.futures
 import signal
 import anyio
 import sys
@@ -71,7 +70,13 @@ class ThreadShield:
         return self._lock._count > 0
 
 
-class CancelledError(asyncio.CancelledError, concurrent.futures.CancelledError):
+class CancelledError(asyncio.CancelledError):
+    # In Python 3.7, `asyncio.CancelledError` is identical to `concurrent.futures.CancelledError`
+    # but in 3.8+ it is a separate class that inherits from `BaseException` instead
+    # See https://bugs.python.org/issue32528
+    # We want our `CancelledError` to be treated as a `BaseException` and defining it
+    # here simplifies downstream logic that needs to know "which" cancelled error to
+    # handle.
     pass
 
 
