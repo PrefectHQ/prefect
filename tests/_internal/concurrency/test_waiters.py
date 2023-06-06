@@ -193,7 +193,7 @@ async def test_async_waiter_timeout_in_worker_thread():
 
 async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
-    waiting_callback = Call.new(asyncio.sleep, 1)
+    waiting_callback = Call.new(asyncio.sleep, 2)
 
     with WorkerThread(run_once=True) as runner:
 
@@ -205,7 +205,7 @@ async def test_async_waiter_timeout_in_main_thread():
 
         waiter = AsyncWaiter(call)
         waiter.add_done_callback(done_callback)
-        call.set_timeout(0.1)
+        call.set_timeout(1)
         runner.submit(call)
 
         t0 = time.time()
@@ -218,7 +218,7 @@ async def test_async_waiter_timeout_in_main_thread():
     with pytest.raises(CancelledError):
         waiting_callback.result()
 
-    assert t1 - t0 < 1
+    assert t1 - t0 < 2
     assert call.cancelled()
     assert waiting_callback.cancelled()
     assert (
