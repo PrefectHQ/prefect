@@ -38,12 +38,13 @@ class ThreadShield:
     raised when the last context is exited.
     """
 
-    def __init__(self):
+    def __init__(self, owner: threading.Thread):
         # Uses the Python implementation of the RLock instead of the C implementation
         # because we need to inspect `_count` directly to check if the lock is active
         # which is needed for delayed exception raising during alarms
         self._lock = threading._RLock()
         self._exception = None
+        self._owner = owner
 
     def __enter__(self) -> None:
         self._lock.__enter__()
@@ -51,8 +52,12 @@ class ThreadShield:
     def __exit__(self, *exc_info):
         retval = self._lock.__exit__(*exc_info)
 
-        # Raise the exception if this is the last shield to exit
-        if not self.active() and self._exception:
+        # Raise the exception if this is the last shield to exit in the owner thread
+        if (
+            not self.active()
+            and self._exception
+            and self._owner.ident == threading.current_thread().ident
+        ):
             # Clear the exception to prevent it from being raised again
             exc = self._exception
             self._exception = None
@@ -83,7 +88,7 @@ class CancelledError(asyncio.CancelledError):
 def _get_thread_shield(thread) -> ThreadShield:
     with _THREAD_SHIELDS_LOCK:
         if thread not in _THREAD_SHIELDS:
-            _THREAD_SHIELDS[thread] = ThreadShield()
+            _THREAD_SHIELDS[thread] = ThreadShield(thread)
 
         # Perform garbage collection for old threads
         for thread_ in tuple(_THREAD_SHIELDS.keys()):
