@@ -109,7 +109,9 @@ def shield():
 
 
 class CancelScope(abc.ABC):
-    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
+    def __init__(
+        self, name: Optional[str] = None, timeout: Optional[float] = None
+    ) -> None:
         self.name = name
         self._deadline = None
         self._cancelled = False
@@ -153,6 +155,12 @@ class CancelScope(abc.ABC):
                 return False
             return self._cancelled and self._end_time > self._deadline
 
+    def set_timeout(self, timeout: float):
+        with self._lock:
+            if self._started:
+                raise RuntimeError("Cannot set timeout after scope has started.")
+            self._timeout = timeout
+
     def completed(self):
         with self._lock:
             return self._completed
@@ -178,9 +186,31 @@ class CancelScope(abc.ABC):
     def add_cancel_callback(self, callback: Callable[[], None]):
         self._callbacks.append(callback)
 
+    def __repr__(self) -> str:
+        with self._lock:
+            state = (
+                "completed"
+                if self._completed
+                else (
+                    "cancelled"
+                    if self._cancelled
+                    else "running" if self._started else "pending"
+                )
+            ).upper()
+            timeout = f", timeout={self._timeout:.2f}" if self._timeout else ""
+            runtime = (
+                f", runtime={(self._end_time or time.monotonic()) - self._start_time:.2f}"
+                if self._start_time
+                else ""
+            )
+            name = f", name={self.name!r}" if self.name else f"at {hex(id(self))}"
+        return f"<{type(self).__name__} {name} {state}{timeout}{runtime}>"
+
 
 class AsyncCancelScope(CancelScope):
-    def __init__(self, name: Optional[str], timeout: Optional[float] = None) -> None:
+    def __init__(
+        self, name: Optional[str] = None, timeout: Optional[float] = None
+    ) -> None:
         super().__init__(name=name, timeout=timeout)
         self.loop = None
 

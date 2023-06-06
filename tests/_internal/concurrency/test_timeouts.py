@@ -10,6 +10,8 @@ import pytest
 
 from prefect._internal.concurrency.timeouts import (
     CancelledError,
+    SyncCancelScope,
+    AsyncCancelScope,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
@@ -27,6 +29,37 @@ def mock_alarm_signal_handler():
         yield mock
     finally:
         signal.signal(signal.SIGALRM, _previous_alarm_handler)
+
+
+@pytest.mark.parametrize("cls", [SyncCancelScope, AsyncCancelScope])
+async def test_cancel_scope_repr(cls):
+    scope = cls()
+    assert "PENDING" in repr(scope)
+    assert "runtime" not in repr(scope)
+    assert hex(id(scope)) in repr(scope)
+
+    with scope:
+        assert "RUNNING" in repr(scope)
+        assert "runtime" in repr(scope)
+
+    assert "COMPLETED" in repr(scope)
+    assert "runtime" in repr(scope)
+
+    scope = cls()
+    try:
+        with scope:
+            scope.cancel()
+    except CancelledError:
+        pass
+
+    assert "CANCELLED" in repr(scope)
+
+    scope = cls(name="test")
+    assert hex(id(scope)) not in repr(scope)
+    assert "name='test'" in repr(scope)
+
+    scope = cls(timeout=0.1)
+    assert "timeout=0.1" in repr(scope)
 
 
 async def test_cancel_async_after():
