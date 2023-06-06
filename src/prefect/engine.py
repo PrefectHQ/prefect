@@ -1654,7 +1654,7 @@ async def orchestrate_task_run(
                 )
                 result = await call.aresult()
 
-            except CancelledError as exc:
+            except (CancelledError, asyncio.exceptions.CancelledError) as exc:
                 if not call.timedout():
                     # If the task call was not cancelled by us; this is a crash
                     raise
