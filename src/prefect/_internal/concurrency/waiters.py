@@ -147,17 +147,6 @@ class SyncWaiter(Waiter[T]):
         return self._call
 
 
-def chain_cancellation(from_future, to_future):
-    def callback(_):
-        if from_future.cancelled():
-            logger.debug(
-                "Cancelling %r due to cancellation in %r", to_future, from_future
-            )
-            to_future.cancel()
-
-    from_future.add_done_callback(callback)
-
-
 class AsyncWaiter(Waiter[T]):
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
