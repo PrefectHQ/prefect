@@ -115,7 +115,10 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
 
 def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
     exc_type = type(exc)
-    formatted = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
+    if tb is not None:
+        formatted = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
+    else:
+        formatted = f"{exc_type}: {exc}"
 
     # Trim `prefect` module paths from our exception types
     if exc_type.__module__.startswith("prefect."):
@@ -186,7 +189,7 @@ async def exception_to_failed_state(
     Convenience function for creating `Failed` states from exceptions
     """
     if not exc:
-        _, exc, exc_tb = sys.exc_info()
+        _, exc, _ = sys.exc_info()
         if exc is None:
             raise ValueError(
                 "Exception was not passed and no active exception could be found."
