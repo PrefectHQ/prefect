@@ -395,7 +395,7 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 
 Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
-!!! info Flow run parameters cannot exceed `512kb` in size
+!!! info "Flow run parameters cannot exceed `512kb` in size"
 
 ## Final state determination
 
