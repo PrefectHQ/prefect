@@ -83,10 +83,10 @@ class Future(concurrent.futures.Future):
                 yield
         except CancelledError:
             # Report cancellation
-            if self._cancel_scope.cancelled():
-                self.cancel()
             if self._cancel_scope.timedout():
                 self._timed_out = True
+            if self._cancel_scope.cancelled():
+                self.cancel()
             raise
 
     @contextlib.contextmanager
@@ -98,10 +98,10 @@ class Future(concurrent.futures.Future):
                 yield
         except CancelledError:
             # Report cancellation
-            if self._cancel_scope.cancelled():
-                self.cancel()
             if self._cancel_scope.timedout():
                 self._timed_out = True
+            if self._cancel_scope.cancelled():
+                self.cancel()
             raise
 
     def add_cancel_callback(self, callback: Callable[[], None]):
