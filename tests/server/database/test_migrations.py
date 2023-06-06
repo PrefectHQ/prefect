@@ -20,7 +20,7 @@ from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-pytest.mark.service("database")
+pytestmark = pytest.mark.service("database")
 
 
 @pytest.fixture
@@ -331,6 +331,7 @@ async def test_backfill_artifacts(db):
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
+@pytest.mark.timeout(120)
 async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
     """
     Tests state_name is backfilled correctly for the flow_run
