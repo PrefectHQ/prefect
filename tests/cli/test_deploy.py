@@ -518,12 +518,7 @@ class TestProjectDeploy:
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
-            expected_code=1,
-            expected_output_contains=[
-                "We were unable to find a prefect.yaml file in the current directory.",
-                "To get started deploying flows please initialize a new project:",
-                "prefect project init",
-            ],
+            expected_code=0,
         )
 
     async def test_project_deploy_with_empty_dep_file(

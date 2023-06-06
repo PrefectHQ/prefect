@@ -14,10 +14,19 @@ from prefect.client.schemas.schedules import (
 from typing import Dict, List, Optional
 import readchar
 
+from rich.console import Console
 from rich.table import Table
 from rich.live import Live
 from rich.prompt import Prompt, Confirm
 from prefect.cli._utilities import exit_with_error
+
+from prefect.client.utilities import inject_client
+
+from prefect.client.orchestration import PrefectClient
+
+from prefect.client.collections import get_collections_metadata_client
+
+from prefect.client.schemas.actions import WorkPoolCreate
 
 
 def prompt(message, **kwargs):
@@ -282,3 +291,74 @@ def prompt_schedule(console) -> SCHEDULE_TYPES:
         return prompt_rrule_schedule(console)
     else:
         raise Exception("Invalid schedule type")
+
+
+@inject_client
+async def prompt_select_work_pool(
+    console: Console,
+    prompt: str = "Which work pool would you like to deploy this flow to?",
+    client: PrefectClient = None,
+) -> str:
+    work_pools = await client.read_work_pools()
+    work_pool_options = [
+        work_pool.dict()
+        for work_pool in work_pools
+        if work_pool.type != "prefect-agent"
+    ]
+    if not work_pool_options:
+        work_pool = await prompt_create_work_pool(console, client=client)
+        return work_pool.name
+    else:
+        selected_work_pool_row = prompt_select_from_table(
+            console,
+            prompt,
+            [
+                {"header": "Work Pool Name", "key": "name"},
+                {"header": "Infrastructure Type", "key": "type"},
+                {"header": "Description", "key": "description"},
+            ],
+            work_pool_options,
+        )
+        return selected_work_pool_row["name"]
+
+
+@inject_client
+async def prompt_create_work_pool(
+    console: Console,
+    client: PrefectClient = None,
+):
+    if not confirm(
+        (
+            "Looks like you don't have any work pools this flow can be deployed to."
+            " Would you like to create one?"
+        ),
+        default=True,
+        console=console,
+    ):
+        raise ValueError(
+            "A work pool is required to deploy this flow. Please specify a work pool"
+            " name via the '--pool' flag or in your deployment.yaml file."
+        )
+    async with get_collections_metadata_client() as collections_client:
+        worker_metadata = await collections_client.read_worker_metadata()
+    selected_worker_row = prompt_select_from_table(
+        console,
+        prompt="What infrastructure type would you like to use for your new work pool?",
+        columns=[
+            {"header": "Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        data=[
+            worker
+            for collection in worker_metadata.values()
+            for worker in collection.values()
+            if worker["type"] != "prefect-agent"
+        ],
+        table_kwargs={"show_lines": True},
+    )
+    work_pool_name = prompt("Work pool name")
+    work_pool = await client.create_work_pool(
+        WorkPoolCreate(name=work_pool_name, type=selected_worker_row["type"])
+    )
+    console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
+    return work_pool

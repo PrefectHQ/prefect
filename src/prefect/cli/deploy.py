@@ -8,8 +8,8 @@ from typing import Dict, List, Optional
 import typer
 import typer.core
 import yaml
-from rich.console import Console
 from rich.panel import Panel
+from rich.console import Console
 
 import prefect
 import prefect.context
@@ -22,26 +22,25 @@ from prefect.cli._prompts import (
     confirm,
     prompt_select_from_table,
     prompt_schedule,
+    prompt_select_work_pool,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.collections import get_collections_metadata_client
-from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.projects import find_prefect_directory, register_flow
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_UI_URL, PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
 
 from prefect.projects.steps.core import run_steps
+
+from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
 
 
 @app.command()
@@ -195,16 +194,7 @@ async def deploy(
         with open("prefect.yaml", "r") as f:
             project = yaml.safe_load(f)
     except FileNotFoundError:
-        app.console.print(
-            "We were unable to find a prefect.yaml file in the current directory.",
-            style="red",
-        )
-        app.console.print(
-            "\nTo get started deploying flows please initialize a new project:",
-            style="red",
-        )
-        app.console.print("\n\t$ prefect project init\n", style="blue")
-        raise typer.Exit(1)
+        project = {}
 
     try:
         with open("deployment.yaml", "r") as f:
@@ -335,9 +325,11 @@ async def _run_single_deploy(
     )
     timezone = options.get("timezone") or base_deploy_schedule.get("timezone")
 
-    build_steps = base_deploy.get("build", project.get("build", [])) or []
-    pull_steps = base_deploy.get("pull", project.get("pull", [])) or []
-    push_steps = base_deploy.get("push", project.get("push", [])) or []
+    build_steps = base_deploy.get("build", project.get("build")) or []
+    pull_steps = base_deploy.get(
+        "pull", project.get("pull")
+    ) or _generate_default_pull_action(app.console)
+    push_steps = base_deploy.get("push", project.get("push")) or []
 
     if interval_anchor and not interval:
         raise ValueError(
@@ -374,6 +366,12 @@ async def _run_single_deploy(
                 " entrypoint is in the format path/to/file.py:flow_fn_name and the"
                 " file name and flow function name are correct."
             )
+        except FileNotFoundError:
+            if PREFECT_DEBUG_MODE:
+                app.console.print(
+                    "Could not find .prefect directory. Flow entrypoint will not be"
+                    " registered."
+                )
         flow_name = flow.name
     elif flow_name:
         prefect_dir = find_prefect_directory()
@@ -525,18 +523,15 @@ async def _run_single_deploy(
                         " cannot be used for project-style deployments. Let's pick"
                         " another work pool to deploy to."
                     )
-                    base_deploy["work_pool"]["name"] = await _prompt_select_work_pool(
+                    base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
                         app.console,
                         client=client,
                     )
             except ObjectNotFound:
-                app.console.print(
-                    (
-                        "\nThis deployment references a work pool that does not exist."
-                        " This means no worker will be able to pick up its runs. You"
-                        " can create a work pool in the Prefect UI."
-                    ),
-                    style="red",
+                raise ValueError(
+                    "This deployment references a work pool that does not exist."
+                    " This means no worker will be able to pick up its runs. You"
+                    " can create a work pool in the Prefect UI."
                 )
         else:
             if not is_interactive() or ci:
@@ -544,7 +539,7 @@ async def _run_single_deploy(
                     "A work pool is required to deploy this flow. Please specify a work"
                     " pool name via the '--pool' flag or in your deployment.yaml file."
                 )
-            base_deploy["work_pool"]["name"] = await _prompt_select_work_pool(
+            base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
                 console=app.console, client=client
             )
 
@@ -579,39 +574,25 @@ async def _run_single_deploy(
                 f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
             )
 
-        if base_deploy["work_pool"]["name"] is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start a worker in a"
-                " separate terminal that pulls work from the"
-                f" {base_deploy['work_pool']['name']!r} work pool:"
-            )
-            app.console.print(
-                (
-                    "\n\t$ prefect worker start --pool"
-                    f" {base_deploy['work_pool']['name']!r}"
-                ),
-                style="blue",
-            )
-            app.console.print(
-                "\nTo schedule a run for this deployment, use the following command:"
-            )
-            app.console.print(
-                (
-                    "\n\t$ prefect deployment run"
-                    f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
-                ),
-                style="blue",
-            )
-        else:
-            app.console.print(
-                (
-                    "\nThis deployment does not specify a work pool or queue, which"
-                    " means no worker will be able to pick up its runs. To add a"
-                    " work pool, edit the deployment spec and re-run this command,"
-                    " or visit the deployment in the UI."
-                ),
-                style="red",
-            )
+        app.console.print(
+            "\nTo execute flow runs from this deployment, start a worker in a"
+            " separate terminal that pulls work from the"
+            f" {base_deploy['work_pool']['name']!r} work pool:"
+        )
+        app.console.print(
+            f"\n\t$ prefect worker start --pool {base_deploy['work_pool']['name']!r}",
+            style="blue",
+        )
+        app.console.print(
+            "\nTo schedule a run for this deployment, use the following command:"
+        )
+        app.console.print(
+            (
+                "\n\t$ prefect deployment run"
+                f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
+            ),
+            style="blue",
+        )
 
 
 async def _run_multi_deploy(
@@ -662,77 +643,6 @@ async def _run_multi_deploy(
         for base_deploy in picked_base_deploys:
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
             await _run_single_deploy(base_deploy, project)
-
-
-@inject_client
-async def _prompt_select_work_pool(
-    console: Console,
-    prompt: str = "Which work pool would you like to deploy this flow to?",
-    client: PrefectClient = None,
-) -> str:
-    work_pools = await client.read_work_pools()
-    work_pool_options = [
-        work_pool.dict()
-        for work_pool in work_pools
-        if work_pool.type != "prefect-agent"
-    ]
-    if not work_pool_options:
-        work_pool = await _prompt_create_work_pool(console, client=client)
-        return work_pool.name
-    else:
-        selected_work_pool_row = prompt_select_from_table(
-            console,
-            prompt,
-            [
-                {"header": "Work Pool Name", "key": "name"},
-                {"header": "Infrastructure Type", "key": "type"},
-                {"header": "Description", "key": "description"},
-            ],
-            work_pool_options,
-        )
-        return selected_work_pool_row["name"]
-
-
-@inject_client
-async def _prompt_create_work_pool(
-    console: Console,
-    client: PrefectClient = None,
-):
-    if not confirm(
-        (
-            "Looks like you don't have any work pools this flow can be deployed to."
-            " Would you like to create one?"
-        ),
-        default=True,
-        console=app.console,
-    ):
-        raise ValueError(
-            "A work pool is required to deploy this flow. Please specify a work pool"
-            " name via the '--pool' flag or in your deployment.yaml file."
-        )
-    async with get_collections_metadata_client() as collections_client:
-        worker_metadata = await collections_client.read_worker_metadata()
-    selected_worker_row = prompt_select_from_table(
-        console,
-        prompt="What infrastructure type would you like to use for your new work pool?",
-        columns=[
-            {"header": "Type", "key": "type"},
-            {"header": "Description", "key": "description"},
-        ],
-        data=[
-            worker
-            for collection in worker_metadata.values()
-            for worker in collection.values()
-            if worker["type"] != "prefect-agent"
-        ],
-        table_kwargs={"show_lines": True},
-    )
-    work_pool_name = prompt("Work pool name")
-    work_pool = await client.create_work_pool(
-        WorkPoolCreate(name=work_pool_name, type=selected_worker_row["type"])
-    )
-    console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
-    return work_pool
 
 
 def _construct_schedule(
@@ -822,3 +732,26 @@ def _merge_with_default_deployment(base_deploy: Dict):
                     base_deploy[key][k] = v
 
     return base_deploy
+
+
+def _generate_default_pull_action(console: Console):
+    remote_url = _get_git_remote_origin_url()
+    if remote_url:
+        branch = _get_git_branch() or "main"
+
+        return [
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "repository": remote_url,
+                    "branch": branch,
+                }
+            }
+        ]
+    else:
+        return [
+            {
+                "prefect.projects.steps.set_working_directory": {
+                    "directory": Path.cwd().absolute().resolve()
+                }
+            }
+        ]
