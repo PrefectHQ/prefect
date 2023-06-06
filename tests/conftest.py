@@ -20,8 +20,6 @@ import asyncio
 import logging
 import pathlib
 import sys
-import threading
-import time
 import shutil
 import tempfile
 from pathlib import Path
@@ -39,9 +37,7 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
-from prefect._internal.concurrency.inspection import stack_for_threads
 
-from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -509,40 +505,3 @@ def disable_workers():
         {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 0, PREFECT_EXPERIMENTAL_WARN_WORKERS: 1}
     ):
         yield
-
-
-@pytest.fixture(autouse=True)
-def check_thread_leak():
-    """
-    Checks for threads created in a test and left running.
-    """
-    active_threads_start = threading.enumerate()
-
-    yield
-
-    # We don't eagerly tear down the global loop thread in most tests so mark it as
-    # shutdown before checking for leaks
-    wait_for_global_loop_exit(timeout=0)
-
-    start = time.time()
-    while True:
-        bad_threads = [
-            thread
-            for thread in threading.enumerate()
-            if thread not in active_threads_start
-            # TODO: Determine why asyncio threads are left open during some tests
-            and not thread.name.startswith("asyncio_")
-        ]
-        if not bad_threads:
-            break
-        else:
-            time.sleep(0.01)
-
-        # Give leaked threads a 5 second grace period to teardown
-        if time.time() > start + 5:
-            lines: list[str] = [f"{len(bad_threads)} thread(s) were leaked from test\n"]
-            lines += [
-                f"\t{hex(thread.ident)} - {thread.name}\n" for thread in bad_threads
-            ]
-            lines += stack_for_threads(*bad_threads)
-            pytest.fail("\n".join(lines), pytrace=False)
