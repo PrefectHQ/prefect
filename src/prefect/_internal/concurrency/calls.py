@@ -221,11 +221,12 @@ class Call(Generic[T]):
         try:
             return self.future.result(timeout=timeout)
         except concurrent.futures._base.CancelledError as exc:
-            if self.cancelled():
-                if self.future.timed_out():
-                    raise TimeoutError() from exc
+            if self.future.timed_out():
+                raise TimeoutError() from exc
+            elif self.future.cancelled():
                 raise CancelledError() from exc
-            raise
+            else:
+                raise
 
     async def aresult(self):
         """
@@ -236,11 +237,12 @@ class Call(Generic[T]):
         try:
             return await asyncio.wrap_future(self.future)
         except asyncio.CancelledError as exc:
-            if self.cancelled():
-                if self.future.timed_out():
-                    raise TimeoutError() from exc
+            if self.future.timed_out():
+                raise TimeoutError() from exc
+            elif self.future.cancelled():
                 raise CancelledError() from exc
-            raise
+            else:
+                raise
 
     def cancelled(self) -> bool:
         """
