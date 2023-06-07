@@ -240,7 +240,7 @@ class CancelScope(abc.ABC):
                 else ""
             )
             name = f", name={self.name!r}" if self.name else f"at {hex(id(self))}"
-        return f"<{type(self).__name__} {name} {state}{timeout}{runtime}>"
+        return f"<{type(self).__name__}{name} {state}{timeout}{runtime}>"
 
 
 class AsyncCancelScope(CancelScope):
