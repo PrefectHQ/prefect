@@ -239,23 +239,25 @@ class TestProjectClone:
             assert result.exit_code == 1
             assert "No pull steps found, exiting early." in result.output
 
-    def test_clone_with_name_and_pull_step(self, flow, test_deployment_with_pull_step):
+    def test_clone_with_name_and_pull_step(self, flow, deployment_with_pull_step):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
                 (
                     "project clone --deployment"
-                    f" {flow.name}/{test_deployment_with_pull_step.name}"
+                    f" {flow.name}/{deployment_with_pull_step.name}"
                 ),
                 temp_dir=str(tempdir),
                 expected_code=0,
+                expected_output_contains="/tmp",
             )
             assert result.exit_code == 0
 
-    def test_clone_with_id_and_pull_steps(self, test_deployment_with_pull_steps):
+    def test_clone_with_id_and_pull_steps(self, deployment_with_pull_steps):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                f"project clone --id {test_deployment_with_pull_steps.id}",
+                f"project clone --id {deployment_with_pull_steps.id}",
                 temp_dir=str(tempdir),
                 expected_code=0,
+                expected_output_contains="/tmp",
             )
             assert result.exit_code == 0
