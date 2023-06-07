@@ -209,7 +209,7 @@ class CancelScope(abc.ABC):
 
             self._cancelled = True
 
-        logger.debug("%r cancelling", self)
+        logger.info("%r cancelling", self)
 
         for callback in self._callbacks:
             callback()
