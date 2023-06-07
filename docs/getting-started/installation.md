@@ -13,7 +13,7 @@ tags:
 
 # Installation
 
-Prefect requires Python 3.7 or later.
+Prefect requires Python 3.8 or later.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
