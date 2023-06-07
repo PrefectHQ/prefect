@@ -7,6 +7,8 @@ tags:
     - integrations
     - task library
     - contributing
+search:
+  boost: 2
 ---
 
 # Using Integrations

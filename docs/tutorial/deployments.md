@@ -8,6 +8,8 @@ tags:
     - deployments
     - schedules
     - tutorial
+search:
+  boost: 2
 ---
 
 # Flow deployments

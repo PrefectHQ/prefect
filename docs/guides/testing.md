@@ -4,6 +4,8 @@ tags:
     - testing
     - unit test
     - development
+search:
+  boost: 2
 ---
 
 # Testing
