@@ -3,6 +3,7 @@ Utilities for prompting the user for input
 """
 from datetime import timedelta
 from rich.prompt import PromptBase, InvalidResponse
+from rich.text import Text
 
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -11,10 +12,10 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import readchar
 
-from rich.console import Console
+from rich.console import Console, Group
 from rich.table import Table
 from rich.live import Live
 from rich.prompt import Prompt, Confirm
@@ -45,6 +46,8 @@ def prompt_select_from_table(
     columns: List[Dict],
     data: List[Dict],
     table_kwargs: Optional[Dict] = None,
+    opt_out_message: Optional[str] = None,
+    opt_out_response: Any = None,
 ) -> Dict:
     """
     Given a list of columns and some data, display options to user in a table
@@ -64,7 +67,6 @@ def prompt_select_from_table(
     """
     current_idx = 0
     selected_row = None
-    first_run = True
     table_kwargs = table_kwargs or {}
 
     def build_table() -> Table:
@@ -72,12 +74,6 @@ def prompt_select_from_table(
         Generate a table of options. The `current_idx` will be highlighted.
         """
 
-        nonlocal first_run
-        if first_run:
-            console.print(
-                f"[bold][green]?[/] {prompt} [bright_blue][Use arrows to move; enter to"
-                " select][/]"
-            )
         table = Table(**table_kwargs)
         table.add_column()
         for column in columns:
@@ -93,10 +89,21 @@ def prompt_select_from_table(
                 table.add_row("[bold][blue]>", f"[bold][blue]{row[0]}[/]", *row[1:])
             else:
                 table.add_row("  ", *row)
-        first_run = False
+
+        if opt_out_message:
+            prefix = "  > " if current_idx == len(data) else " " * 4
+            bottom_text = Text(prefix + opt_out_message)
+            if current_idx == len(data):
+                bottom_text.stylize("bold blue")
+            return Group(table, bottom_text)
+
         return table
 
     with Live(build_table(), auto_refresh=False, console=console) as live:
+        live.console.print(
+            f"[bold][green]?[/] {prompt} [bright_blue][Use arrows to move; enter to"
+            " select][/]"
+        )
         while selected_row is None:
             key = readchar.readkey()
 
@@ -108,13 +115,18 @@ def prompt_select_from_table(
             elif key == readchar.key.DOWN:
                 current_idx = current_idx + 1
                 # wrap to top if at the bottom
-                if current_idx >= len(data):
+                if opt_out_message and current_idx >= len(data) + 1:
+                    current_idx = 0
+                elif not opt_out_message and current_idx >= len(data):
                     current_idx = 0
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
-                selected_row = data[current_idx]
+                if current_idx >= len(data):
+                    selected_row = opt_out_response
+                else:
+                    selected_row = data[current_idx]
 
             live.update(build_table(), refresh=True)
 

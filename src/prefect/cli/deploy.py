@@ -11,9 +11,6 @@ import yaml
 from rich.panel import Panel
 from rich.console import Console
 
-import prefect
-import prefect.context
-import prefect.settings
 from prefect.cli._utilities import (
     exit_with_error,
 )
@@ -30,6 +27,7 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.projects import find_prefect_directory, register_flow
@@ -41,6 +39,12 @@ from prefect.utilities.templating import apply_values
 from prefect.projects.steps.core import run_steps
 
 from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
+
+from prefect.blocks.system import Secret
+
+from prefect.utilities.slugify import slugify
+
+from prefect.client.orchestration import PrefectClient
 
 
 @app.command()
@@ -206,10 +210,14 @@ async def deploy(
             else:
                 deployments = [base_deploy]
     except FileNotFoundError:
-        app.console.print(
-            "No deployment.yaml file found, only provided CLI options will be used.",
-            style="yellow",
-        )
+        if PREFECT_DEBUG_MODE:
+            app.console.print(
+                (
+                    "No deployment.yaml file found, only provided CLI options will be"
+                    " used."
+                ),
+                style="yellow",
+            )
         deployments = []
 
     try:
@@ -257,9 +265,12 @@ async def deploy(
                     )
                 selected_deployment = prompt_select_from_table(
                     app.console,
-                    "Which deployment would you like to create or update?",
+                    (
+                        "Would you like to use an existing deployment configuration"
+                        " from deployment.yaml?"
+                    ),
                     [
-                        {"header": "Deployment Name", "key": "name"},
+                        {"header": "Name", "key": "name"},
                         {"header": "Description", "key": "description"},
                     ],
                     [
@@ -267,6 +278,8 @@ async def deploy(
                         for deployment in deployments
                         if deployment.get("name")
                     ],
+                    opt_out_message="No, configure a new deployment",
+                    opt_out_response={},
                 )
                 await _run_single_deploy(
                     base_deploy=selected_deployment,
@@ -293,8 +306,13 @@ async def deploy(
         exit_with_error(str(exc))
 
 
+@inject_client
 async def _run_single_deploy(
-    base_deploy: Dict, project: Dict, options: Optional[Dict] = None, ci: bool = False
+    base_deploy: Dict,
+    project: Dict,
+    options: Optional[Dict] = None,
+    ci: bool = False,
+    client: PrefectClient = None,
 ):
     base_deploy = deepcopy(base_deploy) if base_deploy else {}
     project = deepcopy(project) if project else {}
@@ -326,9 +344,6 @@ async def _run_single_deploy(
     timezone = options.get("timezone") or base_deploy_schedule.get("timezone")
 
     build_steps = base_deploy.get("build", project.get("build")) or []
-    pull_steps = base_deploy.get(
-        "pull", project.get("pull")
-    ) or _generate_default_pull_action(app.console)
     push_steps = base_deploy.get("push", project.get("push")) or []
 
     if interval_anchor and not interval:
@@ -448,19 +463,58 @@ async def _run_single_deploy(
         ci=ci,
     )
 
+    # determine work pool
+    if base_deploy["work_pool"]["name"]:
+        try:
+            work_pool = await client.read_work_pool(base_deploy["work_pool"]["name"])
+
+            # dont allow submitting to prefect-agent typed work pools
+            if work_pool.type == "prefect-agent":
+                if not is_interactive() or ci:
+                    raise ValueError(
+                        "Cannot create a project-style deployment with work pool of"
+                        " type 'prefect-agent'. If you wish to use an agent with"
+                        " your deployment, please use the `prefect deployment"
+                        " build` command."
+                    )
+                app.console.print(
+                    "You've chosen a work pool with type 'prefect-agent' which"
+                    " cannot be used for project-style deployments. Let's pick"
+                    " another work pool to deploy to."
+                )
+                base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+                    app.console,
+                    client=client,
+                )
+        except ObjectNotFound:
+            raise ValueError(
+                "This deployment references a work pool that does not exist."
+                " This means no worker will be able to pick up its runs. You"
+                " can create a work pool in the Prefect UI."
+            )
+    else:
+        if not is_interactive() or ci:
+            raise ValueError(
+                "A work pool is required to deploy this flow. Please specify a work"
+                " pool name via the '--pool' flag or in your deployment.yaml file."
+            )
+        base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+            console=app.console, client=client
+        )
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
         app.console.print("Running deployment build steps...")
-    step_outputs.update(
-        await run_steps(build_steps, step_outputs, print_function=app.console.print)
-    )
+        step_outputs.update(
+            await run_steps(build_steps, step_outputs, print_function=app.console.print)
+        )
 
     if push_steps:
         app.console.print("Running deployment push steps...")
-    step_outputs.update(
-        await run_steps(push_steps, step_outputs, print_function=app.console.print)
-    )
+        step_outputs.update(
+            await run_steps(push_steps, step_outputs, print_function=app.console.print)
+        )
 
     variable_overrides = {}
     for variable in variables or []:
@@ -498,101 +552,66 @@ async def _run_single_deploy(
     base_deploy["schedule"] = schedule
 
     # prepare the pull step
+    pull_steps = base_deploy.get(
+        "pull", project.get("pull")
+    ) or await _generate_default_pull_action(
+        app.console,
+        base_deploy=base_deploy,
+    )
     pull_steps = apply_values(pull_steps, step_outputs)
 
-    async with prefect.get_client() as client:
-        flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
+    flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
-        if base_deploy["work_pool"]["name"]:
-            try:
-                work_pool = await client.read_work_pool(
-                    base_deploy["work_pool"]["name"]
-                )
+    deployment_id = await client.create_deployment(
+        flow_id=flow_id,
+        name=base_deploy["name"],
+        work_queue_name=base_deploy["work_pool"]["work_queue_name"],
+        work_pool_name=base_deploy["work_pool"]["name"],
+        version=base_deploy["version"],
+        schedule=base_deploy["schedule"],
+        parameters=base_deploy["parameters"],
+        description=base_deploy["description"],
+        tags=base_deploy["tags"],
+        path=base_deploy.get("path"),
+        entrypoint=base_deploy["entrypoint"],
+        parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
+        pull_steps=pull_steps,
+        infra_overrides=base_deploy["work_pool"]["job_variables"],
+    )
 
-                # dont allow submitting to prefect-agent typed work pools
-                if work_pool.type == "prefect-agent":
-                    if not is_interactive() or ci:
-                        raise ValueError(
-                            "Cannot create a project-style deployment with work pool of"
-                            " type 'prefect-agent'. If you wish to use an agent with"
-                            " your deployment, please use the `prefect deployment"
-                            " build` command."
-                        )
-                    app.console.print(
-                        "You've chosen a work pool with type 'prefect-agent' which"
-                        " cannot be used for project-style deployments. Let's pick"
-                        " another work pool to deploy to."
-                    )
-                    base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
-                        app.console,
-                        client=client,
-                    )
-            except ObjectNotFound:
-                raise ValueError(
-                    "This deployment references a work pool that does not exist."
-                    " This means no worker will be able to pick up its runs. You"
-                    " can create a work pool in the Prefect UI."
-                )
-        else:
-            if not is_interactive() or ci:
-                raise ValueError(
-                    "A work pool is required to deploy this flow. Please specify a work"
-                    " pool name via the '--pool' flag or in your deployment.yaml file."
-                )
-            base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
-                console=app.console, client=client
-            )
+    app.console.print(
+        (
+            f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
+            f" successfully created with id '{deployment_id}'."
+        ),
+        style="green",
+    )
 
-        deployment_id = await client.create_deployment(
-            flow_id=flow_id,
-            name=base_deploy["name"],
-            work_queue_name=base_deploy["work_pool"]["work_queue_name"],
-            work_pool_name=base_deploy["work_pool"]["name"],
-            version=base_deploy["version"],
-            schedule=base_deploy["schedule"],
-            parameters=base_deploy["parameters"],
-            description=base_deploy["description"],
-            tags=base_deploy["tags"],
-            path=base_deploy.get("path"),
-            entrypoint=base_deploy["entrypoint"],
-            parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
-            pull_steps=pull_steps,
-            infra_overrides=base_deploy["work_pool"]["job_variables"],
-        )
-
+    if PREFECT_UI_URL:
         app.console.print(
-            (
-                f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
-                f" successfully created with id '{deployment_id}'."
-            ),
-            style="green",
+            "View Deployment in UI:"
+            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
         )
 
-        if PREFECT_UI_URL:
-            app.console.print(
-                "View Deployment in UI:"
-                f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
-            )
-
-        app.console.print(
-            "\nTo execute flow runs from this deployment, start a worker in a"
-            " separate terminal that pulls work from the"
-            f" {base_deploy['work_pool']['name']!r} work pool:"
-        )
-        app.console.print(
-            f"\n\t$ prefect worker start --pool {base_deploy['work_pool']['name']!r}",
-            style="blue",
-        )
-        app.console.print(
-            "\nTo schedule a run for this deployment, use the following command:"
-        )
-        app.console.print(
-            (
-                "\n\t$ prefect deployment run"
-                f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
-            ),
-            style="blue",
-        )
+    app.console.print(
+        "\nTo execute flow runs from this deployment, start a worker in a"
+        " separate terminal that pulls work from the"
+        f" {base_deploy['work_pool']['name']!r} work pool:"
+    )
+    app.console.print(
+        f"\n\t$ prefect worker start --pool {base_deploy['work_pool']['name']!r}",
+        style="blue",
+    )
+    app.console.print(
+        "\nTo schedule a run for this deployment, use the following command:"
+    )
+    app.console.print(
+        (
+            "\n\t$ prefect deployment run"
+            f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
+        ),
+        style="blue",
+    )
 
 
 async def _run_multi_deploy(
@@ -734,24 +753,106 @@ def _merge_with_default_deployment(base_deploy: Dict):
     return base_deploy
 
 
-def _generate_default_pull_action(console: Console):
+async def _generate_default_pull_action(console: Console, base_deploy: Dict):
     remote_url = _get_git_remote_origin_url()
-    if remote_url:
+    if remote_url and confirm(
+        (
+            "Your Prefect workers will need access to this flow's code in order to run"
+            " it. Would you like your workers to pull your flow code from its remote"
+            " repository when running this flow?"
+        ),
+        default=True,
+        console=console,
+    ):
         branch = _get_git_branch() or "main"
 
-        return [
-            {
-                "prefect.projects.steps.git_clone_project": {
-                    "repository": remote_url,
-                    "branch": branch,
-                }
+        if not confirm(
+            (
+                "Is this the correct URL to pull your flow code from:"
+                f" [green]{remote_url}[/]?"
+            ),
+            default=True,
+            console=console,
+        ):
+            remote_url = prompt(
+                "Please enter the URL to pull your flow code from", console=console
+            )
+        if not confirm(
+            (
+                "Is this the correct branch to pull your flow code from:"
+                f" [green]{branch}[/]?"
+            ),
+            default=True,
+            console=console,
+        ):
+            branch = prompt(
+                "Please enter the branch to pull your flow code from",
+                default="main",
+                console=console,
+            )
+        token_secret_block_name = None
+        if confirm("Is this a private repository?", console=console):
+            token_secret_block_name = f"deployment-{slugify(base_deploy['deployment_name'])}-{base_deploy['flow_name']}-repo-token"
+            create_new_block = False
+            prompt_message = (
+                "Please enter a token that can be used to access your private"
+                " repository. This token will be saved as a secret via the Prefect API."
+            )
+
+            try:
+                await Secret.load(token_secret_block_name)
+                if not confirm(
+                    (
+                        "We found an existing token saved for this deployment. Would"
+                        " you like use the existing token?"
+                    ),
+                    default=True,
+                    console=console,
+                ):
+                    prompt_message = (
+                        "Please enter a token that can be used to access your private"
+                        " repository (this will overwrite the existing token saved via"
+                        " the Prefect API)."
+                    )
+
+                    create_new_block = True
+            except ValueError:
+                create_new_block = True
+
+            if create_new_block:
+                repo_token = prompt(
+                    prompt_message,
+                    console=console,
+                    password=True,
+                )
+                await Secret(
+                    value=repo_token,
+                ).save(name=token_secret_block_name, overwrite=True)
+
+        git_clone_step = {
+            "prefect.projects.steps.git_clone_project": {
+                "repository": remote_url,
+                "branch": branch,
             }
-        ]
+        }
+
+        if token_secret_block_name:
+            git_clone_step["prefect.projects.steps.git_clone_project"]["token"] = (
+                "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
+            )
+
+        return [git_clone_step]
     else:
+        entrypoint_path, _ = base_deploy["entrypoint"].split(":")
+        console.print(
+            "You Prefect workers will attempt to load your flow from:"
+            f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]."
+            " Your worker will need access to this file in order to run your flow."
+        )
         return [
             {
                 "prefect.projects.steps.set_working_directory": {
-                    "directory": Path.cwd().absolute().resolve()
+                    "directory": str(Path.cwd().absolute().resolve())
                 }
             }
         ]
