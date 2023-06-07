@@ -3,6 +3,7 @@ import statistics
 import sys
 import time
 from contextlib import contextmanager
+import threading
 from typing import List
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -1181,6 +1182,7 @@ class TestOrchestrateFlowRun:
                 client=prefect_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
+                user_thread=threading.current_thread(),
             )
 
         assert await state.result() == 1
@@ -1213,6 +1215,7 @@ class TestOrchestrateFlowRun:
                 client=prefect_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
+                user_thread=threading.current_thread(),
             )
 
         mock_anyio_sleep.assert_not_called()
@@ -1248,6 +1251,7 @@ class TestOrchestrateFlowRun:
                 client=prefect_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
+                user_thread=threading.current_thread(),
             )
 
         # Check for a proper final result
@@ -1297,6 +1301,7 @@ class TestOrchestrateFlowRun:
                     client=prefect_client,
                     interruptible=False,
                     partial_flow_run_context=partial_flow_run_context,
+                    user_thread=threading.current_thread(),
                 )
 
 
@@ -1330,6 +1335,7 @@ class TestFlowRunCrashes:
             parameters={},
             flow_run=flow_run,
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         flow_run = await prefect_client.read_flow_run(flow_run.id)
 
@@ -1354,6 +1360,7 @@ class TestFlowRunCrashes:
                 parameters={},
                 flow_run=flow_run,
                 client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -1379,7 +1386,11 @@ class TestTaskRunCrashes:
 
         with pytest.raises(interrupt_type):
             await begin_flow_run(
-                flow=my_flow, flow_run=flow_run, parameters={}, client=prefect_client
+                flow=my_flow,
+                flow_run=flow_run,
+                parameters={},
+                client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -1419,7 +1430,11 @@ class TestTaskRunCrashes:
 
         with pytest.raises(interrupt_type):
             await begin_flow_run(
-                flow=my_flow, flow_run=flow_run, parameters={}, client=prefect_client
+                flow=my_flow,
+                flow_run=flow_run,
+                parameters={},
+                client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -1457,7 +1472,11 @@ class TestTaskRunCrashes:
 
         # Note exception should not be re-raised
         state = await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=prefect_client
+            flow=my_flow,
+            flow_run=flow_run,
+            parameters={},
+            client=prefect_client,
+            user_thread=threading.current_thread(),
         )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -1511,7 +1530,7 @@ class TestDeploymentFlowRun:
         )
 
         state = await retrieve_flow_then_begin_flow_run(
-            flow_run.id, client=prefect_client
+            flow_run.id, client=prefect_client, user_thread=threading.current_thread()
         )
         assert await state.result() == 1
 
@@ -1537,7 +1556,9 @@ class TestDeploymentFlowRun:
             extra_tolerance=my_flow.retries,
         ):
             state = await retrieve_flow_then_begin_flow_run(
-                flow_run.id, client=prefect_client
+                flow_run.id,
+                client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -1559,7 +1580,7 @@ class TestDeploymentFlowRun:
         )
 
         state = await retrieve_flow_then_begin_flow_run(
-            flow_run.id, client=prefect_client
+            flow_run.id, client=prefect_client, user_thread=threading.current_thread()
         )
         assert state.is_failed()
         with pytest.raises(ValueError, match="test!"):
@@ -1580,7 +1601,7 @@ class TestDeploymentFlowRun:
         )
 
         state = await retrieve_flow_then_begin_flow_run(
-            flow_run.id, client=prefect_client
+            flow_run.id, client=prefect_client, user_thread=threading.current_thread()
         )
         assert await state.result() == 1
 
@@ -1599,7 +1620,7 @@ class TestDeploymentFlowRun:
         )
 
         state = await retrieve_flow_then_begin_flow_run(
-            flow_run.id, client=prefect_client
+            flow_run.id, client=prefect_client, user_thread=threading.current_thread()
         )
         assert state.is_failed()
         assert "Validation of flow parameters failed with error" in state.message
@@ -1698,6 +1719,7 @@ class TestCreateThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
@@ -1718,6 +1740,7 @@ class TestCreateThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
@@ -1745,6 +1768,7 @@ class TestCreateThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.COMPLETED
         assert await state.result() == ("bar", 1)
@@ -1766,6 +1790,7 @@ class TestCreateThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
@@ -1788,7 +1813,9 @@ class TestRetrieveFlowThenBeginFlowRun:
         new_flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=dep_id, parameters={"dog": [1], "cat": "not an int"}
         )
-        state = await retrieve_flow_then_begin_flow_run(flow_run_id=new_flow_run.id)
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run_id=new_flow_run.id, user_thread=threading.current_thread()
+        )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
@@ -1808,6 +1835,7 @@ class TestRetrieveFlowThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
@@ -1836,6 +1864,7 @@ class TestRetrieveFlowThenBeginFlowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
@@ -1858,6 +1887,7 @@ class TestCreateAndBeginSubflowRun:
                 wait_for=None,
                 return_type="state",
                 client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         assert state.type == StateType.FAILED
@@ -1883,6 +1913,7 @@ class TestCreateAndBeginSubflowRun:
                 wait_for=None,
                 return_type="state",
                 client=prefect_client,
+                user_thread=threading.current_thread(),
             )
 
         assert state.type == StateType.FAILED
@@ -1912,6 +1943,7 @@ class TestCreateAndBeginSubflowRun:
             wait_for=None,
             return_type="state",
             client=prefect_client,
+            user_thread=threading.current_thread(),
         )
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
