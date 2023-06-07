@@ -20,6 +20,10 @@ formatters:
         task_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
         datefmt: "%H:%M:%S"
 
+    debug:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(threadName)-12s | %(name)s - %(message)s"
+        datefmt: "%H:%M:%S"
+
     json:
         class: prefect.logging.formatters.JsonFormatter
         format: "default"
@@ -60,6 +64,12 @@ handlers:
         level: 0
         class: prefect.logging.handlers.APILogHandler
 
+    
+    debug:
+        level: 0
+        class: logging.StreamHandler
+        formatter: debug
+
 loggers:
     prefect:
         level: "${PREFECT_LOGGING_LEVEL}"
@@ -87,6 +97,8 @@ loggers:
 
     prefect._internal:
         level: "${PREFECT_LOGGING_INTERNAL_LEVEL}"
+        propagate: false
+        handlers: [debug]
 
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"

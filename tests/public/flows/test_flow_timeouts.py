@@ -8,9 +8,10 @@ import prefect
 
 # GitHub Actions sets the CI environment variable — the runners are much slower there
 # so the sleep time needs to be larger to account for overhead
-SLEEP_TIME = 3 if os.environ.get("CI") else 1
+SLEEP_TIME = 4 if os.environ.get("CI") else 2
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_sync_flow_timeout():
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
@@ -43,6 +44,7 @@ async def test_async_flow_timeout():
         await state.result()
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_sync_flow_timeout_in_sync_flow():
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():

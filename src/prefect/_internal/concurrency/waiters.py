@@ -6,7 +6,9 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
+from collections import deque
 import inspect
+import weakref
 import queue
 import threading
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
@@ -16,17 +18,35 @@ import anyio
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect._internal.concurrency.timeouts import (
-    CancelContext,
-    cancel_async_at,
-    cancel_sync_at,
-)
-from prefect.logging import get_logger
+from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 
-# TODO: We should update the format for this logger to include the current thread
-logger = get_logger("prefect._internal.concurrency.waiters")
+
+# Waiters are stored in a stack for each thread
+_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+    """
+    Get the current waiter for a thread.
+
+    Returns `None` if one does not exist.
+    """
+    waiters = _WAITERS_BY_THREAD.get(thread)
+    return waiters[-1] if waiters else None
+
+
+def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
+    """
+    Add a waiter for a thread.
+    """
+    if thread not in _WAITERS_BY_THREAD:
+        _WAITERS_BY_THREAD[thread] = deque()
+
+    _WAITERS_BY_THREAD[thread].append(waiter)
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -41,10 +61,11 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        call.set_waiter(self)
         self._call = call
         self._owner_thread = threading.current_thread()
 
+        # Set the waiter for the current thread
+        add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
     @abc.abstractmethod
@@ -56,6 +77,15 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    def add_done_callback(self, callback: Call) -> Call:
+        """
+        Schedule a call to run when the waiter is done waiting.
+
+        If the waiter is already done, a `RuntimeError` error will be thrown.
+        """
+        raise NotImplementedError()
+
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} call={self._call},"
@@ -64,6 +94,8 @@ class Waiter(Portal, abc.ABC, Generic[T]):
 
 
 class SyncWaiter(Waiter[T]):
+    # Implementation of `Waiter` for use in synchronous contexts
+
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
         self._queue: queue.Queue = queue.Queue()
@@ -74,25 +106,23 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError(f"The call {self._call} is already done.")
+
         self._queue.put_nowait(call)
         call.set_runner(self)
         return call
 
-    def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug(
-            "Waiter %r watching for callbacks with cancel context %r",
-            self,
-            cancel_context,
-        )
+    def _handle_waiting_callbacks(self):
+        logger.debug("Waiter %r watching for callbacks", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
                 break
 
-            # We could set the deadline for the callback to match the call we are
-            # waiting for, but callbacks can have their own timeout and we don't want to
-            # override it
-            cancel_context.chain(callback.cancel_context)
+            # Ensure that callbacks are cancelled if the parent call is cancelled so
+            # waiting never runs longer than the call
+            self._call.future.add_cancel_callback(callback.future.cancel)
             callback.run()
             del callback
 
@@ -119,17 +149,18 @@ class SyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         with self._handle_done_callbacks():
-            # Cancel work sent to the waiter if the future exceeds its timeout
-            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
-                self._handle_waiting_callbacks(ctx)
+            self._handle_waiting_callbacks()
 
             # Wait for the future to be done
             self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
 
 
 class AsyncWaiter(Waiter[T]):
+    # Implementation of `Waiter` for use in asynchronous contexts
+
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
 
@@ -145,6 +176,11 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
+        if self._call.future.done():
+            raise RuntimeError(f"The call {self._call} is already done.")
+
+        call.set_runner(self)
+
         if not self._queue:
             # If the loop is not yet available, just push the call to a stack
             self._early_submissions.append(call)
@@ -152,21 +188,17 @@ class AsyncWaiter(Waiter[T]):
 
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
-        call.set_runner(self)
         return call
 
     def _resubmit_early_submissions(self):
         assert self._queue
         for call in self._early_submissions:
-            self.submit(call)
+            # We must put items in the queue from the event loop that owns it
+            call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         self._early_submissions = []
 
-    async def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug(
-            "Waiter %r watching for callbacks with cancel context %r",
-            self,
-            cancel_context,
-        )
+    async def _handle_waiting_callbacks(self):
+        logger.debug("Waiter %r watching for callbacks", self)
         tasks = []
 
         try:
@@ -175,10 +207,9 @@ class AsyncWaiter(Waiter[T]):
                 if callback is None:
                     break
 
-                # We could set the deadline for the callback to match the call we are
-                # waiting for, but callbacks can have their own timeout and we don't
-                # want to override it
-                cancel_context.chain(callback.cancel_context)
+                # Ensure that callbacks are cancelled if the parent call is cancelled so
+                # waiting never runs longer than the call
+                self._call.future.add_cancel_callback(callback.future.cancel)
                 retval = callback.run()
                 if inspect.isawaitable(retval):
                     tasks.append(retval)
@@ -232,11 +263,10 @@ class AsyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         async with self._handle_done_callbacks():
-            # Cancel work sent to the waiter if the future exceeds its timeout
-            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
-                await self._handle_waiting_callbacks(ctx)
+            await self._handle_waiting_callbacks()
 
             # Wait for the future to be done
             await self._done_event.wait()
 
+        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
