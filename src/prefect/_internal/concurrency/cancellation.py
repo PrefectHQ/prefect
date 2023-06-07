@@ -150,6 +150,8 @@ class CancelScope(abc.ABC):
             self._deadline = get_deadline(self._timeout)
             self._started = True
             self._start_time = time.monotonic()
+
+        logger.debug("%r entered", self)
         return self
 
     def __exit__(self, *_):
@@ -157,6 +159,8 @@ class CancelScope(abc.ABC):
             if not self._cancelled:
                 self._completed = True
             self._end_time = time.monotonic()
+
+        logger.debug("%r exited", self)
 
     @property
     def timeout(self):
@@ -204,6 +208,8 @@ class CancelScope(abc.ABC):
                 return True
 
             self._cancelled = True
+
+        logger.debug("%r cancelling", self)
 
         for callback in self._callbacks:
             callback()
@@ -301,7 +307,7 @@ class NullCancelScope(CancelScope):
         self.reason = reason or "null cancel scope"
 
     def cancel(self):
-        logger.warning("Cannot cancel %s.", self.reason)
+        logger.warning("%r cannot cancel %s.", self, self.reason)
         return False
 
 
@@ -329,7 +335,9 @@ class AlarmCancelScope(CancelScope):
 
         if self._previous_alarm_handler != signal.SIG_DFL:
             logger.warning(
-                f"Overriding existing alarm handler {self._previous_alarm_handler}"
+                "%r overriding existing alarm handler %s",
+                self,
+                self._previous_alarm_handler,
             )
 
         # Capture alarm signals and raise a timeout
@@ -338,16 +346,17 @@ class AlarmCancelScope(CancelScope):
         # Set a timer to raise an alarm signal
         if self.timeout is not None:
             # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
+            logger.debug("%r set alarm timer for %f seconds", self, self.timeout)
             self._previous_timer = signal.setitimer(signal.ITIMER_REAL, self.timeout)
 
         return self
 
     def _sigalarm_to_error(self, *args):
-        logger.debug("%r captured alarm raising as cancelled error...", self)
+        logger.debug("%r captured alarm raising as cancelled error", self)
         if self.cancel(throw=False):
             shield = _get_thread_shield(threading.main_thread())
             if shield.active():
-                logger.debug("Thread shield active; delaying exception...")
+                logger.debug("%r thread shield active; delaying exception", self)
                 shield.set_exception(CancelledError())
             else:
                 raise CancelledError()
@@ -369,7 +378,7 @@ class AlarmCancelScope(CancelScope):
             return False
 
         if throw:
-            logger.debug("Sending alarm signal to main thread...")
+            logger.debug("%r sending alarm signal to main thread", self)
             os.kill(os.getpid(), signal.SIGALRM)
 
         return True
@@ -401,11 +410,13 @@ class WatcherThreadCancelScope(CancelScope):
             )
             self._enforcer_thread.start()
 
+        return self
+
     def __exit__(self, *_):
         retval = super().__exit__(*_)
         self._event.set()
         if self._enforcer_thread:
-            logger.debug("Joining enforcer thread %r", self._enforcer_thread)
+            logger.debug("%r joining enforcer thread %r", self, self._enforcer_thread)
             self._enforcer_thread.join()
         return retval
 
@@ -415,7 +426,9 @@ class WatcherThreadCancelScope(CancelScope):
         """
         if self._supervised_thread.is_alive():
             logger.debug(
-                "Sending exception to supervised thread %r", self._supervised_thread
+                "%r sending exception to supervised thread %r",
+                self,
+                self._supervised_thread,
             )
             with _get_thread_shield(self._supervised_thread):
                 try:
@@ -429,17 +442,13 @@ class WatcherThreadCancelScope(CancelScope):
         Target for a thread that enforces a timeout.
         """
         if not self._event.wait(self.timeout):
-            logger.debug(
-                "Scope %r detected timeout; sending exception to supervised thread %r",
-                self,
-                self._supervised_thread.name,
-            )
+            logger.debug("%r enforcer detected timeout!", self)
             if self.cancel(throw=False):
                 with _get_thread_shield(self._supervised_thread):
                     self._send_cancelled_error()
 
         # Wait for the supervised thread to exit its context
-        logger.debug("Waiting for supervised thread to exit...")
+        logger.debug("%r waiting for supervised thread to exit", self)
         self._event.wait()
 
     def cancel(self, throw: bool = True):
@@ -556,7 +565,6 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
         scope = WatcherThreadCancelScope(name=name, timeout=timeout)
 
     with scope:
-        logger.debug("Entered %r", scope)
         yield scope
 
 
