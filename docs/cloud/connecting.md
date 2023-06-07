@@ -8,6 +8,8 @@ tags:
     - workers
     - troubleshooting
     - connecting
+search:
+  boost: 2
 ---
 
 # Connecting & Troubleshooting Prefect Cloud <span class="badge cloud"></span>

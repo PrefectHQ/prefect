@@ -3,6 +3,8 @@ description: Users - special features for Prefect Cloud users
 tags:
     - Prefect Cloud
     - Users
+search:
+  boost: 2
 ---
 
 # Users <span class="badge cloud"></span>
