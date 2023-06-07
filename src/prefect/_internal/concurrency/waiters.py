@@ -77,6 +77,15 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    def add_done_callback(self, callback: Call) -> Call:
+        """
+        Schedule a call to run when the waiter is done waiting.
+
+        If the waiter is already done, a `RuntimeError` error will be thrown.
+        """
+        raise NotImplementedError()
+
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} call={self._call},"
@@ -85,6 +94,8 @@ class Waiter(Portal, abc.ABC, Generic[T]):
 
 
 class SyncWaiter(Waiter[T]):
+    # Implementation of `Waiter` for use in synchronous contexts
+
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
         self._queue: queue.Queue = queue.Queue()
@@ -148,6 +159,8 @@ class SyncWaiter(Waiter[T]):
 
 
 class AsyncWaiter(Waiter[T]):
+    # Implementation of `Waiter` for use in asynchronous contexts
+
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
 
