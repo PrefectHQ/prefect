@@ -53,7 +53,11 @@ async def deployment_with_pull_steps(
                         "directory": "/tmp"
                     },
                 },
-                {"prefect.projects.steps.set_working_directory": {"directory": "/tmp"}},
+                {
+                    "prefect.projects.steps.set_working_directory": {
+                        "directory": "/private"
+                    }
+                },
             ],
         ),
     )
@@ -258,6 +262,6 @@ class TestProjectClone:
                 f"project clone --id {deployment_with_pull_steps.id}",
                 temp_dir=str(tempdir),
                 expected_code=0,
-                expected_output_contains="/tmp",
+                expected_output_contains="/private",
             )
             assert result.exit_code == 0
