@@ -1,5 +1,5 @@
 """
-Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
+Utilities for cancellation in synchronous and asynchronous contexts.
 """
 
 import asyncio
