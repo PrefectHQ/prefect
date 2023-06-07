@@ -4,7 +4,7 @@ import time
 import pytest
 
 from prefect._internal.concurrency.calls import Call
-from prefect._internal.concurrency.timeouts import CancelledError
+from prefect._internal.concurrency.cancellation import CancelledError
 
 
 def identity(x):

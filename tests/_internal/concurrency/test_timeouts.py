@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import anyio
 import pytest
 
-from prefect._internal.concurrency.timeouts import (
+from prefect._internal.concurrency.cancellation import (
     CancelledError,
     AlarmCancelScope,
     WatcherThreadCancelScope,

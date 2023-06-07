@@ -15,7 +15,7 @@ from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, Typ
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.timeouts import (
+from prefect._internal.concurrency.cancellation import (
     CancelledError,
     cancel_async_at,
     get_deadline,
