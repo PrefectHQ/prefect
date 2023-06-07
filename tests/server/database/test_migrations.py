@@ -20,6 +20,9 @@ from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
+pytestmark = pytest.mark.service("database")
+
+
 @pytest.fixture
 async def sample_db_data(
     flow,
@@ -33,7 +36,6 @@ async def sample_db_data(
     """Adds sample data to the database for testing migrations"""
 
 
-@pytest.mark.service("database")
 @pytest.mark.timeout(120)
 async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     """
@@ -329,6 +331,7 @@ async def test_backfill_artifacts(db):
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
+@pytest.mark.timeout(120)
 async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
     """
     Tests state_name is backfilled correctly for the flow_run

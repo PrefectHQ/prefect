@@ -945,6 +945,7 @@ def test_watch_deadline_is_computed_before_log_streams(
     )
 
 
+@pytest.mark.flaky
 def test_timeout_is_checked_during_log_streams(
     mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
 ):

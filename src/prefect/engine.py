@@ -21,9 +21,10 @@ import logging
 import os
 import signal
 import prefect.plugins
+import threading
 import sys
 import time
-from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
@@ -40,7 +41,7 @@ from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect._internal.concurrency.timeouts import get_deadline
+from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -175,6 +176,7 @@ def enter_flow_run_engine_from_flow_call(
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
+        user_thread=threading.current_thread(),
     )
 
     # On completion of root flows, wait for the global thread to ensure that
@@ -229,7 +231,11 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     setup_logging()
 
     state = from_sync.wait_for_call_in_loop_thread(
-        create_call(retrieve_flow_then_begin_flow_run, flow_run_id),
+        create_call(
+            retrieve_flow_then_begin_flow_run,
+            flow_run_id,
+            user_thread=threading.current_thread(),
+        ),
         contexts=[capture_sigterm()],
     )
 
@@ -244,6 +250,7 @@ async def create_then_begin_flow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -291,7 +298,11 @@ async def create_then_begin_flow_run(
         )
     else:
         state = await begin_flow_run(
-            flow=flow, flow_run=flow_run, parameters=parameters, client=client
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            client=client,
+            user_thread=user_thread,
         )
 
     if return_type == "state":
@@ -304,7 +315,9 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: PrefectClient
+    flow_run_id: UUID,
+    client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -367,6 +380,7 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run=flow_run,
         parameters=parameters,
         client=client,
+        user_thread=user_thread,
     )
 
 
@@ -375,6 +389,7 @@ async def begin_flow_run(
     flow_run: FlowRun,
     parameters: Dict[str, Any],
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -447,6 +462,7 @@ async def begin_flow_run(
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
+            user_thread=user_thread,
         )
 
     if terminal_or_paused_state.is_paused():
@@ -486,6 +502,7 @@ async def create_and_begin_subflow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -617,6 +634,7 @@ async def create_and_begin_subflow_run(
                         result_factory=result_factory,
                         log_prints=log_prints,
                     ),
+                    user_thread=user_thread,
                 )
 
     # Display the full state (including the result) if debugging
@@ -645,6 +663,7 @@ async def orchestrate_flow_run(
     interruptible: bool,
     client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
+    user_thread: threading.Thread,
 ) -> State:
     """
     Executes a flow run.
@@ -729,7 +748,7 @@ async def orchestrate_flow_run(
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
                 # This check for a parent call is needed for cases where the engine
-                # was entered directly; such as during testing _or_ deployment runs
+                # was entered directly during testing
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -739,8 +758,8 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.call_soon_in_waiter_thread(
-                        flow_call, timeout=flow.timeout_seconds
+                    from_async.call_soon_in_waiting_thread(
+                        flow_call, thread=user_thread, timeout=flow.timeout_seconds
                     )
                 else:
                     from_async.call_soon_in_new_thread(
@@ -756,25 +775,26 @@ async def orchestrate_flow_run(
             paused_flow_run = await client.read_flow_run(flow_run.id)
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
-        except Exception as exc:
-            name = message = None
-            if (
-                # Flow run timeouts
-                isinstance(exc, TimeoutError)
-                # Only update the message if the timeout was actually encountered since
-                # this could be a timeout in the user's code
-                and flow_call.cancelled()
-            ):
-                # TODO: Cancel task runs if feasible
-                name = "TimedOut"
-                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
-            else:
-                # Generic exception in user code
-                message = "Flow run encountered an exception."
-                logger.exception("Encountered exception during execution:")
+        except CancelledError as exc:
+            if not flow_call.timedout():
+                # If the flow call was not cancelled by us; this is a crash
+                raise
+            # Construct a new exception as `TimeoutError`
+            original = exc
+            exc = TimeoutError()
+            exc.__cause__ = original
+            logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
-                name=name,
-                message=message,
+                exc,
+                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+                result_factory=flow_run_context.result_factory,
+                name="TimedOut",
+            )
+        except Exception:
+            # Generic exception in user code
+            logger.exception("Encountered exception during execution:")
+            terminal_state = await exception_to_failed_state(
+                message="Flow run encountered an exception.",
                 result_factory=flow_run_context.result_factory,
             )
         else:
@@ -1599,14 +1619,6 @@ async def orchestrate_task_run(
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-        # Need to create timeout_context from inside of loop so that a
-        # new context is created on retries
-        timeout_context = (
-            anyio.fail_after(task.timeout_seconds)
-            if task.timeout_seconds
-            else nullcontext()
-        )
-
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
@@ -1614,59 +1626,56 @@ async def orchestrate_task_run(
             update={"task_run": task_run, "start_time": pendulum.now("UTC")}
         ):
             try:
-                with timeout_context as timeout_scope:
-                    args, kwargs = parameters_to_args_kwargs(
-                        task.fn, resolved_parameters
+                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+                # update task run name
+                if not run_name_set and task.task_run_name:
+                    task_run_name = _resolve_custom_task_run_name(
+                        task=task, parameters=resolved_parameters
                     )
-                    # update task run name
-                    if not run_name_set and task.task_run_name:
-                        task_run_name = _resolve_custom_task_run_name(
-                            task=task, parameters=resolved_parameters
-                        )
-                        await client.set_task_run_name(
-                            task_run_id=task_run.id, name=task_run_name
-                        )
-                        logger.extra["task_run_name"] = task_run_name
-                        logger.debug(
-                            f"Renamed task run {task_run.name!r} to {task_run_name!r}"
-                        )
-                        task_run.name = task_run_name
-                        run_name_set = True
-
-                    if PREFECT_DEBUG_MODE.value():
-                        logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            "Beginning execution...", extra={"state_message": True}
-                        )
-
-                    call = from_async.call_soon_in_new_thread(
-                        create_call(task.fn, *args, **kwargs)
+                    await client.set_task_run_name(
+                        task_run_id=task_run.id, name=task_run_name
                     )
-                    result = await call.aresult()
-
-            except Exception as exc:
-                name = message = None
-                if (
-                    # Task run timeouts
-                    isinstance(exc, TimeoutError)
-                    and timeout_scope
-                    # Only update the message if the timeout was actually encountered since
-                    # this could be a timeout in the user's code
-                    and timeout_scope.cancel_called
-                ):
-                    name = "TimedOut"
-                    message = (
-                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    logger.extra["task_run_name"] = task_run_name
+                    logger.debug(
+                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
                     )
-                    logger.exception(message)
+                    task_run.name = task_run_name
+                    run_name_set = True
+
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
-                    message = "Task run encountered an exception:"
-                    logger.exception("Encountered exception during execution:")
+                    logger.debug(
+                        "Beginning execution...", extra={"state_message": True}
+                    )
 
+                call = from_async.call_soon_in_new_thread(
+                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
+                )
+                result = await call.aresult()
+
+            except (CancelledError, asyncio.CancelledError) as exc:
+                if not call.timedout():
+                    # If the task call was not cancelled by us; this is a crash
+                    raise
+                # Construct a new exception as `TimeoutError`
+                original = exc
+                exc = TimeoutError()
+                exc.__cause__ = original
+                logger.exception("Encountered exception during execution:")
                 terminal_state = await exception_to_failed_state(
-                    name=name,
-                    message=message,
+                    exc,
+                    message=(
+                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    ),
+                    result_factory=task_run_context.result_factory,
+                    name="TimedOut",
+                )
+            except Exception as exc:
+                logger.exception("Encountered exception during execution:")
+                terminal_state = await exception_to_failed_state(
+                    exc,
+                    message="Task run encountered an exception",
                     result_factory=task_run_context.result_factory,
                 )
             else:

@@ -1041,13 +1041,8 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        """
-        Sync flows are cancelled when they change instructions. The flow will return
-        immediately when the timeout is reached, but the thread it executes in will
-        continue until the next instruction is reached. `time.sleep` will return then
-        the thread will be interrupted.
-        """
         if sys.version_info[1] == 11:
             pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
 
