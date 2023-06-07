@@ -4,9 +4,62 @@ from tempfile import TemporaryDirectory
 import pytest
 import readchar
 import yaml
+from prefect.server import models
+from prefect.client import schemas
 from test_cloud import interactive_console  # noqa
 
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture
+async def deployment_with_pull_step(
+    session,
+    flow,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.objects.Deployment(
+            name="hello",
+            flow_id=flow.id,
+            pull_steps=[
+                {"prefect.projects.steps.set_working_directory": {"directory": "/tmp"}},
+            ],
+        ),
+    )
+    await session.commit()
+
+    return deployment
+
+
+@pytest.fixture
+async def deployment_with_pull_steps(
+    session,
+    flow,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.objects.Deployment(
+            name="hello",
+            flow_id=flow.id,
+            pull_steps=[
+                {
+                    "prefect.projects.steps.set_working_directory": {
+                        "directory": "/tmp"
+                    },
+                },
+                {"prefect.projects.steps.set_working_directory": {"directory": "/tmp"}},
+            ],
+        ),
+    )
+    await session.commit()
+
+    return deployment
 
 
 class TestProjectRecipes:
@@ -144,3 +197,65 @@ class TestProjectInit:
         )
         assert result.exit_code == 1
         assert "prefect project recipe ls" in result.output
+
+
+class TestProjectClone:
+    def test_clone_with_no_options(self):
+        result = invoke_and_assert(
+            "project clone",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "Must pass either a deployment name or deployment ID." in result.output
+
+    def test_clone_with_both_name_and_id(self):
+        result = invoke_and_assert(
+            "project clone --deployment test_deployment --id 123",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert (
+            "Can only pass one of deployment name or deployment ID options."
+            in result.output
+        )
+
+    def test_clone_with_name_and_no_pull_steps(self, flow, deployment):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                f"project clone --deployment '{flow.name}/{deployment.name}'",
+                temp_dir=str(tempdir),
+                expected_code=1,
+            )
+            assert result.exit_code == 1
+            assert "No pull steps found, exiting early." in result.output
+
+    def test_clone_with_id_and_no_pull_steps(self, deployment):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                f"project clone --id {deployment.id}",
+                temp_dir=str(tempdir),
+                expected_code=1,
+            )
+            assert result.exit_code == 1
+            assert "No pull steps found, exiting early." in result.output
+
+    def test_clone_with_name_and_pull_step(self, flow, test_deployment_with_pull_step):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                (
+                    "project clone --deployment"
+                    f" {flow.name}/{test_deployment_with_pull_step.name}"
+                ),
+                temp_dir=str(tempdir),
+                expected_code=0,
+            )
+            assert result.exit_code == 0
+
+    def test_clone_with_id_and_pull_steps(self, test_deployment_with_pull_steps):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                f"project clone --id {test_deployment_with_pull_steps.id}",
+                temp_dir=str(tempdir),
+                expected_code=0,
+            )
+            assert result.exit_code == 0
