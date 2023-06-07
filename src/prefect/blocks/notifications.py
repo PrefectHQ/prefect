@@ -507,7 +507,7 @@ class TelegramWebhook(AbstractAppriseNotificationBlock):
         ```
     """
 
-    _description = "Enables sending notifications via a provided Telegram webhook."
+    _description = "Enables sending notifications via a provided Telegram webhook. Requires a Telegram bot to send notifications. See the Apprise docs for more information on how to set up a Telegram bot: https://github.com/caronc/apprise/wiki/Notify_Telegram."
     _block_type_name = "Telegram Webhook"
     _block_type_slug = "telegram-webhook"
     _logo_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/240px-Telegram_logo.svg.png"
