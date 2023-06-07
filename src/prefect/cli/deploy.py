@@ -1,4 +1,5 @@
 """Module containing implementation for deploying projects."""
+from getpass import GetPassWarning
 import json
 from copy import deepcopy
 from datetime import timedelta
@@ -463,6 +464,18 @@ async def _run_single_deploy(
         ci=ci,
     )
 
+    variable_overrides = {}
+    for variable in variables or []:
+        key, value = variable.split("=", 1)
+        variable_overrides[key] = value
+
+    if work_pool_name:
+        base_deploy["work_pool"]["name"] = work_pool_name
+    if work_queue_name:
+        base_deploy["work_pool"]["work_queue_name"] = work_queue_name
+
+    base_deploy["work_pool"]["job_variables"].update(variable_overrides)
+
     # determine work pool
     if base_deploy["work_pool"]["name"]:
         try:
@@ -516,11 +529,6 @@ async def _run_single_deploy(
             await run_steps(push_steps, step_outputs, print_function=app.console.print)
         )
 
-    variable_overrides = {}
-    for variable in variables or []:
-        key, value = variable.split("=", 1)
-        variable_overrides[key] = value
-
     step_outputs.update(variable_overrides)
 
     # set other CLI flags
@@ -536,13 +544,6 @@ async def _run_single_deploy(
     elif not base_deploy["description"]:
         base_deploy["description"] = flow.description
 
-    if work_pool_name:
-        base_deploy["work_pool"]["name"] = work_pool_name
-    if work_queue_name:
-        base_deploy["work_pool"]["work_queue_name"] = work_queue_name
-
-    base_deploy["work_pool"]["job_variables"].update(variable_overrides)
-
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = base_deploy.pop("parameter_openapi_schema")
     base_deploy = apply_values(base_deploy, step_outputs)
@@ -557,6 +558,7 @@ async def _run_single_deploy(
     ) or await _generate_default_pull_action(
         app.console,
         base_deploy=base_deploy,
+        ci=ci,
     )
     pull_steps = apply_values(pull_steps, step_outputs)
 
@@ -580,7 +582,7 @@ async def _run_single_deploy(
     )
 
     app.console.print(
-        (
+        Panel(
             f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
             f" successfully created with id '{deployment_id}'."
         ),
@@ -589,7 +591,7 @@ async def _run_single_deploy(
 
     if PREFECT_UI_URL:
         app.console.print(
-            "View Deployment in UI:"
+            "\nView Deployment in UI:"
             f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
         )
 
@@ -753,24 +755,28 @@ def _merge_with_default_deployment(base_deploy: Dict):
     return base_deploy
 
 
-async def _generate_default_pull_action(console: Console, base_deploy: Dict):
+async def _generate_default_pull_action(
+    console: Console, base_deploy: Dict, ci: bool = False
+):
     remote_url = _get_git_remote_origin_url()
-    if remote_url and confirm(
-        (
-            "Your Prefect workers will need access to this flow's code in order to run"
-            " it. Would you like your workers to pull your flow code from its remote"
-            " repository when running this flow?"
-        ),
-        default=True,
-        console=console,
+    if (
+        is_interactive()
+        and not ci
+        and remote_url
+        and confirm(
+            (
+                "Your Prefect workers will need access to this flow's code in order to"
+                " run it. Would you like your workers to pull your flow code from its"
+                " remote repository when running this flow?"
+            ),
+            default=True,
+            console=console,
+        )
     ):
         branch = _get_git_branch() or "main"
 
         if not confirm(
-            (
-                "Is this the correct URL to pull your flow code from:"
-                f" [green]{remote_url}[/]?"
-            ),
+            f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
             default=True,
             console=console,
         ):
@@ -778,10 +784,7 @@ async def _generate_default_pull_action(console: Console, base_deploy: Dict):
                 "Please enter the URL to pull your flow code from", console=console
             )
         if not confirm(
-            (
-                "Is this the correct branch to pull your flow code from:"
-                f" [green]{branch}[/]?"
-            ),
+            f"Is [green]{branch}[/] the correct branch to pull your flow code from?",
             default=True,
             console=console,
         ):
@@ -792,11 +795,11 @@ async def _generate_default_pull_action(console: Console, base_deploy: Dict):
             )
         token_secret_block_name = None
         if confirm("Is this a private repository?", console=console):
-            token_secret_block_name = f"deployment-{slugify(base_deploy['deployment_name'])}-{base_deploy['flow_name']}-repo-token"
+            token_secret_block_name = f"deployment-{slugify(base_deploy['name'])}-{slugify(base_deploy['flow_name'])}-repo-token"
             create_new_block = False
             prompt_message = (
                 "Please enter a token that can be used to access your private"
-                " repository. This token will be saved as a secret via the Prefect API."
+                " repository. This token will be saved as a secret via the Prefect API"
             )
 
             try:
@@ -820,11 +823,18 @@ async def _generate_default_pull_action(console: Console, base_deploy: Dict):
                 create_new_block = True
 
             if create_new_block:
-                repo_token = prompt(
-                    prompt_message,
-                    console=console,
-                    password=True,
-                )
+                try:
+                    repo_token = prompt(
+                        prompt_message,
+                        console=console,
+                        password=True,
+                    )
+                except GetPassWarning:
+                    # Handling for when password masking is not supported
+                    repo_token = prompt(
+                        prompt_message,
+                        console=console,
+                    )
                 await Secret(
                     value=repo_token,
                 ).save(name=token_secret_block_name, overwrite=True)
@@ -845,9 +855,10 @@ async def _generate_default_pull_action(console: Console, base_deploy: Dict):
     else:
         entrypoint_path, _ = base_deploy["entrypoint"].split(":")
         console.print(
-            "You Prefect workers will attempt to load your flow from:"
-            f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]."
-            " Your worker will need access to this file in order to run your flow."
+            "Your Prefect workers will attempt to load your flow from:"
+            f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
+            " see more options for managing your flow's code, run:\n\n\t[blue]$"
+            " prefect project recipes ls[/]\n"
         )
         return [
             {
