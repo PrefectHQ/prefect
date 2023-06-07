@@ -422,7 +422,7 @@ class WatcherThreadCancelScope(CancelScope):
         return retval
 
     def _send_cancelled_error(self):
-        """ "
+        """
         Send a cancelled error to the supervised thread.
         """
         if self._supervised_thread.is_alive():
