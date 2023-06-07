@@ -103,6 +103,11 @@ def shield():
     """
     Prevent code from within the scope from being cancelled.
 
+    This guards against cancellation from alarm signals and injected exceptions as used
+    in this module.
+
+    If an event loop is running in the thread where this is called, it will be shielded
+    from asynchronous cancellation as well.
     """
     with (
         anyio.CancelScope(shield=True)
@@ -114,6 +119,17 @@ def shield():
 
 
 class CancelScope(abc.ABC):
+    """
+    Defines a context where cancellation can be requested.
+
+    If cancelled, any code within the context should be interrupted. The cancellation
+    implementation varies depending on the environment and may not interrupt some system
+    calls.
+
+    A timeout can be defined to automatically cancel the scope after a given duration if
+    it has not exited.
+    """
+
     def __init__(
         self, name: Optional[str] = None, timeout: Optional[float] = None
     ) -> None:
@@ -189,6 +205,9 @@ class CancelScope(abc.ABC):
         return True
 
     def add_cancel_callback(self, callback: Callable[[], None]):
+        """
+        Add a callback to execute on cancellation.
+        """
         self._callbacks.append(callback)
 
     def __repr__(self) -> str:
@@ -226,14 +245,14 @@ class AsyncCancelScope(CancelScope):
 
         # Use anyio as the cancellation enforcer because it's very complicated and they
         # have done a good job
-        self._inner = anyio.CancelScope(
+        self._anyio_scope = anyio.CancelScope(
             deadline=self._deadline if self._deadline is not None else math.inf
         ).__enter__()
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._inner.cancel_called:
+        if self._anyio_scope.cancel_called:
             # Mark as cancelled
             self.cancel(throw=False)
 
@@ -251,62 +270,92 @@ class AsyncCancelScope(CancelScope):
 
         if throw:
             if self.loop is get_running_loop():
-                self._inner.cancel()
+                self._anyio_scope.cancel()
             else:
                 # `Task.cancel` is not thread safe
-                self.loop.call_soon_threadsafe(self._inner.cancel)
+                self.loop.call_soon_threadsafe(self._anyio_scope.cancel)
 
         return True
 
 
-class SyncCancelScope(CancelScope):
+class NullCancelScope(CancelScope):
+    """
+    A cancel scope that does nothing.
+
+    This is used for environments where cancellation is not supported.
+    """
+
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        reason: Optional[str] = None,
+    ) -> None:
+        super().__init__(name, timeout)
+        self.reason = reason or "null cancel scope"
+
+    def cancel(self):
+        logger.warning("Cannot cancel %s", self.reason)
+        return False
+
+
+class AlarmCancelScope(CancelScope):
+    """
+    A cancel scope that uses an alarm signal which can interrupt long-running system
+    calls.
+
+    Only the main thread can be cancelled with an alarm signal, so this scope is only
+    available in the main thread.
+    """
+
     def __enter__(self):
         super().__enter__()
 
-        if sys.platform.startswith("win"):
-            # Timeouts cannot be enforced on Windows
-            if self._timeout is not None:
-                logger.debug(
-                    (
-                        "Entered cancel scope on Windows; %.2f timeout will not be"
-                        " enforced."
-                    ),
-                    self._timeout,
-                )
-            self._method = None
-            self._throw_cancel = lambda: None
-            return self
+        current_thread = threading.current_thread()
+        self._previous_timer = None
 
-        self.thread = threading.current_thread()
-        existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+        if current_thread is not threading.main_thread():
+            raise ValueError(
+                "Alarm based timeouts can only be used in the main thread."
+            )
 
-        if (
-            self.thread is threading.main_thread()
-            # Avoid nested alarm handlers; it's hard to follow and they will interfere with
-            # each other
-            and not existing_alarm_handler
-            # Avoid using an alarm when there is no timeout; it's better saved for that case
-            and self._timeout is not None
-        ):
-            method = _alarm_based_timeout
-            method_name = "alarm"
-        else:
-            method = _watcher_thread_based_timeout
-            method_name = "watcher"
+        self._previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
-        self._method = method(self)
-        self._throw_cancel = self._method.__enter__()
-        logger.debug(
-            "Entered synchronous %s based cancel scope %r",
-            method_name,
-            self,
-        )
+        if self._previous_alarm_handler != signal.SIG_DFL:
+            logger.warning(
+                f"Overriding existing alarm handler {self._previous_alarm_handler}"
+            )
+
+        # Capture alarm signals and raise a timeout
+        signal.signal(signal.SIGALRM, self._sigalarm_to_error)
+
+        # Set a timer to raise an alarm signal
+        if self.timeout is not None:
+            # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
+            self._previous_timer = signal.setitimer(signal.ITIMER_REAL, self.timeout)
+
         return self
+
+    def _sigalarm_to_error(self, *args):
+        logger.debug("%r captured alarm raising as cancelled error...", self)
+        if self.cancel(throw=False):
+            shield = _get_thread_shield(threading.main_thread())
+            if shield.active():
+                logger.debug("Thread shield active; delaying exception...")
+                shield.set_exception(CancelledError())
+            else:
+                raise CancelledError()
 
     def __exit__(self, *_):
         retval = super().__exit__(*_)
-        if self._method:
-            self._method.__exit__(*_)
+
+        if self.timeout is not None:
+            # Restore the previous timer
+            signal.setitimer(signal.ITIMER_REAL, *self._previous_timer)
+
+        # Restore the previous signal handler
+        signal.signal(signal.SIGALRM, self._previous_alarm_handler)
+
         return retval
 
     def cancel(self, throw: bool = True):
@@ -314,7 +363,85 @@ class SyncCancelScope(CancelScope):
             return False
 
         if throw:
-            self._throw_cancel()
+            logger.debug("Sending alarm signal to main thread...")
+            os.kill(os.getpid(), signal.SIGALRM)
+
+        return True
+
+
+class WatcherThreadCancelScope(CancelScope):
+    """
+    A cancel scope that uses a watcher thread and an injected exception to enforce
+    cancellation.
+
+    The injected exception cannot interrupt calls and will be raised on the ~next
+    instruction. This can raise exceptions in unexpected places. See `shield` for
+    guarding against interruption.
+
+    If a timeout is specified, a watcher thread is spawned that will run for `timeout`
+    seconds then send the exception to the supervised thread.
+    """
+
+    def __enter__(self):
+        super().__enter__()
+        self._event = threading.Event()
+        self._enforcer_thread = None
+        self._supervised_thread = threading.current_thread()
+
+        if self.timeout is not None:
+            self._enforcer_thread = threading.Thread(
+                target=self._timeout_enforcer,
+                name=f"timeout-watcher {self.name or '<unnamed>'} {self.timeout:.2f}",
+            )
+            self._enforcer_thread.start()
+
+    def __exit__(self, *_):
+        retval = super().__exit__(*_)
+        self._event.set()
+        if self._enforcer_thread:
+            logger.debug("Joining enforcer thread %r", self._enforcer_thread)
+            self._enforcer_thread.join()
+        return retval
+
+    def _send_cancelled_error(self):
+        """ "
+        Send a cancelled error to the supervised thread.
+        """
+        if self._supervised_thread.is_alive():
+            logger.debug(
+                "Sending exception to supervised thread %r", self._supervised_thread
+            )
+            with _get_thread_shield(self._supervised_thread):
+                try:
+                    _send_exception_to_thread(self._supervised_thread, CancelledError)
+                except ValueError:
+                    # If the thread is gone; just move on without error
+                    logger.debug("Thread missing!")
+
+    def _timeout_enforcer(self):
+        """
+        Target for a thread that enforces a timeout.
+        """
+        if not self._event.wait(self.timeout):
+            logger.debug(
+                "Scope %r detected timeout; sending exception to supervised thread %r",
+                self,
+                self._supervised_thread.name,
+            )
+            if self.cancel(throw=False):
+                with _get_thread_shield(self._supervised_thread):
+                    self._send_cancelled_error()
+
+        # Wait for the supervised thread to exit its context
+        logger.debug("Waiting for supervised thread to exit...")
+        self._event.wait()
+
+    def cancel(self, throw: bool = True):
+        if not super().cancel():
+            return False
+
+        if throw:
+            self._send_cancelled_error()
 
         return True
 
@@ -398,125 +525,33 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     timeout.
 
     The timeout method varies depending on if this is called in the main thread or not.
-    See `_alarm_based_timeout` and `_watcher_thread_based_timeout` for details.
+    See `AlarmCancelScope` and `WatcherThreadCancelScope` for details.
 
     Yields a `CancelContext`.
     """
-    with SyncCancelScope(timeout=timeout, name=name) as ctx:
-        yield ctx
 
+    if sys.platform.startswith("win"):
+        yield NullCancelScope(reason="not supported on Windows.")
+        return
 
-@contextlib.contextmanager
-def _alarm_based_timeout(scope: CancelScope):
-    """
-    Enforce a timeout using an alarm.
+    thread = threading.current_thread()
+    existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
 
-    Sets an alarm for `timeout` seconds, then raises a timeout error if the context is
-    not exited before the deadline.
+    if (
+        thread is threading.main_thread()
+        # Avoid nested alarm handlers; it's hard to follow and they will interfere with
+        # each other
+        and not existing_alarm_handler
+        # Avoid using an alarm when there is no timeout; it's better saved for that case
+        and timeout is not None
+    ):
+        scope = AlarmCancelScope(name=name, timeout=timeout)
+    else:
+        scope = WatcherThreadCancelScope(name=name, timeout=timeout)
 
-    !!! Alarms cannot be floats, so the timeout is rounded up to the nearest integer.
-
-    Alarms have the benefit of interrupt sys calls like `sleep`, but signals are always
-    raised in the main thread and this cannot be used elsewhere.
-    """
-    current_thread = threading.current_thread()
-    if current_thread is not threading.main_thread():
-        raise ValueError("Alarm based timeouts can only be used in the main thread.")
-
-    previous_alarm_handler = signal.getsignal(signal.SIGALRM)
-
-    def cancel():
-        logger.debug("Sending alarm signal to main thread...")
-        os.kill(os.getpid(), signal.SIGALRM)
-
-    def sigalarm_to_error(*args):
-        logger.debug("Cancel fired for alarm based cancel scope %r", scope)
-        if scope.cancel(throw=False):
-            shield = _get_thread_shield(threading.main_thread())
-            if shield.active():
-                logger.debug("Thread shield active; delaying exception...")
-                shield.set_exception(CancelledError())
-            else:
-                raise CancelledError()
-
-    if previous_alarm_handler != signal.SIG_DFL:
-        logger.warning(f"Overriding existing alarm handler {previous_alarm_handler}")
-
-    # Capture alarm signals and raise a timeout
-    signal.signal(signal.SIGALRM, sigalarm_to_error)
-
-    # Set a timer to raise an alarm signal
-    if scope.timeout is not None:
-        # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
-        previous_timer = signal.setitimer(signal.ITIMER_REAL, scope.timeout)
-
-    try:
-        yield cancel
-    finally:
-        if scope.timeout is not None:
-            # Restore the previous timer
-            signal.setitimer(signal.ITIMER_REAL, *previous_timer)
-
-        # Restore the previous signal handler
-        signal.signal(signal.SIGALRM, previous_alarm_handler)
-
-
-@contextlib.contextmanager
-def _watcher_thread_based_timeout(scope: SyncCancelScope):
-    """
-    Enforce a timeout using a watcher thread.
-
-    Creates a thread that sleeps for `timeout` seconds, then sends a timeout error to
-    the supervised (current) thread if the context is not exited before the deadline.
-
-    Note this will not interrupt sys calls like `sleep`.
-    """
-    event = threading.Event()
-    enforcer = None
-    supervised_thread = threading.current_thread()
-
-    def _send_exception(exc):
-        if supervised_thread.is_alive():
-            logger.debug("Sending exception to supervised thread %r", supervised_thread)
-            with _get_thread_shield(supervised_thread):
-                try:
-                    _send_exception_to_thread(supervised_thread, exc)
-                except ValueError:
-                    # If the thread is gone; just move on without error
-                    logger.debug("Thread missing!")
-
-        # Wait for the supervised thread to exit its context
-        logger.debug("Waiting for supervised thread to exit...")
-        event.wait()
-
-    def cancel():
-        return _send_exception(CancelledError)
-
-    def timeout_enforcer():
-        if not event.wait(scope.timeout):
-            logger.debug(
-                "Cancel fired for watcher based timeout for thread %r and scope %r",
-                supervised_thread.name,
-                scope,
-            )
-            if scope.cancel(throw=False):
-                with _get_thread_shield(supervised_thread):
-                    cancel()
-
-    if scope.timeout is not None:
-        enforcer = threading.Thread(
-            target=timeout_enforcer,
-            name=f"timeout-watcher {scope.name or '<unnamed>'} {scope.timeout:.2f}",
-        )
-        enforcer.start()
-
-    try:
-        yield cancel
-    finally:
-        event.set()
-        if enforcer:
-            logger.debug("Joining enforcer thread %r", enforcer)
-            enforcer.join()
+    with scope:
+        logger.debug("Entered %r", scope)
+        yield scope
 
 
 def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):

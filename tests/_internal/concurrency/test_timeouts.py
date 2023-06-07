@@ -10,7 +10,8 @@ import pytest
 
 from prefect._internal.concurrency.timeouts import (
     CancelledError,
-    SyncCancelScope,
+    AlarmCancelScope,
+    WatcherThreadCancelScope,
     AsyncCancelScope,
     cancel_async_after,
     cancel_async_at,
@@ -31,7 +32,9 @@ def mock_alarm_signal_handler():
         signal.signal(signal.SIGALRM, _previous_alarm_handler)
 
 
-@pytest.mark.parametrize("cls", [SyncCancelScope, AsyncCancelScope])
+@pytest.mark.parametrize(
+    "cls", [AlarmCancelScope, WatcherThreadCancelScope, AsyncCancelScope]
+)
 async def test_cancel_scope_repr(cls):
     scope = cls()
     assert "PENDING" in repr(scope)
