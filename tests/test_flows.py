@@ -2287,7 +2287,7 @@ def create_async_hook(mock_obj):
 
 class TestFlowHooksOnCompletion:
     def test_on_completion_hooks_is_iterable(self):
-        def test():
+        def completion_hook():
             pass
 
         with pytest.raises(
@@ -2295,17 +2295,34 @@ class TestFlowHooksOnCompletion:
             match="Expected iterable for 'on_completion'; got function instead.",
         ):
 
-            @flow(on_completion=test)
-            def my_flow():
+            @flow(on_completion=completion_hook)
+            def flow1():
                 pass
 
+        @flow(on_completion=[])
+        def flow2():
+            pass
+
+        assert flow2.on_completion == []
+
     def test_on_completion_hooks_contains_callables(self):
+        def completion_hook():
+            pass
+
         with pytest.raises(
             TypeError, match="Expected callables in 'on_completion'; got str instead."
         ):
 
             @flow(on_completion=["test"])
-            def my_flow():
+            def flow1():
+                pass
+
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_completion'; got str instead."
+        ):
+
+            @flow(on_completion=[completion_hook, "test"])
+            def flow2():
                 pass
 
     def test_on_completion_hooks_run_on_completed(self):
@@ -2387,24 +2404,41 @@ class TestFlowHooksOnCompletion:
 
 class TestFlowHooksOnFailure:
     def test_on_failure_hooks_is_iterable(self):
-        def test():
+        def failure_hook():
             pass
 
         with pytest.raises(
             TypeError, match="Expected iterable for 'on_failure'; got function instead."
         ):
 
-            @flow(on_failure=test)
-            def my_flow():
+            @flow(on_failure=failure_hook)
+            def flow1():
                 pass
 
+        @flow(on_failure=[])
+        def flow2():
+            pass
+
+        assert flow2.on_failure == []
+
     def test_on_failure_hooks_contains_callables(self):
+        def failure_hook():
+            pass
+
         with pytest.raises(
             TypeError, match="Expected callables in 'on_failure'; got str instead."
         ):
 
             @flow(on_failure=["test"])
-            def my_flow():
+            def flow1():
+                pass
+
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_failure'; got str instead."
+        ):
+
+            @flow(on_failure=[failure_hook, "test"])
+            def flow2():
                 pass
 
     def test_on_failure_hooks_run_on_failure(self):
@@ -2486,7 +2520,7 @@ class TestFlowHooksOnFailure:
 
 class TestFlowHooksOnCancellation:
     def test_on_cancellation_hooks_is_iterable(self):
-        def test():
+        def cancellation_hook():
             pass
 
         with pytest.raises(
@@ -2494,17 +2528,34 @@ class TestFlowHooksOnCancellation:
             match="Expected iterable for 'on_cancellation'; got function instead.",
         ):
 
-            @flow(on_cancellation=test)
-            def my_flow():
+            @flow(on_cancellation=cancellation_hook)
+            def flow1():
                 pass
 
+        @flow(on_cancellation=[])
+        def flow2():
+            pass
+
+        assert flow2.on_cancellation == []
+
     def test_on_cancellation_hooks_contains_callables(self):
+        def cancellation_hook():
+            pass
+
         with pytest.raises(
             TypeError, match="Expected callables in 'on_cancellation'; got str instead."
         ):
 
             @flow(on_cancellation=["test"])
-            def my_flow():
+            def flow1():
+                pass
+
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_cancellation'; got str instead."
+        ):
+
+            @flow(on_cancellation=[cancellation_hook, "test"])
+            def flow2():
                 pass
 
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
@@ -2661,24 +2712,41 @@ class TestFlowHooksOnCancellation:
 
 class TestFlowHooksOnCrashed:
     def test_on_crashed_hooks_is_iterable(self):
-        def test():
+        def crashed_hook():
             pass
 
         with pytest.raises(
             TypeError, match="Expected iterable for 'on_crashed'; got function instead."
         ):
 
-            @flow(on_crashed=test)
-            def my_flow():
+            @flow(on_crashed=crashed_hook)
+            def flow1():
                 pass
 
+        @flow(on_crashed=[])
+        def flow2():
+            pass
+
+        assert flow2.on_crashed == []
+
     def test_on_crashed_hooks_contains_callables(self):
+        def crashed_hook():
+            pass
+
         with pytest.raises(
             TypeError, match="Expected callables in 'on_crashed'; got str instead."
         ):
 
             @flow(on_crashed=["test"])
-            def my_flow():
+            def flow1():
+                pass
+
+        with pytest.raises(
+            TypeError, match="Expected callables in 'on_crashed'; got str instead."
+        ):
+
+            @flow(on_crashed=[crashed_hook, "test"])
+            def flow2():
                 pass
 
     def test_on_crashed_hooks_run_on_crashed_state(self):
