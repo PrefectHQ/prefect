@@ -2142,20 +2142,19 @@ async def orchestrate_task_run(
 
                 flow_run_context = FlowRunContext.get()
 
-                if flow_run_context and (
-                    # Async and sync tasks can get executed on synchronous flows
-                    # if the task runner is sequential.
-                    # If the task is sync and a concurrent task runner is used, we must
-                    # execute it in a worker thread.
+                if flow_run_context and user_thread(
+                    # Async and sync tasks can be executed on synchronous flows
+                    # if the task runner is sequential; if the task is sync and a
+                    # concurrent task runner is used, we must execute it in a worker
+                    # thread instead.
                     (
                         concurrency_type == TaskConcurrencyType.SEQUENTIAL
                         and not flow_run_context.flow.isasync
                     )
-                    # Async tasks can get executed on asynchronous flows if the
-                    # task runner is concurrent
-                    or (flow_run_context.flow.isasync and task.isasync)
-                    # If the flow is async we do not want to block the event loop with
+                    # Async tasks can always be executed on asynchronous flow; if the
+                    # flow is async we do not want to block the event loop with
                     # synchronous tasks
+                    or (flow_run_context.flow.isasync and task.isasync)
                 ):
                     from_async.call_soon_in_waiting_thread(
                         call, thread=user_thread, timeout=task.timeout_seconds
