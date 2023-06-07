@@ -186,7 +186,13 @@ class CancelScope(abc.ABC):
         with self._lock:
             return self._completed
 
-    def cancel(self) -> bool:
+    def cancel(self, throw: bool = True) -> bool:
+        """
+        Cancel this scope.
+
+        If `throw` is not set, this will only mark the scope as cancelled and will not
+        throw the cancelled error.
+        """
         with self._lock:
             if not self.started:
                 raise RuntimeError("Scope has not been entered.")
@@ -295,7 +301,7 @@ class NullCancelScope(CancelScope):
         self.reason = reason or "null cancel scope"
 
     def cancel(self):
-        logger.warning("Cannot cancel %s", self.reason)
+        logger.warning("Cannot cancel %s.", self.reason)
         return False
 
 
@@ -531,7 +537,7 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     """
 
     if sys.platform.startswith("win"):
-        yield NullCancelScope(reason="not supported on Windows.")
+        yield NullCancelScope(reason="cancellation is not supported on Windows")
         return
 
     thread = threading.current_thread()
