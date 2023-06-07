@@ -615,6 +615,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert state.is_completed()
@@ -659,6 +661,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -710,6 +714,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         # Check for a proper final result
@@ -772,6 +778,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -824,6 +832,8 @@ class TestOrchestrateTaskRun:
                 interruptible=False,
                 client=prefect_client,
                 log_prints=False,
+                concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                user_thread=threading.current_thread(),
             )
 
         assert mock_anyio_sleep.await_count == 3
@@ -878,6 +888,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         assert mock_anyio_sleep.await_count == 10
@@ -946,6 +958,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task did not run
@@ -995,6 +1009,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the unqoted data
@@ -1045,6 +1061,8 @@ class TestOrchestrateTaskRun:
             interruptible=False,
             client=prefect_client,
             log_prints=False,
+            concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+            user_thread=threading.current_thread(),
         )
 
         # The task ran with the state as its input
@@ -1096,6 +1114,8 @@ class TestOrchestrateTaskRun:
                     interruptible=False,
                     client=prefect_client,
                     log_prints=False,
+                    concurrency_type=TaskConcurrencyType.SEQUENTIAL,
+                    user_thread=threading.current_thread(),
                 )
 
 
