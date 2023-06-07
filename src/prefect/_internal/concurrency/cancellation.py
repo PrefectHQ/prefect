@@ -497,7 +497,7 @@ def cancel_async_at(deadline: Optional[float], name: Optional[str] = None):
 
     Yields a `CancelContext`.
     """
-    with AsyncCancelScope(timeout=get_timeout(deadline), name=name) as ctx:
+    with cancel_async_after(get_timeout(deadline), name=name) as ctx:
         yield ctx
 
 
@@ -511,8 +511,7 @@ def cancel_async_after(timeout: Optional[float], name: Optional[str] = None):
 
     Yields a `CancelContext`.
     """
-    deadline = (time.monotonic() + timeout) if timeout is not None else None
-    with cancel_async_at(deadline, name=name) as ctx:
+    with AsyncCancelScope(timeout=timeout, name=name) as ctx:
         yield ctx
 
 
