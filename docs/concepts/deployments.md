@@ -10,6 +10,8 @@ tags:
     - deployments.yaml
     - infrastructure
     - storage
+search:
+  boost: 2
 ---
 
 # Deployments

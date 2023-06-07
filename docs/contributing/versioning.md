@@ -3,6 +3,8 @@ description: How Prefect versions its releases and compatibility.
 tags:
     - versioning
     - semver
+search:
+  boost: 2
 ---
 
 # Versioning

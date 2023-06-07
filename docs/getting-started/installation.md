@@ -8,6 +8,8 @@ tags:
     - Windows
     - SQLite
     - upgrading
+search:
+  boost: 2
 ---
 
 
