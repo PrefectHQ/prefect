@@ -6,6 +6,7 @@ import abc
 import asyncio
 import concurrent.futures
 import contextlib
+import greenback
 import contextvars
 import dataclasses
 import inspect
@@ -339,6 +340,14 @@ class Call(Generic[T]):
             logger.debug("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
+        from prefect._internal.concurrency.threads import in_global_loop
+
+        # Ensure the greenback portal is shimmed for this task so we can safely call
+        # back into async code from sync code if the user does something silly; avoid
+        # this overhead for our internal event loop
+        if not in_global_loop():
+            await greenback.ensure_portal()
+
         cancel_scope = None
         try:
             with set_current_call(self):

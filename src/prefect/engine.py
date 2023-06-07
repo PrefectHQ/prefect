@@ -1565,6 +1565,7 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
+    flow_run_context = FlowRunContext.get()
     flow_run = await client.read_flow_run(task_run.flow_run_id)
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
@@ -1674,7 +1675,6 @@ async def orchestrate_task_run(
 
                 call = create_call(task.fn, *args, **kwargs)
 
-                flow_run_context = FlowRunContext.get()
                 if (
                     flow_run_context
                     and user_thread
