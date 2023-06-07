@@ -404,9 +404,10 @@ class WatcherThreadCancelScope(CancelScope):
         self._supervised_thread = threading.current_thread()
 
         if self.timeout is not None:
+            name = self.name or f"for scope {hex(id(self))}"
             self._enforcer_thread = threading.Thread(
                 target=self._timeout_enforcer,
-                name=f"timeout-watcher {self.name or '<unnamed>'} {self.timeout:.2f}",
+                name=f"timeout-watcher {name} {self.timeout:.2f}",
             )
             self._enforcer_thread.start()
 
