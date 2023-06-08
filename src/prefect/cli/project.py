@@ -190,7 +190,7 @@ async def clone(
         output = await run_steps(deployment.pull_steps)
         app.console.out(output["directory"])
     else:
-        exit_with_error("No pull steps found, exiting early."
+        exit_with_error("No pull steps found, exiting early.")
 
 
 @project_app.command()
