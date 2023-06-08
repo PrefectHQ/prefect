@@ -12,14 +12,14 @@ tags:
 
 Use webhooks in your Prefect Cloud workspace to receive, observe, and react to events
 from other systems in your ecosystem.  Each webhook exposes a unique URL endpoint to
-receive events from other systems and transform them into Prefect
+receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
 !!! cloud-ad "Webhooks are only available in Prefect Cloud"
 
-    As of Q2 2023, Webhooks are configured via the CLI and via the Prefect Cloud API.
-    Support for managing webhooks with the Prefect Cloud UI is on the roadmap for later
-    in early Q3 2023.
+    As of Q2 2023, webhooks can be configured via the CLI or via the <a href="https://app.prefect.cloud/api/docs" target="_blank"> Prefect Cloud REST API</a>.
+    Support for managing webhooks with the Prefect Cloud UI is on the roadmap for 
+    Q3 2023.
 
 Webhooks are defined by two essential components: a unique URL and a template which
 translates incoming web requests to a Prefect event.
@@ -30,30 +30,30 @@ translates incoming web requests to a Prefect event.
 
 Webhooks are managed via the [Webhooks API
 endpoints](https://app.prefect.cloud/api/docs#tag/Webhooks).  This is a Prefect
-Cloud-only feature, and you will authenticate API calls using the standard
+Cloud-only feature. You authenticate API calls using the standard
 [authentication methods you use with Prefect
 Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
 
 ### Via the Prefect CLI
 
-_More information about using the Prefect CLI to manage webhooks coming soon_
+_More information about using the Prefect CLI to manage webhooks coming soon!_
 
 ## Webhook endpoints
 
 The webhook endpoints have randomly generated opaque URLs that do not divulge any
 information about your Prefect Cloud workspace.  They are rooted at
-`https://api.prefect.cloud/hooks/`, (for example,
-`https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ`).  Prefect Cloud assigns this
-URL when you create a webhook, and it may not be set via the API.  If you lose
-confidence that your webhook URL is confidential, you may rotate it at any time without
+`https://api.prefect.cloud/hooks/`. For example:
+`https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ`. 
+Prefect Cloud assigns this URL when you create a webhook; it cannot be set via the API.  
+You may rotate your webhook URL at any time without
 losing the associated configuration.
 
 All webhooks may accept requests via the most common HTTP methods:
 
-* `GET`, `HEAD`, `DELETE` may be used for webhooks that define a static event template,
+* `GET`, `HEAD`, and `DELETE` may be used for webhooks that define a static event template,
   or a template that does not depend on the _body_ of the HTTP request.  The headers of
   the request will be available for templates.
-* `POST`, `PUT`, `PATCH` may be used when the webhook request will include a body.  See
+* `POST`, `PUT`, and `PATCH` may be used when the webhook request will include a body.  See
   [How HTTP request components are handled](#how-http-request-components-are-handled)
   for more details on how the body is parsed.
 
@@ -86,11 +86,11 @@ defined.
 
 ### Static webhook events
 
-Let's explore an example for static webhook templates.  Pretend that you are configuring
-a webhook that will notify Prefect when your `recommendations` model has been refreshed,
+Let's see a static webhook template example.  Say you want to configure
+a webhook that will notify Prefect when your `recommendations` machine learning model has been updated,
 so you can then send a Slack notification to your team and run a few subsequent
-deployments.  Those models are produced on a daily schedule by another team who are
-using `cron` for scheduling, they aren't able to use Prefect for their flows (yet!), but
+deployments.  Those models are produced on a daily schedule by another team that is
+using `cron` for scheduling. They aren't able to use Prefect for their flows (yet!), but
 they are happy to add a `curl` to the end of their daily script to notify you.
 Because this webhook will only be used for a single event from a single resource, your
 template can be entirely static:
@@ -112,22 +112,23 @@ template can be entirely static:
     parsed, for example, with `json.loads`.
 
 A webhook with this template may be invoked via _any_ of the HTTP methods, including a
-`GET` request with no body, so the team you are integrating with can include this at the
+`GET` request with no body, so the team you are integrating with can include this line at the
 end of their daily script:
 
 ```bash
 curl https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
 
-Each time the script "pings" the webhook like this, the webhook will produce a single
+
+Each time the script hits the webhook, the webhook will produce a single
 Prefect event with that name and resource in your workspace.
 
 ### Event fields that Prefect Cloud populates for you
 
 You may notice that you only had to provide the `event` and `resource` definition, which
 is not a completely fleshed out event.  Prefect Cloud will set default values for any
-missing fields, like `occurred` and `id`, so that you don't need to set them in your
-template.  Additionally, Prefect Cloud will always add the webhook itself as a related
+missing fields, such as `occurred` and `id`, so you don't need to set them in your
+template.  Additionally, Prefect Cloud will add the webhook itself as a related
 resource on all of the events it produces.
 
 If your template does not produce a `payload` field, the `payload` will default to a
@@ -137,11 +138,11 @@ standard set of debugging information, including the HTTP method, headers, and b
 
 Now let's say that after a few days you and the Data Science team are getting a lot of
 value from the automations you have set up with the static webhook.  You've agreed to
-upgrade this webhook to handle all of the various models that they produce.  It's time
+upgrade this webhook to handle all of the various models that the team produces.  It's time
 to add some dynamic information to your webhook template.
 
-Your colleages in Data Science have adjusted their daily `cron` scripts to `POST` a
-small body that includes the ID and name of the model that was just refreshed:
+Your colleagues on the team have adjusted their daily `cron` scripts to `POST` a
+small body that includes the ID and name of the model that was updated:
 
 ```bash
 curl \
@@ -150,9 +151,9 @@ curl \
     -X POST https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
 
-This means that they are sending a `POST` request and the body will include a
-traditional URL-encoded form with two fields `model` and `friendly_name` describing the
-model that was just refreshed.  To receive these in your template and produce different
+This script will send a `POST` request and the body will include a
+traditional URL-encoded form with two fields describing the model that was updated: `model` and `friendly_name`.
+Here's the webhook code that uses Jinja to receive these values in your template and produce different
 events for the different models:
 
 ```jinja2
@@ -166,16 +167,16 @@ events for the different models:
 }
 ```
 
-All of the subsequent `POST` requests will start to produce events with those variable
-resource IDs and names.  The other statically-defined parts, like `event` or the
-`producing-team` label you included will still be used.
+All subsequent `POST` requests will produce events with those variable
+resource IDs and names.  The other statically-defined parts, such as `event` or the
+`producing-team` label you included earlier will still be used.
 
 !!! tip "Use Jinja2's `default` filter to handle missing values"
 
     Jinja2 has a helpful [`default`](https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.default)
-    filter, which can compensate for missing values in the request.  In this example,
-    you may want to use the model's ID in place of the friendly name when it is not
-    available: `{{ body.friendly_name|default(body.model) }}`.
+    filter that can compensate for missing values in the request.  In this example,
+    you may want to use the model's ID in place of the friendly name when the friendly name is not
+    provided: `{{ body.friendly_name|default(body.model) }}`.
 
 ### How HTTP request components are handled
 
@@ -222,20 +223,20 @@ expressions are equivalent:
 You may not have much control over the client invoking your webhook, but would still
 like for bodies that look like JSON to be parsed as such.  Prefect Cloud will attempt to
 parse any other content type (like `text/plain`) as if it were JSON first.  In any case
-where the body cannot be understood as JSON, it will be made available to your templates
+where the body cannot be transformed into JSON, it will be made available to your templates
 as a Python `str`.
 
 ### Accepting Prefect events directly
 
 In cases where you have more control over the client, your webhook can accept Prefect
-events directly with a simple "pass-through" template:
+events directly with a simple pass-through template:
 
 ```jinja2
 {{ body|tojson }}
 ```
 
 This template accepts the incoming body (assuming it was in JSON format) and just passes
-it through unmodified.  This allows a `POST` of a partial Prefect event as in:
+it through unmodified.  This allows a `POST` of a partial Prefect event as in this example:
 
 ```
 POST /hooks/AERylZ_uewzpDx-8fcweHQ HTTP/1.1
@@ -278,7 +279,7 @@ way tailored to your use case, use a dynamic template to interpret the incoming 
 
 The initial configuration of your webhook may require some trial and error as you get
 the sender and your receiving webhook speaking a compatible language.  While you are in
-this phase, you may find the [Event Feed](/cloud/events/#event-feed) to be indispensible
+this phase, you may find the [Event Feed](/cloud/events/#event-feed) in the UI to be indispensable
 for seeing the events as they are happening.
 
 When Prefect Cloud encounters an error during receipt of a webhook, it will produce a
