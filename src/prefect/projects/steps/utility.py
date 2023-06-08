@@ -205,6 +205,7 @@ async def pip_install_requirements(
                 directory: {{ clone-step.directory }}
                 requirements_file: requirements.txt
                 stream_output: False
+        ```
     """
     stdout_sink = io.StringIO()
     stderr_sink = io.StringIO()

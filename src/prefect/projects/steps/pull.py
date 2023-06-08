@@ -9,7 +9,6 @@ from typing import Optional
 
 from prefect.logging.loggers import get_logger
 
-
 projects_logger = get_logger("projects")
 
 
