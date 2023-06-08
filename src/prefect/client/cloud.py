@@ -70,10 +70,12 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
+        return pydantic.parse_obj_as(
+            List[Workspace], await self.request("GET", "/me/workspaces")
+        )
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
-        return await self.get("collections/views/aggregate-worker-metadata")
+        return await self.request("GET", "collections/views/aggregate-worker-metadata")
 
     async def __aenter__(self):
         await self._client.__aenter__()
@@ -94,6 +96,21 @@ class CloudClient:
     async def get(self, route, **kwargs):
         try:
             res = await self._client.get(route, **kwargs)
+            res.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            ):
+                raise CloudUnauthorizedError
+            else:
+                raise exc
+
+        return res.json()
+
+    async def request(self, method, route, **kwargs):
+        try:
+            res = await self._client.request(method, route, **kwargs)
             res.raise_for_status()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (
