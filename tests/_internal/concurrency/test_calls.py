@@ -1,10 +1,10 @@
 import asyncio
-import concurrent.futures
 import time
 
 import pytest
 
 from prefect._internal.concurrency.calls import Call
+from prefect._internal.concurrency.cancellation import CancelledError
 
 
 def identity(x):
@@ -77,7 +77,7 @@ def test_call_timeout(fn):
     call = Call.new(fn, 2)
     call.set_timeout(1)
     call.run()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(CancelledError):
         call.result()
     assert call.cancelled()
 
@@ -86,6 +86,6 @@ def test_call_future_cancelled():
     call = Call.new(identity, 2)
     call.future.cancel()
     call.run()
-    with pytest.raises(concurrent.futures.CancelledError):
+    with pytest.raises(CancelledError):
         call.result()
     assert call.cancelled()
