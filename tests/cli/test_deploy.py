@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -509,22 +510,287 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
 
-    async def test_project_deploy_with_no_prefect_yaml(self, project_dir):
+    async def test_project_deploy_with_no_prefect_yaml(self, project_dir, work_pool):
         Path(project_dir, "prefect.yaml").unlink()
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar"
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
             ),
-            expected_code=1,
+            expected_code=0,
             expected_output_contains=[
-                "We were unable to find a prefect.yaml file in the current directory.",
-                "To get started deploying flows please initialize a new project:",
-                "prefect project init",
+                "Your Prefect workers will attempt to load your flow from:",
+                "To see more options for managing your flow's code, run:",
+                "$ prefect project recipes ls",
             ],
         )
+
+    class TestGeneratedPullAction:
+        @pytest.fixture
+        def uninitialized_project_dir(self, project_dir):
+            Path(project_dir, "prefect.yaml").unlink()
+            Path(project_dir, "deployment.yaml").unlink()
+            return project_dir
+
+        @pytest.fixture
+        def uninitialized_project_dir_with_git_no_remote(
+            self, uninitialized_project_dir
+        ):
+            subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
+            assert Path(uninitialized_project_dir, ".git").exists()
+            return uninitialized_project_dir
+
+        @pytest.fixture
+        def uninitialized_project_dir_with_git_with_remote(
+            self, uninitialized_project_dir_with_git_no_remote
+        ):
+            subprocess.run(
+                ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
+                cwd=uninitialized_project_dir_with_git_no_remote,
+            )
+            return uninitialized_project_dir_with_git_no_remote
+
+        async def test_project_deploy_generates_pull_action(
+            self, work_pool, prefect_client, uninitialized_project_dir
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.set_working_directory": {
+                        "directory": str(uninitialized_project_dir)
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures("interactive_console")
+        async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_no_remote,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.set_working_directory": {
+                        "directory": str(uninitialized_project_dir_with_git_no_remote)
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures("interactive_console")
+        async def test_project_deploy_with_no_prefect_yaml_git_repo_user_rejects(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_with_remote,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                # User rejects pulling from the remote repo
+                user_input="n" + readchar.key.ENTER,
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.set_working_directory": {
+                        "directory": str(uninitialized_project_dir_with_git_with_remote)
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_project_deploy_with_no_prefect_yaml_git_repo(
+            self, work_pool, prefect_client
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    readchar.key.ENTER
+                    +
+                    # Accept discovered URL
+                    readchar.key.ENTER
+                    +
+                    # Accept discovered branch
+                    readchar.key.ENTER
+                    +
+                    # Choose public repo
+                    "n"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from its remote"
+                    " repository when running this flow?"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://example.com/org/repo.git",
+                        "branch": "main",
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_project_deploy_with_no_prefect_yaml_git_repo_user_overrides(
+            self, work_pool, prefect_client
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    readchar.key.ENTER
+                    +
+                    # Reject discovered URL
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # Enter new URL
+                    "https://example.com/org/repo-override.git"
+                    + readchar.key.ENTER
+                    +
+                    # Reject discovered branch
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # Enter new branch
+                    "dev"
+                    + readchar.key.ENTER
+                    +
+                    # Choose public repo
+                    "n"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from its remote"
+                    " repository when running this flow?"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://example.com/org/repo-override.git",
+                        "branch": "dev",
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_project_deploy_with_no_prefect_yaml_git_repo_with_token(
+            self, work_pool, prefect_client
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    readchar.key.ENTER
+                    +
+                    # Accept discovered URL
+                    readchar.key.ENTER
+                    +
+                    # Accept discovered branch
+                    readchar.key.ENTER
+                    +
+                    # Choose private repo
+                    "y"
+                    + readchar.key.ENTER
+                    # Enter token
+                    + "my-token"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from its remote"
+                    " repository when running this flow?"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://example.com/org/repo.git",
+                        "branch": "main",
+                        "token": (
+                            "{{ prefect.blocks.secret.deployment-test-name-an-important-name-repo-token }}"
+                        ),
+                    }
+                }
+            ]
+
+            token_block = await Secret.load(
+                "deployment-test-name-an-important-name-repo-token"
+            )
+            assert token_block.get() == "my-token"
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client
@@ -2046,7 +2312,10 @@ class TestMultiDeploy:
             expected_code=0,
             user_input=readchar.key.ENTER,
             expected_output_contains=[
-                "Which deployment would you like to create or update?",
+                (
+                    "Would you like to use an existing deployment configuration from"
+                    " deployment.yaml?"
+                ),
                 "test-name-1",
                 "test-name-2",
                 "test-description-1",
