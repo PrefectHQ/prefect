@@ -14,6 +14,7 @@
 - Fix validation to allow identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
 
 ### Documentation
+- Add documentation of Prefect Cloud's webhooks - https://github.com/PrefectHQ/prefect/pull/9857
 - Fix broken link and Prefect server reference in Cloud docs — https://github.com/PrefectHQ/prefect/pull/9820
 - Fix broken link to Docker guide in API reference docs — https://github.com/PrefectHQ/prefect/pull/9821
 - Update info on sub flow run cancellation in flows concept doc — https://github.com/PrefectHQ/prefect/pull/9753
