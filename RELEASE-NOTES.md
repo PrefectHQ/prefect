@@ -2,9 +2,51 @@
 
 ## Release 2.10.13
 
+### Updates to projects-based deployments
+
+In this release we've made project-based deployments easier to use for first time users! You can now run `prefect deploy` without first initializing a project. If you run `prefect deploy` without a project initialized, the CLI will generate a default pull step that your worker can use to retrieve your flow code when executing scheduled flow runs. The `prefect deploy` command will also prompt you with schedule options and guide you through configuring the schedule making it even easier to schedule your flows!
+
+See these two pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9832
+- https://github.com/PrefectHQ/prefect/pull/9844 
+
+This release also adds two new deployment steps: `pip_install_requirements` and `run_shell_script`. Both of these are new 'utility' deployment steps that can be used to automate portions of your deployment process.
+
+Use the `pip_install_requirements` step to install Python dependencies before kicking off a flow run:
+```yaml
+pull:
+    - prefect.projects.steps.git_clone_project:
+        id: clone-step
+        repository: https://github.com/org/repo.git
+    - prefect.projects.steps.pip_install_requirements:
+        directory: {{ clone-step.directory }}
+        requirements_file: requirements.txt
+        stream_output: False
+```
+
+Use the `run_shell_script` step grab your repository's commit hash and use it to tag your Docker image:
+```yaml
+build:
+    - prefect.projects.steps.run_shell_script:
+        id: get-commit-hash
+        script: git rev-parse --short HEAD
+        stream_output: false
+    - prefect.projects.steps.build_docker_image:
+        requires: prefect-docker
+        image_name: my-image
+        image_tag: "{{ get-commit-hash.stdout }}"
+        dockerfile: auto
+```
+
+See these two pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9810
+- https://github.com/PrefectHQ/prefect/pull/9868
+
 ### Enhancements
+- Allow running `prefect deploy` without a `prefect.yaml` file — https://github.com/PrefectHQ/prefect/pull/9844
 - Add interactive schedule prompting to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9832
 - Add `run_shell_script` deployment step to run custom scripts when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9810
+- Add `pip_install_requirements` project step to install Python dependencies when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9868
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
 - Update work pool health indicator - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
 
