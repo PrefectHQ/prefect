@@ -283,6 +283,25 @@ class TestBlockingPause:
         assert len(task_runs) == 5, "all tasks should finish running"
 
 
+async def add_deployment_id_to_flow_run(session, deployment, flow_run_id):
+    """
+    It's not safe to use the session directly in the tests below, we need to run it
+    in the loop thread so it is executed in the same thread as the client.
+    """
+    from prefect._internal.concurrency.api import from_async, create_call
+    from prefect.server.models.flow_runs import update_flow_run
+
+    await from_async.call_in_loop_thread(
+        create_call(
+            update_flow_run,
+            session,
+            flow_run_id,
+            FlowRun.construct(deployment_id=deployment.id),
+        )
+    )
+    await from_async.call_in_loop_thread(session.commit)
+
+
 class TestNonblockingPause:
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
         self, prefect_client, deployment, session
@@ -298,15 +317,7 @@ class TestNonblockingPause:
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
 
-            # Add the deployment id to the flow run to allow a pause
-            from prefect.server.models.flow_runs import update_flow_run
-
-            await update_flow_run(
-                session,
-                flow_run_id,
-                FlowRun.construct(deployment_id=deployment.id),
-            )
-            await session.commit()
+            await add_deployment_id_to_flow_run(session, deployment, flow_run_id)
 
             x = await foo.submit()
             y = await foo.submit()
@@ -335,15 +346,9 @@ class TestNonblockingPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
-            # Add the deployment id to the flow run to allow a pause
-            from prefect.server.models.flow_runs import update_flow_run
-
-            await update_flow_run(
-                session,
-                prefect.runtime.flow_run.id,
-                FlowRun.construct(deployment_id=deployment.id),
+            await add_deployment_id_to_flow_run(
+                session, deployment, prefect.runtime.flow_run.id
             )
-            await session.commit()
 
             x = await foo.submit()
             y = await foo.submit()
@@ -369,15 +374,7 @@ class TestNonblockingPause:
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
 
-            # Add the deployment id to the flow run to allow a pause
-            from prefect.server.models.flow_runs import update_flow_run
-
-            await update_flow_run(
-                session,
-                flow_run_id,
-                FlowRun.construct(deployment_id=deployment.id),
-            )
-            await session.commit()
+            await add_deployment_id_to_flow_run(session, deployment, flow_run_id)
 
             x = await foo.submit()
             y = await foo.submit()
@@ -455,15 +452,9 @@ class TestOutOfProcessPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
-            # Add the deployment id to the flow run to allow a pause
-            from prefect.server.models.flow_runs import update_flow_run
-
-            await update_flow_run(
-                session,
-                prefect.runtime.flow_run.id,
-                FlowRun.construct(deployment_id=deployment.id),
+            await add_deployment_id_to_flow_run(
+                session, deployment, prefect.runtime.flow_run.id
             )
-            await session.commit()
 
             context = FlowRunContext.get()
             x = await foo.submit()
@@ -498,15 +489,9 @@ class TestOutOfProcessPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
-            # Add the deployment id to the flow run to allow a pause
-            from prefect.server.models.flow_runs import update_flow_run
-
-            await update_flow_run(
-                session,
-                prefect.runtime.flow_run.id,
-                FlowRun.construct(deployment_id=deployment.id),
+            await add_deployment_id_to_flow_run(
+                session, deployment, prefect.runtime.flow_run.id
             )
-            await session.commit()
 
             context = FlowRunContext.get()
             x = await foo.submit()
