@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
-from unittest.mock import AsyncMock, MagicMock, ANY
+from prefect.testing.utilities import AsyncMock
+from unittest.mock import MagicMock, ANY
 import pytest
 
 from prefect.blocks.system import Secret
