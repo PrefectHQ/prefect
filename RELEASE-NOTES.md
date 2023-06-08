@@ -8,6 +8,7 @@
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
 
 ### Fixes
+- Reference .prefectignore files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
 - Fix code typo in error message raise when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
 
 ### Documentation
