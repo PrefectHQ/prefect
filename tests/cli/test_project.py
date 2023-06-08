@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import MagicMock
 
 import pytest
 import readchar
@@ -25,7 +26,11 @@ async def deployment_with_pull_step(
             name="hello",
             flow_id=flow.id,
             pull_steps=[
-                {"prefect.projects.steps.set_working_directory": {"directory": "/tmp"}},
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/hello-projects.git"
+                    }
+                },
             ],
         ),
     )
@@ -49,13 +54,13 @@ async def deployment_with_pull_steps(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.set_working_directory": {
-                        "directory": "/tmp"
-                    },
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/hello-projects.git"
+                    }
                 },
                 {
-                    "prefect.projects.steps.set_working_directory": {
-                        "directory": "/private"
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/marvin.git"
                     }
                 },
             ],
@@ -243,25 +248,36 @@ class TestProjectClone:
             assert result.exit_code == 1
             assert "No pull steps found, exiting early." in result.output
 
-    def test_clone_with_name_and_pull_step(self, flow, deployment_with_pull_step):
-        with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
-                (
-                    "project clone --deployment"
-                    f" {flow.name}/{deployment_with_pull_step.name}"
-                ),
-                temp_dir=str(tempdir),
-                expected_code=0,
-                expected_output_contains="/tmp",
-            )
-            assert result.exit_code == 0
+    def test_clone_with_name_and_pull_step(
+        self, flow, monkeypatch, deployment_with_pull_step
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        result = invoke_and_assert(
+            command=(
+                "project clone --deployment"
+                f" '{flow.name}/{deployment_with_pull_step.name}'"
+            ),
+            # temp_dir=str(tempdir),
+            expected_code=0,
+            expected_output_contains="hello-projects",
+        )
+        assert result.exit_code == 0
 
-    def test_clone_with_id_and_pull_steps(self, deployment_with_pull_steps):
-        with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
-                f"project clone --id {deployment_with_pull_steps.id}",
-                temp_dir=str(tempdir),
-                expected_code=0,
-                expected_output_contains="/private",
-            )
-            assert result.exit_code == 0
+    def test_clone_with_id_and_pull_steps(
+        self, monkeypatch, deployment_with_pull_steps
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        result = invoke_and_assert(
+            f"project clone --id {deployment_with_pull_steps.id}",
+            expected_code=0,
+            expected_output_contains="marvin",
+        )
+        assert result.exit_code == 0
