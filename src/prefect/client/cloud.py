@@ -70,12 +70,10 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        return pydantic.parse_obj_as(
-            List[Workspace], await self.request("GET", "/me/workspaces")
-        )
+        return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
-        return await self.request("GET", "collections/views/aggregate-worker-metadata")
+        return await self.get("collections/views/aggregate-worker-metadata")
 
     async def __aenter__(self):
         await self._client.__aenter__()
@@ -92,6 +90,9 @@ class CloudClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
+
+    async def get(self, route, **kwargs):
+        return await self.request("GET", route, **kwargs)
 
     async def request(self, method, route, **kwargs):
         try:
