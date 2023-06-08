@@ -155,6 +155,7 @@ nav:
             - Single Sign-on (SSO): cloud/users/sso.md
             - Audit Log: cloud/users/audit-log.md
         - Events: cloud/events.md
+        - Webhooks: cloud/webhooks.md
         - Automations: cloud/automations.md
         - API Rate Limits: cloud/rate-limits.md
         - Connecting & Troubleshooting: cloud/connecting.md
@@ -242,7 +243,7 @@ nav:
             - 'Workers':
                 - 'prefect.workers.base': api-ref/prefect/workers/base.md
                 - 'prefect.workers.process': api-ref/prefect/workers/process.md
-        - REST API: 
+        - REST API:
             - api-ref/rest-api/index.md
             - Prefect Cloud REST API Reference: https://app.prefect.cloud/api/docs
             - Prefect Server REST API Reference: api-ref/rest-api-reference.md
@@ -315,9 +316,9 @@ extra:
             - icon: material/emoticon-sad-outline
               name: This page could be improved
               data: 0
-              note: >- 
-                Thank you for your feedback! Feel free to 
-                <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml" 
+              note: >-
+                Thank you for your feedback! Feel free to
+                <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
                 target="_blank"> open an issue </a> with more detail.
     social:
         - icon: fontawesome/brands/slack
