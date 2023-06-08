@@ -144,7 +144,16 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # and we avoid shutil.copytree raising an error
             return
 
-        copytree(from_path, local_path, dirs_exist_ok=True)
+        # .prefectignore exists in the original location, not the current location which
+        # is most likely temporary
+        if (from_path / Path(".prefectignore")).exists():
+            ignore_func = await self._get_ignore_func(
+                local_path=from_path, ignore_file=from_path / Path(".prefectignore")
+            )
+        else:
+            ignore_func = None
+
+        copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
 
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file, "r") as f:
