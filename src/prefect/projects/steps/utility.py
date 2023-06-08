@@ -213,7 +213,7 @@ async def pip_install_requirements(
     async with open_process(
         [sys.executable, "-m", "pip", "install", "-r", requirements_file],
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         cwd=directory,
     ) as process:
         await _stream_capture_process_output(
