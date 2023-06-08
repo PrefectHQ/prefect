@@ -53,9 +53,9 @@ See these two pull requests for implementation details:
 - Reference `.prefectignore` files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
 - Fix typo in warning message raised when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
 - Allow creation of identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
-- Flow timeouts will no longer override existing alarm signal handlers — https://github.com/PrefectHQ/prefect/pull/9835
-- Timeouts now always begin when the call starts rather than when the call is scheduled for execution — https://github.com/PrefectHQ/prefect/pull/9835
-- Timeout monitoring threads will now exit early if the run finishes before a timeout is reached — https://github.com/PrefectHQ/prefect/pull/9835
+- Ensure flow timeouts do not override existing alarm signal handlers — https://github.com/PrefectHQ/prefect/pull/9835
+- Ensure timeout tracking begins from the actual start of the call, rather than the scheduled start — https://github.com/PrefectHQ/prefect/pull/9835
+- Ensure timeout monitoring threads immediately exit upon run completion — https://github.com/PrefectHQ/prefect/pull/9835
 - Fix bug where background services could throw logging errors on interpreter exit — https://github.com/PrefectHQ/prefect/pull/9835
 - Fix bug where asynchronous timeout enforcement could deadlock — https://github.com/PrefectHQ/prefect/pull/9835
 
