@@ -6,10 +6,12 @@
 - Add interactive schedule prompting to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9832
 - Add `run_shell_script` deployment step to run custom scripts when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9810
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
+- Update work pool health indicator - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
 
 ### Fixes
 - Reference .prefectignore files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
 - Fix code typo in error message raise when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
+- Fix validation to allow identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
 
 ### Documentation
 - Fix broken link and Prefect server reference in Cloud docs — https://github.com/PrefectHQ/prefect/pull/9820
