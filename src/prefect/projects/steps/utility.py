@@ -171,3 +171,59 @@ async def run_shell_script(
         "stdout": stdout_sink.getvalue().strip(),
         "stderr": stderr_sink.getvalue().strip(),
     }
+
+
+async def pip_install_requirements(
+    directory: Optional[str] = None,
+    requirements_file: str = "requirements.txt",
+    stream_output: bool = True,
+):
+    """
+    Installs dependencies from a requirements.txt file.
+
+    Args:
+        requirements_file: The requirements.txt to use for installation.
+        directory: The directory the requirements.txt file is in. Defaults to
+            the current working directory.
+        stream_output: Whether to stream the output from pip install should be
+            streamed to the console
+
+    Returns:
+        A dictionary with the keys `stdout` and `stderr` containing the output
+            the `pip install` command
+
+    Raises:
+        subprocess.CalledProcessError: if the pip install command fails for any reason
+
+    Example:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                id: clone-step
+                repository: https://github.com/org/repo.git
+            - prefect.projects.steps.pip_install_requirements:
+                directory: {{ clone-step.directory }}
+                requirements_file: requirements.txt
+                stream_output: False
+    """
+    stdout_sink = io.StringIO()
+    stderr_sink = io.StringIO()
+
+    async with open_process(
+        [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=directory,
+    ) as process:
+        await _stream_capture_process_output(
+            process,
+            stdout_sink=stdout_sink,
+            stderr_sink=stderr_sink,
+            stream_output=stream_output,
+        )
+        await process.wait()
+
+    return {
+        "stdout": stdout_sink.getvalue().strip(),
+        "stderr": stderr_sink.getvalue().strip(),
+    }

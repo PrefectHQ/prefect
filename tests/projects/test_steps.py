@@ -319,6 +319,65 @@ class TestRunShellScript:
 
 
 class TestPipInstallRequirements:
+    async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
+        open_process_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.utility.open_process",
+            open_process_mock,
+        )
+
+        mock_stream_capture = AsyncMock()
+
+        monkeypatch.setattr(
+            "prefect.projects.steps.utility._stream_capture_process_output",
+            mock_stream_capture,
+        )
+
+        await run_step(
+            {
+                "prefect.projects.steps.pip_install_requirements": {
+                    "id": "pip-install-step"
+                }
+            }
+        )
+
+        open_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            cwd=None,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    async def test_pip_install_reqs_custom_requirements_file(self, monkeypatch):
+        open_process_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.utility.open_process",
+            open_process_mock,
+        )
+
+        mock_stream_capture = AsyncMock()
+
+        monkeypatch.setattr(
+            "prefect.projects.steps.utility._stream_capture_process_output",
+            mock_stream_capture,
+        )
+
+        await run_step(
+            {
+                "prefect.projects.steps.pip_install_requirements": {
+                    "id": "pip-install-step",
+                    "requirements_file": "dev-requirements.txt",
+                }
+            }
+        )
+
+        open_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "-r", "dev-requirements.txt"],
+            cwd=None,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
     async def test_pip_install_reqs_with_directory_step_output_succeeds(
         self, monkeypatch
     ):
@@ -328,10 +387,16 @@ class TestPipInstallRequirements:
             subprocess_mock,
         )
 
+        open_process_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.utility.open_process",
+            open_process_mock,
+        )
+
         mock_stream_capture = AsyncMock()
 
         monkeypatch.setattr(
-            "prefect.projects.steps.pull._stream_capture_process_output",
+            "prefect.projects.steps.utility._stream_capture_process_output",
             mock_stream_capture,
         )
 
@@ -359,8 +424,22 @@ class TestPipInstallRequirements:
             "stderr": "",
         }
 
-        subprocess_mock.run.return_value = MagicMock(**step_outputs)
+        open_process_mock.run.return_value = MagicMock(**step_outputs)
 
         output = await run_steps(steps)
 
         assert output == step_outputs
+
+        open_process_mock.assert_called_once_with(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                "requirements.txt",
+            ],
+            cwd="hello-projects",
+            stderr=ANY,
+            stdout=ANY,
+        )
