@@ -5,15 +5,21 @@ import asyncio
 import atexit
 import concurrent.futures
 import itertools
+from collections import deque
+import sys
 import queue
 import threading
-from typing import List, Optional
+import contextlib
+from typing import List, Optional, AsyncContextManager, TypeVar
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency import logger
+
+
+T = TypeVar("T")
 
 
 class WorkerThread(Portal):
@@ -135,6 +141,7 @@ class EventLoopThread(Portal):
         self._submitted_count: int = 0
         self._on_shutdown: List[Call] = []
         self._lock = threading.Lock()
+        self._calls = deque()
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -172,7 +179,46 @@ class EventLoopThread(Portal):
             if self._run_once:
                 call.future.add_done_callback(lambda _: self.shutdown())
 
+            self._calls.append(call)
+
         return call
+
+    @contextlib.contextmanager
+    def wrap_context(self, context: AsyncContextManager[T]) -> T:
+        enter = self.submit(Call.new(context.__aenter__))
+        exc_info = (None, None, None)
+        try:
+            yield enter.result()
+        except BaseException:
+            exc_info = sys.exc_info()
+            raise
+        finally:
+            self.submit(Call.new(context.__aexit__, *exc_info)).result()
+
+    @contextlib.asynccontextmanager
+    async def wrap_context_async(self, context: AsyncContextManager[T]) -> T:
+        enter = self.submit(Call.new(context.__aenter__))
+        exc_info = (None, None, None)
+        try:
+            yield await enter.aresult()
+        except BaseException:
+            exc_info = sys.exc_info()
+            raise
+        finally:
+            exit = self.submit(Call.new(context.__aexit__, *exc_info))
+            await exit.aresult()
+
+    def drain(self) -> None:
+        """
+        Wait for the event loop to finish all outstanding work.
+        """
+        # Wait for all calls to finish
+        while self._calls:
+            call = self._calls.popleft()
+            try:
+                call.result()
+            except Exception:
+                pass
 
     def shutdown(self) -> None:
         """
@@ -275,3 +321,11 @@ def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:
         raise RuntimeError("Cannot wait for the loop thread from inside itself.")
 
     loop_thread.thread.join(timeout)
+
+
+def drain_global_loop(timeout: Optional[float] = None) -> None:
+    """
+    Wait for the global event loop to finish all outstanding work.
+    """
+    loop_thread = get_global_loop()
+    loop_thread.drain()

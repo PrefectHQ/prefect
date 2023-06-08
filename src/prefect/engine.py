@@ -40,7 +40,9 @@ import prefect.plugins
 from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import wait_for_global_loop_exit
+from prefect._internal.concurrency.threads import (
+    drain_global_loop,
+)
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
@@ -181,9 +183,7 @@ def enter_flow_run_engine_from_flow_call(
 
     # On completion of root flows, wait for the global thread to ensure that
     # any work there is complete
-    done_callbacks = (
-        [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
-    )
+    done_callbacks = [create_call(drain_global_loop)] if not is_subflow_run else None
 
     # WARNING: You must define any context managers here to pass to our concurrency
     # api instead of entering them in here in the engine entrypoint. Otherwise, async

@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
+import asyncio
 import httpcore
 import httpx
 import pendulum
@@ -105,6 +106,7 @@ if TYPE_CHECKING:
     from prefect.tasks import Task as TaskObject
 
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+from prefect._internal.concurrency.threads import get_global_loop
 
 
 class ServerType(AutoEnum):
@@ -2531,7 +2533,33 @@ class PrefectClient:
             self.logger.debug(f"Connecting to API at {self.api_url}")
 
         # Enter the httpx client's context
-        await self._exit_stack.enter_async_context(self._client)
+        if self._ephemeral_app:
+            # Enter the client on the global loop thread instead
+            global_loop = get_global_loop()
+            await self._exit_stack.enter_async_context(
+                global_loop.wrap_context_async(self._client)
+            )
+
+            # Then patch the `request` method to run calls over there
+            request = self._client.request
+
+            def request_on_global_loop(*args, **kwargs):
+                if global_loop._shutdown_event.is_set():
+                    raise RuntimeError(
+                        "The loop this client is bound to is shutdown and it cannot be "
+                        "used anymore."
+                    )
+
+                return asyncio.wrap_future(
+                    asyncio.run_coroutine_threadsafe(
+                        request(*args, **kwargs), global_loop._loop
+                    )
+                )
+
+            self._client.request = request_on_global_loop
+
+        else:
+            await self._exit_stack.enter_async_context(self._client)
 
         self._started = True
 
