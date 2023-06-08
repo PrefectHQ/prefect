@@ -92,8 +92,8 @@ For example, if you would only like a trigger to execute an action if it receive
 }
 ```
 
-!!! note "Matching multiple related resources"
-    Each key in `match_related` can accept a list of multiple values that are `OR`'d together. For example, to match on multiple deployments:
+!!! note "Matching on multiple resources"
+    Each key in `match` and `match_related` can accept a list of multiple values that are `OR`'d together. For example, to match on multiple deployments:
 
     ```json
     "match_related": {
