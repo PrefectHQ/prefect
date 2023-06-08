@@ -186,14 +186,11 @@ async def clone(
             except ObjectNotFound:
                 exit_with_error(f"Deployment {deployment_id!r} not found!")
 
-    if not deployment.pull_steps:
-        exit_with_error("No pull steps found, exiting early.")
-
-    output = await run_steps(
-        steps=deployment.pull_steps, print_function=app.console.print
-    )
-
-    app.console.out(output["directory"])
+    if deployment.pull_steps:
+        output = await run_steps(deployment.pull_steps)
+        app.console.out(output["directory"])
+    else:
+        exit_with_error("No pull steps found, exiting early."
 
 
 @project_app.command()
