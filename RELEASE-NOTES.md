@@ -6,7 +6,7 @@
 
 ![prefect deploy output with interactive cron schedule](https://github.com/PrefectHQ/prefect/assets/12350579/c94f45e6-3b7a-4356-84cd-f36a29f0415c)
 
-In this release we've made project-based deployments easier to use for first time users! You can now run `prefect deploy` without first initializing a project. If you run `prefect deploy` without a project initialized, the CLI will generate a default pull step that your worker can use to retrieve your flow code when executing scheduled flow runs. The `prefect deploy` command will also prompt you with schedule options and guide you through configuring the schedule making it even easier to schedule your flows!
+In this release we've made project-based deployments easier to use for first time users! You can now run `prefect deploy` without first initializing a project. If you run `prefect deploy` without a project initialized, the CLI will generate a default `pull` step that your worker can use to retrieve your flow code when executing scheduled flow runs. The `prefect deploy` command will also prompt you with schedule options and guide you through configuring the schedule making it even easier to schedule your flows!
 
 See these two pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9832
