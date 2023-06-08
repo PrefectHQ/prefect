@@ -1,5 +1,31 @@
 # Prefect Release Notes
-     
+
+## Release 2.10.13
+
+### Enhancements
+- Add interactive schedule prompting to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9832
+- Add `run_shell_script` deployment step to run custom scripts when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9810
+- Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
+
+### Fixes
+- Fix code typo in error message raise when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
+
+### Documentation
+- Fix broken link and Prefect server reference in Cloud docs — https://github.com/PrefectHQ/prefect/pull/9820
+- Fix broken link to Docker guide in API reference docs — https://github.com/PrefectHQ/prefect/pull/9821
+- Update info on sub flow run cancellation in flows concept doc — https://github.com/PrefectHQ/prefect/pull/9753
+- Add feedback widget for docs — https://github.com/PrefectHQ/prefect/pull/9836
+- Add diagram showing flow deployment, work pool, worker to work Pool, workers & agents concept doc — https://github.com/PrefectHQ/prefect/pull/9841
+- Add missing Prefect Server URL in API reference docs — https://github.com/PrefectHQ/prefect/pull/9864
+- Fix code typo in task runners concept doc — https://github.com/PrefectHQ/prefect/pull/9818
+- Add documentation of flow run parameter size limit — https://github.com/PrefectHQ/prefect/pull/9847
+- Fix link to orchestration tutorial in execution tutorial - https://github.com/PrefectHQ/prefect/pull/9862
+
+### Contributors
+- @ac1997 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9862
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.12...preview
+
 ## Release 2.10.12
 
 
