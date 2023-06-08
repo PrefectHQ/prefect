@@ -6,6 +6,8 @@ tags:
     - deployments
     - steps
     - shell
+    - pip install
+    - requirements.txt
 ---
 
 ::: prefect.projects.steps.utility
