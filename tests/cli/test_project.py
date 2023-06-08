@@ -229,24 +229,20 @@ class TestProjectClone:
         )
 
     def test_clone_with_name_and_no_pull_steps(self, flow, deployment):
-        with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
-                f"project clone --deployment '{flow.name}/{deployment.name}'",
-                temp_dir=str(tempdir),
-                expected_code=1,
-            )
-            assert result.exit_code == 1
-            assert "No pull steps found, exiting early." in result.output
+        result = invoke_and_assert(
+            f"project clone --deployment '{flow.name}/{deployment.name}'",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "No pull steps found, exiting early." in result.output
 
     def test_clone_with_id_and_no_pull_steps(self, deployment):
-        with TemporaryDirectory() as tempdir:
-            result = invoke_and_assert(
-                f"project clone --id {deployment.id}",
-                temp_dir=str(tempdir),
-                expected_code=1,
-            )
-            assert result.exit_code == 1
-            assert "No pull steps found, exiting early." in result.output
+        result = invoke_and_assert(
+            f"project clone --id {deployment.id}",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "No pull steps found, exiting early." in result.output
 
     def test_clone_with_name_and_pull_step(
         self, flow, monkeypatch, deployment_with_pull_step
@@ -261,7 +257,6 @@ class TestProjectClone:
                 "project clone --deployment"
                 f" '{flow.name}/{deployment_with_pull_step.name}'"
             ),
-            # temp_dir=str(tempdir),
             expected_code=0,
             expected_output_contains="hello-projects",
         )
