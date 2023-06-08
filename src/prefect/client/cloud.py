@@ -93,21 +93,6 @@ class CloudClient:
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
 
-    async def get(self, route, **kwargs):
-        try:
-            res = await self._client.get(route, **kwargs)
-            res.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN,
-            ):
-                raise CloudUnauthorizedError
-            else:
-                raise exc
-
-        return res.json()
-
     async def request(self, method, route, **kwargs):
         try:
             res = await self._client.request(method, route, **kwargs)
