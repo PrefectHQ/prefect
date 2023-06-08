@@ -144,7 +144,16 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # and we avoid shutil.copytree raising an error
             return
 
-        copytree(from_path, local_path, dirs_exist_ok=True)
+        # .prefectignore exists in the original location, not the current location which
+        # is most likely temporary
+        if (from_path / Path(".prefectignore")).exists():
+            ignore_func = await self._get_ignore_func(
+                local_path=from_path, ignore_file=from_path / Path(".prefectignore")
+            )
+        else:
+            ignore_func = None
+
+        copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
 
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file, "r") as f:
@@ -679,13 +688,13 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = (
-                self.azure_storage_connection_string.get_secret_value()
-            )
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = (
-                self.azure_storage_account_name.get_secret_value()
-            )
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -693,9 +702,9 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings["client_secret"] = (
-                self.azure_storage_client_secret.get_secret_value()
-            )
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
             basepath=f"az://{self.bucket_path}", settings=settings
