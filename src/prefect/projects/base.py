@@ -174,6 +174,36 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     return config
 
 
+def _get_git_remote_origin_url() -> Optional[str]:
+    """
+    Returns the git remote origin URL for the current directory.
+    """
+    try:
+        origin_url = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            shell=sys.platform == "win32",
+            stderr=subprocess.DEVNULL,
+        )
+        origin_url = origin_url.decode().strip()
+    except subprocess.CalledProcessError:
+        return None
+
+    return origin_url
+
+
+def _get_git_branch() -> Optional[str]:
+    """
+    Returns the git branch for the current directory.
+    """
+    try:
+        branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+        branch = branch.decode().strip()
+    except subprocess.CalledProcessError:
+        return None
+
+    return branch
+
+
 def initialize_project(
     name: str = None, recipe: str = None, inputs: dict = None
 ) -> List[str]:
@@ -194,26 +224,12 @@ def initialize_project(
     formatting_kwargs = {"directory": str(Path(".").absolute().resolve())}
     dir_name = os.path.basename(os.getcwd())
 
-    try:
-        p = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"],
-            shell=sys.platform == "win32",
-            stderr=subprocess.DEVNULL,
-        )
-        formatting_kwargs["repository"] = p.decode().strip()
+    remote_url = _get_git_remote_origin_url()
+    if remote_url:
+        formatting_kwargs["repository"] = remote_url
         is_git_based = True
-        try:
-            p = subprocess.check_output(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                shell=sys.platform == "win32",
-                stderr=subprocess.DEVNULL,
-            )
-            formatting_kwargs["branch"] = p.decode().strip()
-        except subprocess.CalledProcessError:
-            formatting_kwargs["branch"] = "main"
-
-    except subprocess.CalledProcessError:
-        pass
+        branch = _get_git_branch()
+        formatting_kwargs["branch"] = branch or "main"
 
     formatting_kwargs["name"] = dir_name
 
