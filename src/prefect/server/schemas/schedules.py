@@ -358,6 +358,9 @@ class CronSchedule(PrefectBaseModel):
             counter += 1
 
 
+DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+
+
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -454,7 +457,11 @@ class RRuleSchedule(PrefectBaseModel):
         Since rrule doesn't properly serialize/deserialize timezones, we localize dates
         here
         """
-        rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
+        rrule = dateutil.rrule.rrulestr(
+            self.rrule,
+            dtstart=DEFAULT_ANCHOR_DATE,
+            cache=True,
+        )
         timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
             kwargs = dict(dtstart=rrule._dtstart.replace(tzinfo=timezone))
