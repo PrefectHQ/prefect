@@ -51,11 +51,17 @@ See these two pull requests for implementation details:
 - Add `pip_install_requirements` project step to install Python dependencies when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9868
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
 - Update work pool health indicator - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
+- State messages no longer include tracebacks — https://github.com/PrefectHQ/prefect/pull/9835
 
 ### Fixes
 - Reference .prefectignore files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
 - Fix code typo in error message raise when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
 - Fix validation to allow identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
+- Flow timeouts will no longer override existing alarm signal handlers — https://github.com/PrefectHQ/prefect/pull/9835
+- Timeouts now always begin when the call starts rather than when the call is scheduled for execution — https://github.com/PrefectHQ/prefect/pull/9835
+- Timeout monitoring threads will now exit early if the run finishes before a timeout is reached — https://github.com/PrefectHQ/prefect/pull/9835
+- Fix bug where background services could throw logging errors on interpreter exit — https://github.com/PrefectHQ/prefect/pull/9835
+- Fix bug where asynchronous timeout enforcement could deadlock — https://github.com/PrefectHQ/prefect/pull/9835
 
 ### Documentation
 - Add documentation of Prefect Cloud's webhooks - https://github.com/PrefectHQ/prefect/pull/9857
