@@ -22,6 +22,7 @@ def emit_instance_method_called_event(
     instance: Any,
     method_name: str,
     successful: bool,
+    payload: Optional[Dict[str, Any]] = None,
 ):
     kind = instance._event_kind()
     resources: Optional[ResourceTuple] = instance._event_method_called_resources()
@@ -33,7 +34,10 @@ def emit_instance_method_called_event(
     result = "called" if successful else "failed"
 
     emit_event(
-        event=f"{kind}.{method_name}.{result}", resource=resource, related=related
+        event=f"{kind}.{method_name}.{result}",
+        resource=resource,
+        related=related,
+        payload=payload,
     )
 
 
