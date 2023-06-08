@@ -48,6 +48,7 @@ See these two pull requests for implementation details:
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
 - Update work pool health indicator - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
 - State messages no longer include tracebacks — https://github.com/PrefectHQ/prefect/pull/9835
+- Allow passing a payload to `emit_instance_method_called_event` - https://github.com/PrefectHQ/prefect/pull/9869
 
 ### Fixes
 - Reference `.prefectignore` files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
