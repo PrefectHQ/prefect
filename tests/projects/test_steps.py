@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from unittest.mock import MagicMock, ANY
+from unittest.mock import AsyncMock, MagicMock, ANY
 import pytest
 
 from prefect.blocks.system import Secret
@@ -316,3 +316,51 @@ class TestRunShellScript:
         )
         assert result["stdout"] == parent_dir
         assert result["stderr"] == ""
+
+
+class TestPipInstallRequirements:
+    async def test_pip_install_reqs_with_directory_step_output_succeeds(
+        self, monkeypatch
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+
+        mock_stream_capture = AsyncMock()
+
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull._stream_capture_process_output",
+            mock_stream_capture,
+        )
+
+        steps = [
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "id": "clone-step",
+                    "repository": "https://github.com/PrefectHQ/hello-projects.git",
+                }
+            },
+            {
+                "prefect.projects.steps.pip_install_requirements": {
+                    "id": "pip-install-step",
+                    "directory": "{{ clone-step.directory }}",
+                    "requirements_file": "requirements.txt",
+                }
+            },
+        ]
+
+        step_outputs = {
+            "clone-step": {"directory": "hello-projects"},
+            "directory": "hello-projects",
+            "pip-install-step": {"stdout": "", "stderr": ""},
+            "stdout": "",
+            "stderr": "",
+        }
+
+        subprocess_mock.run.return_value = MagicMock(**step_outputs)
+
+        output = await run_steps(steps)
+
+        assert output == step_outputs

@@ -1,13 +1,17 @@
 """
 Core set of steps for specifying a Prefect project pull step.
 """
+import io
 import os
 import subprocess
 import sys
 import urllib.parse
 from typing import Optional
+from prefect.utilities.processutils import open_process
 
 from prefect.logging.loggers import get_logger
+
+from prefect.projects.steps.utility import _stream_capture_process_output
 
 projects_logger = get_logger("projects")
 
@@ -25,6 +29,61 @@ def set_working_directory(directory: str) -> dict:
     """
     os.chdir(directory)
     return dict(directory=directory)
+
+
+async def pip_install_requirements(
+    directory: str,
+    requirements_file: str = "requirements.txt",
+    stream_output: bool = True,
+):
+    """
+    Installs dependencies from a requirements.txt file.
+
+    Args:
+        directory (str): the directory to install the requirements from
+        requirements_file (str): the requirements.txt file relative to the
+            project root
+        stream_output (bool): whether to stream the output from pip install should be
+            streamed to the console
+
+    Returns:
+        dict: a dictionary containing a `directory` key of the directory that was set
+
+    Raises:
+        subprocess.CalledProcessError: if the pip install command fails for any reason
+
+    Example:
+        ```yaml
+        pull:
+            - prefect.projects.steps.git_clone_project:
+                id: clone-step
+                repository: https://github.com/org/repo.git
+            - prefect.projects.steps.pip_install_requirements:
+                directory: {{ clone-step.directory }}
+                requirements_file: requirements.txt
+                stream_output: False
+    """
+    stdout_sink = io.StringIO()
+    stderr_sink = io.StringIO()
+
+    async with open_process(
+        ["pip", "install", "-r", requirements_file],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=directory,
+    ) as process:
+        await _stream_capture_process_output(
+            process,
+            stdout_sink=stdout_sink,
+            stderr_sink=stderr_sink,
+            stream_output=stream_output,
+        )
+        await process.wait()
+
+    return {
+        "stdout": stdout_sink.getvalue().strip(),
+        "stderr": stderr_sink.getvalue().strip(),
+    }
 
 
 def git_clone_project(
