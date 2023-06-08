@@ -26,7 +26,7 @@ pull:
         stream_output: False
 ```
 
-Use the `run_shell_script` step grab your repository's commit hash and use it to tag your Docker image:
+Use the `run_shell_script` step to grab your repository's commit hash and use it to tag your Docker image:
 ```yaml
 build:
     - prefect.projects.steps.run_shell_script:
