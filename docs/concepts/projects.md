@@ -437,7 +437,7 @@ There are three main types of steps that typically show up in a `pull` section:
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
 ### Utility Steps
-Utility steps can be used within a build, push, or pull action:
+Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
 - `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. This is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
 
