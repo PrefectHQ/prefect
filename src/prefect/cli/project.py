@@ -16,7 +16,8 @@ from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.projects import find_prefect_directory, initialize_project
 from prefect.projects import register_flow as register
-from prefect.projects.steps import run_step
+
+from prefect.projects.steps.core import run_steps
 
 project_app = PrefectTyper(
     name="project", help="Commands for interacting with your Prefect project."
@@ -185,14 +186,11 @@ async def clone(
             except ObjectNotFound:
                 exit_with_error(f"Deployment {deployment_id!r} not found!")
 
-    if not deployment.pull_steps:
+    if deployment.pull_steps:
+        output = await run_steps(deployment.pull_steps)
+        app.console.out(output["directory"])
+    else:
         exit_with_error("No pull steps found, exiting early.")
-
-    # TODO: allow for passing values between steps / stacking them
-    for step in deployment.pull_steps:
-        output = await run_step(step)
-
-    app.console.out(output["directory"])
 
 
 @project_app.command()

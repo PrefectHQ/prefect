@@ -34,13 +34,14 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
-from prefect.projects.steps import run_step
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
+
+from prefect.projects.steps.core import run_steps
 
 
 @sync_compatible
@@ -198,10 +199,7 @@ async def load_flow_from_flow_run(
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
-        # TODO: allow for passing values between steps / stacking them
-        output = {}
-        for step in deployment.pull_steps:
-            output.update(await run_step(step))
+        output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
