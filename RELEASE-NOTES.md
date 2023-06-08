@@ -50,7 +50,7 @@ See these two pull requests for implementation details:
 - State messages no longer include tracebacks — https://github.com/PrefectHQ/prefect/pull/9835
 
 ### Fixes
-- Reference .prefectignore files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
+- Reference `.prefectignore` files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
 - Fix code typo in error message raise when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
 - Fix validation to allow identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
 - Flow timeouts will no longer override existing alarm signal handlers — https://github.com/PrefectHQ/prefect/pull/9835
