@@ -221,7 +221,7 @@ Flow run {{ flow_run.name }} for flow {{ flow.name }}
 entered state {{ flow_run.state.name }}
 with message {{ flow_run.state.message }}
 
-Flow tags: {{ flow.tags }}
+Flow tags: {{ flow_run.tags }}
 Deployment name: {{ deployment.name }}
 Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}
