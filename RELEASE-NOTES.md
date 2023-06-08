@@ -45,10 +45,6 @@ See these two pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9868
 
 ### Enhancements
-- Allow running `prefect deploy` without a `prefect.yaml` file — https://github.com/PrefectHQ/prefect/pull/9844
-- Add interactive schedule prompting to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9832
-- Add `run_shell_script` deployment step to run custom scripts when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9810
-- Add `pip_install_requirements` project step to install Python dependencies when running `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/9868
 - Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
 - Update work pool health indicator - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
 - State messages no longer include tracebacks — https://github.com/PrefectHQ/prefect/pull/9835
@@ -64,21 +60,21 @@ See these two pull requests for implementation details:
 - Fix bug where asynchronous timeout enforcement could deadlock — https://github.com/PrefectHQ/prefect/pull/9835
 
 ### Documentation
-- Add documentation of Prefect Cloud's webhooks - https://github.com/PrefectHQ/prefect/pull/9857
+- Add documentation on Prefect Cloud webhook usage - https://github.com/PrefectHQ/prefect/pull/9857
 - Fix broken link and Prefect server reference in Cloud docs — https://github.com/PrefectHQ/prefect/pull/9820
 - Fix broken link to Docker guide in API reference docs — https://github.com/PrefectHQ/prefect/pull/9821
-- Update info on sub flow run cancellation in flows concept doc — https://github.com/PrefectHQ/prefect/pull/9753
-- Add feedback widget for docs — https://github.com/PrefectHQ/prefect/pull/9836
-- Add diagram showing flow deployment, work pool, worker to work Pool, workers & agents concept doc — https://github.com/PrefectHQ/prefect/pull/9841
+- Update subflow run cancellation information in flows concept doc — https://github.com/PrefectHQ/prefect/pull/9753
+- Improve ability to give feedback on documentation — https://github.com/PrefectHQ/prefect/pull/9836
+- Add projects deployment diagram to work pool, workers & agents concept doc — https://github.com/PrefectHQ/prefect/pull/9841
 - Add missing Prefect Server URL in API reference docs — https://github.com/PrefectHQ/prefect/pull/9864
 - Fix code typo in task runners concept doc — https://github.com/PrefectHQ/prefect/pull/9818
-- Add documentation of flow run parameter size limit — https://github.com/PrefectHQ/prefect/pull/9847
+- Add documentation on flow run parameter size limit — https://github.com/PrefectHQ/prefect/pull/9847
 - Fix link to orchestration tutorial in execution tutorial - https://github.com/PrefectHQ/prefect/pull/9862
 
 ### Contributors
 - @ac1997 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9862
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.12...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.12...2.10.13
 
 ## Release 2.10.12
 
