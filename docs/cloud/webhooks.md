@@ -144,7 +144,10 @@ Your colleages in Data Science have adjusted their daily `cron` scripts to `POST
 small body that includes the ID and name of the model that was just refreshed:
 
 ```bash
-curl -d "model=recommendations" -d "friendly_name=Recommendations%20[Products]" -X POST https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
+curl \
+    -d "model=recommendations" \
+    -d "friendly_name=Recommendations%20[Products]" \
+    -X POST https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
 
 This means that they are sending a `POST` request and the body will include a
@@ -167,13 +170,20 @@ All of the subsequent `POST` requests will start to produce events with those va
 resource IDs and names.  The other statically-defined parts, like `event` or the
 `producing-team` label you included will still be used.
 
+!!! tip "Use Jinja2's `default` filter to handle missing values"
+
+    Jinja2 has a helpful [`default`](https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.default)
+    filter, which can compensate for missing values in the request.  In this example,
+    you may want to use the model's ID in place of the friendly name when it is not
+    available: `{{ body.friendly_name|default(body.model) }}`.
+
 ### How HTTP request components are handled
 
 The Jinja2 template context includes the three parts of the incoming HTTP request:
 
 * `method` is the uppercased string of the HTTP method, like `GET` or `POST`.
 * `headers` is a case-insensitive dictionary of the HTTP headers included with the
-  request.
+  request.  To prevent accidental disclosures, the `Authorization` header is removed.
 * `body` represents the body that was posted to the webhook, with a best-effort approach
   to parse it into an object you can access.
 
@@ -268,8 +278,8 @@ way tailored to your use case, use a dynamic template to interpret the incoming 
 
 The initial configuration of your webhook may require some trial and error as you get
 the sender and your receiving webhook speaking a compatible language.  While you are in
-this phase, you may find the Event feed to be indispensible for seeing the events as
-they are happening.
+this phase, you may find the [Event Feed](/cloud/events/#event-feed) to be indispensible
+for seeing the events as they are happening.
 
 When Prefect Cloud encounters an error during receipt of a webhook, it will produce a
 `prefect-cloud.webhook.failed` event in your workspace.  This event will include
