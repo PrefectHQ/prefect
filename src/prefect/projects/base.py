@@ -244,7 +244,7 @@ async def register_flow(entrypoint: str):
         entrypoint (str): the entrypoint to the flow to register
     """
     try:
-        _, _ = entrypoint.rsplit(":", 1)
+        entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
             missing_flow_name_msg = (

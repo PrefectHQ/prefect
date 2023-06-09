@@ -216,6 +216,6 @@ async def register_flow(
     Register a flow with this project.
     """
     try:
-        await register(entrypoint, force=force)
+        await register(entrypoint)
     except Exception as exc:
         exit_with_error(exc)
