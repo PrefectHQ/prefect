@@ -51,7 +51,7 @@ prefect cloud webhook create your-webhook-name \
     --template '{ "event": "your.event.name", "resource": { "prefect.resource.id": "your.resource.id" } }'
 ```
 
-Note the template string, which is discussed in [greater detail down below](##Webhook templates)
+Note the template string, which is discussed in [greater detail down below](#webhook-templates)
 
 You can retrieve details for a specific webhook by ID using `get`, or optionally query
 all webhooks in your workspace via `get --all`:
