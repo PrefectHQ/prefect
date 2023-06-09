@@ -7,4 +7,4 @@ tags:
     - Cloud
 ---
 
-::: prefect.cli.cloud.cloud
+::: prefect.cli.cloud

@@ -7,7 +7,7 @@ from typing_extensions import Annotated
 from typing import Optional
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli.cloud.cloud import cloud_app, confirm_logged_in
+from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.client.cloud import get_cloud_client
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -22,6 +22,9 @@ cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
 @webhook_app.command()
 async def get(
+    # webhook_id is a CLI argument, which is required in Typer by default
+    # here, we'll make it optional + create an XOR relationship with the --all flag
+    # https://typer.tiangolo.com/tutorial/arguments/optional/#make-an-optional-cli-argument
     webhook_id: Annotated[Optional[str], typer.Argument()] = None,
     all: bool = typer.Option(
         False, "--all", "-a", help="Retrieve all webhooks in your workspace"
