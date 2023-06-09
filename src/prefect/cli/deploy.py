@@ -365,9 +365,9 @@ async def _run_single_deploy(
             " entrypoint is in the format `path/to/file.py:flow_fn_name` and the"
             " file name and flow function name are correct."
         )
-    flow_name = flow.name  # TK: not sure if should keep
+    flow_name = flow.name
 
-    base_deploy["flow_name"] = flow_name  # TK: not sure if should keep?
+    base_deploy["flow_name"] = flow_name
     base_deploy["entrypoint"] = entrypoint
 
     if not name:
@@ -377,7 +377,7 @@ async def _run_single_deploy(
 
     ## parse parameters
     # minor optimization in case we already loaded the flow
-    if not flow:  # TK: not sure if we need this anymore?
+    if not flow:
         flow = await run_sync_in_worker_thread(
             load_flow_from_entrypoint, base_deploy["entrypoint"]
         )

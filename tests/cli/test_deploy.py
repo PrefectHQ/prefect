@@ -960,7 +960,6 @@ class TestProjectDeploy:
             }
         ]
 
-    # TK: I believe it should raise now
     async def test_project_deploy_attempt_read_flow_name_from_deployment_yaml_raises(
         self, project_dir, prefect_client, work_pool
     ):
