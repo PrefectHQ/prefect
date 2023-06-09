@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 from uuid import UUID, uuid4
 from datetime import timedelta
 
@@ -24,7 +24,7 @@ class Posture(AutoEnum):
 
 
 class ResourceSpecification(PrefectBaseModel):
-    __root__: dict[str, str | list[str]]
+    __root__: Dict[str, Union[str, List[str]]]
 
 
 class Labelled(PrefectBaseModel):
@@ -171,7 +171,7 @@ class Trigger(PrefectBaseModel):
         description="Labels for related resources which this Automation will match.",
     )
 
-    after: set[str] = Field(
+    after: Set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) which must first been seen to start this automation.  If "
@@ -179,7 +179,7 @@ class Trigger(PrefectBaseModel):
             "trailing wildcards, like `prefect.flow-run.*`"
         ),
     )
-    expect: set[str] = Field(
+    expect: Set[str] = Field(
         default_factory=set,
         description=(
             "The event(s) this automation is expecting to see.  If empty, this "
@@ -188,7 +188,7 @@ class Trigger(PrefectBaseModel):
         ),
     )
 
-    for_each: set[str] = Field(
+    for_each: Set[str] = Field(
         default_factory=set,
         description=(
             "Evalute the Automation separately for each distinct value of these labels "
@@ -232,9 +232,9 @@ class Trigger(PrefectBaseModel):
         return value
 
     @root_validator(skip_on_failure=True)
-    def enforce_minimum_within_for_proactive_triggers(cls, values: dict[str, Any]):
-        posture: Posture | None = values.get("posture")
-        within: timedelta | None = values.get("within")
+    def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
+        posture: Optional[Posture] = values.get("posture")
+        within: Optional[timedelta] = values.get("within")
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
@@ -267,18 +267,18 @@ class Automation(PrefectBaseModel):
         ),
     )
 
-    actions: list[ActionTypes] = Field(
+    actions: List[ActionTypes] = Field(
         ...,
         description="The actions to perform when this Automation triggers",
     )
-    owner_resource: str | None = Field(
+    owner_resource: Optional[str] = Field(
         default=None, description="The owning resource of this automation"
     )
 
 
 @copy_model_fields
 class ResourceTrigger(PrefectBaseModel):
-    name: str | None = Field(
+    name: Optional[str] = Field(
         None, description="The name to give to the automation created for this trigger."
     )
     description: str = FieldFrom(Automation)
@@ -286,9 +286,9 @@ class ResourceTrigger(PrefectBaseModel):
 
     match: ResourceSpecification = FieldFrom(Trigger)
     match_related: ResourceSpecification = FieldFrom(Trigger)
-    after: set[str] = FieldFrom(Trigger)
-    expect: set[str] = FieldFrom(Trigger)
-    for_each: set[str] = FieldFrom(Trigger)
+    after: Set[str] = FieldFrom(Trigger)
+    expect: Set[str] = FieldFrom(Trigger)
+    for_each: Set[str] = FieldFrom(Trigger)
     posture: Posture = FieldFrom(Trigger)
     threshold: int = FieldFrom(Trigger)
     within: timedelta = FieldFrom(Trigger)
@@ -313,25 +313,25 @@ class ResourceTrigger(PrefectBaseModel):
             owner_resource=self.owner_resource(),
         )
 
-    def owner_resource(self) -> str | None:
+    def owner_resource(self) -> Optional[str]:
         return None
 
-    def actions(self) -> list[ActionTypes]:
+    def actions(self) -> List[ActionTypes]:
         raise NotImplementedError
 
 
 @copy_model_fields
 class DeploymentTrigger(ResourceTrigger):
-    _deployment_id: UUID | None = PrivateAttr(default=None)
-    parameters: dict[str, Any] | None = FieldFrom(RunDeployment)
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
+    parameters: Optional[Dict[str, Any]] = FieldFrom(RunDeployment)
 
     def set_deployment_id(self, deployment_id: UUID):
         self._deployment_id = deployment_id
 
-    def owner_resource(self) -> str | None:
+    def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> list[ActionTypes]:
+    def actions(self) -> List[ActionTypes]:
         assert self._deployment_id
         return [
             RunDeployment(

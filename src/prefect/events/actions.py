@@ -1,4 +1,5 @@
-from typing import Any, Literal
+from typing import Any, Dict, Optional
+from typing_extensions import Literal
 from uuid import UUID
 
 from pydantic import Field
@@ -17,7 +18,7 @@ class RunDeployment(Action):
 
     type: Literal["run-deployment"] = "run-deployment"
     source: Literal["selected"] = "selected"
-    parameters: dict[str, Any] | None = Field(
+    parameters: Optional[Dict[str, Any]] = Field(
         None,
         description=(
             "The parameters to pass to the deployment, or None to use the "
