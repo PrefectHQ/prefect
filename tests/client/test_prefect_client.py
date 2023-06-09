@@ -396,7 +396,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    @pytest.mark.skipif(os.environ.get("CI"), reason="Too slow for CI")
+    @pytest.mark.skipif(os.environ.get("CI") is not None, reason="Too slow for CI")
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(lifespan=make_lifespan(startup, shutdown))
