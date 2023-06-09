@@ -1,12 +1,74 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import MagicMock
 
 import pytest
 import readchar
 import yaml
+from prefect.server import models
+from prefect.client import schemas
 from test_cloud import interactive_console  # noqa
 
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture
+async def deployment_with_pull_step(
+    session,
+    flow,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.objects.Deployment(
+            name="hello",
+            flow_id=flow.id,
+            pull_steps=[
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/hello-projects.git"
+                    }
+                },
+            ],
+        ),
+    )
+    await session.commit()
+
+    return deployment
+
+
+@pytest.fixture
+async def deployment_with_pull_steps(
+    session,
+    flow,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.objects.Deployment(
+            name="hello",
+            flow_id=flow.id,
+            pull_steps=[
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/hello-projects.git"
+                    }
+                },
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/PrefectHQ/marvin.git"
+                    }
+                },
+            ],
+        ),
+    )
+    await session.commit()
+
+    return deployment
 
 
 class TestProjectRecipes:
@@ -144,3 +206,73 @@ class TestProjectInit:
         )
         assert result.exit_code == 1
         assert "prefect project recipe ls" in result.output
+
+
+class TestProjectClone:
+    def test_clone_with_no_options(self):
+        result = invoke_and_assert(
+            "project clone",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "Must pass either a deployment name or deployment ID." in result.output
+
+    def test_clone_with_both_name_and_id(self):
+        result = invoke_and_assert(
+            "project clone --deployment test_deployment --id 123",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert (
+            "Can only pass one of deployment name or deployment ID options."
+            in result.output
+        )
+
+    def test_clone_with_name_and_no_pull_steps(self, flow, deployment):
+        result = invoke_and_assert(
+            f"project clone --deployment '{flow.name}/{deployment.name}'",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "No pull steps found, exiting early." in result.output
+
+    def test_clone_with_id_and_no_pull_steps(self, deployment):
+        result = invoke_and_assert(
+            f"project clone --id {deployment.id}",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "No pull steps found, exiting early." in result.output
+
+    def test_clone_with_name_and_pull_step(
+        self, flow, monkeypatch, deployment_with_pull_step
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        result = invoke_and_assert(
+            command=(
+                "project clone --deployment"
+                f" '{flow.name}/{deployment_with_pull_step.name}'"
+            ),
+            expected_code=0,
+            expected_output_contains="hello-projects",
+        )
+        assert result.exit_code == 0
+
+    def test_clone_with_id_and_pull_steps(
+        self, monkeypatch, deployment_with_pull_steps
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.projects.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        result = invoke_and_assert(
+            f"project clone --id {deployment_with_pull_steps.id}",
+            expected_code=0,
+            expected_output_contains="marvin",
+        )
+        assert result.exit_code == 0

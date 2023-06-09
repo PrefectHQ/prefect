@@ -92,8 +92,11 @@ class CloudClient:
         assert False, "This should never be called but must be defined for __enter__"
 
     async def get(self, route, **kwargs):
+        return await self.request("GET", route, **kwargs)
+
+    async def request(self, method, route, **kwargs):
         try:
-            res = await self._client.get(route, **kwargs)
+            res = await self._client.request(method, route, **kwargs)
             res.raise_for_status()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (
