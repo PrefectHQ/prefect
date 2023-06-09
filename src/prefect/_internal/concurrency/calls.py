@@ -240,10 +240,10 @@ class Call(Generic[T]):
             return None
 
         logger.debug(
-            "Running call %r in thread %r with timeout %s",
+            "Running call %r in thread %r%s",
             self,
             threading.current_thread().name,
-            self.timeout,
+            f" with timeout of {self.timeout}s" if self.timeout is not None else "",
         )
 
         coro = self.context.run(self._run_sync)
