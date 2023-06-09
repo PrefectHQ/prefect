@@ -575,7 +575,7 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp"}
+                    {"infrastructure", "storage", "timestamp", "triggers"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
