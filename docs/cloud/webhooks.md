@@ -37,7 +37,48 @@ Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
 
 ### Via the Prefect CLI
 
-_More information about using the Prefect CLI to manage webhooks coming soon!_
+Webhooks can be managed and interacted with via the `prefect cloud webhook` command group.
+
+```bash
+prefect cloud webhook --help
+```
+
+You can create your first webhook by invoking `create`:
+
+```bash
+prefect cloud webhook create your-webhook-name \
+    --description "Receives webhooks from your system" \
+    --template '{ "event": "your.event.name", "resource": { "prefect.resource.id": "your.resource.id" } }'
+```
+
+Note the template string, which is discussed in [greater detail down below](##Webhook templates)
+
+You can retrieve details for a specific webhook by ID using `get`, or optionally query
+all webhooks in your workspace via `get --all`:
+
+```bash
+prefect cloud webhook get <webhook-id>
+
+# optionally, pass the --all flag to list all your configured webhooks
+prefect cloud webhook get --all
+```
+
+If you ever need to disable an existing webhook without deleting it, use `toggle`:
+
+```bash
+prefect cloud webhook toggle <webhook-id>
+Webhook is now disabled
+
+prefect cloud webhook toggle <webhook-id>
+Webhook is now enabled
+```
+
+If you are concerned that your webhook endpoint may have been compromised, use `rotate` to
+generate a new, random endpoint
+
+```bash
+prefect cloud webhook toggle <slug>
+```
 
 ## Webhook endpoints
 
