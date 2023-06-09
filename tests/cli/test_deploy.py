@@ -49,7 +49,7 @@ def project_dir(tmp_path):
     original_dir = os.getcwd()
     if sys.version_info >= (3, 8):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
+        prefect_home = tmp_path
         prefect_home.mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path)
         initialize_project()
@@ -69,7 +69,7 @@ def project_dir_with_single_deployment_format(tmp_path):
     original_dir = os.getcwd()
     if sys.version_info >= (3, 8):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
+        prefect_home = tmp_path
         prefect_home.mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path)
         initialize_project()
@@ -363,29 +363,6 @@ class TestProjectDeploySingleDeploymentYAML:
             }
         ]
 
-    async def test_project_deploy_reads_flow_name_from_deployment_yaml(
-        self, project_dir_with_single_deployment_format, prefect_client, work_pool
-    ):
-        await register_flow("flows/hello.py:my_flow")
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["name"] = "test-name"
-        deploy_config["flow_name"] = "An important name"
-        deploy_config["work_pool"]["name"] = work_pool.name
-
-        with deployment_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy",
-            expected_code=0,
-            expected_output_contains="An important name/test-name",
-        )
-
     async def test_project_deploy_reads_entrypoint_from_deployment_yaml(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
@@ -408,31 +385,7 @@ class TestProjectDeploySingleDeploymentYAML:
             expected_output_contains="An important name/test-name",
         )
 
-    async def test_project_deploy_exits_with_name_and_entrypoint_passed(
-        self, project_dir_with_single_deployment_format, prefect_client, work_pool
-    ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["name"] = "test-name"
-        deploy_config["work_pool"]["name"] = work_pool.name
-
-        with deployment_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy -f 'An important name' flows/hello.py:my_flow",
-            expected_code=1,
-            expected_output=(
-                "Received an entrypoint and a flow name for this deployment. Please"
-                " provide either an entrypoint or a flow name."
-            ),
-        )
-
-    async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
+    async def test_project_deploy_exits_with_no_entrypoint_configured(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
         create_default_deployment_yaml(".")
@@ -450,7 +403,31 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command="deploy",
             expected_code=1,
-            expected_output_contains="An entrypoint or flow name must be provided.",
+            expected_output_contains="An entrypoint must be provided.",
+        )
+
+    async def test_project_deploy_exits_with_name_passed(
+        self, project_dir_with_single_deployment_format, prefect_client, work_pool
+    ):
+        create_default_deployment_yaml(".")
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy 'An important name'",
+            expected_code=1,
+            expected_output_contains=(
+                "Your flow entrypoint must include the name of the function that is the"
+                " entrypoint to your flow"
+            ),
         )
 
 
@@ -983,7 +960,8 @@ class TestProjectDeploy:
             }
         ]
 
-    async def test_project_deploy_reads_flow_name_from_deployment_yaml(
+    # TK: I believe it should raise now
+    async def test_project_deploy_attempt_read_flow_name_from_deployment_yaml_raises(
         self, project_dir, prefect_client, work_pool
     ):
         await register_flow("flows/hello.py:my_flow")
@@ -1002,8 +980,8 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            expected_code=0,
-            expected_output_contains="An important name/test-name",
+            expected_code=1,
+            expected_output_contains="An entrypoint must be provided",
         )
 
     async def test_project_deploy_reads_entrypoint_from_deployment_yaml(
@@ -1028,30 +1006,6 @@ class TestProjectDeploy:
             expected_output_contains="An important name/test-name",
         )
 
-    async def test_project_deploy_exits_with_name_and_entrypoint_passed(
-        self, project_dir, prefect_client, work_pool
-    ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
-
-        with deployment_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy -f 'An important name' flows/hello.py:my_flow",
-            expected_code=1,
-            expected_output=(
-                "Received an entrypoint and a flow name for this deployment. Please"
-                " provide either an entrypoint or a flow name."
-            ),
-        )
-
     async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
         self, project_dir, prefect_client, work_pool
     ):
@@ -1070,7 +1024,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy",
             expected_code=1,
-            expected_output_contains="An entrypoint or flow name must be provided.",
+            expected_output_contains="An entrypoint must be provided.",
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
@@ -2092,7 +2046,7 @@ class TestMultiDeploy:
             command="deploy",
             expected_code=1,
             expected_output_contains=[
-                "An entrypoint or flow name must be provided.",
+                "An entrypoint must be provided.",
             ],
         )
 
