@@ -2267,7 +2267,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                     await hook(task=task, task_run=task_run, state=state)
                 else:
                     await from_async.call_in_new_thread(
-                        hook, task=task, task_run=task_run, state=state
+                        create_call(hook, task=task, task_run=task_run, state=state)
                     )
             except Exception:
                 logger.error(
@@ -2304,7 +2304,7 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                     await hook(flow=flow, flow_run=flow_run, state=state)
                 else:
                     await from_async.call_in_new_thread(
-                        hook, flow=flow, flow_run=flow_run, state=state
+                        create_call(hook, flow=flow, flow_run=flow_run, state=state)
                     )
             except Exception:
                 logger.error(
