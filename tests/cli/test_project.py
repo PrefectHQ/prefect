@@ -94,6 +94,9 @@ class TestProjectInit:
                 # temp_dir creates a *new* nested temporary directory within tempdir
                 assert any(Path(tempdir).rglob(file))
 
+            for file in [".prefect"]:
+                assert not any(Path(tempdir).rglob(file))
+
     def test_project_init_with_recipe(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(

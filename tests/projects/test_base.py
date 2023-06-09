@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import sys
@@ -10,7 +9,6 @@ import yaml
 import prefect
 from prefect.projects.base import (
     configure_project_by_recipe,
-    find_prefect_directory,
     initialize_project,
     register_flow,
 )
@@ -23,7 +21,7 @@ def project_dir(tmp_path):
     original_dir = os.getcwd()
     if sys.version_info >= (3, 8):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        (tmp_path / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+        (tmp_path).mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path)
         yield tmp_path
     else:
@@ -32,22 +30,6 @@ def project_dir(tmp_path):
         os.chdir(tmp_path / "three-seven")
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
-
-
-class TestFindProject:
-    async def test_find_project_works_in_root(self, tmp_path):
-        # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir(exist_ok=True)
-        assert find_prefect_directory(tmp_path) == tmp_path / ".prefect"
-
-    async def test_find_project_works_in_subdir(self, tmp_path):
-        # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir(exist_ok=True)
-        (tmp_path / "subdir" / "subsubdir").mkdir(parents=True)
-        assert (
-            find_prefect_directory(tmp_path / "subdir" / "subsubdir")
-            == tmp_path / ".prefect"
-        )
 
 
 class TestRecipes:
@@ -183,11 +165,7 @@ class TestRegisterFlow:
         )
         assert f.name == "test"
 
-        flows_file = project_dir / ".prefect" / "flows.json"
-        with flows_file.open(mode="r") as f:
-            flows = json.load(f)
-
-        assert flows["test"] == "import-project/my_module/flow.py:test_flow"
+        assert not (project_dir / ".prefect").exists()
 
     async def test_register_flow_allows_identical_calls(self, project_dir):
         f = await register_flow(
@@ -197,24 +175,5 @@ class TestRegisterFlow:
 
         f = await register_flow(
             str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-    async def test_register_flow_disallows_overwrites(self, project_dir):
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py") + ":test_flow"
-        )
-        assert f.name == "test"
-
-        with pytest.raises(ValueError, match="Conflicting entry found"):
-            await register_flow(
-                str(project_dir / "import-project" / "my_module" / "flow.py")
-                + ":prod_flow"
-            )
-
-        f = await register_flow(
-            str(project_dir / "import-project" / "my_module" / "flow.py")
-            + ":prod_flow",
-            force=True,
         )
         assert f.name == "test"
