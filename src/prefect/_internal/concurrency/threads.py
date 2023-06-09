@@ -141,7 +141,7 @@ class EventLoopThread(Portal):
         self._submitted_count: int = 0
         self._on_shutdown: List[Call] = []
         self._lock = threading.Lock()
-        self._calls = deque()
+        self._futures = deque()
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -173,13 +173,13 @@ class EventLoopThread(Portal):
             call.set_runner(self)
 
             # Submit the call to the event loop
-            asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
+            self._futures.append(
+                asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
+            )
 
             self._submitted_count += 1
             if self._run_once:
                 call.future.add_done_callback(lambda _: self.shutdown())
-
-            self._calls.append(call)
 
         return call
 
@@ -193,6 +193,7 @@ class EventLoopThread(Portal):
             exc_info = sys.exc_info()
             raise
         finally:
+            logger.debug("Exiting context %r", context)
             self.submit(Call.new(context.__aexit__, *exc_info)).result()
 
     @contextlib.asynccontextmanager
@@ -205,6 +206,7 @@ class EventLoopThread(Portal):
             exc_info = sys.exc_info()
             raise
         finally:
+            logger.debug("Exiting context %r", context)
             exit = self.submit(Call.new(context.__aexit__, *exc_info))
             await exit.aresult()
 
@@ -213,12 +215,7 @@ class EventLoopThread(Portal):
         Wait for the event loop to finish all outstanding work.
         """
         # Wait for all calls to finish
-        while self._calls:
-            call = self._calls.popleft()
-            try:
-                call.result()
-            except Exception:
-                pass
+        concurrent.futures.wait(self._futures)
 
     def shutdown(self) -> None:
         """

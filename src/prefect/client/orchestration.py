@@ -4,7 +4,6 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
-import asyncio
 import httpcore
 import httpx
 import pendulum
@@ -2544,17 +2543,14 @@ class PrefectClient:
             request = self._client.request
 
             def request_on_global_loop(*args, **kwargs):
-                if global_loop._shutdown_event.is_set():
-                    raise RuntimeError(
-                        "The loop this client is bound to is shutdown and it cannot be "
-                        "used anymore."
-                    )
+                from prefect._internal.concurrency import logger
+                from prefect._internal.concurrency.api import create_call
 
-                return asyncio.wrap_future(
-                    asyncio.run_coroutine_threadsafe(
-                        request(*args, **kwargs), global_loop._loop
-                    )
-                )
+                logger.info(f"Sending request {args[0]} {args[1]}")
+
+                return global_loop.submit(
+                    create_call(request, *args, **kwargs)
+                ).aresult()
 
             self._client.request = request_on_global_loop
 

@@ -228,6 +228,8 @@ class AsyncWaiter(Waiter[T]):
             yield
         finally:
             # Call done callbacks
+            if self._done_callbacks:
+                logger.debug("%r executing done callbacks...", self)
             while self._done_callbacks:
                 callback = self._done_callbacks.pop()
                 if callback:
@@ -263,10 +265,14 @@ class AsyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         async with self._handle_done_callbacks():
-            await self._handle_waiting_callbacks()
+            try:
+                await self._handle_waiting_callbacks()
 
-            # Wait for the future to be done
-            await self._done_event.wait()
+                # Wait for the future to be done
+                await self._done_event.wait()
+            except asyncio.CancelledError:
+                self._call.cancel()
+                raise
 
         _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call
