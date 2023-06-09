@@ -4,7 +4,6 @@ build system for managing flows and deployments.
 
 To get started, follow along with [the project tutorial](/tutorials/projects/).
 """
-import json
 import os
 import subprocess
 import sys
@@ -17,26 +16,6 @@ from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
-
-
-def find_prefect_directory(path: Path = None) -> Optional[Path]:
-    """
-    Given a path, recurses upward looking for .prefect/ directories.
-
-    Once found, returns absolute path to the ./prefect directory, which is assumed to reside within the
-    root for the current project.
-
-    If one is never found, `None` is returned.
-    """
-    path = Path(path or ".").resolve()
-    parent = path.parent.resolve()
-    while path != parent:
-        prefect_dir = path.joinpath(".prefect")
-        if prefect_dir.is_dir():
-            return prefect_dir
-
-        path = parent.resolve()
-        parent = path.parent.resolve()
 
 
 def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bool:
@@ -67,22 +46,6 @@ def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bo
     with deployment_file.open(mode="w") as f:
         yaml.dump(default, f, sort_keys=False)
 
-    return True
-
-
-def set_prefect_hidden_dir(path: str = None) -> bool:
-    """
-    Creates default `.prefect/` directory if one does not already exist.
-    Returns boolean specifying whether or not a directory was created.
-
-    If a path is provided, the directory will be created in that location.
-    """
-    path = Path(path or ".") / ".prefect"
-
-    # use exists so that we dont accidentally overwrite a file
-    if path.exists():
-        return False
-    path.mkdir(mode=0o0700)
     return True
 
 
@@ -269,25 +232,19 @@ def initialize_project(
         files.append("deployment.yaml")
     if create_default_project_yaml(".", name=project_name, contents=configuration):
         files.append("prefect.yaml")
-    if set_prefect_hidden_dir():
-        files.append(".prefect/")
 
     return files
 
 
-async def register_flow(entrypoint: str, force: bool = False):
+async def register_flow(entrypoint: str):
     """
     Register a flow with this project from an entrypoint.
 
     Args:
         entrypoint (str): the entrypoint to the flow to register
-        force (bool, optional): whether or not to overwrite an existing flow with the same name
-
-    Raises:
-        ValueError: if `force` is `False` and registration would overwrite an existing flow
     """
     try:
-        fpath, obj_name = entrypoint.rsplit(":", 1)
+        _, _ = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
             missing_flow_name_msg = (
@@ -299,34 +256,5 @@ async def register_flow(entrypoint: str, force: bool = False):
             raise exc
 
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
-
-    fpath = Path(fpath).absolute()
-    prefect_dir = find_prefect_directory()
-    if not prefect_dir:
-        raise FileNotFoundError(
-            "No .prefect directory could be found - run `prefect project"
-            " init` to create one."
-        )
-
-    entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
-
-    flows_file = prefect_dir / "flows.json"
-    if flows_file.exists():
-        with flows_file.open(mode="r") as f:
-            flows = json.load(f)
-    else:
-        flows = {}
-
-    ## quality control
-    if flow.name in flows and flows[flow.name] != entrypoint:
-        if not force:
-            raise ValueError(
-                "Conflicting entry found for flow with name"
-                f" {flow.name!r}:\n{flow.name}: {flows[flow.name]}"
-            )
-    flows[flow.name] = entrypoint
-
-    with flows_file.open(mode="w") as f:
-        json.dump(flows, f, sort_keys=True, indent=2)
 
     return flow

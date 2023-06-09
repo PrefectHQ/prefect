@@ -14,7 +14,7 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import find_prefect_directory, initialize_project
+from prefect.projects import initialize_project
 from prefect.projects import register_flow as register
 
 from prefect.projects.steps.core import run_steps
@@ -216,14 +216,6 @@ async def register_flow(
     Register a flow with this project.
     """
     try:
-        flow = await register(entrypoint, force=force)
+        await register(entrypoint, force=force)
     except Exception as exc:
         exit_with_error(exc)
-
-    app.console.print(
-        (
-            f"Registered flow {flow.name!r} in"
-            f" {(find_prefect_directory()/'flows.json').resolve()!s}"
-        ),
-        style="green",
-    )
