@@ -135,7 +135,7 @@ For example, to deploy `deployment-1` we would run:
 
 <div class="terminal">
 ```bash
-$ prefect deploy --name deployment-1
+prefect deploy --name deployment-1
 ```
 </div>
 
@@ -143,7 +143,7 @@ To deploy multiple deployments you can provide multiple `--name` flags:
 
 <div class="terminal">
 ```bash
-$ prefect deploy --name deployment-1 --name deployment-2
+prefect deploy --name deployment-1 --name deployment-2
 ```
 </div>
 
@@ -151,7 +151,7 @@ To deploy all deployments in a project you can use the `--all` flag:
 
 <div class="terminal">
 ```bash
-$ prefect deploy --all
+prefect deploy --all
 ```
 </div>
 
@@ -327,7 +327,7 @@ The build section of `prefect.yaml` is where any necessary side effects for runn
 
 <div class="terminal">
 ```bash
-$ prefect project init --recipe docker
+prefect project init --recipe docker
 >> image_name: < insert image name here >
 >> tag: < insert image tag here >
 ```
@@ -385,7 +385,7 @@ For example, a user wishing to store their project in an S3 bucket and rely on d
 
 <div class="terminal">
 ```bash
-$ prefect project init --recipe s3
+prefect project init --recipe s3
 >> bucket: < insert bucket name here >
 ```
 </div>
@@ -482,7 +482,7 @@ Registration of flows allows you to to deploy based on flow name reference using
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'My Flow Name'
+prefect deploy -f 'My Flow Name'
 ```
 </div>
 

@@ -68,7 +68,7 @@ Open a new terminal session.
 
 <div class="terminal">
 ```bash
-$ pip install -U prefect
+pip install -U prefect
 ```
 </div>
 
@@ -81,7 +81,7 @@ Use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from
 
 <div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
 ```
 </div>
 

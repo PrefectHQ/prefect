@@ -26,7 +26,7 @@ Configure a local execution environment to use Prefect Cloud as the API server f
 
 <div class="terminal">
 ```bash
-$ pip install -U prefect
+pip install -U prefect
 ```
 </div>
 
@@ -34,7 +34,7 @@ $ pip install -U prefect
 
 <div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
 ```
 </div>
 
@@ -42,7 +42,7 @@ The `prefect cloud login` command, used on its own, provides an interactive logi
 
 <div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
 ? How would you like to authenticate? [Use arrows to move; enter to select]
 > Log in with a web browser
     Paste an API key
@@ -62,7 +62,7 @@ If you need to change which workspace you're syncing with, use the `prefect clou
 
 <div class="terminal">
 ```bash
-$ prefect cloud workspace set --workspace "prefect/my-workspace"
+prefect cloud workspace set --workspace "prefect/my-workspace"
 ```
 </div>
 
@@ -74,7 +74,7 @@ You may also use the `prefect cloud login` command with the `--workspace` or `-w
 
 <div class="terminal">
 ```bash
-$ prefect cloud login --workspace "prefect/my-workspace"
+prefect cloud login --workspace "prefect/my-workspace"
 ```
 </div>
 
@@ -86,7 +86,7 @@ For Prefect Cloud, you can configure the `PREFECT_API_URL` and `PREFECT_API_KEY`
 
 <div class="terminal">
 ```bash
-$ prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 $ prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
 </div>
@@ -126,7 +126,7 @@ Use the `prefect config view` CLI command to make sure your execution environmen
 
 <div class="terminal">
 ```bash
-$ prefect config view
+prefect config view
 PREFECT_PROFILE='cloud'
 PREFECT_API_KEY='pnu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' (from profile)
 PREFECT_API_URL='https://api-beta.prefect.io/api/accounts/...' (from profile)
@@ -141,7 +141,7 @@ You can use the `prefect cloud workspace ls` CLI command to view or set the acti
 
 <div class="terminal">
 ```bash
-$ prefect cloud workspace ls
+prefect cloud workspace ls
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃   Available Workspaces: ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩

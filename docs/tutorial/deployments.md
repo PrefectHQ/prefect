@@ -45,8 +45,8 @@ First, create a new folder that will contain all of the files and dependencies n
 
 <div class="terminal">
 ```bash
-$ mkdir prefect-tutorial
-$ cd prefect-tutorial
+mkdir prefect-tutorial
+cd prefect-tutorial
 ```
 </div>
 
@@ -56,8 +56,8 @@ In order to demonstrate some of the benefits of Prefect deployments, let's add t
 
 <div class="terminal">
 ```bash
-$ echo '{"some-piece-of-config": 100}' > config.json
-$ echo 'AN_IMPORTED_MESSAGE = "Hello from another file"' > utilities.py
+echo '{"some-piece-of-config": 100}' > config.json
+echo 'AN_IMPORTED_MESSAGE = "Hello from another file"' > utilities.py
 ```
 </div>
 
@@ -103,7 +103,7 @@ Save this in a file `log_flow.py` and run it as a Python script: `python log_flo
 
 <div class="terminal">
 ```bash
-$ python log_flow.py Marvin
+python log_flow.py Marvin
 22:00:16.419 | INFO    | prefect.engine - Created flow run 'vehement-eagle' for flow 'log-flow'
 22:00:16.570 | INFO    | Flow run 'vehement-eagle' - Created task run 'log_task-82fbd1c0-0' for task 'log_task'
 22:00:16.570 | INFO    | Flow run 'vehement-eagle' - Executing 'log_task-82fbd1c0-0' immediately...
@@ -153,7 +153,7 @@ To build deployment files for `log_flow.py`, use the following command:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
+prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
 ```
 </div>
 
@@ -170,7 +170,7 @@ What happens when you run `prefect deployment build`?
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
+prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
 Found flow 'log-flow'
 Default '.prefectignore' file written to
 /Users/terry/prefect-tutorial/.prefectignore
@@ -280,7 +280,7 @@ Use the `prefect deployment apply` command to create the deployment on the Prefe
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply log_flow-deployment.yaml
+prefect deployment apply log_flow-deployment.yaml
 Successfully loaded 'log-simple'
 Deployment 'log-flow/log-simple' successfully created with id
 '517fd294-2bd3-4738-9515-0c68092ce35d'.
@@ -291,8 +291,8 @@ You can now use the Prefect CLI to create a flow run for this deployment and run
 work pool:
 <div class="terminal">
 ```bash
-$ prefect deployment run 'log-flow/log-simple'
-$ prefect agent start -q 'test'
+prefect deployment run 'log-flow/log-simple'
+prefect agent start -q 'test'
 ```
 </div>
 
@@ -302,7 +302,7 @@ To demonstrate that your deployment exists, list all of the current deployments:
 
 <div class="terminal">
 ```bash
-$ prefect deployment ls
+prefect deployment ls
                                 Deployments
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Name                                ┃ ID                                   ┃
@@ -318,7 +318,7 @@ Use `prefect deployment inspect` to display details for a specific deployment.
 
 <div class='terminal'>
 ```bash
-$ prefect deployment inspect log-flow/log-simple
+prefect deployment inspect log-flow/log-simple
 {
     'id': '517fd294-2bd3-4738-9515-0c68092ce35d',
     'created': '2022-08-22T20:06:54.719808+00:00',
@@ -396,7 +396,7 @@ For the remainder of this tutorial, you'll use a local Prefect server. Open anot
 
 <div class='terminal'>
 ```bash
-$ prefect server start
+prefect server start
 
  ___ ___ ___ ___ ___ ___ _____ 
 | _ \ _ \ __| __| __/ __|_   _|
@@ -427,7 +427,7 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
 
     <div class='terminal'>
     ```bash
-    $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+    prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
     Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
     Updated profile 'default'
     ```
@@ -439,12 +439,12 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
     <div class='terminal'>
     ```bash
     # View current configuration
-    $ prefect config view
+    prefect config view
     PREFECT_PROFILE='default'
     PREFECT_API_URL='http://127.0.0.1:4200/api' (from profile)
     
     # Create a "local" profile using these settings
-    $ prefect profile create local --from default
+    prefect profile create local --from default
 
     Created profile with properties:
         name - 'local'
@@ -473,7 +473,7 @@ Open an additional terminal session, then run the `prefect agent start` command,
 
 <div class="terminal">
 ```bash
-$ prefect agent start -q test
+prefect agent start -q test
 Starting agent connected to http://127.0.0.1:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -497,7 +497,7 @@ Now that you've created the deployment, agent, and associated work pool, you can
 
 <div class="terminal">
 ```bash
-$ prefect deployment run log-flow/log-simple
+prefect deployment run log-flow/log-simple
 Created flow run 'talented-jackdaw' (b0ba3195-912d-4a2f-8645-d939747655c3)
 ```
 </div>
@@ -625,7 +625,7 @@ Already have a Prefect Cloud account? Logging in from your local development env
 
 <div class="terminal">
 ```shell
-$ prefect cloud login
+prefect cloud login
 ? How would you like to authenticate? [Use arrows to move; enter to select]
 > Log in with a web browser
 Paste an API key

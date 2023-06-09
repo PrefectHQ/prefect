@@ -164,7 +164,7 @@ Upon executing a command that creates an object, the output message should offer
 
 Output Example:
 ```bash
-$ prefect work-queue create testing
+prefect work-queue create testing
 
 Created work queue with properties:
     name - 'abcde'

@@ -42,7 +42,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ pip install s3fs
+pip install s3fs
 ```
 </div>
 
@@ -110,7 +110,7 @@ To demonstrate using a storage block, we'll create a new variation of the deploy
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
+prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
 Found flow 'log-flow'
 Successfully uploaded 3 files to s3://bucket-full-of-sunshine/flows/log-test
 Deployment YAML created at
@@ -140,14 +140,14 @@ Now you can apply the deployment YAML file to create the deployment on the API.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply log-flow-s3-deployment.yaml
+prefect deployment apply log-flow-s3-deployment.yaml
 Successfully loaded 'log-flow-s3'
 Deployment 'log-flow/log-flow-s3' successfully created with id
 '73b0288e-d5bb-4b37-847c-fa68fda39c81'.
 
 To execute flow runs from this deployment, start an agent that pulls work from the 'test'
 work pool:
-$ prefect agent start -q 'test'
+prefect agent start -q 'test'
 ```
 </div>
 
@@ -196,7 +196,7 @@ Every storage block exposes a base path (for example, an S3 bucket name or a Git
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow \
+prefect deployment build ./log_flow.py:log_flow \
     -n log-flow-s3 \
     -sb s3/log-test \
     -q test \

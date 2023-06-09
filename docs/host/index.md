@@ -24,7 +24,7 @@ Spin up a local Prefect server UI with the `prefect server start` CLI command in
 
 <div class="terminal">
 ```bash
-$ prefect server start
+prefect server start
 ```
 </div>
 
@@ -57,7 +57,7 @@ Go to your terminal session and run this command to set the API URL to point to 
 
 <div class='terminal'>
 ```bash
-$ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
+prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 </div>
 

@@ -30,7 +30,7 @@ For example, say you created a simple flow in a file `flow.py`. If you create a 
 
 <div class='terminal'>
 ```bash
-$ python flow.py
+python flow.py
 16:45:44.534 | INFO    | prefect.engine - Created flow run 'gray-dingo' for flow 
 'hello-flow'
 16:45:44.534 | INFO    | Flow run 'gray-dingo' - Using task runner 'SequentialTaskRunner'

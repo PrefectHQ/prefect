@@ -68,7 +68,7 @@ To take full advantage of the Prefect orchestration engine and API server, you c
 
 <div class='terminal'>
 ```bash
-$ prefect server start
+prefect server start
 Starting...
 
  ___ ___ ___ ___ ___ ___ _____ 
@@ -149,12 +149,12 @@ Prefect creates a SQLite database, but you can configure your own database.
 When you first install Prefect, your database will be located at `~/.prefect/prefect.db`. To configure this location, you can specify a connection URL with the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable:
 
 ```bash
-$ export PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/prefect.db"
+export PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/prefect.db"
 ```
 If at any point in your testing you'd like to reset your database, run the `prefect server database reset` CLI command:  
 
 ```bash
-$ prefect server database reset
+prefect server database reset
 ```
 
 This will completely clear all data and reapply the schema.

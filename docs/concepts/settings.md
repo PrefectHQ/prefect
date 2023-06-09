@@ -94,7 +94,7 @@ The `prefect config` CLI commands enable you to view, set, and unset settings.
 The `prefect config view` command will display settings that override default values.
 
 ```bash
-$ prefect config view
+prefect config view
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='DEBUG'
 ```
@@ -102,7 +102,7 @@ PREFECT_LOGGING_LEVEL='DEBUG'
 You can show the sources of values with `--show-sources`:
 
 ```bash
-$ prefect config view --show-sources
+prefect config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='DEBUG' (from env)
 ```
@@ -110,7 +110,7 @@ PREFECT_LOGGING_LEVEL='DEBUG' (from env)
 You can also include default values with `--show-defaults`:
 
 ```bash
-$ prefect config view --show-defaults
+prefect config view --show-defaults
 PREFECT_PROFILE='default'
 PREFECT_AGENT_PREFETCH_SECONDS='10' (from defaults)
 PREFECT_AGENT_QUERY_INTERVAL='5.0' (from defaults)
@@ -186,14 +186,14 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 The default profile starts out empty:
 
 ```bash
-$ prefect profile get
+prefect profile get
 [default]
 ```
 
 If you configured settings for a profile, `prefect profile inspect` displays those settings:
 
 ```bash
-$ prefect profile inspect
+prefect profile inspect
 PREFECT_PROFILE = "default"
 PREFECT_API_KEY = "pnu_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 PREFECT_API_URL = "http://127.0.0.1:4200/api"
@@ -202,7 +202,7 @@ PREFECT_API_URL = "http://127.0.0.1:4200/api"
 You can pass the name of a profile to view its settings:
 
 ```bash
-$ prefect profile create test
+prefect profile create test
 $ prefect profile inspect test
 PREFECT_PROFILE="test"
 ```
@@ -212,35 +212,35 @@ PREFECT_PROFILE="test"
 Create a new profile with no settings:
 
 ```bash
-$ prefect profile create test
+prefect profile create test
 Created profile 'test' at /Users/terry/.prefect/profiles.toml.
 ```
 
 Create a new profile `foo` with settings cloned from an existing `default` profile:
 
 ```bash
-$ prefect profile create foo --from default
+prefect profile create foo --from default
 Created profile 'cloud' matching 'default' at /Users/terry/.prefect/profiles.toml.
 ```
 
 Rename a profile:
 
 ```bash
-$ prefect profile rename temp test
+prefect profile rename temp test
 Renamed profile 'temp' to 'test'.
 ```
 
 Remove a profile:
 
 ```bash
-$ prefect profile delete test
+prefect profile delete test
 Removed profile 'test'.
 ```
 
 Removing the default profile resets it:
 
 ```bash
-$ prefect profile delete default
+prefect profile delete default
 Reset profile 'default'.
 ```
 
@@ -249,7 +249,7 @@ Reset profile 'default'.
 Set a value in the current profile:
 
 ```bash
-$ prefect config set VAR=X
+prefect config set VAR=X
 Set variable 'VAR' to 'X'
 Updated profile 'default'
 ```
@@ -257,7 +257,7 @@ Updated profile 'default'
 Set multiple values in the current profile:
 
 ```bash
-$ prefect config set VAR2=Y VAR3=Z
+prefect config set VAR2=Y VAR3=Z
 Set variable 'VAR2' to 'Y'
 Set variable 'VAR3' to 'Z'
 Updated profile 'default'
@@ -266,7 +266,7 @@ Updated profile 'default'
 You can set a value in another profile by passing the `--profile NAME` option to a CLI command:
 
 ```bash
-$ prefect --profile "foo" config set VAR=Y
+prefect --profile "foo" config set VAR=Y
 Set variable 'VAR' to 'Y'
 Updated profile 'foo'
 ```
@@ -274,7 +274,7 @@ Updated profile 'foo'
 Unset values in the current profile to restore the defaults:
 
 ```bash
-$ prefect config unset VAR2 VAR3
+prefect config unset VAR2 VAR3
 Unset variable 'VAR2'
 Unset variable 'VAR3'
 Updated profile 'default'
@@ -285,7 +285,7 @@ Updated profile 'default'
 See a list of available profiles:
 
 ```bash
-$ prefect profile ls
+prefect profile ls
 * default
 cloud
 test
@@ -295,7 +295,7 @@ local
 View the current profile:
 
 ```bash
-$ prefect profile get
+prefect profile get
 [default]
 VAR=X
 ```
@@ -303,7 +303,7 @@ VAR=X
 View another profile:
 
 ```bash
-$ prefect profile get foo
+prefect profile get foo
 [foo]
 VAR=Y
 ```
@@ -311,7 +311,7 @@ VAR=Y
 View multiple profiles:
 
 ```bash
-$ prefect profile get default foo
+prefect profile get default foo
 [default]
 VAR=X
 
@@ -322,7 +322,7 @@ VAR=Y
 View all settings for a profile:
 
 ```bash
-$ prefect profile inspect cloud
+prefect profile inspect cloud
 PREFECT_API_URL='https://api.prefect.cloud/api/accounts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx
 x/workspaces/xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 PREFECT_API_KEY='xxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'          
@@ -335,38 +335,38 @@ The profile `default` is used by default. There are several methods to switch to
 The recommended method is to use the `prefect profile use` command with the name of the profile:
 
 ```bash
-$ prefect profile use foo
+prefect profile use foo
 Profile 'test' now active.
 ```
 
 Alternatively, you may set the environment variable `PREFECT_PROFILE` to the name of the profile:
 
 ```bash
-$ export PREFECT_PROFILE=foo
+export PREFECT_PROFILE=foo
 ```
 
 Or, specify the profile in the CLI command for one-time usage:
 
 ```bash
-$ prefect --profile "foo" ...
+prefect --profile "foo" ...
 ```
 
 Note that this option must come before the subcommand. For example, to list flow runs using the profile `foo`:
 
 ```bash
-$ prefect --profile "foo" flow-run ls
+prefect --profile "foo" flow-run ls
 ```
 
 You may use the `-p` flag as well:
 
 ```bash
-$ prefect -p "foo" flow-run ls
+prefect -p "foo" flow-run ls
 ```
 
 You may also create an 'alias' to automatically use your profile:
 
 ```bash
-$ alias prefect-foo="prefect --profile 'foo' "
+alias prefect-foo="prefect --profile 'foo' "
 # uses our profile!
 $ prefect-foo config view  
 ```
@@ -380,7 +380,7 @@ In all other cases, environment variables will take precedence over the value in
 For example, a value set in a profile will be used by default:
 
 ```bash
-$ prefect config set PREFECT_LOGGING_LEVEL="ERROR"
+prefect config set PREFECT_LOGGING_LEVEL="ERROR"
 $ prefect config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='ERROR' (from profile)
@@ -389,7 +389,7 @@ PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 But, setting an environment variable will override the profile setting:
 
 ```bash
-$ export PREFECT_LOGGING_LEVEL="DEBUG"
+export PREFECT_LOGGING_LEVEL="DEBUG"
 $ prefect config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='DEBUG' (from env)
@@ -398,7 +398,7 @@ PREFECT_LOGGING_LEVEL='DEBUG' (from env)
 Unless the profile is explicitly requested when using the CLI:
 
 ```bash
-$ prefect --profile default config view --show-sources
+prefect --profile default config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 ```

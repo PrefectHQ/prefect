@@ -42,7 +42,7 @@ Initializing a project is simple: within any directory that you plan to develop 
 
 <div class="terminal">
 ```bash
-$ prefect project init
+prefect project init
 ```
 </div>
 
@@ -55,7 +55,7 @@ This command will create your `.prefect/` directory along with the two YAML file
 
     <div class="terminal">
     ```bash
-    $ prefect project recipe ls
+    prefect project recipe ls
     ```
     </div>
 
@@ -63,7 +63,7 @@ This command will create your `.prefect/` directory along with the two YAML file
 
     <div class="terminal">
     ```bash
-    $ prefect project init --recipe docker
+    prefect project init --recipe docker
     ```
     </div>
 
@@ -83,9 +83,9 @@ In this example, we'll create a project from scratch that runs locally.  Let's s
 
 <div class="terminal">
 ```bash
-$ mkdir my-first-project
-$ cd my-first-project
-$ prefect project init --recipe local
+mkdir my-first-project
+cd my-first-project
+prefect project init --recipe local
 ```
 </div>
 
@@ -110,7 +110,7 @@ You can experiment by importing and running this flow in your favorite REPL; let
 
 <div class="terminal">
 ```bash
-$ prefect deploy ./api_flow.py:call_api \
+prefect deploy ./api_flow.py:call_api \
     -n my-first-deployment \
     -p local-work
 ```
@@ -129,8 +129,8 @@ You can customize all of this either by [manually editing `deployment.yaml`](/co
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">
 ```bash
-$ prefect deployment run 'Call API/my-first-deployment'
-$ prefect deployment run 'Call API/my-first-deployment' \
+prefect deployment run 'Call API/my-first-deployment'
+prefect deployment run 'Call API/my-first-deployment' \
     --param url=https://cat-fact.herokuapp.com/facts/
 ```
 </div>
@@ -141,14 +141,14 @@ You should now be able to monitor and confirm these runs were created and ran in
     `prefect deploy` will automatically register your flow with your local project; you can register flows yourself explicitly with the `prefect project register-flow` command:
     <div class="terminal">
     ```bash
-    $ prefect project register-flow ./api_flow.py:call_api
+    prefect project register-flow ./api_flow.py:call_api
     ```
     </div>
 
     This pre-registration allows you to deploy based on name instead of entrypoint path:
     <div class="terminal">
     ```bash
-    $ prefect deploy -f 'Call API' \
+    prefect deploy -f 'Call API' \
         -n my-first-deployment \
         -p local-work
     ```
@@ -162,9 +162,9 @@ We start by cloning the remote repository and initializing a project within the 
 
 <div class="terminal">
 ```bash
-$ git clone https://github.com/PrefectHQ/hello-projects
-$ cd hello-projects
-$ prefect project init --recipe git
+git clone https://github.com/PrefectHQ/hello-projects
+cd hello-projects
+prefect project init --recipe git
 ```
 </div>
 
@@ -172,7 +172,7 @@ We can now proceed with the same steps as above to create a new deployment:
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'log-flow' \
+prefect deploy -f 'log-flow' \
     -n my-git-deployment \
     -p local-work
 ```
@@ -184,7 +184,7 @@ Notice that we were able to deploy based on flow name alone; this is because the
 Let's run this flow and discuss it's output:
 <div class="terminal">
 ```bash
-$ prefect deployment run 'log-flow/my-git-deployment'
+prefect deployment run 'log-flow/my-git-deployment'
 ```
 </div>
 
@@ -237,10 +237,10 @@ In this example, we extend the examples above by dockerizing our setup and execu
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'log-flow' \
+prefect deploy -f 'log-flow' \
     -n my-docker-git-deployment \
     -p docker-work
-$ prefect deployment run 'log-flow/my-docker-git-deployment'
+prefect deployment run 'log-flow/my-docker-git-deployment'
 ```
 </div>
 
@@ -250,8 +250,8 @@ Let's deploy a new flow from this project that requires additional dependencies 
 
 <div class="terminal">
 ```bash
-$ pip install -r requirements.txt
-$ python flows/pandas_flow.py
+pip install -r requirements.txt
+python flows/pandas_flow.py
 ```
 </div>
 
@@ -290,11 +290,11 @@ All that's left to do is create our deployment and specify our image name to ins
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'pandas-flow' \
+prefect deploy -f 'pandas-flow' \
     -n docker-build-deployment \
     -p docker-work \
     -v image=local-only/testing:dev
-$ prefect deployment run 'log-flow/my-docker-git-deployment'
+prefect deployment run 'log-flow/my-docker-git-deployment'
 ```
 </div>
 
@@ -309,10 +309,10 @@ Revisiting [our local deployment above](#local-deployment), let's begin by switc
 
 <div class="terminal">
 ```bash
-$ prefect deploy ./api_flow.py:call_api \
+prefect deploy ./api_flow.py:call_api \
     -n my-second-deployment \
     -p docker-work
-$ prefect deployment run 'Call API/my-second-deployment'
+prefect deployment run 'Call API/my-second-deployment'
 ```
 </div>
 

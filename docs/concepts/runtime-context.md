@@ -58,7 +58,7 @@ Outputs:
 
 <div class="terminal">
 ```bash
-$ python my_runtime_info.py
+python my_runtime_info.py
 10:08:02.948 | INFO    | prefect.engine - Created flow run 'solid-gibbon' for flow 'my-flow'
 10:08:03.555 | INFO    | Flow run 'solid-gibbon' - My name is solid-gibbon
 10:08:03.558 | INFO    | Flow run 'solid-gibbon' - I belong to deployment None

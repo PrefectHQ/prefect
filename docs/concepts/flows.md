@@ -209,7 +209,7 @@ When you run this flow, you'll see the following output:
 
 <div class="terminal">
 ```bash
-$ python hello.py
+python hello.py
 15:11:23.594 | INFO    | prefect.engine - Created flow run 'benevolent-donkey' for flow 'hello-world'
 15:11:23.594 | INFO    | Flow run 'benevolent-donkey' - Using task runner 'ConcurrentTaskRunner'
 Hello Marvin!
@@ -239,7 +239,7 @@ When you run this flow, you'll see the following output, which illustrates how t
 
 <div class="terminal">
 ```bash
-$ python hello.py
+python hello.py
 15:15:58.673 | INFO    | prefect.engine - Created flow run 'loose-wolverine' for flow 'Hello Flow'
 15:15:58.674 | INFO    | Flow run 'loose-wolverine' - Using task runner 'ConcurrentTaskRunner'
 15:15:58.973 | INFO    | Flow run 'loose-wolverine' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
@@ -324,7 +324,7 @@ Running the `hello_world()` flow (in this example from the file `hello.py`) crea
 
 <div class="terminal">
 ```bash
-$ python hello.py
+python hello.py
 15:19:21.651 | INFO    | prefect.engine - Created flow run 'daft-cougar' for flow 'Hello Flow'
 15:19:21.651 | INFO    | Flow run 'daft-cougar' - Using task runner 'ConcurrentTaskRunner'
 15:19:21.945 | INFO    | Flow run 'daft-cougar' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
@@ -808,7 +808,7 @@ From the command line in your execution environment, you can cancel a flow run b
 
 <div class="terminal">
 ```bash
-$ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
 </div>
 
@@ -869,7 +869,7 @@ From the command line in your execution environment, you can delete a flow run b
 
 <div class="terminal">
 ```bash
-$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
 </div>
 

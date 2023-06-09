@@ -66,7 +66,7 @@ Use the `prefect agent start` CLI command to start an agent. You must pass at le
 
 <div class="terminal">
 ```bash
-$ prefect agent start -p [work pool name]
+prefect agent start -p [work pool name]
 ```
 </div>
 
@@ -74,7 +74,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect agent start -p "my-pool"
+prefect agent start -p "my-pool"
 Starting agent with ephemeral API...
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
@@ -95,7 +95,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect agent start --match "foo-"
+prefect agent start --match "foo-"
 ```
 </div>
 
@@ -153,7 +153,7 @@ For example, to create a work pool called `test-pool`, you would run this comman
 <div class="terminal">
 
 ```bash
-$ prefect work-pool create test-pool
+prefect work-pool create test-pool
 
 Created work pool with properties:
     name - 'test-pool'
@@ -189,7 +189,7 @@ Each worker type is configured with a default base job template, making it easy 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
 ```bash
-$ prefect work-pool create --type process above-ground
+prefect work-pool create --type process above-ground
 ```
 
 We see these configuration options available in the Prefect UI:
@@ -232,7 +232,7 @@ To view work pools with the Prefect CLI, you can:
 
 <div class="terminal">
 ```bash
-$ prefect work-pool ls
+prefect work-pool ls
 prefect work-pool ls
                                Work pools
 ┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
@@ -250,7 +250,7 @@ prefect work-pool ls
 
 <div class="terminal">
 ```bash
-$ prefect work-pool inspect 'test-pool'
+prefect work-pool inspect 'test-pool'
 Workpool(
     id='a51adf8c-58bb-4949-abe6-1b87af46eabd',
     created='2 minutes ago',
@@ -265,7 +265,7 @@ Workpool(
 
 <div class="terminal">
 ```bash
-$ prefect work-pool preview 'test-pool' --hours 12 
+prefect work-pool preview 'test-pool' --hours 12 
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Scheduled Star… ┃ Run ID                     ┃ Name         ┃ Deployment ID               ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -292,7 +292,7 @@ To pause a work pool through the Prefect CLI, use the `prefect work-pool pause` 
 
 <div class="terminal">
 ```bash
-$ prefect work-pool pause 'test-pool'
+prefect work-pool pause 'test-pool'
 Paused work pool 'test-pool'
 ```
 </div>
@@ -382,7 +382,7 @@ You must start a worker within an environment that can access or create the infr
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
 <div class="terminal">
 ```bash
-$ prefect worker start -p [work pool name]
+prefect worker start -p [work pool name]
 ```
 </div>
 For example:

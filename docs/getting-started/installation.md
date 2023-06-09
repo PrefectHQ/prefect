@@ -77,7 +77,7 @@ If you'd like to install a version of Prefect for development:
 
 <div class="terminal">
 ```bash
-$ git clone https://github.com/PrefectHQ/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 $ cd prefect
 $ pip install -e ".[dev]"
 $ pre-commit install
@@ -173,7 +173,7 @@ You can check your SQLite version by executing the following command in a termin
 
 <div class="terminal">
 ```bash
-$ sqlite3 --version
+sqlite3 --version
 ```
 </div>
 

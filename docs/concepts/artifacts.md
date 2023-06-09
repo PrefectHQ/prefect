@@ -177,7 +177,7 @@ In the Prefect UI, you can view all of the latest versions of your artifacts and
 
 <div class="terminal">
 ```bash
-$ prefect artifact inspect <my-key>
+prefect artifact inspect <my-key>
 ```
 </div>
 
@@ -185,7 +185,7 @@ or view all artifacts by running:
 
 <div class="terminal">
 ```bash
-$ prefect artifact ls
+prefect artifact ls
 ```
 </div>
 
@@ -197,13 +197,13 @@ You can delete an artifact directly using the CLI to delete specific artifacts w
 
 <div class="terminal">
 ```bash
-$ prefect artifact delete <my-key>
+prefect artifact delete <my-key>
 ```
 </div>
 
 <div class="terminal">
 ```bash
-$ prefect artifact delete --id <my-id>
+prefect artifact delete --id <my-id>
 ```
 </div>
 

@@ -149,7 +149,7 @@ To build the deployment definition file `deployment.yaml`, run the `prefect depl
 
 <div class="terminal">
 ```bash
-$ prefect deployment build [OPTIONS] PATH
+prefect deployment build [OPTIONS] PATH
 ```
 </div>
 
@@ -159,7 +159,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
+prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
 ```
 </div>
 
@@ -323,7 +323,7 @@ When you've configured `deployment.yaml` for a deployment, you can create the de
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply catfacts_flow-deployment.yaml
+prefect deployment apply catfacts_flow-deployment.yaml
 ```
 </div>
 
@@ -331,7 +331,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply ./catfacts_flow-deployment.yaml
+prefect deployment apply ./catfacts_flow-deployment.yaml
 Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```
@@ -343,7 +343,7 @@ Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow
 
 <div class="terminal">
 ```bash
-$ prefect deployment ls
+prefect deployment ls
                                Deployments
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Name                           ┃ ID                                   ┃
@@ -460,7 +460,7 @@ Deployment properties include:
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
 ```bash
-$ prefect deployment inspect 'Cat Facts/catfact'
+prefect deployment inspect 'Cat Facts/catfact'
 {
     'id': '76a9f1ac-4d8c-4a92-8869-615bec502685',
     'created': '2022-07-26T03:48:14.723328+00:00',

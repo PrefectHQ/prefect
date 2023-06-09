@@ -212,7 +212,7 @@ Spin up a local Prefect server UI using the `prefect server start` CLI command f
 
 <div class="terminal">
 ```bash
-$ prefect server start
+prefect server start
 ```
 </div>
 

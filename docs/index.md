@@ -76,7 +76,7 @@ Thats it! Your function is now a flow. Run the code as you normally would, and y
 
 <div class="terminal">
 ```bash
-$ python hello_prefect.py
+python hello_prefect.py
 15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
 15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
 What is your favorite number?

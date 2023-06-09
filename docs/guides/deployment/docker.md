@@ -89,7 +89,7 @@ To demonstrate using an infrastructure block, we'll create a new variation of th
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-flow-docker -sb s3/log-test -ib docker-container/log-tutorial -q test -o log-flow-docker-deployment.yaml
+prefect deployment build ./log_flow.py:log_flow -n log-flow-docker -sb s3/log-test -ib docker-container/log-tutorial -q test -o log-flow-docker-deployment.yaml
 Found flow 'log-flow'
 Successfully uploaded 4 files to s3://bucket-full-of-sunshine/flows/test
 Deployment YAML created at
@@ -113,14 +113,14 @@ Now we can apply the deployment YAML to create the deployment on the API.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply log-flow-docker-deployment.yaml
+prefect deployment apply log-flow-docker-deployment.yaml
 Successfully loaded 'log-flow-docker'
 Deployment 'log-flow/log-flow-docker' successfully created with id
 'a52fe285-d646-4e57-affd-257acf92782a'.
 
 To execute flow runs from this deployment, start an agent that pulls work from the 'test'
 work queue:
-$ prefect agent start -q 'test'
+prefect agent start -q 'test'
 ```
 </div>
 

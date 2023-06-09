@@ -67,7 +67,7 @@ Save this as `sequential_flow.py` and run it in a terminal. You'll see output si
 
 <div class="terminal">
 ```bash
-$ python sequential_flow.py
+python sequential_flow.py
 16:51:17.967 | INFO    | prefect.engine - Created flow run 'humongous-mink' for flow 'greetings'
 16:51:17.967 | INFO    | Flow run 'humongous-mink' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
 16:51:18.038 | INFO    | Flow run 'humongous-mink' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
@@ -163,7 +163,7 @@ Now run `dask_flow.py`. If you get a warning about accepting incoming network co
 
 <div class="terminal">
 ```bash
-$ python dask_flow.py
+python dask_flow.py
 19:29:03.798 | INFO    | prefect.engine - Created flow run 'fine-bison' for flow 'greetings'
 
 19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner' 
@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
 <div class="terminal">
 ```bash
-$ python dask_flow.py
+python dask_flow.py
 
 16:57:34.534 | INFO    | prefect.engine - Created flow run 'papaya-honeybee' for flow 'greetings'
 16:57:34.534 | INFO    | Flow run 'papaya-honeybee' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
