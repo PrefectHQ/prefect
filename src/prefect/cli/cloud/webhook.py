@@ -46,7 +46,7 @@ async def get(
 
     display_table = Table(show_lines=True)
     for field in ["webhook id", "url slug", "name", "enabled?", "template"]:
-        display_table.add_column(field)
+        display_table.add_column(field, overflow="fold")
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
@@ -106,7 +106,7 @@ async def create(
                 "template": template,
             },
         )
-        app.console.print(f'Successfully created {response["name"]}')
+        app.console.print(f'Successfully created webhook {response["name"]}')
 
 
 @webhook_app.command()
@@ -136,6 +136,7 @@ async def toggle(
     """
     Toggle the enabled status of an existing Cloud webhook
     """
+    confirm_logged_in()
 
     status_lookup = {True: "enabled", False: "disabled"}
 
