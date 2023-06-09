@@ -283,28 +283,21 @@ class TestBlockingPause:
         assert len(task_runs) == 5, "all tasks should finish running"
 
 
-async def add_deployment_id_to_flow_run(session, deployment, flow_run_id):
-    """
-    It's not safe to use the session directly in the tests below, we need to run it
-    in the loop thread so it is executed in the same thread as the client.
-    """
-    from prefect._internal.concurrency.api import from_async, create_call
+async def add_deployment_id_to_flow_run(db, deployment, flow_run_id):
     from prefect.server.models.flow_runs import update_flow_run
 
-    await from_async.call_in_loop_thread(
-        create_call(
-            update_flow_run,
+    async with db.session_context(begin_transaction=True) as session:
+        await update_flow_run(
             session,
             flow_run_id,
             FlowRun.construct(deployment_id=deployment.id),
         )
-    )
-    await from_async.call_in_loop_thread(session.commit)
+        await session.commit()
 
 
 class TestNonblockingPause:
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
-        self, prefect_client, deployment, session
+        self, prefect_client, deployment, db
     ):
         flow_run_id = None
 
@@ -317,7 +310,7 @@ class TestNonblockingPause:
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
 
-            await add_deployment_id_to_flow_run(session, deployment, flow_run_id)
+            await add_deployment_id_to_flow_run(db, deployment, flow_run_id)
 
             x = await foo.submit()
             y = await foo.submit()
@@ -338,7 +331,7 @@ class TestNonblockingPause:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_gracefully_exit_with_reschedule_flag(
-        self, session, deployment
+        self, db, deployment
     ):
         @task
         async def foo():
@@ -347,7 +340,7 @@ class TestNonblockingPause:
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
             await add_deployment_id_to_flow_run(
-                session, deployment, prefect.runtime.flow_run.id
+                db, deployment, prefect.runtime.flow_run.id
             )
 
             x = await foo.submit()
@@ -361,7 +354,7 @@ class TestNonblockingPause:
             await pausing_flow_without_blocking()
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
-        self, prefect_client, deployment, session
+        self, prefect_client, deployment, db
     ):
         flow_run_id = None
 
@@ -374,7 +367,7 @@ class TestNonblockingPause:
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
 
-            await add_deployment_id_to_flow_run(session, deployment, flow_run_id)
+            await add_deployment_id_to_flow_run(db, deployment, flow_run_id)
 
             x = await foo.submit()
             y = await foo.submit()
@@ -393,9 +386,7 @@ class TestNonblockingPause:
         flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_scheduled()
 
-    async def test_subflows_cannot_be_paused_with_reschedule_flag(
-        self, deployment, session
-    ):
+    async def test_subflows_cannot_be_paused_with_reschedule_flag(self, deployment, db):
         @task
         async def foo():
             return 42
@@ -440,7 +431,7 @@ class TestNonblockingPause:
 
 class TestOutOfProcessPause:
     async def test_flows_can_be_paused_out_of_process(
-        self, prefect_client, deployment, session
+        self, prefect_client, deployment, db
     ):
         @task
         async def foo():
@@ -453,7 +444,7 @@ class TestOutOfProcessPause:
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
             await add_deployment_id_to_flow_run(
-                session, deployment, prefect.runtime.flow_run.id
+                db, deployment, prefect.runtime.flow_run.id
             )
 
             context = FlowRunContext.get()
@@ -482,7 +473,7 @@ class TestOutOfProcessPause:
             len(paused_task_runs) == 1
         ), "one task run should have exited with a paused state"
 
-    async def test_out_of_process_pauses_exit_gracefully(self, deployment, session):
+    async def test_out_of_process_pauses_exit_gracefully(self, deployment, db):
         @task
         async def foo():
             return 42
@@ -490,7 +481,7 @@ class TestOutOfProcessPause:
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
             await add_deployment_id_to_flow_run(
-                session, deployment, prefect.runtime.flow_run.id
+                db, deployment, prefect.runtime.flow_run.id
             )
 
             context = FlowRunContext.get()
