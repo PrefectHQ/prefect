@@ -871,7 +871,13 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
         block_code_execution=True,
         capture_failures=True,
     ):
-        path, func_name = entrypoint.split(":")
+        try:
+            path, func_name = entrypoint.split(":")
+        except ValueError:
+            raise ValueError(
+                f"Entrypoint {entrypoint!r} is not in the format "
+                "`path/to/file.py:flow_function`"
+            )
         try:
             flow = import_object(entrypoint)
         except AttributeError as exc:

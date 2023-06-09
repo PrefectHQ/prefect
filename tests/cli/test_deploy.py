@@ -425,8 +425,8 @@ class TestProjectDeploySingleDeploymentYAML:
             command="deploy 'An important name'",
             expected_code=1,
             expected_output_contains=(
-                "Your flow entrypoint must include the name of the function that is the"
-                " entrypoint to your flow"
+                "Entrypoint 'An important name' is not in the format"
+                " `path/to/file.py:flow_function`"
             ),
         )
 
