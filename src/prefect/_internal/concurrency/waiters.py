@@ -171,6 +171,7 @@ class AsyncWaiter(Waiter[T]):
         self._done_callbacks = []
         self._done_event = Event()
         self._done_waiting = False
+        self._cancel_callbacks = []
 
     def submit(self, call: Call):
         """
@@ -227,17 +228,31 @@ class AsyncWaiter(Waiter[T]):
         try:
             yield
         finally:
-            # Call done callbacks
-            if self._done_callbacks:
-                logger.debug("%r executing done callbacks...", self)
             while self._done_callbacks:
                 callback = self._done_callbacks.pop()
                 if callback:
+                    logger.debug("%r executing done callback %r", self, callback)
                     # We shield against cancellation so we can run the callback
                     with anyio.CancelScope(shield=True):
-                        await self._run_done_callback(callback)
+                        await self._run_callback(callback)
 
-    async def _run_done_callback(self, callback: Call):
+    @contextlib.asynccontextmanager
+    async def _handle_cancel_callbacks(self):
+        try:
+            yield
+        except asyncio.CancelledError:
+            while self._cancel_callbacks:
+                callback = self._cancel_callbacks.pop()
+                if callback:
+                    logger.debug("%r executing cancel callback %r", self, callback)
+                    # We shield against cancellation so we can run the callback
+                    with anyio.CancelScope(shield=True):
+                        await self._run_callback(callback)
+
+            # Don't forget to re-raise the exception!
+            raise
+
+    async def _run_callback(self, callback: Call):
         coro = callback.run()
         if coro:
             await coro
@@ -247,6 +262,12 @@ class AsyncWaiter(Waiter[T]):
             raise RuntimeError("Cannot add done callbacks to done waiters.")
         else:
             self._done_callbacks.append(callback)
+
+    def add_cancel_callback(self, callback: Call):
+        if self._done_event.is_set():
+            raise RuntimeError("Cannot add cancel callbacks to done waiters.")
+        else:
+            self._cancel_callbacks.append(callback)
 
     def _signal_stop_waiting(self):
         # Only send a `None` to the queue if the waiter is still blocked reading from
@@ -265,14 +286,11 @@ class AsyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         async with self._handle_done_callbacks():
-            try:
+            async with self._handle_cancel_callbacks():
                 await self._handle_waiting_callbacks()
 
                 # Wait for the future to be done
                 await self._done_event.wait()
-            except asyncio.CancelledError:
-                self._call.cancel()
-                raise
 
         _WAITERS_BY_THREAD[self._owner_thread].remove(self)
         return self._call

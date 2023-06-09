@@ -217,6 +217,13 @@ class EventLoopThread(Portal):
         # Wait for all calls to finish
         concurrent.futures.wait(self._futures)
 
+    def cancel(self):
+        """
+        Cancel all outstanding calls.
+        """
+        for future in self._futures:
+            future.cancel()
+
     def shutdown(self) -> None:
         """
         Shutdown the worker thread. Does not wait for the thread to stop.
@@ -326,3 +333,11 @@ def drain_global_loop(timeout: Optional[float] = None) -> None:
     """
     loop_thread = get_global_loop()
     loop_thread.drain()
+
+
+def cancel_global_loop() -> None:
+    """
+    Cancel all outstanding work in the global loop.
+    """
+    loop_thread = get_global_loop()
+    loop_thread.cancel()

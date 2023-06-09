@@ -40,9 +40,7 @@ import prefect.plugins
 from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import (
-    drain_global_loop,
-)
+from prefect._internal.concurrency.threads import drain_global_loop, cancel_global_loop
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
@@ -185,6 +183,12 @@ def enter_flow_run_engine_from_flow_call(
     # any work there is complete
     done_callbacks = [create_call(drain_global_loop)] if not is_subflow_run else None
 
+    # On async cancellation, ensure that cancellation is forwarded to the global loop
+    # otherwise we can deadlock on drain
+    cancel_callbacks = [create_call(begin_run.cancel)]
+    if not is_subflow_run:
+        cancel_callbacks.append(create_call(cancel_global_loop))
+
     # WARNING: You must define any context managers here to pass to our concurrency
     # api instead of entering them in here in the engine entrypoint. Otherwise, async
     # flows will not use the context as this function _exits_ to return an awaitable to
@@ -202,6 +206,9 @@ def enter_flow_run_engine_from_flow_call(
             begin_run,
             done_callbacks=done_callbacks,
             contexts=contexts,
+            # As a special case, on async cancellation cancel all remaining work in the
+            # global loop to prevent deadlock on drain
+            cancel_callbacks=cancel_callbacks,
         )
 
     else:

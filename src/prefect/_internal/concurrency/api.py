@@ -168,12 +168,15 @@ class from_async(_base):
         __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
         timeout: Optional[float] = None,
         done_callbacks: Optional[Iterable[Call]] = None,
+        cancel_callbacks: Optional[Iterable[Call]] = None,
         contexts: Optional[Iterable[ContextManager]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call)
         for callback in done_callbacks or []:
             waiter.add_done_callback(callback)
+        for callback in cancel_callbacks or []:
+            waiter.add_cancel_callback(callback)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
         with contextlib.ExitStack() as stack:
             for context in contexts or []:
