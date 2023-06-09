@@ -104,7 +104,7 @@ async def create(
                 "template": template,
             },
         )
-        app.console.print(response)
+        app.console.print(f'Successfully created {response["name"]}')
 
 
 @webhook_app.command()
@@ -145,7 +145,36 @@ async def toggle(
         await client.request(
             "PATCH", f"/webhooks/{webhook_id}", json={"enabled": new_status}
         )
-        app.console.print(f"Webhook {webhook_id} is now {status_lookup[new_status]}")
+        app.console.print(f"Webhook is now {status_lookup[new_status]}")
+
+
+@webhook_app.command()
+async def update(
+    webhook_id: str,
+    webhook_name: str = typer.Option(None, "--name", "-n", help="Webhook name"),
+    description: str = typer.Option(
+        None, "--description", "-d", help="Description of the webhook"
+    ),
+    template: str = typer.Option(
+        None, "--template", "-t", help="Jinja2 template expression"
+    ),
+):
+    """
+    Partially update an existing Cloud webhook
+    """
+    confirm_logged_in()
+
+    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
+    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+        response = await client.request("GET", f"/webhooks/{webhook_id}")
+        update_payload = {
+            "name": webhook_name or response["name"],
+            "description": description or response["description"],
+            "template": template or response["template"],
+        }
+
+        await client.request("PUT", f"/webhooks/{webhook_id}", json=update_payload)
+        app.console.print(f"Successfully updated webhook {webhook_id}")
 
 
 @webhook_app.command()
