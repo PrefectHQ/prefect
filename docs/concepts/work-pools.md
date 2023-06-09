@@ -55,8 +55,8 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
-!!! tip "`PREFECT_API_URL` setting for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents"
+    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. You must also have a user or service account with the `Developer` role, which can be configured by setting the `PREFECT_API_KEY`.
 
     If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
@@ -377,6 +377,9 @@ You must start a worker within an environment that can access or create the infr
 
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment (virtual environment, Docker container, etc.) where you intend to run the worker or execute a flow run.
+
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers"
+    `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Developer` role, which can be configured by setting the `PREFECT_API_KEY`.
 
 ### Starting a Worker
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
