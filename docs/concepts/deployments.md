@@ -511,7 +511,7 @@ If you specify a schedule for a deployment, the deployment will execute its flow
 
 !!! cloud-ad "deployment triggers are only available in Prefect Cloud"
 
-Deployments can optionally take a trigger specification, which will configure an automation to run the deployment based on the presence or absence of events, and optionally pass event data into the deployment run as parameters.
+Deployments can optionally take a trigger specification, which will configure an automation to run the deployment based on the presence or absence of events, and optionally pass event data into the deployment run as parameters via jinja templating.
 
 ```yaml
 triggers:
@@ -524,11 +524,11 @@ triggers:
       prefect.resource.id: prefect.flow.c5568579-9f63-415c-a53e-25f00fc35866
       prefect.resource.role: flow
     parameters:
-      param_1: "{{ event.flow_run }}"
+      param_1: "{{ event }}"
 ```
 
 
-When applied, this deployment will execute on the completion of the upstream flow specified in the `match_related` key, wth the flow run passed in as a parameter. Triggers can be configured to response to the presence or absence of arbitrary internal or external [events](/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
+When applied, this deployment will execute on the completion of the upstream flow specified in the `match_related` key, wth the flow run passed in as a parameter. Triggers can be configured to response to the presence or absence of arbitrary internal or external [events](cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
 
 
 ### Create a flow run with Prefect UI
