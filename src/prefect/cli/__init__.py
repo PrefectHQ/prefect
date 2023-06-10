@@ -9,6 +9,7 @@ import prefect.cli.agent
 import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
+import prefect.cli.cloud.webhook
 import prefect.cli.concurrency_limit
 import prefect.cli.config
 import prefect.cli.deploy

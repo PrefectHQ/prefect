@@ -222,6 +222,7 @@ nav:
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
                 - 'prefect.cli.cloud': api-ref/prefect/cli/cloud.md
+                - 'prefect.cli.cloud_webhook': api-ref/prefect/cli/cloud-webhook.md
                 - 'prefect.cli.concurrency_limit': api-ref/prefect/cli/concurrency_limit.md
                 - 'prefect.cli.config': api-ref/prefect/cli/config.md
                 - 'prefect.cli.dev': api-ref/prefect/cli/dev.md
