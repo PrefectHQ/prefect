@@ -396,7 +396,7 @@ async def _run_single_deploy(
             generate_deprecation_message(
                 "The `prefect deploy --flow/-f` command",
                 end_date="Jun 2023",
-                help="Use `prefect deploy` instead.",
+                help="Use `prefect deploy` to specify an entrypoint instead.",
             )
         )
         prefect_dir = find_prefect_directory()
