@@ -213,15 +213,7 @@ async def deploy(
             else:
                 deployments = [base_deploy]
     except FileNotFoundError:
-        if PREFECT_DEBUG_MODE:
-            app.console.print(
-                (
-                    "No deployment.yaml file found, only provided CLI options will be"
-                    " used."
-                ),
-                style="yellow",
-            )
-        deployments = []
+        deployments = project.get("deployments", [])
 
     try:
         if len(deployments) > 1:
@@ -250,7 +242,7 @@ async def deploy(
                     app.console.print(
                         (
                             "Could not find deployment declaration with name "
-                            f"{names[0]} in deployment.yaml. Only CLI options "
+                            f"{names[0]} in prefect.yaml. Only CLI options "
                             "will be used for this deployment."
                         ),
                         style="yellow",
@@ -262,16 +254,14 @@ async def deploy(
             else:
                 if not is_interactive() or ci:
                     exit_with_error(
-                        "Discovered multiple deployments declared in deployment.yaml,"
+                        "Discovered multiple deployment configurations,"
                         " but no name was given. Please specify the name of at least"
                         " one deployment to create or update."
                     )
+                breakpoint()
                 selected_deployment = prompt_select_from_table(
                     app.console,
-                    (
-                        "Would you like to use an existing deployment configuration"
-                        " from deployment.yaml?"
-                    ),
+                    "Would you like to use an existing deployment configuration?",
                     [
                         {"header": "Name", "key": "name"},
                         {"header": "Description", "key": "description"},
@@ -294,7 +284,7 @@ async def deploy(
             if len(names) > 1:
                 exit_with_error(
                     "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
+                    " configuration was found. Please provide a single deployment"
                     " name."
                 )
             else:
@@ -365,7 +355,7 @@ async def _run_single_deploy(
             " name:\n\n\t[yellow]prefect project register-flow"
             " path/to/file.py:flow_function\n\tprefect deploy --flow"
             " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-            " name in this project's deployment.yaml file."
+            " name in this project's prefect.yaml file."
         )
     if flow_name and entrypoint:
         raise ValueError(
@@ -521,7 +511,7 @@ async def _run_single_deploy(
         if not is_interactive() or ci:
             raise ValueError(
                 "A work pool is required to deploy this flow. Please specify a work"
-                " pool name via the '--pool' flag or in your deployment.yaml file."
+                " pool name via the '--pool' flag or in your prefect.yaml file."
             )
         base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
             console=app.console, client=client
@@ -746,7 +736,7 @@ def _merge_with_default_deployment(base_deploy: Dict):
     if DEFAULT_DEPLOYMENT is None:
         # load the default deployment file for key consistency
         default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
+            Path(__file__).parent.parent / "projects" / "templates" / "prefect.yaml"
         )
 
         # load default file

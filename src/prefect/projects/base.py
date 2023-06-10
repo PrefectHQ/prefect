@@ -39,37 +39,6 @@ def find_prefect_directory(path: Path = None) -> Optional[Path]:
         parent = path.parent.resolve()
 
 
-def create_default_deployment_yaml(path: str, field_defaults: dict = None) -> bool:
-    """
-    Creates default `deployment.yaml` file in the provided path if one does not already exist;
-    returns boolean specifying whether a file was created.
-    """
-    field_defaults = field_defaults or {}
-
-    path = Path(path)
-    deployment_file = path / "deployment.yaml"
-    if deployment_file.exists():
-        return False
-
-    default_file = Path(__file__).parent / "templates" / "deployment.yaml"
-
-    # load default file
-    with default_file.open(mode="r") as df:
-        default = yaml.safe_load(df)
-
-    # apply field defaults
-    for field, default_value in field_defaults.items():
-        if isinstance(default.get(field), dict):
-            default["deployments"][0][field].update(default_value)
-        else:
-            default["deployments"][0][field] = default_value
-
-    with deployment_file.open(mode="w") as f:
-        yaml.dump(default, f, sort_keys=False)
-
-    return True
-
-
 def set_prefect_hidden_dir(path: str = None) -> bool:
     """
     Creates default `.prefect/` directory if one does not already exist.
@@ -86,7 +55,7 @@ def set_prefect_hidden_dir(path: str = None) -> bool:
     return True
 
 
-def create_default_project_yaml(
+def create_default_prefect_yaml(
     path: str, name: str = None, contents: dict = None
 ) -> bool:
     """
@@ -144,6 +113,14 @@ def create_default_project_yaml(
             " in remote locations\n"
         )
         yaml.dump({"pull": contents["pull"]}, f, sort_keys=False)
+        f.write("\n")
+
+        # deployments
+        f.write(
+            "# the deployments section allows you to provide configuration for"
+            " deploying flows\n"
+        )
+        yaml.dump({"deployments": contents.get("deployments", [])}, f, sort_keys=False)
     return True
 
 
@@ -256,18 +233,10 @@ def initialize_project(
 
     project_name = name or dir_name
 
-    # apply deployment defaults
-    if "docker" in recipe:
-        field_defaults = {"work_pool": {"job_variables": {"image": "{{ image_name }}"}}}
-    else:
-        field_defaults = {}
-
     files = []
     if create_default_ignore_file("."):
         files.append(".prefectignore")
-    if create_default_deployment_yaml(".", field_defaults=field_defaults):
-        files.append("deployment.yaml")
-    if create_default_project_yaml(".", name=project_name, contents=configuration):
+    if create_default_prefect_yaml(".", name=project_name, contents=configuration):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")
