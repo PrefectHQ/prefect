@@ -26,7 +26,7 @@ def project_dir(tmp_path):
         yield tmp_path
     else:
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
+        (tmp_path / "three-seven").mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path / "three-seven")
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
