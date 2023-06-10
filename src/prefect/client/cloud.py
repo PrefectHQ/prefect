@@ -107,4 +107,7 @@ class CloudClient:
             else:
                 raise exc
 
+        if res.status_code == status.HTTP_204_NO_CONTENT:
+            return
+
         return res.json()
