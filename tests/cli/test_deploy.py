@@ -1233,7 +1233,7 @@ class TestProjectDeploy:
             command="deploy",
             expected_code=0,
             expected_output_contains=(
-                "The `prefect deploy --flow/-f` command has been deprecated"
+                "The ability to deploy by flow name has been deprecated"
             ),
         )
 
@@ -1258,7 +1258,7 @@ class TestProjectDeploy:
             command="deploy -f 'An important name'",
             expected_code=0,
             expected_output_contains=(
-                "The `prefect deploy --flow/-f` command has been deprecated"
+                "The ability to deploy by flow name has been deprecated"
             ),
         )
 

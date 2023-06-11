@@ -394,9 +394,9 @@ async def _run_single_deploy(
     elif flow_name:
         app.console.print(
             generate_deprecation_message(
-                "The `prefect deploy --flow/-f` command",
+                "The ability to deploy by flow name",
                 end_date="Jun 2023",
-                help="Use `prefect deploy` to specify an entrypoint instead.",
+                help="\nUse `prefect deploy` to specify an entrypoint instead.",
             )
         )
         prefect_dir = find_prefect_directory()
