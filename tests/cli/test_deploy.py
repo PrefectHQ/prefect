@@ -82,14 +82,7 @@ def project_dir_with_single_deployment_format(tmp_path):
         with open("deployment.yaml", "w") as f:
             yaml.safe_dump(contents["deployments"][0], f)
 
-        with pytest.warns(
-            FutureWarning,
-            match=(
-                "Prefect will drop support for using a `deployment.yaml` file with"
-                " `prefect deploy` in a future release."
-            ),
-        ):
-            yield tmp_path
+        yield tmp_path
     else:
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
         (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
@@ -133,6 +126,17 @@ class TestProjectDeploySingleDeploymentYAML:
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
+            expected_code=0,
+            # check for deprecation message
+            expected_output_contains=[
+                "An important name/test-name",
+                "Using a `deployment.yaml` file with `prefect deploy`",
+                (
+                    "Please use the `prefect.yaml` file instead by copying the"
+                    " contents of your `deployment.yaml` file into your `prefect.yaml`"
+                    " file."
+                ),
+            ],
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -426,10 +430,10 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command="deploy -f 'An important name' flows/hello.py:my_flow",
             expected_code=1,
-            expected_output=(
+            expected_output_contains=[
                 "Received an entrypoint and a flow name for this deployment. Please"
                 " provide either an entrypoint or a flow name."
-            ),
+            ],
         )
 
     async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
@@ -794,21 +798,12 @@ class TestProjectDeploy:
         with deployment_file.open(mode="w") as f:
             f.write("{}")
 
-        with pytest.warns(
-            FutureWarning,
-            match=(
-                "Prefect will drop support for using a `deployment.yaml` file with"
-                " `prefect deploy` in a future release."
-            ),
-        ):
-            await run_sync_in_worker_thread(
-                invoke_and_assert,
-                command=(
-                    f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}"
-                ),
-                expected_code=0,
-                expected_output_contains=["An important name/test"],
-            )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=["An important name/test"],
+        )
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )

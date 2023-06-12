@@ -5,7 +5,6 @@ from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
-import warnings
 
 import typer
 import typer.core
@@ -213,14 +212,16 @@ async def deploy(
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
-        warnings.warn(
-            (
-                "Prefect will drop support for using a `deployment.yaml` file with"
-                " `prefect deploy` in a future release. Please use the `prefect.yaml`"
-                " file instead by copying the contents of your `deployment.yaml` file"
-                " into your `prefect.yaml` file."
-            ),
-            FutureWarning,
+        app.console.print(
+            generate_deprecation_message(
+                "Using a `deployment.yaml` file with `prefect deploy`",
+                end_date="Jun 2023",
+                help=(
+                    "Please use the `prefect.yaml` file instead by copying the"
+                    " contents of your `deployment.yaml` file into your `prefect.yaml`"
+                    " file."
+                ),
+            )
         )
     except FileNotFoundError:
         deployments = project.get("deployments", [])
