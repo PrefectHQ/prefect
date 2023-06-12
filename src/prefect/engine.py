@@ -112,7 +112,6 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
-    run_sync_in_worker_thread,
     sync_compatible,
 )
 from prefect.utilities.callables import (
@@ -2267,8 +2266,8 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(task=task, task_run=task_run, state=state)
                 else:
-                    await run_sync_in_worker_thread(
-                        hook, task=task, task_run=task_run, state=state
+                    await from_async.call_in_new_thread(
+                        create_call(hook, task=task, task_run=task_run, state=state)
                     )
             except Exception:
                 logger.error(
@@ -2304,8 +2303,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(flow=flow, flow_run=flow_run, state=state)
                 else:
-                    await run_sync_in_worker_thread(
-                        hook, flow=flow, flow_run=flow_run, state=state
+                    await from_async.call_in_new_thread(
+                        create_call(hook, flow=flow, flow_run=flow_run, state=state)
                     )
             except Exception:
                 logger.error(
