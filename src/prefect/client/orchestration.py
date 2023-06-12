@@ -17,7 +17,7 @@ import prefect.exceptions
 import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, WorkQueue
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.client.schemas.actions import (
@@ -76,6 +76,7 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
+    WorkQueue,
     WorkPool,
 )
 from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
@@ -89,9 +90,7 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
-from prefect.deprecated.data_documents import DataDocument
 from prefect.events.schemas import Automation
-from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
