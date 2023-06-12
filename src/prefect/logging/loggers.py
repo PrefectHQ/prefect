@@ -4,15 +4,17 @@ import sys
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING, Union
+import warnings
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
+    from prefect.client.schemas import FlowRun as ClientFlowRun
+    from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -27,8 +29,39 @@ class PrefectLogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
+        kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
+
+        from prefect._internal.compatibility.deprecated import (
+            generate_deprecation_message,
+            PrefectDeprecationWarning,
+        )
+
+        if "send_to_orion" in kwargs["extra"]:
+            warnings.warn(
+                generate_deprecation_message(
+                    'The "send_to_orion" option',
+                    start_date="May 2023",
+                    help='Use "send_to_api" instead.',
+                ),
+                PrefectDeprecationWarning,
+                stacklevel=4,
+            )
+
         return (msg, kwargs)
+
+    def getChild(
+        self, suffix: str, extra: Optional[Dict[str, str]] = None
+    ) -> "PrefectLogAdapter":
+        if extra is None:
+            extra = {}
+
+        return PrefectLogAdapter(
+            self.logger.getChild(suffix),
+            extra={
+                **self.extra,
+                **extra,
+            },
+        )
 
 
 @lru_cache()
@@ -117,7 +150,11 @@ def get_run_logger(
     return logger
 
 
-def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
+def flow_run_logger(
+    flow_run: Union["FlowRun", "ClientFlowRun"],
+    flow: Optional["Flow"] = None,
+    **kwargs: str,
+):
     """
     Create a flow run logger with the run's metadata attached.
 

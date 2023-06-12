@@ -4,14 +4,14 @@
       <PageHeadingFlowRunCreate :deployment="deployment" />
     </template>
 
-    <FlowRunCreateForm :deployment="deployment" :parameters="mappedParameters" @submit="createFlowRun" @cancel="goBack" />
+    <FlowRunCreateForm :deployment="deployment" :parameters="parameters" @submit="createFlowRun" @cancel="goBack" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, mapper } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
+  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, useDeployment } from '@prefecthq/prefect-ui-library'
+  import { useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, h } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -22,17 +22,7 @@
   const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
   const parameters = useRouteQueryParam('parameters', JSONRouteParam, undefined)
-
-  const mappedParameters = computed(() => {
-    if (!deployment.value || !parameters.value) {
-      return {}
-    }
-
-    return mapper.map('SchemaValuesResponse', { schema: deployment.value.parameterOpenApiSchema, values: parameters.value }, 'SchemaValues')
-  })
-
-  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
-  const deployment = computed(() => deploymentSubscription.response)
+  const { deployment } = useDeployment(deploymentId)
 
   const createFlowRun = async (deploymentFlowRun: DeploymentFlowRunCreate): Promise<void> => {
     try {

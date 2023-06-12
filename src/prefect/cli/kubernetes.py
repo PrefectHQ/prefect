@@ -10,13 +10,13 @@ import prefect
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
-from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import KubernetesJob
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_LOGGING_SERVER_LEVEL,
 )
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 kubernetes_app = PrefectTyper(
     name="kubernetes",

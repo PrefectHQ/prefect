@@ -15,7 +15,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](concepts/work-pools/).
+checkout out the [Prefect docs](/concepts/work-pools/).
 """
 import asyncio
 import contextlib
@@ -45,8 +45,8 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow
+    from prefect.client.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -132,8 +132,16 @@ class ProcessWorker(BaseWorker):
     job_configuration = ProcessJobConfiguration
     job_configuration_variables = ProcessVariables
 
-    _description = "Worker that executes flow runs within processes."
+    _description = (
+        "Execute flow runs as subprocesses on a worker. Works well for local execution"
+        " when first getting started."
+    )
+    _display_name = "Local Subprocess"
+    _documentation_url = (
+        "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
+    )
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+    _is_beta = True
 
     async def run(
         self,
@@ -145,6 +153,8 @@ class ProcessWorker(BaseWorker):
         if not command:
             command = f"{sys.executable} -m prefect.engine"
 
+        flow_run_logger = self.get_flow_run_logger(flow_run)
+
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
@@ -153,7 +163,7 @@ class ProcessWorker(BaseWorker):
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
         _use_threaded_child_watcher()
-        self._logger.info("Opening process...")
+        flow_run_logger.info("Opening process...")
 
         working_dir_ctx = (
             tempfile.TemporaryDirectory(suffix="prefect")
@@ -161,7 +171,9 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            self._logger.debug(f"Process running command: {command} in {working_dir}")
+            flow_run_logger.debug(
+                f"Process running command: {command} in {working_dir}"
+            )
             process = await run_process(
                 command.split(" "),
                 stream_output=configuration.stream_output,
@@ -202,12 +214,12 @@ class ProcessWorker(BaseWorker):
                     "Typically, this is caused by manual cancellation."
                 )
 
-            self._logger.error(
+            flow_run_logger.error(
                 f"Process{display_name} exited with status code: {process.returncode}"
                 + (f"; {help_message}" if help_message else "")
             )
         else:
-            self._logger.info(f"Process{display_name} exited cleanly.")
+            flow_run_logger.info(f"Process{display_name} exited cleanly.")
 
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
