@@ -425,6 +425,16 @@ class PrefectAgent:
             # once we reach the end, set the value
             data[nested_fields[-1]] = value
 
+        # FlowRun's infra_overrides should take precedence over Deployment's
+        for override, value in (flow_run.infra_overrides or {}).items():
+            nested_fields = override.split(".")
+            data = infra_dict
+            for field in nested_fields[:-1]:
+                data = data[field]
+
+            # once we reach the end, set the value
+            data[nested_fields[-1]] = value
+
         # reconstruct the infra block
         doc_dict["data"] = infra_dict
         infra_document = BlockDocument(**doc_dict)

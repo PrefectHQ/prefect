@@ -458,6 +458,10 @@ class FlowRun(ObjectBaseModel):
         default=None,
         description="The block document defining infrastructure to use this flow run.",
     )
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime. This takes precedence over `Deployment.infra_overrides`.",
+    )
     infrastructure_pid: Optional[str] = Field(
         default=None,
         description="The id of the flow run as returned by an infrastructure block.",
