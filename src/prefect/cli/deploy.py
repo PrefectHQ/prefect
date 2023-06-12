@@ -47,6 +47,8 @@ from prefect.utilities.slugify import slugify
 
 from prefect.client.orchestration import PrefectClient
 
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
+
 
 @app.command()
 async def deploy(
@@ -390,6 +392,16 @@ async def _run_single_deploy(
                 )
         flow_name = flow.name
     elif flow_name:
+        app.console.print(
+            generate_deprecation_message(
+                "The ability to deploy by flow name",
+                end_date="Jun 2023",
+                help=(
+                    "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
+                    " an entrypoint instead."
+                ),
+            )
+        )
         prefect_dir = find_prefect_directory()
         if not prefect_dir:
             raise ValueError(
