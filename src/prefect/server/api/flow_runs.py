@@ -3,10 +3,12 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
+
 import pendulum
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from fastapi.responses import ORJSONResponse
 
@@ -108,6 +110,61 @@ async def count_flow_runs(
             work_pool_filter=work_pools,
             work_queue_filter=work_pool_queues,
         )
+
+
+@router.post("/lateness")
+async def average_flow_run_lateness(
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Optional[float]:
+    """
+    Query for average flow-run lateness in seconds.
+    """
+    async with db.session_context() as session:
+        query = await models.flow_runs._apply_flow_run_filters(
+            sa.select(
+                sa.func.avg(
+                    sa.case(
+                        (
+                            db.FlowRun.start_time > db.FlowRun.expected_start_time,
+                            sa.func.strftime("%s", db.FlowRun.start_time)
+                            - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                        ),
+                        (
+                            db.FlowRun.start_time.is_(None)
+                            & db.FlowRun.state_type.notin_(
+                                schemas.states.TERMINAL_STATES
+                            )
+                            & (
+                                db.FlowRun.expected_start_time < sa.func.datetime("now")
+                            ),
+                            sa.func.strftime("%s", sa.func.datetime("now"))
+                            - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                        ),
+                        else_=0,
+                    )
+                )
+            ),
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+        )
+        result = await session.execute(query)
+
+        avg_lateness = result.scalar()
+
+        if avg_lateness is None:
+            return None
+
+        return avg_lateness
 
 
 @router.post("/history")
