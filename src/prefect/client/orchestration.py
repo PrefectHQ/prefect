@@ -89,6 +89,7 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
+from prefect.events.schemas import Automation
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -2493,6 +2494,24 @@ class PrefectClient:
         response = await self._client.get("collections/views/aggregate-worker-metadata")
         response.raise_for_status()
         return response.json()
+
+    async def create_automation(self, automation: Automation) -> UUID:
+        """Creates an automation in Prefect Cloud."""
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        response = await self._client.post(
+            "/automations/",
+            json=automation.dict(json_compatible=True),
+        )
+
+        return UUID(response.json()["id"])
+
+    async def delete_resource_owned_automations(self, resource_id: str):
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def __aenter__(self):
         """
