@@ -499,7 +499,7 @@ def create_app(
 
     async def stop_services():
         """Ensure services are stopped before the Prefect REST API shuts down."""
-        if app.state.services:
+        if hasattr(app.state, "services") and app.state.services:
             await asyncio.gather(*[service.stop() for service in app.state.services])
             try:
                 await asyncio.gather(
