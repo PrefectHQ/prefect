@@ -251,8 +251,8 @@ async def deploy(
                 if not deployment:
                     app.console.print(
                         (
-                            "Could not find deployment declaration with name "
-                            f"{names[0]} in prefect.yaml. Only CLI options "
+                            "Could not find deployment configuration with name "
+                            f"{names[0]!r}. Only CLI options "
                             "will be used for this deployment."
                         ),
                         style="yellow",
@@ -268,7 +268,6 @@ async def deploy(
                         " but no name was given. Please specify the name of at least"
                         " one deployment to create or update."
                     )
-                breakpoint()
                 selected_deployment = prompt_select_from_table(
                     app.console,
                     "Would you like to use an existing deployment configuration?",
