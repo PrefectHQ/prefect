@@ -250,7 +250,8 @@ async def deploy(
                         " contents of your `deployment.yaml` file into your"
                         " `prefect.yaml` file."
                     ),
-                )
+                ),
+                style="yellow",
             )
 
     except FileNotFoundError:

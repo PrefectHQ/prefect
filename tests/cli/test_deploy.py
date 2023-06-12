@@ -89,7 +89,7 @@ def project_dir_with_single_deployment_format(tmp_path):
         os.chdir(tmp_path / "three-seven")
         initialize_project()
 
-        with open("deployment.yaml", "r") as f:
+        with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
         contents["deployments"][0]["schedule"] = None
