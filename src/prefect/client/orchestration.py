@@ -474,6 +474,7 @@ class PrefectClient:
         tags: Iterable[str] = None,
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
+        infra_overrides: Dict[str, Any] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -514,6 +515,7 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
+            infra_overrides=infra_overrides,
         )
 
         response = await self._client.post(

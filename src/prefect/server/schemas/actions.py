@@ -370,6 +370,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    infra_overrides: dict = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
