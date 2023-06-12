@@ -237,11 +237,6 @@ def sync_compatible(async_fn: T) -> T:
             # In the main async context; return the coro for them to await
             logger.debug(f"{async_fn} --> return coroutine for user await")
             return async_fn(*args, **kwargs)
-        elif current_call and current_call.waiter and not is_async_fn(current_call.fn):
-            logger.debug(f"{async_fn} --> run async in callback portal")
-            return from_sync.call_soon_in_waiter_thread(
-                create_call(async_fn, *args, **kwargs)
-            ).result()
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
@@ -318,6 +313,11 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     """
 
     async def on_shutdown(key):
+        # It appears that EVENT_LOOP_GC_REFS is somehow being garbage collected early.
+        # We hold a reference to it so as to preserve it, at least for the lifetime of
+        # this coroutine. See the issue below for the initial report/discussion:
+        # https://github.com/PrefectHQ/prefect/issues/7709#issuecomment-1560021109
+        _ = EVENT_LOOP_GC_REFS
         try:
             yield
         except GeneratorExit:

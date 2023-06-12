@@ -15,14 +15,14 @@ from typing_extensions import Self
 
 import prefect.context
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
 from prefect._internal.concurrency.threads import in_global_loop
-from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import LogCreate
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
-from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_LOGGING_COLORS,
@@ -139,8 +139,10 @@ class APILogHandler(logging.Handler):
 
             if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
-            if not getattr(record, "send_to_orion", True):
+            if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
+            if not getattr(record, "send_to_orion", True):
+                return  # Backwards compatibility
 
             log = self.prepare(record)
             APILogWorker.instance().send(log)

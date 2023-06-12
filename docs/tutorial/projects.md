@@ -34,7 +34,7 @@ The main components of a project are 3 files:
     - **Local**: `prefect worker start -t process -p local-work`
     - **Docker**: `prefect worker start -t docker -p docker-work`
 
-    Each command will automatically create an appropriately typed work pool with default settings.
+    Each command will automatically create an appropriately typed work pool with default settings. For each type of worker you will need to install the specific worker from the collection repo.  For example, to start the Docker worker you will need to run `pip install prefect-docker`.  
 
 ## Initializing a project
 
@@ -218,12 +218,20 @@ A few important notes on what we're looking at here:
         branch: main
         access_token: null
     ```
+    If pulling from a private repository, your pull step might appear like below.  Note that the access_token is a "Secret" type, which will be retrieved and inferred.
+    ```yaml
+    pull:
+    - prefect.projects.steps.git_clone_project:
+        repository: https://github.com/PrivateRepo/test-private-repo.git
+        branch: main
+        access_token: "{{ prefect.blocks.secret.my-github-secret }}"
+    ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
     For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
 
 
-### Dockerized deployment
+### Dockerized deployment  
 
 In this example, we extend the examples above by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that [we started at the beginning](#worker-tip):
 

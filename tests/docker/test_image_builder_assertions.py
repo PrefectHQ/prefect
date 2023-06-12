@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from prefect.docker import ImageBuilder
 from prefect.testing.docker import capture_builders
+from prefect.utilities.dockerutils import ImageBuilder
 
 
 @pytest.fixture
