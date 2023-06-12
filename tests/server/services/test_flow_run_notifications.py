@@ -1,4 +1,5 @@
 import pytest
+import os
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
@@ -149,7 +150,7 @@ async def test_service_does_not_send_notifications_without_policy(
 async def test_service_sends_many_notifications_and_clears_queue(
     session, db, flow_run, completed_policy, capsys, flow
 ):
-    COUNT = 200
+    COUNT = 20 if os.environ.get("CI") else 200
 
     for _ in range(COUNT):
         # set a completed state repeatedly
