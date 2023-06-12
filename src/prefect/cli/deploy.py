@@ -43,6 +43,7 @@ from prefect.deployments.base import (
     _copy_deployments_into_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
+    _save_deployment_to_prefect_file,
 )
 
 from prefect.blocks.system import Secret
@@ -347,19 +348,19 @@ async def _run_single_deploy(
     ci: bool = False,
     client: PrefectClient = None,
 ):
-    base_deploy = deepcopy(base_deploy) if base_deploy else {}
+    deploy_config = deepcopy(base_deploy) if base_deploy else {}
     project = deepcopy(project) if project else {}
     options = deepcopy(options) if options else {}
 
-    base_deploy = _merge_with_default_deployment(base_deploy)
+    deploy_config = _merge_with_default_deployment(deploy_config)
 
-    base_deploy_schedule = base_deploy.get("schedule")
+    base_deploy_schedule = deploy_config.get("schedule")
     if base_deploy_schedule is None:
         base_deploy_schedule = {}
 
-    name = options.get("name") or base_deploy.get("name")
-    flow_name = options.get("flow_name") or base_deploy.get("flow_name")
-    entrypoint = options.get("entrypoint") or base_deploy.get("entrypoint")
+    name = options.get("name") or deploy_config.get("name")
+    flow_name = options.get("flow_name") or deploy_config.get("flow_name")
+    entrypoint = options.get("entrypoint") or deploy_config.get("entrypoint")
     param = options.get("param")
     params = options.get("params")
     variables = options.get("variables")
@@ -376,8 +377,8 @@ async def _run_single_deploy(
     )
     timezone = options.get("timezone") or base_deploy_schedule.get("timezone")
 
-    build_steps = base_deploy.get("build", project.get("build")) or []
-    push_steps = base_deploy.get("push", project.get("push")) or []
+    build_steps = deploy_config.get("build", project.get("build")) or []
+    push_steps = deploy_config.get("push", project.get("push")) or []
 
     if interval_anchor and not interval:
         raise ValueError(
@@ -457,8 +458,8 @@ async def _run_single_deploy(
         # set entrypoint from prior registration
         entrypoint = flows[flow_name]
 
-    base_deploy["flow_name"] = flow_name
-    base_deploy["entrypoint"] = entrypoint
+    deploy_config["flow_name"] = flow_name
+    deploy_config["entrypoint"] = entrypoint
 
     if not name:
         if not is_interactive() or ci:
@@ -469,10 +470,10 @@ async def _run_single_deploy(
     # minor optimization in case we already loaded the flow
     if not flow:
         flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, base_deploy["entrypoint"]
+            load_flow_from_entrypoint, deploy_config["entrypoint"]
         )
 
-    base_deploy["parameter_openapi_schema"] = parameter_schema(flow)
+    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
     if param and (params is not None):
         exit_with_error("Can only pass one of `param` or `params` options")
@@ -494,7 +495,7 @@ async def _run_single_deploy(
     if params is not None:
         parameters = json.loads(params)
 
-    base_deploy["parameters"].update(parameters)
+    deploy_config["parameters"].update(parameters)
 
     # update schedule
     schedule = _construct_schedule(
@@ -512,16 +513,16 @@ async def _run_single_deploy(
         variable_overrides[key] = value
 
     if work_pool_name:
-        base_deploy["work_pool"]["name"] = work_pool_name
+        deploy_config["work_pool"]["name"] = work_pool_name
     if work_queue_name:
-        base_deploy["work_pool"]["work_queue_name"] = work_queue_name
+        deploy_config["work_pool"]["work_queue_name"] = work_queue_name
 
-    base_deploy["work_pool"]["job_variables"].update(variable_overrides)
+    deploy_config["work_pool"]["job_variables"].update(variable_overrides)
 
     # determine work pool
-    if base_deploy["work_pool"]["name"]:
+    if deploy_config["work_pool"]["name"]:
         try:
-            work_pool = await client.read_work_pool(base_deploy["work_pool"]["name"])
+            work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
             # dont allow submitting to prefect-agent typed work pools
             if work_pool.type == "prefect-agent":
@@ -537,7 +538,7 @@ async def _run_single_deploy(
                     " cannot be used for project-style deployments. Let's pick"
                     " another work pool to deploy to."
                 )
-                base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+                deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
                     app.console,
                     client=client,
                 )
@@ -553,7 +554,7 @@ async def _run_single_deploy(
                 "A work pool is required to deploy this flow. Please specify a work"
                 " pool name via the '--pool' flag or in your prefect.yaml file."
             )
-        base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+        deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
             console=app.console, client=client
         )
 
@@ -575,57 +576,57 @@ async def _run_single_deploy(
 
     # set other CLI flags
     if name:
-        base_deploy["name"] = name
+        deploy_config["name"] = name
     if version:
-        base_deploy["version"] = version
+        deploy_config["version"] = version
     if tags:
-        base_deploy["tags"] = tags
+        deploy_config["tags"] = tags
 
     if description:
-        base_deploy["description"] = description
-    elif not base_deploy["description"]:
-        base_deploy["description"] = flow.description
+        deploy_config["description"] = description
+    elif not deploy_config["description"]:
+        deploy_config["description"] = flow.description
 
     ## apply templating from build and push steps to the final deployment spec
-    _parameter_schema = base_deploy.pop("parameter_openapi_schema")
-    base_deploy = apply_values(base_deploy, step_outputs)
-    base_deploy["parameter_openapi_schema"] = _parameter_schema
+    _parameter_schema = deploy_config.pop("parameter_openapi_schema")
+    deploy_config = apply_values(deploy_config, step_outputs)
+    deploy_config["parameter_openapi_schema"] = _parameter_schema
 
     # set schedule afterwards to avoid templating errors
-    base_deploy["schedule"] = schedule
+    deploy_config["schedule"] = schedule
 
     # prepare the pull step
-    pull_steps = base_deploy.get(
+    pull_steps = deploy_config.get(
         "pull", project.get("pull")
     ) or await _generate_default_pull_action(
         app.console,
-        base_deploy=base_deploy,
+        base_deploy=deploy_config,
         ci=ci,
     )
     pull_steps = apply_values(pull_steps, step_outputs)
 
-    flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
+    flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
 
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
-        name=base_deploy["name"],
-        work_queue_name=base_deploy["work_pool"]["work_queue_name"],
-        work_pool_name=base_deploy["work_pool"]["name"],
-        version=base_deploy["version"],
-        schedule=base_deploy["schedule"],
-        parameters=base_deploy["parameters"],
-        description=base_deploy["description"],
-        tags=base_deploy["tags"],
-        path=base_deploy.get("path"),
-        entrypoint=base_deploy["entrypoint"],
-        parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
+        name=deploy_config["name"],
+        work_queue_name=deploy_config["work_pool"]["work_queue_name"],
+        work_pool_name=deploy_config["work_pool"]["name"],
+        version=deploy_config["version"],
+        schedule=deploy_config["schedule"],
+        parameters=deploy_config["parameters"],
+        description=deploy_config["description"],
+        tags=deploy_config["tags"],
+        path=deploy_config.get("path"),
+        entrypoint=deploy_config["entrypoint"],
+        parameter_openapi_schema=deploy_config["parameter_openapi_schema"].dict(),
         pull_steps=pull_steps,
-        infra_overrides=base_deploy["work_pool"]["job_variables"],
+        infra_overrides=deploy_config["work_pool"]["job_variables"],
     )
 
     app.console.print(
         Panel(
-            f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
+            f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
             f" successfully created with id '{deployment_id}'."
         ),
         style="green",
@@ -634,16 +635,29 @@ async def _run_single_deploy(
     if PREFECT_UI_URL:
         app.console.print(
             "\nView Deployment in UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+        )
+
+    if not base_deploy and confirm(
+        (
+            "Would you like to save configuration for this deployment for faster"
+            " deployments in the future?"
+        ),
+        console=app.console,
+    ):
+        _save_deployment_to_prefect_file(deploy_config)
+        app.console.print(
+            "Deployment configuration saved to prefect.yaml",
+            style="green",
         )
 
     app.console.print(
         "\nTo execute flow runs from this deployment, start a worker in a"
         " separate terminal that pulls work from the"
-        f" {base_deploy['work_pool']['name']!r} work pool:"
+        f" {deploy_config['work_pool']['name']!r} work pool:"
     )
     app.console.print(
-        f"\n\t$ prefect worker start --pool {base_deploy['work_pool']['name']!r}",
+        f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
         style="blue",
     )
     app.console.print(
@@ -652,7 +666,7 @@ async def _run_single_deploy(
     app.console.print(
         (
             "\n\t$ prefect deployment run"
-            f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
+            f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
         ),
         style="blue",
     )

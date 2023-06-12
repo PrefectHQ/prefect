@@ -4,6 +4,7 @@ build system for managing flows and deployments.
 
 To get started, follow along with [the project tutorial](/tutorials/projects/).
 """
+from copy import deepcopy
 import json
 import os
 import subprocess
@@ -17,6 +18,8 @@ from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
+
+from prefect.client.schemas.schedules import IntervalSchedule
 
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
@@ -74,9 +77,8 @@ def create_default_prefect_yaml(
         return False
     default_file = Path(__file__).parent / "templates" / "prefect.yaml"
 
-    if contents is None:
-        with default_file.open(mode="r") as df:
-            contents = yaml.safe_load(df)
+    with default_file.open(mode="r") as df:
+        default_contents = yaml.safe_load(df)
 
     import prefect
 
@@ -96,7 +98,11 @@ def create_default_prefect_yaml(
 
         # build
         f.write("# build section allows you to manage and build docker images\n")
-        yaml.dump({"build": contents["build"]}, f, sort_keys=False)
+        yaml.dump(
+            {"build": contents.get("build", default_contents.get("build"))},
+            f,
+            sort_keys=False,
+        )
         f.write("\n")
 
         # push
@@ -104,7 +110,11 @@ def create_default_prefect_yaml(
             "# push section allows you to manage if and how this project is uploaded to"
             " remote locations\n"
         )
-        yaml.dump({"push": contents["push"]}, f, sort_keys=False)
+        yaml.dump(
+            {"push": contents.get("push", default_contents.get("push"))},
+            f,
+            sort_keys=False,
+        )
         f.write("\n")
 
         # pull
@@ -112,7 +122,11 @@ def create_default_prefect_yaml(
             "# pull section allows you to provide instructions for cloning this project"
             " in remote locations\n"
         )
-        yaml.dump({"pull": contents["pull"]}, f, sort_keys=False)
+        yaml.dump(
+            {"pull": contents.get("pull", default_contents.get("pull"))},
+            f,
+            sort_keys=False,
+        )
         f.write("\n")
 
         # deployments
@@ -120,7 +134,15 @@ def create_default_prefect_yaml(
             "# the deployments section allows you to provide configuration for"
             " deploying flows\n"
         )
-        yaml.dump({"deployments": contents.get("deployments", [])}, f, sort_keys=False)
+        yaml.dump(
+            {
+                "deployments": contents.get(
+                    "deployments", default_contents.get("deployments")
+                )
+            },
+            f,
+            sort_keys=False,
+        )
     return True
 
 
@@ -339,3 +361,47 @@ def _copy_deployments_into_prefect_file():
         else:
             f.write("\n")
             f.write(raw_deployment_file_contents)
+
+
+def _save_deployment_to_prefect_file(deployment: dict):
+    """
+    Save a deployment configuration to the `prefect.yaml` file in the
+    current directory.
+
+    Will create a prefect.yaml file if one does not already exist.
+
+    Args:
+        - deployment: a dictionary containing a deployment configuration
+    """
+    if not deployment:
+        raise ValueError("Deployment must be a non-empty dictionary.")
+    deployment = deepcopy(deployment)
+    deployment.pop("parameter_openapi_schema")
+
+    if deployment.get("schedule"):
+        if isinstance(deployment["schedule"], IntervalSchedule):
+            deployment["schedule"] = deployment["schedule"].dict()
+            deployment["schedule"]["interval"] = deployment["schedule"][
+                "interval"
+            ].total_seconds()
+            deployment["schedule"]["anchor_date"] = deployment["schedule"][
+                "anchor_date"
+            ].isoformat()
+        else:
+            deployment["schedule"] = deployment["schedule"].dict()
+
+    current_directory_name = os.path.basename(os.getcwd())
+    prefect_file = Path("prefect.yaml")
+    if not prefect_file.exists():
+        create_default_prefect_yaml(
+            ".", current_directory_name, contents={"deployments": [deployment]}
+        )
+    else:
+        with prefect_file.open(mode="r") as f:
+            parsed_prefect_file_contents = yaml.safe_load(f)
+
+        deployments = parsed_prefect_file_contents.get("deployments", [])
+        deployments.append(deployment)
+
+        with prefect_file.open(mode="w") as f:
+            yaml.dump({"deployments": deployments}, f, sort_keys=False)
