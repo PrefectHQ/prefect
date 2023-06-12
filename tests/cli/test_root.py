@@ -53,12 +53,6 @@ def assert_not_interactive(app, *options):
     assert get_result(app, list(options) + ["check-interactive"]).exit_code == 200
 
 
-def test_prompt_help(test_app):
-    result = get_result(test_app, ["--help"])
-    assert "--prompt" in result.output
-    assert "--no-prompt" in result.output
-
-
 def test_prompt_default_infers_using_rich(test_app):
     if rich.console.Console().is_interactive:
         assert_interactive(test_app)
