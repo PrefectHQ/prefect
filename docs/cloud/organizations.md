@@ -42,7 +42,7 @@ For example, you might create a workspace for a specific team. Within that works
 
 You can see the organizations you're a member of, or create a new organization, by selecting the **Organizations** icon in the left navigation bar.
 
-![Select the Organizations icon in Prefect Cloud.](../img/ui/organizations.png)
+![Select the Organizations icon in Prefect Cloud.](/img/ui/organizations.png)
 
 When you select an organization, the **Profile** page provides an overview of the organization.
 
@@ -55,7 +55,7 @@ When you select an organization, the **Profile** page provides an overview of th
 
 **Workspaces** shows you a list of [workspaces you can access within the organization](/ui/workspaces/). If you have been given the organization Admin role, you can create and manage workspaces here.
 
-![Viewing the Organization workspaces page in Prefect Cloud.](../img/ui/org-workspaces.png)
+![Viewing the Organization workspaces page in Prefect Cloud.](/img/ui/org-workspaces.png)
 
 You can also select the Prefect icon to see all workspaces you have been invited to access, across personal accounts and organizations.
 
@@ -63,7 +63,7 @@ You can also select the Prefect icon to see all workspaces you have been invited
 
 **Members** shows you a list of users who are members of the organization. If you have been given the organization Admin role, you can invite new members and set organization roles for users here.
 
-![Viewing the Organization member page in Prefect Cloud.](../img/ui/org-members.png)
+![Viewing the Organization member page in Prefect Cloud.](/img/ui/org-members.png)
 
 You can control granular access to workspaces by setting default access for all organization members, inviting specific members to collaborate in an organization workspace, or adding service account permissions.
 
@@ -71,7 +71,7 @@ You can control granular access to workspaces by setting default access for all 
 
 To invite new members to an organization in Prefect Cloud, select the **+** icon. Provide an email address and  organization role. You may add multiple email addresses.
 
-![Invite new members to an organization in Prefect Cloud.](../img/ui/org-invite-members.png)
+![Invite new members to an organization in Prefect Cloud.](/img/ui/org-invite-members.png)
 
 The user will receive an invite email with a confirmation link at the address provided. If the user does not already have a Prefect Cloud account, they must create an account before accessing the organization.
 
@@ -85,7 +85,7 @@ The maximum number of organization members varies. See the [Prefect Cloud plans]
 
 Select **Service Accounts** to view, create, or edit service accounts for your organization.
 
-![Viewing service accounts for an organization in Prefect Cloud.](../img/ui/service-accounts.png)
+![Viewing service accounts for an organization in Prefect Cloud.](/img/ui/service-accounts.png)
 
 Service accounts are created at the organization level, but may be shared to individual workspaces within the organization. See [workspace sharing](#workspace-sharing) for more information.
 
@@ -105,12 +105,12 @@ See the [service accounts](/ui/service-accounts/) documentation for more informa
 
 Within a workspace, select **Workspace Sharing**, then select the **+** icon to add new members or service accounts to the workspace. Only organization Admins and workspace Owners may add members or service accounts to a workspace.
 
-![Organization workspace sharing in Prefect Cloud.](../img/ui/org-workspace-sharing.png)
+![Organization workspace sharing in Prefect Cloud.](/img/ui/org-workspace-sharing.png)
 
 Members and service accounts must already be configured for the organization. An Admin or Owner may configure a different role for the user or service account as needed.
 
 !!! note "Default workspace role"
-    You may make a workspace available to any user in an organization by settings a default role for "Anyone at...". Users in the organization may access the workspace with the specified default role permissions. Default workspace roles do not apply to service accounts.
+    You may make a workspace available to any user in an organization by setting a default role for "Anyone at...". Users in the organization may access the workspace with the specified default role permissions. Default workspace roles do not apply to service accounts.
 
     The role given to users specifically added to the workspace is the union of workspace scopes given by the default workspace role and that users' role in the workspace.
     
@@ -125,9 +125,9 @@ Prefect Cloud enables you to configure both [organization and workspace roles](/
 - Organization roles apply to users across an organization. These roles are Admin and Member.
 - Workspace roles apply to users within a specific workspace.
 
-Select **Roles** within an organziation to see the configured workspace roles for your organization. 
+Select **Roles** within an organization to see the configured workspace roles for your organization. 
 
-![Organization roles in Prefect Cloud.](../img/ui/org-roles.png)
+![Organization roles in Prefect Cloud.](/img/ui/org-roles.png)
 
 Prefect Cloud provides default workspace roles that cover most use cases. You may also create custom workspace roles to suit your specific organization needs.
 

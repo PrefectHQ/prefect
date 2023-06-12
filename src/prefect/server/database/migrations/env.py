@@ -2,10 +2,12 @@
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
 
 import sqlalchemy
+import contextlib
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.configurations import SQLITE_BEGIN_MODE
 from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -125,8 +127,33 @@ def do_run_migrations(connection: AsyncEngine) -> None:
         template_args={"dialect": dialect.name},
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    # We override SQLAlchemy's handling of BEGIN on SQLite and Alembic bypasses our
+    # typical transaction context manager so we set the mode manually here
+    token = SQLITE_BEGIN_MODE.set("IMMEDIATE")
+    try:
+        with disable_sqlite_foreign_keys(context):
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        SQLITE_BEGIN_MODE.reset(token)
+
+
+@contextlib.contextmanager
+def disable_sqlite_foreign_keys(context):
+    """
+    Disable foreign key constraints on sqlite.
+    """
+    if dialect.name == "sqlite":
+        context.execute("COMMIT")
+        context.execute("PRAGMA foreign_keys=OFF")
+        context.execute("BEGIN IMMEDIATE")
+
+    yield
+
+    if dialect.name == "sqlite":
+        context.execute("END")
+        context.execute("PRAGMA foreign_keys=ON")
+        context.execute("BEGIN IMMEDIATE")
 
 
 @sync_compatible

@@ -66,6 +66,18 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
+    async def is_db_connectable(self):
+        """
+        Returns boolean indicating if the database is connectable.
+        This method is used to determine if the server is ready to accept requests.
+        """
+        engine = await self.engine()
+        try:
+            async with engine.connect():
+                return True
+        except Exception:
+            return False
+
     async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
@@ -86,7 +98,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return await self.database_config.session(engine)
 
     @asynccontextmanager
-    async def session_context(self, begin_transaction: bool = False):
+    async def session_context(
+        self, begin_transaction: bool = False, with_for_update: bool = False
+    ):
         """
         Provides a SQLAlchemy session and a context manager for opening/closing
         the underlying connection.
@@ -98,7 +112,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         session = await self.session()
         async with session:
             if begin_transaction:
-                async with session.begin():
+                async with self.database_config.begin_transaction(
+                    session, with_for_update=with_for_update
+                ):
                     yield session
             else:
                 yield session

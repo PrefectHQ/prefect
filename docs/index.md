@@ -35,11 +35,11 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 </figure>
 
 #### New to Prefect?
-If you're ready to dive in and learn Prefect, check out the Prefect [concepts](/concepts/index/) and try some [tutorials](/tutorials/) to see how they work in action.
+If you're ready to dive in and learn Prefect, check out the Prefect [concepts](/concepts/index/) and try some [tutorials](/tutorial/) to see how they work in action.
 
 For deeper dives on specific topics, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
 
-[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorials](/tutorials/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
+[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorials](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
 <p>Or, read on for a quick sample of Prefect.</p>
@@ -90,13 +90,16 @@ Prefect automatically persists all executions of your flow along with useful met
 ## Next Steps
 To learn more, try our [tutorials](/tutorials) and [guides](/guides), or go deeper with [Prefect concepts](/concepts).
 
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=dpcs)!
+
 ---
 
 ## Community
 
 - Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
-- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) 
+- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect)
 
 ---
 

@@ -32,11 +32,11 @@ def upgrade():
         )
 
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
+    meta_data = sa.MetaData()
+    meta_data.reflect(connection)
     BLOCK_SCHEMA = meta_data.tables["block_schema"]
 
-    results = connection.execute(sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.type]))
+    results = connection.execute(sa.select(BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.type))
 
     for id, type in results:
         if type == "STORAGE":
@@ -71,12 +71,12 @@ def downgrade():
         batch_op.create_index("ix_block_schema__type", ["type"], unique=False)
 
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
+    meta_data = sa.MetaData()
+    meta_data.reflect(connection)
     BLOCK_SCHEMA = meta_data.tables["block_schema"]
 
     results = connection.execute(
-        sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.capabilities])
+        sa.select(BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.capabilities)
     )
 
     for id, capabilities in results:

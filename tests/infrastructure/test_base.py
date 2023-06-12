@@ -7,7 +7,6 @@ from packaging.version import Version
 
 import prefect
 from prefect import engine
-from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import (
     DockerContainer,
     Infrastructure,
@@ -16,6 +15,7 @@ from prefect.infrastructure import (
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
 from prefect.server.schemas.core import Deployment
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 @pytest.fixture
@@ -80,15 +80,15 @@ async def test_flow_run_by_infrastructure_type(
     flow,
     deployment,
     infrastructure_type,
-    orion_client,
+    prefect_client,
     patch_manifest_load,
 ):
     await patch_manifest_load(flow)
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = infrastructure_type().prepare_for_flow_run(flow_run)
     result = await infrastructure.run()
 
-    flow_run = await orion_client.read_flow_run(flow_run.id)
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert flow_run.state.is_completed(), flow_run.state.message
 
     assert result.status_code == 0
@@ -96,9 +96,9 @@ async def test_flow_run_by_infrastructure_type(
 
 async def test_submission_adds_flow_run_metadata(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure().prepare_for_flow_run(flow_run)
     await infrastructure.run()
     MockInfrastructure._run.assert_called_once_with(
@@ -131,11 +131,11 @@ async def test_submission_adds_flow_run_metadata(
 )
 async def test_submission_adds_deployment_metadata(
     deployment,
-    orion_client,
+    prefect_client,
     deployment_fields,
     expected_labels,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure().prepare_for_flow_run(
         flow_run, deployment=Deployment(flow_id=deployment.flow_id, **deployment_fields)
     )
@@ -161,10 +161,10 @@ async def test_submission_adds_deployment_metadata(
 
 async def test_submission_adds_flow_metadata(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    flow = await orion_client.read_flow(deployment.flow_id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
+    flow = await prefect_client.read_flow(deployment.flow_id)
     infrastructure = MockInfrastructure().prepare_for_flow_run(flow_run, flow=flow)
     await infrastructure.run()
     MockInfrastructure._run.assert_called_once_with(
@@ -185,9 +185,9 @@ async def test_submission_adds_flow_metadata(
 
 async def test_submission_does_not_mutate_original_object(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     obj = MockInfrastructure()
     prepared = obj.prepare_for_flow_run(flow_run)
     await prepared.run()
@@ -199,9 +199,9 @@ async def test_submission_does_not_mutate_original_object(
 
 async def test_submission_does_not_override_existing_command(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure(command=["test"]).prepare_for_flow_run(flow_run)
     await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["command"] == ["test"]
@@ -209,9 +209,9 @@ async def test_submission_does_not_override_existing_command(
 
 async def test_submission_does_not_override_existing_env(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure(env={"foo": "bar"}).prepare_for_flow_run(
         flow_run
     )
@@ -224,9 +224,9 @@ async def test_submission_does_not_override_existing_env(
 
 async def test_submission_does_not_override_existing_labels(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure(labels={"foo": "bar"}).prepare_for_flow_run(
         flow_run
     )
@@ -239,9 +239,9 @@ async def test_submission_does_not_override_existing_labels(
 
 async def test_submission_does_not_override_existing_name(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = MockInfrastructure(name="test").prepare_for_flow_run(flow_run)
     await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["name"] == "test"
@@ -256,7 +256,7 @@ async def test_submission_does_not_override_existing_name(
 )
 async def test_execution_is_compatible_with_old_prefect_container_version(
     flow_run,
-    orion_client,
+    prefect_client,
     deployment,
 ):
     """
@@ -268,7 +268,7 @@ async def test_execution_is_compatible_with_old_prefect_container_version(
     will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
     version and this test will be skipped until a compatible image can be found.
     """
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment.id
     )
 
@@ -278,5 +278,5 @@ async def test_execution_is_compatible_with_old_prefect_container_version(
 
     result = await infrastructure.run()
     assert result.status_code == 0
-    flow_run = await orion_client.read_flow_run(flow_run.id)
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert flow_run.state.is_completed()

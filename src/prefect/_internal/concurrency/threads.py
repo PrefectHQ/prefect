@@ -10,11 +10,10 @@ import threading
 from typing import List, Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
-from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect.logging import get_logger
-
-logger = get_logger("prefect._internal.concurrency.threads")
+from prefect._internal.concurrency.primitives import Event
+from prefect._internal.concurrency.cancellation import CancelledError
+from prefect._internal.concurrency import logger
 
 
 class WorkerThread(Portal):
@@ -89,6 +88,8 @@ class WorkerThread(Portal):
         """
         try:
             self._run_until_shutdown()
+        except CancelledError:
+            logger.exception("%s was cancelled", self.name)
         except BaseException:
             # Log exceptions that crash the thread
             logger.exception("%s encountered exception", self.name)
@@ -263,7 +264,7 @@ def in_global_loop() -> bool:
     return get_global_loop()._loop == get_running_loop()
 
 
-def wait_for_global_loop_exit() -> None:
+def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:
     """
     Shutdown the global loop and wait for it to exit.
     """
@@ -273,4 +274,4 @@ def wait_for_global_loop_exit() -> None:
     if threading.get_ident() == loop_thread.thread.ident:
         raise RuntimeError("Cannot wait for the loop thread from inside itself.")
 
-    loop_thread.thread.join()
+    loop_thread.thread.join(timeout)
