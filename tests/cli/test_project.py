@@ -90,7 +90,7 @@ class TestProjectInit:
                 "project init --name test_project", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
-            for file in ["prefect.yaml", "deployment.yaml", ".prefectignore"]:
+            for file in ["prefect.yaml", ".prefectignore"]:
                 # temp_dir creates a *new* nested temporary directory within tempdir
                 assert any(Path(tempdir).rglob(file))
 
@@ -190,13 +190,9 @@ class TestProjectInit:
                 == "my-tag"
             )
 
-            deployment_file = list(Path(tempdir).rglob("deployment.yaml")).pop()
-            with open(deployment_file, "r") as f:
-                deploy_config = yaml.safe_load(f)
-
             assert (
-                deploy_config["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ image_name }}"
+                configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
+                == "{{ build_image.image_name }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
