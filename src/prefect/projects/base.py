@@ -311,7 +311,9 @@ def _copy_deployments_into_prefect_file():
     prefect_file = Path("prefect.yaml")
     deployment_file = Path("deployment.yaml")
     if not deployment_file.exists() or not prefect_file.exists():
-        raise ValueError("Could not find `prefect.yaml` or `deployment.yaml` files.")
+        raise FileNotFoundError(
+            "Could not find `prefect.yaml` or `deployment.yaml` files."
+        )
 
     with deployment_file.open(mode="r") as f:
         raw_deployment_file_contents = f.read()
