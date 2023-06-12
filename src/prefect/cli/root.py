@@ -58,6 +58,13 @@ def main(
         help="Select a profile for this CLI run.",
         is_eager=True,
     ),
+    prompt: bool = typer.Option(
+        None,
+        help=(
+            "Toggle prompts for this CLI run. "
+            "Defaults to detecting an interactive console."
+        ),
+    ),
 ):
     if profile and not prefect.context.get_settings_context().profile.name == profile:
         # Generally, the profile should entered by `enter_root_settings_context`.
@@ -79,6 +86,7 @@ def main(
         theme=Theme({"prompt.choices": "bold blue"}),
         # `soft_wrap` disables wrapping when `True`
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
+        force_interactive=prompt,
     )
 
     if not PREFECT_TEST_MODE:
