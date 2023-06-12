@@ -734,7 +734,7 @@ async def apply(
             if client.server_type != ServerType.CLOUD and deployment.triggers:
                 app.console.print(
                     (
-                        "Deployment triggers are not supported outside of "
+                        "Deployment triggers are only supported on "
                         f"Prefect Cloud. Triggers defined in {path!r} will be "
                         "ignored."
                     ),
