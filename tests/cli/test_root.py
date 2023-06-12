@@ -7,7 +7,7 @@ from prefect.settings import (
     temporary_settings,
 )
 import typer
-from prefect.cli.root import app as APP
+from prefect.cli.root import app as APP, is_interactive
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def test_app():
 
     @app.command("check-interactive")
     def check_interactive():
-        if app.console.is_interactive:
+        if is_interactive():
             # Use abnormal exit codes so they are not confused with actual errors
             raise typer.Exit(100)
         else:
