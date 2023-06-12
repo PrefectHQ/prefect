@@ -396,7 +396,10 @@ async def _run_single_deploy(
             generate_deprecation_message(
                 "The ability to deploy by flow name",
                 end_date="Jun 2023",
-                help="\nUse `prefect deploy` to specify an entrypoint instead.",
+                help=(
+                    "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
+                    " an entrypoint instead."
+                ),
             )
         )
         prefect_dir = find_prefect_directory()
