@@ -481,6 +481,15 @@ PREFECT_CLI_COLORS = Setting(
 output will not include colors codes. Defaults to `True`.
 """
 
+PREFECT_CLI_PROMPT = Setting(
+    Optional[bool],
+    default=None,
+)
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive 
+prompts will be used. If `None`, the value will be dynamically determined based on
+the presence of an interactive-enabled terminal.
+"""
+
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
