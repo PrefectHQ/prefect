@@ -1212,6 +1212,56 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-created-via-deploy"
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
+    async def test_project_deploy_with_flow_name_generate_deprecation_warning(
+        self, project_dir_with_single_deployment_format, prefect_client, work_pool
+    ):
+        await register_flow("flows/hello.py:my_flow")
+        create_default_deployment_yaml(".")
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["flow_name"] = "An important name"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            expected_output_contains=(
+                "The ability to deploy by flow name has been deprecated"
+            ),
+        )
+
+    async def test_project_deploy_with_explicit_flow_name_flag_generates_deprecation_warning(
+        self, project_dir_with_single_deployment_format, prefect_client, work_pool
+    ):
+        await register_flow("flows/hello.py:my_flow")
+        create_default_deployment_yaml(".")
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["flow_name"] = "An important name"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -f 'An important name'",
+            expected_code=0,
+            expected_output_contains=(
+                "The ability to deploy by flow name has been deprecated"
+            ),
+        )
+
 
 class TestSchedules:
     async def test_passing_cron_schedules_to_deploy(
