@@ -14,7 +14,7 @@ import typer.core
 import prefect
 import prefect.context
 import prefect.settings
-from prefect.cli._types import PrefectTyper
+from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
@@ -58,6 +58,10 @@ def main(
         help="Select a profile for this CLI run.",
         is_eager=True,
     ),
+    prompt: bool = SettingsOption(
+        prefect.settings.PREFECT_CLI_PROMPT,
+        help="Force toggle prompts for this CLI run.",
+    ),
 ):
     if profile and not prefect.context.get_settings_context().profile.name == profile:
         # Generally, the profile should entered by `enter_root_settings_context`.
@@ -79,6 +83,7 @@ def main(
         theme=Theme({"prompt.choices": "bold blue"}),
         # `soft_wrap` disables wrapping when `True`
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
+        force_interactive=prompt,
     )
 
     if not PREFECT_TEST_MODE:
