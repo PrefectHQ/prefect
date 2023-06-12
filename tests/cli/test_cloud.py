@@ -911,31 +911,13 @@ def test_cannot_get_webhook_if_you_are_not_logged_in():
 
     with use_profile(cloud_profile):
         invoke_and_assert(
-            ["cloud", "webhook", "get", "-a"],
+            ["cloud", "webhook", "get", "some-random-uuid"],
             expected_code=1,
             expected_output=(
                 f"Currently not authenticated in profile {cloud_profile!r}. "
                 "Please log in with `prefect cloud login`."
             ),
         )
-
-
-def test_cannot_get_without_id_or_all():
-    invoke_and_assert(
-        ["cloud", "webhook", "get"],
-        expected_code=1,
-        expected_output="Please provide a webhook ID or use the --all flag",
-    )
-
-
-def test_cannot_get_with_both_id_and_all():
-    invoke_and_assert(
-        ["cloud", "webhook", "get", "some-random-uuid", "-a"],
-        expected_code=1,
-        expected_output=(
-            "Please provide a webhook ID or use the --all flag, but not both"
-        ),
-    )
 
 
 def test_get_webhook_by_id(respx_mock):
@@ -982,7 +964,24 @@ def test_get_webhook_by_id(respx_mock):
         )
 
 
-def test_get_webhooks_all(respx_mock):
+def test_cannot_list_webhooks_if_you_are_not_logged_in():
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "webhook", "ls"],
+            expected_code=1,
+            expected_output=(
+                f"Currently not authenticated in profile {cloud_profile!r}. "
+                "Please log in with `prefect cloud login`."
+            ),
+        )
+
+
+def test_list_webhooks(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     save_profiles(
         ProfilesCollection(
@@ -1029,7 +1028,7 @@ def test_get_webhooks_all(respx_mock):
 
     with use_profile("logged-in-profile"):
         invoke_and_assert(
-            ["cloud", "webhook", "get", "-a"],
+            ["cloud", "webhook", "ls"],
             expected_code=0,
             expected_output_contains=[webhook1["name"], webhook2["name"]],
         )
