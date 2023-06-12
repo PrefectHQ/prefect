@@ -13,16 +13,16 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import (
-    format_outlier_version_name,
-    get_prefect_image_name,
-    parse_image_tag,
-)
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.dockerutils import (
+    format_outlier_version_name,
+    get_prefect_image_name,
+    parse_image_tag,
+)
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
@@ -169,7 +169,7 @@ class DockerContainer(Infrastructure):
     Requires a Docker Engine to be connectable. Docker settings will be retrieved from
     the environment.
 
-    Click [here](https://docs.prefect.io/tutorials/docker/) to see a tutorial.
+    Click [here](https://docs.prefect.io/guides/deployment/docker) to see a tutorial.
 
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,

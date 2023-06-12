@@ -1,5 +1,226 @@
 # Prefect Release Notes
 
+## Release 2.10.13
+
+### Improvements to projects-based deployments
+
+![prefect deploy output with interactive cron schedule](https://github.com/PrefectHQ/prefect/assets/12350579/c94f45e6-3b7a-4356-84cd-f36a29f0415c)
+
+Project-based deployments are now easier to use, especially for first time users! You can now run `prefect deploy` without first initializing a project. If you run `prefect deploy` without a project initialized, the CLI will generate a default pull step that your worker can use to retrieve your flow code when executing scheduled flow runs. The prefect deploy command will also prompt you with scheduling options, making it even easier to schedule your flows!
+
+See these two pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9832
+- https://github.com/PrefectHQ/prefect/pull/9844 
+
+This release also adds two new deployment steps: `pip_install_requirements` and `run_shell_script`. Both of these are new 'utility' deployment steps that can be used to automate portions of your deployment process.
+
+Use the `pip_install_requirements` step to install Python dependencies before kicking off a flow run:
+```yaml
+pull:
+    - prefect.projects.steps.git_clone_project:
+        id: clone-step
+        repository: https://github.com/org/repo.git
+    - prefect.projects.steps.pip_install_requirements:
+        directory: {{ clone-step.directory }}
+        requirements_file: requirements.txt
+        stream_output: False
+```
+
+Use the `run_shell_script` step to grab your repository's commit hash and use it to tag your Docker image:
+```yaml
+build:
+    - prefect.projects.steps.run_shell_script:
+        id: get-commit-hash
+        script: git rev-parse --short HEAD
+        stream_output: false
+    - prefect.projects.steps.build_docker_image:
+        requires: prefect-docker
+        image_name: my-image
+        image_tag: "{{ get-commit-hash.stdout }}"
+        dockerfile: auto
+```
+
+See these two pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9810
+- https://github.com/PrefectHQ/prefect/pull/9868
+
+### Enhancements
+- Allow project `pull` steps to pass step outputs — https://github.com/PrefectHQ/prefect/pull/9861
+- Update work queue health indicators in Prefect UI for greater clarity - https://github.com/PrefectHQ/prefect-ui-library/pull/1464
+- State messages no longer include tracebacks — https://github.com/PrefectHQ/prefect/pull/9835
+- Allow passing a payload to `emit_instance_method_called_event` - https://github.com/PrefectHQ/prefect/pull/9869
+
+### Fixes
+- Reference `.prefectignore` files when moving files around locally to - https://github.com/PrefectHQ/prefect/pull/9863
+- Fix typo in warning message raised when flow is called during script loading — https://github.com/PrefectHQ/prefect/pull/9817
+- Allow creation of identical block names between different block types - https://github.com/PrefectHQ/prefect-ui-library/pull/1473
+- Ensure flow timeouts do not override existing alarm signal handlers — https://github.com/PrefectHQ/prefect/pull/9835
+- Ensure timeout tracking begins from the actual start of the call, rather than the scheduled start — https://github.com/PrefectHQ/prefect/pull/9835
+- Ensure timeout monitoring threads immediately exit upon run completion — https://github.com/PrefectHQ/prefect/pull/9835
+- Fix bug where background services could throw logging errors on interpreter exit — https://github.com/PrefectHQ/prefect/pull/9835
+- Fix bug where asynchronous timeout enforcement could deadlock — https://github.com/PrefectHQ/prefect/pull/9835
+
+### Documentation
+- Add documentation on Prefect Cloud webhook usage - https://github.com/PrefectHQ/prefect/pull/9857
+- Fix broken link and Prefect server reference in Cloud docs — https://github.com/PrefectHQ/prefect/pull/9820
+- Fix broken link to Docker guide in API reference docs — https://github.com/PrefectHQ/prefect/pull/9821
+- Update subflow run cancellation information in flows concept doc — https://github.com/PrefectHQ/prefect/pull/9753
+- Improve ability to give feedback on documentation — https://github.com/PrefectHQ/prefect/pull/9836
+- Add projects deployment diagram to work pool, workers & agents concept doc — https://github.com/PrefectHQ/prefect/pull/9841
+- Add missing Prefect Server URL in API reference docs — https://github.com/PrefectHQ/prefect/pull/9864
+- Fix code typo in task runners concept doc — https://github.com/PrefectHQ/prefect/pull/9818
+- Add documentation on flow run parameter size limit — https://github.com/PrefectHQ/prefect/pull/9847
+- Fix link to orchestration tutorial in execution tutorial - https://github.com/PrefectHQ/prefect/pull/9862
+
+### Contributors
+- @ac1997 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9862
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.12...2.10.13
+
+## Release 2.10.12
+
+
+### The deployments page is back
+
+We got a lot of positive feedback about the new flows page that was redesigned to include deployments, but several users pointed out that the it wasn't quite a full replacement for the dedicated deployments page. The deployments page has been re-added to the navigation menu until the new flows page is a worthy substitute.
+
+See the [pull request](https://github.com/PrefectHQ/prefect/pull/9800) for implementation details.
+
+### Enhancements
+- All server-side schemas now have dedicated client-side duplicates — https://github.com/PrefectHQ/prefect/pull/9577
+- Import of `prefect.server` is delayed to improve CLI start time and `import prefect` time — https://github.com/PrefectHQ/prefect/pull/9577
+- Add task run as a related object to emitted events — https://github.com/PrefectHQ/prefect/pull/9759
+- Emit task run state change events when orchestrating a task run — https://github.com/PrefectHQ/prefect/pull/9684
+- Add healthcheck webserver to workers — https://github.com/PrefectHQ/prefect/pull/9687
+- Create files and directories with user-scoped permissions — https://github.com/PrefectHQ/prefect/pull/9789
+- Runtime variables mocked with environment variables for testing are now coerced to the correct type — https://github.com/PrefectHQ/prefect/pull/9561
+
+### Fixes
+- Show 404 instead of blank page in UI flow run id is invalid or if flow run is missing — https://github.com/PrefectHQ/prefect/pull/9746
+- Fix bug where event loop shutdown hooks could fail due to early garbage collection — https://github.com/PrefectHQ/prefect/pull/9748
+- Fix process worker `documentation_url` — https://github.com/PrefectHQ/prefect/pull/9791
+- Fix bug where given priority was ignored when creating a work queue — https://github.com/PrefectHQ/prefect/pull/9798
+- Fix inconsistent work queue handling by agent when cancelling flow runs — https://github.com/PrefectHQ/prefect/pull/9757
+
+### Experimental
+- Add `dashboard` experiment via `ENABLE_WORKSPACE_DASHBOARD` — https://github.com/PrefectHQ/prefect/pull/9802, https://github.com/PrefectHQ/prefect/pull/9799
+
+### Deprecations
+- Deprecate `create_orion_api` in favor of `create_api_app` — https://github.com/PrefectHQ/prefect/pull/9745
+- Deprecate "send_to_orion" logging option in favor of "send_to_api" — https://github.com/PrefectHQ/prefect/pull/9743
+
+### Documentation
+- Add descriptions to concept tables — https://github.com/PrefectHQ/prefect/pull/9718
+- Removes unreferenced requests import in 'real-world example' — https://github.com/PrefectHQ/prefect/pull/9760
+- Add state change hooks to guides overview page — https://github.com/PrefectHQ/prefect/pull/9761
+- Fix typo in flows and tasks tutorials — https://github.com/PrefectHQ/prefect/pull/9762
+- Update task docs to reference common params and link to all params — https://github.com/PrefectHQ/prefect/pull/9787
+- Add Google Analytics to documentation — https://github.com/PrefectHQ/prefect/pull/9793
+- Remove outdated announcement — https://github.com/PrefectHQ/prefect/pull/9792
+- Add extra loggers example — https://github.com/PrefectHQ/prefect/pull/9714
+- Clarify work pool priority options — https://github.com/PrefectHQ/prefect/pull/9752
+- Update worker requirements in projects tutorial — https://github.com/PrefectHQ/prefect/pull/9579
+- Fix default value comment in docs/concepts/variables — https://github.com/PrefectHQ/prefect/pull/9771
+- Fix formatting of link to Ray page — https://github.com/PrefectHQ/prefect/pull/9772
+- Add book a rubber duck links — https://github.com/PrefectHQ/prefect/pull/9790
+
+### Contributors
+- @marco-buttu made their first contribution in https://github.com/PrefectHQ/prefect/pull/9771
+- @jcozar87 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9561
+- @rmorshea
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.11...2.10.12
+
+## Release 2.10.11
+
+### Interactive Deployments and Work Pool Wizard 🧙
+
+This release simplifies deployment and work pool creation.
+
+![interactive-prefect-deploy-console-output](https://github.com/PrefectHQ/prefect/assets/12350579/c861b8dd-2dbb-4cfa-82f9-69008714f9fe)
+
+Firstly, the `prefect deploy` command has been upgraded to provide interactive prompts for deployment names and work pool selections. If you don't provide a deployment name via the CLI or a `deployment.yaml` file, the CLI will prompt you to do so. Furthermore, if a work pool name isn't specified, the CLI will guide you through the available work pools for your workspace. This feature aims to make deployments more approachable, especially for first-time users, requiring just an entrypoint to a flow to get started.
+
+![work-pool-wizard-infrastructure-choices](https://github.com/PrefectHQ/prefect/assets/12350579/383f004b-816e-4a52-98c3-46745e273362)
+
+Secondly, we've added a work pool creation wizard to streamline the process and spotlight various infrastructure types. The wizard will walk you through the essentials: basic work pool info, infrastructure type, and infrastructure configuration. The infrastructure type step will present you with a list of available infrastructure types, each with an icon and a description.
+
+Together, these improvements offer an interactive, guided experience that not only simplifies deployments and work pool creation but also empowers users to navigate the process confidently and efficiently. 
+
+Check out these pull requests for more details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1431
+- https://github.com/PrefectHQ/prefect/pull/9707
+- https://github.com/PrefectHQ/prefect/pull/9686
+
+### Enhancements
+- Emit events from deployments, work queues, and work pools — https://github.com/PrefectHQ/prefect/pull/9635
+- Improve SQLite database transaction behavior — https://github.com/PrefectHQ/prefect/pull/9594
+- Add support for SQLAlchemy 2 — https://github.com/PrefectHQ/prefect/pull/9656
+- Add `on_cancellation` flow run state change hook — https://github.com/PrefectHQ/prefect/pull/9389
+- Improve cancellation cleanup service iteration over subflow runs - https://github.com/PrefectHQ/prefect/pull/9731
+- Add request retry support to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9724
+- Add `PREFECT_CLIENT_MAX_RETRIES` for configuration of maximum HTTP request retries - https://github.com/PrefectHQ/prefect/pull/9735 
+- Add an `/api/ready` endpoint to the Prefect server to check database connectivity — https://github.com/PrefectHQ/prefect/pull/9701
+- Display URL to flow run on creation - https://github.com/PrefectHQ/prefect/pull/9740 
+- Add guard against changing the profile path from `prefect config set` — https://github.com/PrefectHQ/prefect/pull/9696
+- Use flow run logger to report traceback for failed submissions — https://github.com/PrefectHQ/prefect/pull/9733
+- Improve default Prefect image tag when using development versions — https://github.com/PrefectHQ/prefect/pull/9503
+- Emit worker event when a flow run is scheduled to run or cancel — https://github.com/PrefectHQ/prefect/pull/9702
+- Add ability to filter for `Retrying` state in the Task Runs tab of the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/1410
+
+### Fixes
+- Display CLI deprecation warnings to STDERR instead of STDOUT — https://github.com/PrefectHQ/prefect/pull/9690
+- Fix hanging flow runs from deployments when variables retrieved in base scope - https://github.com/PrefectHQ/prefect/pull/9665
+- Fix maximum character length when updating variables — https://github.com/PrefectHQ/prefect/pull/9710
+- Fix bug where agents would fail when processing runs with deleted deployments — https://github.com/PrefectHQ/prefect/pull/9464
+- Fix bug where `uvicorn` could not be found when server was started from an unloaded virtual environment - https://github.com/PrefectHQ/prefect/pull/9734 
+- Allow table artifacts `table` argument as list of lists — https://github.com/PrefectHQ/prefect/pull/9732
+- Fix bug where events worker would fail if the API URL includes a trailing `/` — https://github.com/PrefectHQ/prefect/pull/9663
+- Fix bug where flow run timeline crashed when custom state names were used — https://github.com/PrefectHQ/prefect-ui-library/pull/1448
+
+### Collections
+- Stream Kubernetes Worker flow run logs to the API - [#72](https://github.com/PrefectHQ/prefect-kubernetes/pull/72)
+- Stream ECS Worker flow run logs to the API - [#267](https://github.com/PrefectHQ/prefect-aws/pull/267)
+- Stream Cloud Run Worker flow run logs logs to the API - [#183](https://github.com/PrefectHQ/prefect-gcp/pull/183)
+- Add `prefect-spark-on-k8s-operator` to integrations catalog list — [#9029](https://github.com/PrefectHQ/prefect/pull/9029)
+- Add optional `accelerator_count` property for `VertexAICustomTrainingJob` - [#174](https://github.com/PrefectHQ/prefect-gcp/pull/174)
+- Add `result_transformer` parameter to customize the return structure of `bigquery_query` - [#176](https://github.com/PrefectHQ/prefect-gcp/pull/176)
+- Add `boot_disk_type` and `boot_disk_size_gb` properties for `VertexAICustomTrainingJob` - [#177](https://github.com/PrefectHQ/prefect-gcp/pull/177)
+- Fix bug where incorrect credentials model was selected when `MinIOCredentials` was used with `S3Bucket` - [#254](https://github.com/PrefectHQ/prefect-aws/pull/254)
+- Fix bug where `S3Bucket.list_objects` was truncating prefix paths ending with slashes - [#263](https://github.com/PrefectHQ/prefect-aws/pull/263)
+- Fix bug where ECS worker could not cancel flow runs - [#268](https://github.com/PrefectHQ/prefect-aws/pull/268)
+- Improve failure message when creating a Kubernetes job fails - [#71](https://github.com/PrefectHQ/prefect-kubernetes/pull/71)
+
+### Deprecations
+- Rename `prefect.infrastructure.docker` to `prefect.infrastructure.container` - https://github.com/PrefectHQ/prefect/pull/8788
+- Rename `prefect.docker` to `prefect.utilities.dockerutils` - https://github.com/PrefectHQ/prefect/pull/8788
+
+### Documentation
+- Create examples of working with Prefect REST APIs — https://github.com/PrefectHQ/prefect/pull/9661
+- Add state change hook documentation - https://github.com/PrefectHQ/prefect/pull/9721
+- Add tip about private repositories in projects documentation — https://github.com/PrefectHQ/prefect/pull/9685
+- Improve runtime context documentation — https://github.com/PrefectHQ/prefect/pull/9652
+- Simplify the flow and task configuration documentation — https://github.com/PrefectHQ/prefect/pull/9420
+- Clarify task retries documentation — https://github.com/PrefectHQ/prefect/pull/9575
+- Fix typos in cloud documentation — https://github.com/PrefectHQ/prefect/pull/9657
+- Update automations documentation — https://github.com/PrefectHQ/prefect/pull/9680
+- Fix typo in tutorial documentation — https://github.com/PrefectHQ/prefect/pull/9646
+- Add tip on `keys` in artifacts documentation — https://github.com/PrefectHQ/prefect/pull/9666
+- Expand docstrings for artifacts — https://github.com/PrefectHQ/prefect/pull/9704
+- Update description of `image` parameter of `DockerContainer` in infrastructure documentation — https://github.com/PrefectHQ/prefect/pull/9682
+- Lowercase Prefect server where appropriate — https://github.com/PrefectHQ/prefect/pull/9697
+- Remove `Upgrading from Prefect Beta` section of installation page — https://github.com/PrefectHQ/prefect/pull/9726
+- Update rate limit documentation to include `/set_state` and `/flows` endpoint for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/9694
+- Update documentation links in UI to concepts when possible — https://github.com/PrefectHQ/prefect-ui-library/pull/1351
+
+## Contributors
+* @BitTheByte
+* @snikch made their first contribution in https://github.com/PrefectHQ/prefect/pull/9646
+* @rkscodes made their first contribution in https://github.com/PrefectHQ/prefect/pull/9682
+* @sarahmk125 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9694
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.10...2.10.11
+
 ## Release 2.10.10
 
 ### The need for (CLI) speed

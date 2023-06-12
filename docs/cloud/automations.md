@@ -16,7 +16,7 @@ Automations in Prefect Cloud enable you to configure [actions](#actions) that Pr
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](../../concepts/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
 
 ## Automations overview
 
@@ -49,6 +49,7 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
 
 - Flow run state change
+    -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work queue health
 - [Custom event](#automations-api) triggers
 
@@ -220,7 +221,7 @@ Flow run {{ flow_run.name }} for flow {{ flow.name }}
 entered state {{ flow_run.state.name }}
 with message {{ flow_run.state.message }}
 
-Flow tags: {{ flow.tags }}
+Flow tags: {{ flow_run.tags }}
 Deployment name: {{ deployment.name }}
 Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}

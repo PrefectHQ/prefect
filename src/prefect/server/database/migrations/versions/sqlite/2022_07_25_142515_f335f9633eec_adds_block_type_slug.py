@@ -42,13 +42,13 @@ def upgrade():
 
     # Add slugs to existing block types
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
+    meta_data = sa.MetaData()
+    meta_data.reflect(connection)
     BLOCK_TYPE = meta_data.tables["block_type"]
     BLOCK_SCHEMA = meta_data.tables["block_schema"]
 
     block_types_result = connection.execute(
-        sa.select([BLOCK_TYPE.c.id, BLOCK_TYPE.c.name])
+        sa.select(BLOCK_TYPE.c.id, BLOCK_TYPE.c.name)
     ).all()
     for block_type_id, block_type_name in block_types_result:
         connection.execute(
@@ -58,7 +58,7 @@ def upgrade():
         )
 
         block_schemas_result = connection.execute(
-            sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields]).where(
+            sa.select(BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields).where(
                 BLOCK_SCHEMA.c.block_type_id == block_type_id
             )
         ).all()

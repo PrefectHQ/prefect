@@ -8,7 +8,11 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+from sqlalchemy.orm import (
+    as_declarative,
+    declarative_mixin,
+    declared_attr,
+)
 from sqlalchemy.sql.functions import coalesce
 
 import prefect
@@ -1304,9 +1308,9 @@ class ORMFlowRunNotificationQueue:
 
 @declarative_mixin
 class ORMVariable:
-    name: str = sa.Column(sa.String, nullable=False)
-    value: str = sa.Column(sa.String, nullable=False)
-    tags: List[str] = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    name = sa.Column(sa.String, nullable=False)
+    value = sa.Column(sa.String, nullable=False)
+    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
 

@@ -14,8 +14,7 @@ MIN_COMPAT_PREFECT_VERSION = "2.0b12"
 
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Deployment, Flow
+    from prefect.client.schemas.objects import Deployment, Flow, FlowRun
 
 
 class InfrastructureResult(pydantic.BaseModel, abc.ABC):

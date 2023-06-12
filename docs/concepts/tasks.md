@@ -80,7 +80,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
 ## Task arguments
 
-Tasks allow a great deal of customization via arguments. Examples include retry behavior, names, tags, caching, and more. Tasks accept the following optional arguments.
+Tasks allow for customization through optional arguments:
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -89,10 +89,12 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | `tags`                | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire.                                                                      |
-| `task_run_name`       | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables; this name can also be provided via a function that returns a string.  |
 | `retries`             | An optional number of times to retry on task run failure.                                                                                                                                                               |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
-| `version`             | An optional string specifying the version of this task definition.                                                                                                                                                      |
+| `log_prints`|An optional boolean indicating whether to log print statements. |
+| `persist_result` | An optional boolean indicating whether to persist the result of the task run to storage. |
+
+See all possible parameters in the [Python SDK API docs](/api-ref/prefect/tasks/#prefect.tasks.task).
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -204,29 +206,60 @@ def my_flow():
 
 ## Retries
 
-Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task.
+Prefect can automatically retry tasks on failure. In Prefect, a task _fails_ if
+its Python function raises an exception.
 
-For example, let's say you need to retrieve data from a brittle API:
+To enable retries, pass `retries` and `retry_delay_seconds` parameters to your
+task. If the task fails, Prefect will retry it up to `retries` times, waiting
+`retry_delay_seconds` seconds between each attempt. If the task fails on the
+final retry, Prefect marks the task as _crashed_ if the task raised an exception
+or _failed_ if it returned a string.
+
+!!! note "Retries don't create new task runs"
+    A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
+
+
+### A real-world example: making an API request
+
+Consider the real-world problem of making an API request. In this example,
+we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
+request.
 
 ```python hl_lines="4"
 import httpx
-from prefect import task, flow
+
+from prefect import flow, task
+
 
 @task(retries=2, retry_delay_seconds=5)
-def get_data(
+def get_data_task(
     url: str = "https://api.brittle-service.com/endpoint"
 ) -> dict:
     response = httpx.get(url)
+    
+    # If the response status code is anything but a 2xx, httpx will raise
+    # an exception. This task doesn't handle the exception, so Prefect will
+    # catch the exception and will consider the task run failed.
     response.raise_for_status()
+    
     return response.json()
+    
+
+@flow
+def get_data_flow():
+    get_data_task()
 ```
 
-If your task gets a bad response, `get_data` will automatically retry twice, waiting 5 seconds in between retries.
+In this task, if the HTTP request to the brittle API receives any status code
+other than a 2xx (200, 201, etc.), Prefect will retry the task a maximum of two
+times, waiting five seconds in between retries.
+
+### Custom retry behavior
 
 The `retry_delay_seconds` option accepts a list of delays for more custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
 
 ```python
-from prefect import task, flow
+from prefect import task
 
 @task(retries=3, retry_delay_seconds=[1, 10, 100])
 def some_task_with_manual_backoff_retries():
@@ -236,7 +269,7 @@ def some_task_with_manual_backoff_retries():
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an [`exponential_backoff`](/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
-from prefect import task, flow
+from prefect import task
 from prefect.tasks import exponential_backoff
 
 @task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
@@ -244,10 +277,16 @@ def some_task_with_exponential_backoff_retries():
    ...
 ```
 
-While using exponential backoff you may also want to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will be allowed to delay up to 15 seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
+#### Advanced topic: adding "jitter"
+
+While using exponential backoff, you may also want to add _jitter_ to the delay times. Jitter is
+a random amount of time added to retry periods that helps prevent "thundering herd" scenarios, which
+is when many tasks all retry at the exact same time, potentially overwhelming systems.
+
+The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will be allowed to delay up to 15 seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds," while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
 
 ```python
-from prefect import task, flow
+from prefect import task
 from prefect.tasks import exponential_backoff
 
 @task(
@@ -259,6 +298,8 @@ def some_task_with_exponential_backoff_retries():
    ...
 ```
 
+### Configuring retry behavior globally with settings
+
 You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator. 
 
 ```
@@ -267,9 +308,6 @@ prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
-
-!!! note "Retries don't create new task runs"
-    A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
 
 ## Caching
 

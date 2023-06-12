@@ -359,6 +359,24 @@ Once you've confirmed that these fields are set to their desired values, this st
 !!! note Some steps require Prefect integrations
     Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
 
+!!! tip "Pass output to downstream steps"
+    Each deployment action can be composed of multiple steps.  For example, if you wanted to build a Docker image tagged with the current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
+
+    ```yaml
+    build:
+        - prefect.projects.steps.run_shell_script:
+            id: get-commit-hash
+            script: git rev-parse --short HEAD
+            stream_output: false
+        - prefect_docker.projects.steps.build_docker_image:
+            requires: prefect-docker
+            image_name: my-image
+            image_tag: "{{ get-commit-hash.stdout }}"
+            dockerfile: auto
+    ```
+
+    Note that the `id` field is used in the `run_shell_script` step so that its output can be referenced in the next step.
+
 ### The Push Section
 
 The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations.
@@ -417,6 +435,41 @@ There are three main types of steps that typically show up in a `pull` section:
 
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
+
+### Utility Steps
+Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
+
+- `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. This is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
+
+Here is an example of retrieving the short Git commit hash of the current repository to use as a Docker image tag:
+
+```yaml
+build:
+    - prefect.projects.steps.run_shell_script:
+        id: get-commit-hash
+        script: git rev-parse --short HEAD
+        stream_output: false
+    - prefect_docker.projects.steps.build_docker_image:
+        requires: prefect-docker
+        image_name: my-image
+        image_tag: "{{ get-commit-hash.stdout }}"
+        dockerfile: auto
+```
+
+- `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
+
+Below is an example of installing dependencies from a `requirements.txt` file after cloning a project:
+
+```yaml
+pull:
+    - prefect.projects.steps.git_clone_project:
+        id: clone-step
+        repository: https://github.com/org/repo.git
+    - prefect.projects.steps.pip_install_requirements:
+        directory: {{ clone-step.directory }}
+        requirements_file: requirements.txt
+        stream_output: False
+```
 
 ## The `.prefect/` directory
 
