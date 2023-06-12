@@ -14,7 +14,7 @@ tags:
 
 # Work Pools, Workers & Agents
 
-![flow-deployment-end-to-end](/docs/img/concepts/flow-deployment-end-to-end.png)
+![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
 
 Work pools and the services that poll them, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment polls its respective work pool for new runs to execute.
 
