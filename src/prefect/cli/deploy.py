@@ -216,7 +216,7 @@ async def deploy(
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
-        if is_interactive and not ci and project and deployments:
+        if is_interactive() and not ci and project and deployments:
             if confirm(
                 generate_deprecation_message(
                     "Using a `deployment.yaml` file with `prefect deploy`",
