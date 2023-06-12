@@ -23,7 +23,7 @@ router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work queue.
 
@@ -42,7 +42,7 @@ async def create_work_queue(
             detail="A work queue with this name already exists.",
         )
 
-    return model
+    return schemas.responses.WorkQueueResponse.from_orm(model)
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -68,7 +68,7 @@ async def update_work_queue(
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
     """
@@ -80,14 +80,14 @@ async def read_work_queue_by_name(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return work_queue
+    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
 
 
 @router.get("/{id}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
     """
@@ -99,7 +99,7 @@ async def read_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return work_queue
+    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
 
 
 @router.post("/{id}/get_runs")
@@ -180,14 +180,16 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     work_queues: schemas.filters.WorkQueueFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
+) -> List[schemas.responses.WorkQueueResponse]:
     """
     Query for work queues.
     """
     async with db.session_context() as session:
-        return await models.work_queues.read_work_queues(
+        wqs = await models.work_queues.read_work_queues(
             session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
+
+    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
