@@ -39,7 +39,11 @@ from prefect.utilities.templating import apply_values
 
 from prefect.projects.steps.core import run_steps
 
-from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
+from prefect.projects.base import (
+    _copy_deployments_into_prefect_file,
+    _get_git_branch,
+    _get_git_remote_origin_url,
+)
 
 from prefect.blocks.system import Secret
 
@@ -212,17 +216,43 @@ async def deploy(
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
-        app.console.print(
-            generate_deprecation_message(
-                "Using a `deployment.yaml` file with `prefect deploy`",
-                end_date="Jun 2023",
-                help=(
-                    "Please use the `prefect.yaml` file instead by copying the"
-                    " contents of your `deployment.yaml` file into your `prefect.yaml`"
-                    " file."
-                ),
+        if is_interactive and not ci and project and deployments:
+            if confirm(
+                generate_deprecation_message(
+                    "Using a `deployment.yaml` file with `prefect deploy`",
+                    end_date="Jun 2023",
+                    help=(
+                        "Would you like to copy the contents of your `deployment.yaml`"
+                        " file into your `prefect.yaml` file now?"
+                    ),
+                )
+            ):
+                try:
+                    _copy_deployments_into_prefect_file()
+                    app.console.print(
+                        "Successfully copied your deployment configurations into your"
+                        " prefect.yaml file! Once you've verified that all your"
+                        " deployment configurations in your prefect.yaml file are"
+                        " correct, you can delete your deployment.yaml file."
+                    )
+                except Exception:
+                    app.console.print(
+                        "Encountered an error while copying deployments into"
+                        " prefect.yaml: {exc}"
+                    )
+        else:
+            app.console.print(
+                generate_deprecation_message(
+                    "Using a `deployment.yaml` file with `prefect deploy`",
+                    end_date="Jun 2023",
+                    help=(
+                        "Please use the `prefect.yaml` file instead by copying the"
+                        " contents of your `deployment.yaml` file into your"
+                        " `prefect.yaml` file."
+                    ),
+                )
             )
-        )
+
     except FileNotFoundError:
         deployments = project.get("deployments", [])
 

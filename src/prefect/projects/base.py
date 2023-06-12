@@ -299,3 +299,41 @@ async def register_flow(entrypoint: str, force: bool = False):
         json.dump(flows, f, sort_keys=True, indent=2)
 
     return flow
+
+
+def _copy_deployments_into_prefect_file():
+    """
+    Copy deployments from the `prefect` file into the `.prefect` directory.
+
+    Used to migrate users from the old `prefect.yaml` + `deployment.yaml` structure
+    to a single `prefect.yaml` file.
+    """
+    prefect_file = Path("prefect.yaml")
+    deployment_file = Path("deployment.yaml")
+    if not deployment_file.exists() or not prefect_file.exists():
+        raise ValueError("Could not find `prefect.yaml` or `deployment.yaml` files.")
+
+    with deployment_file.open(mode="r") as f:
+        raw_deployment_file_contents = f.read()
+        parsed_deployment_file_contents = yaml.safe_load(raw_deployment_file_contents)
+
+    deployments = parsed_deployment_file_contents.get("deployments")
+
+    with prefect_file.open(mode="a") as f:
+        # If deployment.yaml is empty, write an empty deployments list to prefect.yaml.
+        if not parsed_deployment_file_contents:
+            f.write("\n")
+            f.write(yaml.dump({"deployments": []}, sort_keys=False))
+        # If there is no 'deployments' key in deployment.yaml, assume that the
+        # entire file is a single deployment.
+        elif not deployments:
+            f.write("\n")
+            f.write(
+                yaml.dump(
+                    {"deployments": [parsed_deployment_file_contents]}, sort_keys=False
+                )
+            )
+        # Write all of deployment.yaml to prefect.yaml.
+        else:
+            f.write("\n")
+            f.write(raw_deployment_file_contents)
