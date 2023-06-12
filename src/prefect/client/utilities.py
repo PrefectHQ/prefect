@@ -7,6 +7,7 @@ Utilities for working with clients.
 from functools import wraps
 
 from prefect.utilities.asyncutils import asyncnullcontext
+from prefect._internal.concurrency.event_loop import get_running_loop
 
 
 def inject_client(fn):
@@ -21,13 +22,23 @@ def inject_client(fn):
     @wraps(fn)
     async def with_injected_client(*args, **kwargs):
         from prefect.client.orchestration import get_client
+        from prefect.context import FlowRunContext, TaskRunContext
 
+        flow_run_context = FlowRunContext.get()
+        task_run_context = TaskRunContext.get()
         client = None
+        client_context = asyncnullcontext()
 
         if "client" in kwargs and kwargs["client"] is not None:
             # Client provided in kwargs
             client = kwargs["client"]
-            client_context = asyncnullcontext()
+        elif flow_run_context and flow_run_context.client._loop == get_running_loop():
+            # Client available from flow run context
+            client = flow_run_context.client
+        elif task_run_context and task_run_context.client._loop == get_running_loop():
+            # Client available from task run context
+            client = task_run_context.client
+
         else:
             # A new client is needed
             client_context = get_client()

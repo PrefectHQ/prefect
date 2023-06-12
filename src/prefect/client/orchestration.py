@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import httpcore
+import asyncio
 import httpx
 import pendulum
 import pydantic
@@ -126,6 +127,7 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
+
     if not api:
         # create an ephemeral API if none was provided
         from prefect.server.api.server import create_app
@@ -275,9 +277,8 @@ class PrefectClient:
             ),
         )
 
-        self._client = PrefectHttpxClient(
-            **httpx_settings,
-        )
+        self._client = PrefectHttpxClient(**httpx_settings)
+        self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
@@ -2513,6 +2514,7 @@ class PrefectClient:
             # httpx.AsyncClient does not allow reentrancy so we will not either.
             raise RuntimeError("The client cannot be started more than once.")
 
+        self._loop = asyncio.get_running_loop()
         await self._exit_stack.__aenter__()
 
         # Enter a lifespan context if using an ephemeral application.
