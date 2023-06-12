@@ -6,10 +6,8 @@ import contextlib
 import queue
 import sys
 import threading
-from functools import partial
 from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
-import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -282,9 +280,9 @@ class BatchedQueueService(QueueService[T]):
             deadline = get_deadline(self._min_interval)
             while batch_size < self._max_batch_size:
                 try:
-                    item = await anyio.to_thread.run_sync(
-                        partial(self._queue.get, timeout=get_timeout(deadline))
-                    )
+                    item = await self._queue_get_thread.submit(
+                        create_call(self._queue.get, timeout=get_timeout(deadline))
+                    ).aresult()
 
                     if item is None:
                         done = True
