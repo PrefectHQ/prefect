@@ -14,7 +14,7 @@ tags:
 
 # Work Pools, Workers & Agents
 
-![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
+![flow-deployment-end-to-end](/docs/img/concepts/flow-deployment-end-to-end.png)
 
 Work pools and the services that poll them, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment polls its respective work pool for new runs to execute.
 
@@ -27,7 +27,7 @@ To run deployments, you must configure at least one agent or worker (and its ass
 
 ## Agent overview
 
-Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
+Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs.
 
 Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
 
@@ -107,7 +107,7 @@ By default, the agent begins submission of flow runs a short time (10 seconds) b
 
 ## Work pool overview
 
-Work pools organize work that [agents](#agent-overview) or [workers](#worker-overview) pick up for execution. Deployments and agents coordinate through a shared work pool name. 
+Work pools organize work that [agents](#agent-overview) or [workers](#worker-overview) pick up for execution. Deployments and agents coordinate through a shared work pool name.
 
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) agents through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
@@ -118,7 +118,7 @@ In addition, users can control aspects of work pool behavior, like how many runs
 
 You can configure work pools by using:
 
- 
+
 - Prefect CLI commands
 - Prefect Python API
 - Prefect UI
@@ -148,7 +148,7 @@ Optional configuration parameters you can specify to filter work on the pool inc
 | `--paused` | If provided, the work pool will be created in a paused state.                                  |
 | `--type`   | The type of infrastructure that can execute runs from this work pool. [default: prefect-agent] |
 
-For example, to create a work pool called `test-pool`, you would run this command: 
+For example, to create a work pool called `test-pool`, you would run this command:
 
 <div class="terminal">
 
@@ -172,15 +172,15 @@ On success, the command returns the details of the newly created work pool, whic
 
 #### Base Job Template
 
-Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool. 
+Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool.
 
-The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available to deployment creators to customize worker behavior per deployment. 
+The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available to deployment creators to customize worker behavior per deployment.
 
-A base job template comprises a `job_configuration` section and a `variables` section. 
+A base job template comprises a `job_configuration` section and a `variables` section.
 
-The `variables` section defines the fields available to be customized per deployment. The `variables` section follows the [OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values (type, minimum, maximum, etc.). 
+The `variables` section defines the fields available to be customized per deployment. The `variables` section follows the [OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values (type, minimum, maximum, etc.).
 
-The job configuration section defines how values provided for fields in the variables section should be translated into the configuration given to a worker when executing a flow run. 
+The job configuration section defines how values provided for fields in the variables section should be translated into the configuration given to a worker when executing a flow run.
 
 The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
 
@@ -204,16 +204,16 @@ If we wanted to turn off streaming output for a specific deployment, we could ad
 
 ```yaml
 work_pool:
-    name: above-ground  
+    name: above-ground
     job_variables:
         stream_output: false
 ```
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, users can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
-    
-    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
-    
+
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution.
+
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
 ### Viewing work pools
@@ -261,11 +261,11 @@ Workpool(
 ```
 </div>
 
-`prefect work-pool preview` displays scheduled flow runs for a specific work pool by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead. 
+`prefect work-pool preview` displays scheduled flow runs for a specific work pool by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead.
 
 <div class="terminal">
 ```bash
-$ prefect work-pool preview 'test-pool' --hours 12 
+$ prefect work-pool preview 'test-pool' --hours 12
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Scheduled Star… ┃ Run ID                     ┃ Name         ┃ Deployment ID               ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -303,7 +303,7 @@ To delete a work pool through the Prefect CLI, use the `prefect work-pool delete
 
 ### Work pool concurrency
 
-Each work pool can optionally restrict concurrent runs of matching flows. 
+Each work pool can optionally restrict concurrent runs of matching flows.
 
 For example, a work pool with a concurrency limit of 5 will only release new work if fewer than 5 matching runs are currently in a `Running` or `Pending` state. If 3 runs are `Running` or `Pending`, polling the pool for work will only result in 2 new runs, even if there are many more available, to ensure that the concurrency limit is not exceeded.
 
@@ -323,11 +323,11 @@ Work queues can also have their own concurrency limits. Note that each queue is 
 
 Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
-Priority is evaluated to determine the order in which flow runs are submitted for execution. 
+Priority is evaluated to determine the order in which flow runs are submitted for execution.
 If all flow runs are capable of being executed with no limitation due to concurrency or otherwise, priority is still used to determine order of submission, but there is no impact to execution.
 If not all flow runs can be executed, usually as a result of concurrency limits, priority is used to determine which queues receive precedence to submit runs for execution.
 
-Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
+Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission.
 
 If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty, in waterfall fashion.
 
@@ -405,7 +405,7 @@ Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
 ```
 </div>
-In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag. 
+In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag.
 For example, to limit a worker to five concurrent flow runs:
 <div class="terminal">
 ```bash
@@ -414,7 +414,7 @@ prefect worker start --pool "my-pool" --limit 5
 </div>
 
 ### Configuring Prefetch
-By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. 
+By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time.
 
 In some cases, infrastructure will take longer than 10 seconds to start the flow run. The prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 
