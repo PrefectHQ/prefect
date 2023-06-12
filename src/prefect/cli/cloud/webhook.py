@@ -3,7 +3,7 @@ Command line interface for working with webhooks
 """
 
 import typer
-from typing import Optional
+from typing import List, Dict
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli.cloud import cloud_app, confirm_logged_in
@@ -19,55 +19,50 @@ webhook_app = PrefectTyper(
 cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
 
-@webhook_app.command()
-async def get(
-    # webhook_id is a CLI argument, which is required in Typer by default
-    # here, we'll make it optional + create an XOR relationship with the --all flag
-    # https://typer.tiangolo.com/tutorial/arguments/optional/#alternative-old-typerargument-as-the-default-value
-    webhook_id: Optional[str] = typer.Argument(default=None),
-    all: bool = typer.Option(
-        False, "--all", "-a", help="Retrieve all webhooks in your workspace"
-    ),
-):
-    """
-    Retrieve a webhook by ID.
-    Optionally, fetch all webhooks with the --all flag
-    """
-
-    if not webhook_id and not all:
-        exit_with_error("Please provide a webhook ID or use the --all flag")
-
-    if webhook_id and all:
-        exit_with_error(
-            "Please provide a webhook ID or use the --all flag, but not both"
-        )
-
-    confirm_logged_in()
-
+def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:
     display_table = Table(show_lines=True)
     for field in ["webhook id", "url slug", "name", "enabled?", "template"]:
+        # overflow=fold allows the entire table value to display in the terminal
+        # even if it is too long for the computed column width
+        # https://rich.readthedocs.io/en/stable/reference/table.html#rich.table.Column.overflow
         display_table.add_column(field, overflow="fold")
+
+    for webhook in webhooks:
+        display_table.add_row(
+            webhook["id"],
+            webhook["slug"],
+            webhook["name"],
+            str(webhook["enabled"]),
+            webhook["template"],
+        )
+    return display_table
+
+
+@webhook_app.command()
+async def ls():
+    """
+    Fetch and list all webhooks in your workspace
+    """
+    confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
-        retrieved_webhooks = []
+        retrieved_webhooks = await client.request("POST", "/webhooks/filter")
+        display_table = _render_webhooks_into_table(retrieved_webhooks)
+        app.console.print(display_table)
 
-        if all:
-            retrieved_webhooks = await client.request("POST", "/webhooks/filter")
-        else:
-            retrieved_webhooks = [
-                await client.request("GET", f"/webhooks/{webhook_id}")
-            ]
 
-        for webhook in retrieved_webhooks:
-            display_table.add_row(
-                webhook["id"],
-                webhook["slug"],
-                webhook["name"],
-                str(webhook["enabled"]),
-                webhook["template"],
-            )
+@webhook_app.command()
+async def get(webhook_id: str):
+    """
+    Retrieve a webhook by ID.
+    """
+    confirm_logged_in()
 
+    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
+    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+        webhook = await client.request("GET", f"/webhooks/{webhook_id}")
+        display_table = _render_webhooks_into_table([webhook])
         app.console.print(display_table)
 
 
