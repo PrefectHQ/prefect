@@ -1,3 +1,4 @@
+import datetime
 import json
 from uuid import UUID, uuid4
 
@@ -6,7 +7,17 @@ import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
 
-from prefect.events import Event, RelatedResource, Resource
+from prefect.events.schemas import (
+    Automation,
+    DeploymentTrigger,
+    Event,
+    Posture,
+    RelatedResource,
+    Resource,
+    ResourceTrigger,
+    Trigger,
+)
+from prefect.events.actions import RunDeployment
 
 
 def test_client_events_generate_an_id_by_default():
@@ -141,3 +152,38 @@ def test_client_event_involved_resources():
         "hello",
         "related-1",
     ]
+
+
+def test_resource_trigger_actions_not_implemented():
+    trigger = ResourceTrigger()
+    with pytest.raises(NotImplementedError):
+        trigger.actions()
+
+
+def test_deployment_trigger_as_automation():
+    trigger = DeploymentTrigger(
+        name="A deployment automation",
+    )
+    trigger.set_deployment_id(uuid4())
+
+    automation = trigger.as_automation()
+
+    assert automation == Automation(
+        name="A deployment automation",
+        description="",
+        enabled=True,
+        trigger=Trigger(
+            posture=Posture.Reactive,
+            threshold=1,
+            within=datetime.timedelta(0),
+        ),
+        actions=[
+            RunDeployment(
+                type="run-deployment",
+                source="selected",
+                parameters=None,
+                deployment_id=trigger._deployment_id,
+            )
+        ],
+        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+    )
