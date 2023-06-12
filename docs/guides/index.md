@@ -16,4 +16,4 @@ tags:
 - Execute code in response to state changes with [state change hooks](/guides/state-change-hooks/).
 
 !!! tip "Need help?"
-    Get your questions answered with a Prefect Solutions Engineer by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
+    Get your questions answered with a Prefect Solutions Engineer by [booking a rubber duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
