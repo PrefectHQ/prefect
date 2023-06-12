@@ -8,8 +8,7 @@ from fastapi import status
 import prefect
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkPoolCreate
-from prefect.server.schemas.core import WorkPool
-from prefect.client.schemas import WorkQueue
+from prefect.server.schemas.core import WorkPool, WorkQueue
 
 RESERVED_POOL_NAMES = [
     "Prefect",
