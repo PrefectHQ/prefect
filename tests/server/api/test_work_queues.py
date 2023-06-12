@@ -24,6 +24,7 @@ class TestCreateWorkQueue:
         assert response.json()["filter"] is None
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
+        assert response.json()["work_pool_name"] == "default-agent-pool"
         work_queue_id = response.json()["id"]
 
         work_queue = await models.work_queues.read_work_queue(
@@ -146,6 +147,7 @@ class TestReadWorkQueue:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == "wq-1"
+        assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}")
@@ -158,6 +160,7 @@ class TestReadWorkQueueByName:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == work_queue.name
+        assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get("/work_queues/name/some-made-up-work-queue")
@@ -227,6 +230,8 @@ class TestReadWorkQueues:
         assert response.status_code == status.HTTP_200_OK
         # includes default work queue
         assert len(response.json()) == 4
+        for wq in response.json():
+            assert wq["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queues_applies_limit(self, work_queues, client):
         response = await client.post("/work_queues/filter", json=dict(limit=1))

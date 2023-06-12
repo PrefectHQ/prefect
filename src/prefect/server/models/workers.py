@@ -286,6 +286,7 @@ async def create_work_queue(
 
     session.add(model)
     await session.flush()
+    await session.refresh(model)
 
     if work_queue.priority:
         await bulk_update_work_queue_priorities(

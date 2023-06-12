@@ -7,8 +7,8 @@ from fastapi import status
 
 import prefect
 from prefect.server import models, schemas
-from prefect.server.schemas.actions import WorkPoolCreate
-from prefect.server.schemas.core import WorkPool, WorkQueue
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool, WorkQueue
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -470,6 +470,7 @@ class TestCreateWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
 
     async def test_create_work_queue_with_priority(
         self,
@@ -546,6 +547,7 @@ class TestReadWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
 
 
 class TestUpdateWorkQueue:
