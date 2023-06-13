@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
@@ -5,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import httpcore
-import asyncio
 import httpx
 import pendulum
 import pydantic
@@ -18,8 +18,6 @@ import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
-from prefect.deprecated.data_documents import DataDocument
-from prefect.logging import get_logger
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -76,8 +74,8 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
-    WorkQueue,
     WorkPool,
+    WorkQueue,
 )
 from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -90,7 +88,9 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
-from prefect.events.schemas import Automation
+from prefect.deprecated.data_documents import DataDocument
+from prefect.events.schemas import Automation, ExistingAutomation
+from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
@@ -2506,6 +2506,16 @@ class PrefectClient:
         )
 
         return UUID(response.json()["id"])
+
+    async def read_resource_related_automations(
+        self, resource_id: str
+    ) -> List[ExistingAutomation]:
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        response = await self._client.get(f"/automations/related-to/{resource_id}")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
 
     async def delete_resource_owned_automations(self, resource_id: str):
         if self.server_type != ServerType.CLOUD:
