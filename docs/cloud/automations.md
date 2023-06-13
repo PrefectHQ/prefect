@@ -165,6 +165,25 @@ Specify a name and, optionally, a description for the automation.
 
 ![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
 
+
+## Create an automation via deployment triggers
+
+To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+To 
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: my.external.resource
+    expect:
+      - external.resource.pinged
+    parameters:
+      param_1: "{{ event }}"
+```
+
+When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
+
 ## Automation notifications
 
 Notifications enable you to set up automation actions that send a message. 
