@@ -303,7 +303,7 @@ async def register_flow(entrypoint: str, force: bool = False):
 
 def _copy_deployments_into_prefect_file():
     """
-    Copy deployments from the `prefect` file into the `.prefect` directory.
+    Copy deployments from the `deloyment.yaml` file into the `prefect.yaml` file.
 
     Used to migrate users from the old `prefect.yaml` + `deployment.yaml` structure
     to a single `prefect.yaml` file.

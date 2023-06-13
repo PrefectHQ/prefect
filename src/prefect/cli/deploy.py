@@ -220,7 +220,7 @@ async def deploy(
             if confirm(
                 generate_deprecation_message(
                     "Using a `deployment.yaml` file with `prefect deploy`",
-                    end_date="Jun 2023",
+                    end_date="Jul 2023",
                     help=(
                         "Would you like to copy the contents of your `deployment.yaml`"
                         " file into your `prefect.yaml` file now?"
@@ -244,7 +244,7 @@ async def deploy(
             app.console.print(
                 generate_deprecation_message(
                     "Using a `deployment.yaml` file with `prefect deploy`",
-                    end_date="Jun 2023",
+                    end_date="Jul 2023",
                     help=(
                         "Please use the `prefect.yaml` file instead by copying the"
                         " contents of your `deployment.yaml` file into your"
