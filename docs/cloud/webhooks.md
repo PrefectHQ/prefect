@@ -54,13 +54,14 @@ prefect cloud webhook create your-webhook-name \
 Note the template string, which is discussed in [greater detail down below](#webhook-templates)
 
 You can retrieve details for a specific webhook by ID using `get`, or optionally query
-all webhooks in your workspace via `get --all`:
+all webhooks in your workspace via `ls`:
 
 ```bash
+# get webhook by ID
 prefect cloud webhook get <webhook-id>
 
-# optionally, pass the --all flag to list all your configured webhooks
-prefect cloud webhook get --all
+# list all configured webhooks in your workspace
+prefect cloud webhook ls
 ```
 
 If you ever need to disable an existing webhook without deleting it, use `toggle`:
@@ -77,7 +78,7 @@ If you are concerned that your webhook endpoint may have been compromised, use `
 generate a new, random endpoint
 
 ```bash
-prefect cloud webhook toggle <slug>
+prefect cloud webhook toggle <webhook-url-slug>
 ```
 
 ## Webhook endpoints

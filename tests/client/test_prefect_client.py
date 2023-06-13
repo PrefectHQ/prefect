@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import threading
@@ -14,6 +15,7 @@ import httpx
 import pendulum
 import pydantic
 import pytest
+import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 
@@ -29,6 +31,7 @@ from prefect.client.schemas.responses import (
 )
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
+from prefect.events.schemas import Automation, Posture, Trigger
 from prefect.server.api.server import SERVER_API_VERSION, create_app
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -209,25 +212,25 @@ class TestInjectClient:
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
 
-    async def test_does_not_use_existing_client_from_flow_run_ctx(self, prefect_client):
+    async def test_use_existing_client_from_flow_run_ctx(self, prefect_client):
         with prefect.context.FlowRunContext.construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
-        assert client is not prefect_client, "Client should not be the same object"
-        assert client._closed, "Client should be closed after function returns"
+        assert client is prefect_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
 
-    async def test_does_not_use_existing_client_from_task_run_ctx(self, prefect_client):
+    async def test_use_existing_client_from_task_run_ctx(self, prefect_client):
         with prefect.context.FlowRunContext.construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
-        assert client is not prefect_client, "Client should not be the same object"
-        assert client._closed, "Client should be closed after function returns"
+        assert client is prefect_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
 
-    async def test_does_not_use_existing_client_from_flow_run_ctx_with_null_kwarg(
+    async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
         self, prefect_client
     ):
         with prefect.context.FlowRunContext.construct(client=prefect_client):
             client = await TestInjectClient.injected_func(client=None)
-        assert client is not prefect_client, "Client should not be the same object"
-        assert client._closed, "Client should be closed after function returns"
+        assert client is prefect_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
 
 
 def not_enough_open_files() -> bool:
@@ -1798,6 +1801,65 @@ class TestVariables:
         res = await prefect_client.read_variables(limit=1)
         assert len(res) == 1
         assert res[0].name == variables[0].name
+
+
+class TestAutomations:
+    @pytest.fixture
+    def automation(self):
+        return Automation(
+            name="test-automation",
+            trigger=Trigger(
+                match={"flow_run_id": "123"},
+                posture=Posture.Reactive,
+                threshold=1,
+                within=0,
+            ),
+            actions=[],
+        )
+
+    async def test_create_not_cloud_runtime_error(
+        self, prefect_client, automation: Automation
+    ):
+        with pytest.raises(
+            RuntimeError,
+            match="Automations are only supported for Prefect Cloud.",
+        ):
+            await prefect_client.create_automation(automation)
+
+    async def test_create_automation(self, cloud_client, automation: Automation):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+            create_route = router.post("/automations/").mock(
+                return_value=httpx.Response(200, json=created_automation)
+            )
+
+            automation_id = await cloud_client.create_automation(automation)
+
+            assert create_route.called
+            assert json.loads(create_route.calls[0].request.content) == automation.dict(
+                json_compatible=True
+            )
+            assert automation_id == UUID(created_automation["id"])
+
+    async def test_delete_owned_automations_not_cloud_runtime_error(
+        self, prefect_client
+    ):
+        with pytest.raises(
+            RuntimeError,
+            match="Automations are only supported for Prefect Cloud.",
+        ):
+            resource_id = f"prefect.deployment.{uuid4()}"
+            await prefect_client.delete_resource_owned_automations(resource_id)
+
+    async def test_delete_owned_automations(self, cloud_client):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            resource_id = f"prefect.deployment.{uuid4()}"
+            delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
+                return_value=httpx.Response(204)
+            )
+            await cloud_client.delete_resource_owned_automations(resource_id)
+            assert delete_route.called
 
 
 async def test_server_error_does_not_raise_on_client():
