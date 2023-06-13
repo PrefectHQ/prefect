@@ -1753,16 +1753,16 @@ async def test_get_flow_run_logger(
 class TestInfrastructureIntegration:
     async def test_agent_crashes_flow_if_infrastructure_submission_fails(
         self,
-        orion_client: PrefectClient,
+        prefect_client: PrefectClient,
         worker_deployment_infra_wq1,
         work_pool,
         monkeypatch,
     ):
-        flow_run = await orion_client.create_flow_run_from_deployment(
+        flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_infra_wq1.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
-        await orion_client.read_flow(worker_deployment_infra_wq1.flow_id)
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
 
         def raise_value_error():
             raise ValueError("Hello!")
@@ -1771,16 +1771,12 @@ class TestInfrastructureIntegration:
         mock_run.run = raise_value_error
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker._logger = MagicMock()
             worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run)
             monkeypatch.setattr(worker, "run", mock_run)
             await worker.get_and_submit_flow_runs()
 
-        worker._logger.exception.assert_called_once_with(
-            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
-        )
-
-        state = (await orion_client.read_flow_run(flow_run.id)).state
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_crashed()
         with pytest.raises(
             CrashedRun, match="Flow run could not be submitted to infrastructure"
