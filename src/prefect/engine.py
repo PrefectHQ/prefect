@@ -78,7 +78,7 @@ Client-side execution and orchestration of flows and tasks.
     See `orchestrate_task_run`, `call_soon_in_new_thread`
 
     _Ideally, for local and sequential task runners we would send the task run to the
-    user thread as we do for flows. See https://github.com/PrefectHQ/prefect/pull/9855_
+    user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
 """
 import asyncio
 import contextlib
