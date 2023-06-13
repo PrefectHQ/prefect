@@ -521,7 +521,7 @@ triggers:
     expect:
       - prefect.flow-run.Completed
     match_related:
-      prefect.resource.id: prefect.flow.c5568579-9f63-415c-a53e-25f00fc35866
+      prefect.resource.name: prefect.flow.etl-flow
       prefect.resource.role: flow
     parameters:
       param_1: "{{ event }}"
