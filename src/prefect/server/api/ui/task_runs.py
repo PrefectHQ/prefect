@@ -1,6 +1,7 @@
+import sys
+from datetime import datetime, timezone
 from typing import List, Optional, cast
 
-from datetime import datetime
 import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
@@ -13,7 +14,6 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
-
 
 logger = get_logger("orion.api.ui.task_runs")
 
@@ -32,6 +32,11 @@ class TaskRunCount(PrefectBaseModel):
 def _postgres_bucket_expression(
     db: PrefectDBInterface, delta: pendulum.Duration, start_datetime: datetime
 ):
+    # asyncpg under Python 3.7 doesn't support timezone-aware datetimes for the EXTRACT
+    # function, so we will send it as a naive datetime in UTC
+    if sys.version_info < (3, 8):
+        start_datetime = start_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+
     return sa.func.floor(
         (
             sa.func.extract("epoch", db.TaskRun.start_time)
