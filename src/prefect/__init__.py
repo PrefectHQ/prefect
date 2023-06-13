@@ -57,7 +57,7 @@ import prefect.blocks.notifications
 import prefect.blocks.system
 import prefect.infrastructure.process
 import prefect.infrastructure.kubernetes
-import prefect.infrastructure.docker
+import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -70,6 +70,9 @@ import prefect.client.schemas
 prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
 prefect.context.TaskRunContext.update_forward_refs(Task=Task)
 prefect.client.schemas.State.update_forward_refs(
+    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
+)
+prefect.client.schemas.StateCreate.update_forward_refs(
     BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
 )
 
@@ -101,6 +104,16 @@ register_renamed_module(
     "prefect.client.orchestration",
     "prefect.client.orchestration",
     start_date="Feb 2023",
+)
+register_renamed_module(
+    "prefect.docker",
+    "prefect.utilities.dockerutils",
+    start_date="Mar 2023",
+)
+register_renamed_module(
+    "prefect.infrastructure.docker",
+    "prefect.infrastructure.container",
+    start_date="Mar 2023",
 )
 inject_renamed_module_alias_finder()
 

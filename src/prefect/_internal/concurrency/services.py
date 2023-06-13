@@ -1,27 +1,22 @@
 import abc
-import queue
 import asyncio
 import atexit
 import concurrent.futures
 import contextlib
+import queue
 import sys
 import threading
-from functools import partial
 from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
-import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.timeouts import get_deadline, get_timeout
-from prefect._internal.concurrency.threads import get_global_loop, WorkerThread
-from prefect.logging import get_logger
+from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
+from prefect._internal.concurrency.cancellation import get_deadline, get_timeout
+from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
-
-
-logger = get_logger("prefect._internal.concurrency.services")
 
 
 class QueueService(abc.ABC, Generic[T]):
@@ -62,7 +57,7 @@ class QueueService(abc.ABC, Generic[T]):
 
         # Stop at interpreter exit by default
         if sys.version_info < (3, 9):
-            atexit.register(self.drain)
+            atexit.register(self._at_exit)
         else:
             # See related issue at https://bugs.python.org/issue42647
             # Handling items may require spawning a thread and in 3.9  new threads
@@ -72,9 +67,12 @@ class QueueService(abc.ABC, Generic[T]):
             # httpx client.
             from threading import _register_atexit
 
-            _register_atexit(self.drain)
+            _register_atexit(self._at_exit)
 
-    def _stop(self):
+    def _at_exit(self):
+        self.drain(at_exit=True)
+
+    def _stop(self, at_exit: bool = False):
         """
         Stop running this instance.
 
@@ -85,7 +83,8 @@ class QueueService(abc.ABC, Generic[T]):
             return
 
         with self._lock:
-            logger.debug("Stopping service %r", self)
+            if not at_exit:  # The logger may not be available during interpreter exit
+                logger.debug("Stopping service %r", self)
 
             # Stop sending work to this instance
             self._remove_instance()
@@ -167,13 +166,15 @@ class QueueService(abc.ABC, Generic[T]):
         """
         yield
 
-    def _drain(self) -> concurrent.futures.Future:
+    def _drain(self, at_exit: bool = False) -> concurrent.futures.Future:
         """
         Internal implementation for `drain`. Returns a future for sync/async interfaces.
         """
+        if not at_exit:  # The logger may not be available during interpreter exit
+            logger.debug("Draining service %r", self)
 
-        logger.debug("Draining service %r", self)
-        self._stop()
+        self._stop(at_exit=at_exit)
+
         if self._done_event.is_set():
             future = concurrent.futures.Future()
             future.set_result(None)
@@ -182,13 +183,13 @@ class QueueService(abc.ABC, Generic[T]):
         future = asyncio.run_coroutine_threadsafe(self._done_event.wait(), self._loop)
         return future
 
-    def drain(self) -> None:
+    def drain(self, at_exit: bool = False) -> None:
         """
         Stop this instance of the service and wait for remaining work to be completed.
 
         Returns an awaitable if called from an async context.
         """
-        future = self._drain()
+        future = self._drain(at_exit=at_exit)
         if get_running_loop() is not None:
             return asyncio.wrap_future(future)
         else:
@@ -279,9 +280,9 @@ class BatchedQueueService(QueueService[T]):
             deadline = get_deadline(self._min_interval)
             while batch_size < self._max_batch_size:
                 try:
-                    item = await anyio.to_thread.run_sync(
-                        partial(self._queue.get, timeout=get_timeout(deadline))
-                    )
+                    item = await self._queue_get_thread.submit(
+                        create_call(self._queue.get, timeout=get_timeout(deadline))
+                    ).aresult()
 
                     if item is None:
                         done = True

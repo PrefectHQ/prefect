@@ -34,6 +34,8 @@ def test_event_loop_thread_start_race_condition():
         for _ in range(10):
             executor.submit(event_loop_thread.start)
 
+    event_loop_thread.shutdown()
+
 
 def test_event_loop_thread_with_on_shutdown_hook():
     event_loop_thread = EventLoopThread()

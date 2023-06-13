@@ -382,8 +382,12 @@ def default_database_connection_url(settings, value):
     new_default = home / "prefect.db"
 
     # If the old one exists and the new one does not, continue using the old one
-    if old_default.exists() and not new_default.exists():
-        return "sqlite+aiosqlite:///" + str(old_default)
+    if not new_default.exists():
+        if old_default.exists():
+            return "sqlite+aiosqlite:///" + str(old_default)
+
+        # Create the new default database with 0600 permissions if it does not exist
+        new_default.touch(mode=0o600)
 
     # Otherwise, return the new default
     return "sqlite+aiosqlite:///" + str(new_default)
@@ -477,6 +481,15 @@ PREFECT_CLI_COLORS = Setting(
 output will not include colors codes. Defaults to `True`.
 """
 
+PREFECT_CLI_PROMPT = Setting(
+    Optional[bool],
+    default=None,
+)
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive 
+prompts will be used. If `None`, the value will be dynamically determined based on
+the presence of an interactive-enabled terminal.
+"""
+
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
@@ -536,6 +549,18 @@ If the API does not support HTTP/2, this will have no effect and connections wil
 made via HTTP/1.1.
 """
 
+
+PREFECT_CLIENT_MAX_RETRIES = Setting(int, default=5)
+"""
+The maximum number of retries to perform on failed HTTP requests.
+
+Defaults to 5.
+Set to 0 to disable retries.
+
+See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are 
+retried.
+"""
+
 PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
 """
 A value greater than or equal to zero to control the amount of jitter added to retried
@@ -544,6 +569,7 @@ client requests. Higher values introduce larger amounts of jitter.
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
 """
+
 
 PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
     str, default="", value_callback=status_codes_as_integers_in_range
@@ -1197,6 +1223,16 @@ Whether or not to enable experimental Prefect artifacts.
 PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect artifacts are used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to enable the experimental workspace dashboard.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
 
@@ -2176,6 +2212,8 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
     Any existing data not present in the given `profiles` will be deleted.
     """
+    if not path.exists():
+        path.touch(mode=0o600)
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 

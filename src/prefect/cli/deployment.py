@@ -20,7 +20,13 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.schemas.filters import FlowFilter
+from prefect.client.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
@@ -32,12 +38,6 @@ from prefect.exceptions import (
     exception_traceback,
 )
 from prefect.flows import load_flow_from_entrypoint
-from prefect.server.schemas.filters import FlowFilter
-from prefect.server.schemas.schedules import (
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
-)
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -684,6 +684,7 @@ async def apply(
     """
     Create or update a deployment from a YAML file.
     """
+    deployment = None
     async with get_client() as client:
         for path in paths:
             try:
@@ -695,6 +696,8 @@ async def apply(
                 exit_with_error(
                     f"'{path!s}' did not conform to deployment spec: {exc!r}"
                 )
+
+            assert deployment
 
             await create_work_queue_and_set_concurrency_limit(
                 deployment.work_queue_name,
@@ -727,6 +730,17 @@ async def apply(
             await check_work_pool_exists(
                 work_pool_name=deployment.work_pool_name, client=client
             )
+
+            if client.server_type != ServerType.CLOUD and deployment.triggers:
+                app.console.print(
+                    (
+                        "Deployment triggers are only supported on "
+                        f"Prefect Cloud. Triggers defined in {path!r} will be "
+                        "ignored."
+                    ),
+                    style="red",
+                )
+
             deployment_id = await deployment.apply()
             app.console.print(
                 (

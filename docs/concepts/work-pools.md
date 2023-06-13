@@ -9,9 +9,12 @@ tags:
     - deployments
     - schedules
     - concurrency limits
+    - priority
 ---
 
 # Work Pools, Workers & Agents
+
+![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
 
 Work pools and the services that poll them, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment polls its respective work pool for new runs to execute.
 
@@ -52,8 +55,8 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
-!!! tip "`PREFECT_API_URL` setting for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents"
+    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. You must also have a user or service account with the `Developer` role, which can be configured by setting the `PREFECT_API_KEY`.
 
     If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
@@ -320,6 +323,14 @@ Work queues can also have their own concurrency limits. Note that each queue is 
 
 Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
+Priority is evaluated to determine the order in which flow runs are submitted for execution. 
+If all flow runs are capable of being executed with no limitation due to concurrency or otherwise, priority is still used to determine order of submission, but there is no impact to execution.
+If not all flow runs can be executed, usually as a result of concurrency limits, priority is used to determine which queues receive precedence to submit runs for execution.
+
+Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
+
+If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty, in waterfall fashion.
+
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
 
@@ -366,6 +377,9 @@ You must start a worker within an environment that can access or create the infr
 
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment (virtual environment, Docker container, etc.) where you intend to run the worker or execute a flow run.
+
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers"
+    `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Developer` role, which can be configured by setting the `PREFECT_API_KEY`.
 
 ### Starting a Worker
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.

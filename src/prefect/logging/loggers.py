@@ -4,6 +4,7 @@ import sys
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
+import warnings
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import prefect
@@ -11,9 +12,9 @@ from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
+    from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -28,7 +29,24 @@ class PrefectLogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
+        kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
+
+        from prefect._internal.compatibility.deprecated import (
+            generate_deprecation_message,
+            PrefectDeprecationWarning,
+        )
+
+        if "send_to_orion" in kwargs["extra"]:
+            warnings.warn(
+                generate_deprecation_message(
+                    'The "send_to_orion" option',
+                    start_date="May 2023",
+                    help='Use "send_to_api" instead.',
+                ),
+                PrefectDeprecationWarning,
+                stacklevel=4,
+            )
+
         return (msg, kwargs)
 
     def getChild(

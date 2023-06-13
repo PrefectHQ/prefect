@@ -145,6 +145,9 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 
 You can create a table artifact by calling `create_table_artifact()`. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
 
+!!! note
+    The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
+
 ```python
 from prefect.artifacts import create_table_artifact
 
