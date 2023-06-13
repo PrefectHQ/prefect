@@ -10,9 +10,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
+from pydantic import BaseModel
 
 import yaml
+from ruamel.yaml import YAML
 
 from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -363,7 +365,12 @@ def _copy_deployments_into_prefect_file():
             f.write(raw_deployment_file_contents)
 
 
-def _save_deployment_to_prefect_file(deployment: dict):
+def _save_deployment_to_prefect_file(
+    deployment: Dict,
+    build_steps: Optional[List[Dict]] = None,
+    push_steps: Optional[List[Dict]] = None,
+    pull_steps: Optional[List[Dict]] = None,
+):
     """
     Save a deployment configuration to the `prefect.yaml` file in the
     current directory.
@@ -376,7 +383,10 @@ def _save_deployment_to_prefect_file(deployment: dict):
     if not deployment:
         raise ValueError("Deployment must be a non-empty dictionary.")
     deployment = deepcopy(deployment)
+    # Parameter schema is not stored in prefect.yaml
     deployment.pop("parameter_openapi_schema")
+    # Only want entrypoint to avoid errors
+    deployment.pop("flow_name", None)
 
     if deployment.get("schedule"):
         if isinstance(deployment["schedule"], IntervalSchedule):
@@ -387,21 +397,39 @@ def _save_deployment_to_prefect_file(deployment: dict):
             deployment["schedule"]["anchor_date"] = deployment["schedule"][
                 "anchor_date"
             ].isoformat()
-        else:
+        elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
 
     current_directory_name = os.path.basename(os.getcwd())
     prefect_file = Path("prefect.yaml")
     if not prefect_file.exists():
         create_default_prefect_yaml(
-            ".", current_directory_name, contents={"deployments": [deployment]}
+            ".",
+            current_directory_name,
+            contents={
+                "deployments": [deployment],
+                "build": build_steps,
+                "push": push_steps,
+                "pull": pull_steps,
+            },
         )
     else:
+        # use ruamel.yaml to preserve comments
+        ryaml = YAML()
         with prefect_file.open(mode="r") as f:
-            parsed_prefect_file_contents = yaml.safe_load(f)
+            parsed_prefect_file_contents = ryaml.load(f)
+
+        if build_steps != parsed_prefect_file_contents.get("build"):
+            deployment["build"] = build_steps
+
+        if push_steps != parsed_prefect_file_contents.get("push"):
+            deployment["push"] = build_steps
+
+        if pull_steps != parsed_prefect_file_contents.get("pull"):
+            deployment["pull"] = build_steps
 
         deployments = parsed_prefect_file_contents.get("deployments", [])
         deployments.append(deployment)
 
         with prefect_file.open(mode="w") as f:
-            yaml.dump({"deployments": deployments}, f, sort_keys=False)
+            ryaml.dump(parsed_prefect_file_contents, f)

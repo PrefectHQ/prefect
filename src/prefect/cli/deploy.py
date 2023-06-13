@@ -258,7 +258,7 @@ async def deploy(
     except FileNotFoundError:
         deployments = project.get("deployments", [])
     try:
-        if len(deployments) > 1:
+        if len(deployments) >= 1:
             if deploy_all or len(names) > 1:
                 if any(options.values()):
                     app.console.print(
@@ -321,21 +321,13 @@ async def deploy(
                     options=options,
                     ci=ci,
                 )
-        elif len(deployments) <= 1:
-            if len(names) > 1:
-                exit_with_error(
-                    "Multiple deployment names were provided, but only one deployment"
-                    " configuration was found. Please provide a single deployment"
-                    " name."
-                )
-            else:
-                options["name"] = names[0] if names else None
-                await _run_single_deploy(
-                    base_deploy=deployments[0] if deployments else {},
-                    project=project,
-                    options=options,
-                    ci=ci,
-                )
+        else:
+            await _run_single_deploy(
+                base_deploy={},
+                project=project,
+                options=options,
+                ci=ci,
+            )
     except ValueError as exc:
         exit_with_error(str(exc))
 
@@ -645,7 +637,12 @@ async def _run_single_deploy(
         ),
         console=app.console,
     ):
-        _save_deployment_to_prefect_file(deploy_config)
+        _save_deployment_to_prefect_file(
+            deploy_config,
+            build_steps=build_steps or None,
+            push_steps=push_steps or None,
+            pull_steps=pull_steps or None,
+        )
         app.console.print(
             "Deployment configuration saved to prefect.yaml",
             style="green",
