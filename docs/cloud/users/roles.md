@@ -49,7 +49,7 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Runner    | All Viewer abilities, _plus_: <br> &bull; Run deployments within a workspace.                                                                                                                                                                                                                                                                                                                                                                                         |
 | Developer | All Runner abilities, _plus_: <br> &bull; Run flows within a workspace. <br> &bull; Delete flow runs within a workspace. <br> &bull; Create, edit, and delete deployments within a workspace. <br> &bull; Create, edit, and delete work pools within a workspace. <br> &bull; Create, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, edit, and delete automations within a workspace. <br> &bull; View all workspace settings. |
 | Owner     | All Developer abilities, _plus_: <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings.                                                                                                                                                                                                    |
-| Runner     | The minimum scopes required for a worker to poll for and submit work.| 
+| Worker     | The minimum scopes required for a worker to poll for and submit work.| 
 
 
 ## Custom workspace roles
