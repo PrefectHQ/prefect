@@ -10,7 +10,7 @@ tags:
 *Users* of Prefect Cloud are accounts for individuals created by signing up at [app.prefect.cloud](https://app.prefect.cloud). Users can also be added as a Member of other [Organizations](/cloud/organizations/) and [Workspaces](/cloud/workspaces/).
 
 ## User Settings
-Users can access their settings in the [profile menu](https://app.prefect.cloud/my/profile), including:
+Users can access their account in the [profile menu](https://app.prefect.cloud/my/profile), including:
 
 - Profile: Viewing and editing basic information like account handle.
 - API keys: Creating [API keys](/cloud/users/api-keys/) for connecting Prefect Cloud to their local development environment.
