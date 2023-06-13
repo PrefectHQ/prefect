@@ -1063,3 +1063,73 @@ class TestFlowRunHistory:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"History interval must not be less than 1 second" in response.content
+
+
+class TestFlowRunLateness:
+    @pytest.fixture
+    def url(self) -> str:
+        return "/flow_runs/lateness"
+
+    @pytest.fixture()
+    async def late_flow_runs(self, session, flow):
+        flow_runs = []
+        for i in range(5):
+            one_minute_ago = pendulum.now().subtract(minutes=1)
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Scheduled(scheduled_time=one_minute_ago),
+                ),
+            )
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=schemas.states.Running(timestamp=one_minute_ago.add(seconds=i)),
+            )
+            flow_runs.append(flow_run)
+
+            await session.commit()
+
+        return flow_runs
+
+    async def test_average_lateness_no_flow_runs(self, url: str, client):
+        response = await client.post(url)
+        assert response.status_code == 200
+
+        # If no flow runs match the filter, the average lateness is null.
+        assert response.content == b"null"
+
+    async def test_average_lateness(
+        self,
+        url: str,
+        client,
+        late_flow_runs,
+    ):
+        response = await client.post(url)
+        assert response.status_code == 200
+
+        # The flow runs in `late_flow_runs` are created in a loop and the
+        # lateness is the iteration count of the loop. There are 5 flow runs,
+        # so avg(0 + 1 + 2 + 3 + 4) == 2.0
+        assert response.content == b"2.0"
+
+    async def test_supports_filters(
+        self,
+        url: str,
+        client,
+        late_flow_runs,
+    ):
+        flow_run_ids = [flow_run.id for flow_run in late_flow_runs[-2:]]
+        flow_run_filter = schemas.filters.FlowRunFilter(
+            id=schemas.filters.FlowRunFilterId(any_=flow_run_ids)
+        )
+        response = await client.post(
+            url, json={"flow_runs": flow_run_filter.dict(json_compatible=True)}
+        )
+        assert response.status_code == 200
+
+        # The flow runs in `late_flow_runs` are created in a loop and the
+        # lateness is the iteration count of the loop. We're only looking at
+        # the last two flow runs in that list so avg(3 + 4) == 3.5
+        assert response.content == b"3.5"
