@@ -460,7 +460,10 @@ class FlowRun(ObjectBaseModel):
     )
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime. This takes precedence over `Deployment.infra_overrides`.",
+        description=(
+            "Overrides to apply to the base infrastructure block at runtime. This takes"
+            " precedence over `Deployment.infra_overrides`."
+        ),
     )
     infrastructure_pid: Optional[str] = Field(
         default=None,

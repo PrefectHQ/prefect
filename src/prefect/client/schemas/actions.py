@@ -335,7 +335,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = FieldFrom(objects.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(objects.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(objects.FlowRun)
-    infra_overrides: dict = FieldFrom(objects.FlowRun)
+    infra_overrides: Dict[str, Any] = FieldFrom(objects.FlowRun)
 
 
 @copy_model_fields
