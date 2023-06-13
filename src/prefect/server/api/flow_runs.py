@@ -126,30 +126,33 @@ async def average_flow_run_lateness(
     Query for average flow-run lateness in seconds.
     """
     async with db.session_context() as session:
+        if db.dialect.name == "sqlite":
+            # Since we want an _average_ of the lateness we're unable to use
+            # the existing FlowRun.expected_start_time_delta property as it
+            # returns a timedelta and SQLite is unable to properly deal with it
+            # and always returns 1970.0 as the average. This copies the same
+            # logic but ensures that it returns the number of seconds instead
+            # so it's compatible with SQLite.
+            base_query = sa.case(
+                (
+                    db.FlowRun.start_time > db.FlowRun.expected_start_time,
+                    sa.func.strftime("%s", db.FlowRun.start_time)
+                    - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                ),
+                (
+                    db.FlowRun.start_time.is_(None)
+                    & db.FlowRun.state_type.notin_(schemas.states.TERMINAL_STATES)
+                    & (db.FlowRun.expected_start_time < sa.func.datetime("now")),
+                    sa.func.strftime("%s", sa.func.datetime("now"))
+                    - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                ),
+                else_=0,
+            )
+        else:
+            base_query = db.FlowRun.estimated_start_time_delta
+
         query = await models.flow_runs._apply_flow_run_filters(
-            sa.select(
-                sa.func.avg(
-                    sa.case(
-                        (
-                            db.FlowRun.start_time > db.FlowRun.expected_start_time,
-                            sa.func.strftime("%s", db.FlowRun.start_time)
-                            - sa.func.strftime("%s", db.FlowRun.expected_start_time),
-                        ),
-                        (
-                            db.FlowRun.start_time.is_(None)
-                            & db.FlowRun.state_type.notin_(
-                                schemas.states.TERMINAL_STATES
-                            )
-                            & (
-                                db.FlowRun.expected_start_time < sa.func.datetime("now")
-                            ),
-                            sa.func.strftime("%s", sa.func.datetime("now"))
-                            - sa.func.strftime("%s", db.FlowRun.expected_start_time),
-                        ),
-                        else_=0,
-                    )
-                )
-            ),
+            sa.select(sa.func.avg(base_query)),
             flow_filter=flows,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
@@ -163,8 +166,10 @@ async def average_flow_run_lateness(
 
         if avg_lateness is None:
             return None
-
-        return avg_lateness
+        elif isinstance(avg_lateness, datetime.timedelta):
+            return avg_lateness.total_seconds()
+        else:
+            return avg_lateness
 
 
 @router.post("/history")
