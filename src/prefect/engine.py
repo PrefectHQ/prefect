@@ -7,7 +7,7 @@ Client-side execution and orchestration of flows and tasks.
 
 - **The flow is called by the user or an existing flow run is executed in a new process.**
 
-    See `Flow.__call__` and `prefect.engine.__main__` (`python -m prefect.engine)
+    See `Flow.__call__` and `prefect.engine.__main__` (`python -m prefect.engine`)
 
 - **A synchronous function acts as an entrypoint to the engine.**
     The engine executes on a dedicated "global loop" thread. For asynchronous flow calls,
