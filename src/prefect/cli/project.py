@@ -19,8 +19,14 @@ from prefect.projects import register_flow as register
 
 from prefect.projects.steps.core import run_steps
 
+# Deprecated compatibility
 project_app = PrefectTyper(
-    name="project", help="Commands for interacting with your Prefect project."
+    name="project",
+    help="Deprecated. Use `prefect init` instead.",
+    deprecated=True,
+    deprecated_name="prefect project",
+    deprecated_start_date="Jun 2023",
+    deprecated_help="Use `prefect` instead.",
 )
 app.add_typer(project_app, aliases=["projects"])
 
@@ -28,6 +34,13 @@ recipe_app = PrefectTyper(
     name="recipe", help="Commands for interacting with project recipes."
 )
 project_app.add_typer(recipe_app, aliases=["recipes"])
+
+init_app = PrefectTyper(
+    name="init",
+    help="Commands for initializing a new project.",
+)
+app.add_typer(init_app, aliases=["init"])
+init_app.add_typer(recipe_app, aliases=["recipes"])
 
 
 @recipe_app.command()
@@ -62,6 +75,7 @@ async def ls():
     app.console.print(table)
 
 
+@app.command()
 @project_app.command()
 async def init(
     name: str = None,
