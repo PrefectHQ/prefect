@@ -39,7 +39,11 @@ from prefect.utilities.templating import apply_values
 
 from prefect.projects.steps.core import run_steps
 
-from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
+from prefect.projects.base import (
+    _copy_deployments_into_prefect_file,
+    _get_git_branch,
+    _get_git_remote_origin_url,
+)
 
 from prefect.blocks.system import Secret
 
@@ -212,16 +216,46 @@ async def deploy(
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
-    except FileNotFoundError:
-        if PREFECT_DEBUG_MODE:
+        if is_interactive() and not ci and project:
+            if confirm(
+                generate_deprecation_message(
+                    "Using a `deployment.yaml` file with `prefect deploy`",
+                    start_date="Jun 2023",
+                    help=(
+                        "Would you like to copy the contents of your `deployment.yaml`"
+                        " file into your `prefect.yaml` file now?"
+                    ),
+                )
+            ):
+                try:
+                    _copy_deployments_into_prefect_file()
+                    app.console.print(
+                        "Successfully copied your deployment configurations into your"
+                        " prefect.yaml file! Once you've verified that all your"
+                        " deployment configurations in your prefect.yaml file are"
+                        " correct, you can delete your deployment.yaml file."
+                    )
+                except Exception:
+                    app.console.print(
+                        "Encountered an error while copying deployments into"
+                        " prefect.yaml: {exc}"
+                    )
+        else:
             app.console.print(
-                (
-                    "No deployment.yaml file found, only provided CLI options will be"
-                    " used."
+                generate_deprecation_message(
+                    "Using a `deployment.yaml` file with `prefect deploy`",
+                    start_date="Jun 2023",
+                    help=(
+                        "Please use the `prefect.yaml` file instead by copying the"
+                        " contents of your `deployment.yaml` file into your"
+                        " `prefect.yaml` file."
+                    ),
                 ),
                 style="yellow",
             )
-        deployments = []
+
+    except FileNotFoundError:
+        deployments = project.get("deployments", [])
 
     try:
         if len(deployments) > 1:
@@ -249,8 +283,8 @@ async def deploy(
                 if not deployment:
                     app.console.print(
                         (
-                            "Could not find deployment declaration with name "
-                            f"{names[0]} in deployment.yaml. Only CLI options "
+                            "Could not find deployment configuration with name "
+                            f"{names[0]!r}. Only CLI options "
                             "will be used for this deployment."
                         ),
                         style="yellow",
@@ -262,16 +296,13 @@ async def deploy(
             else:
                 if not is_interactive() or ci:
                     exit_with_error(
-                        "Discovered multiple deployments declared in deployment.yaml,"
+                        "Discovered multiple deployment configurations,"
                         " but no name was given. Please specify the name of at least"
                         " one deployment to create or update."
                     )
                 selected_deployment = prompt_select_from_table(
                     app.console,
-                    (
-                        "Would you like to use an existing deployment configuration"
-                        " from deployment.yaml?"
-                    ),
+                    "Would you like to use an existing deployment configuration?",
                     [
                         {"header": "Name", "key": "name"},
                         {"header": "Description", "key": "description"},
@@ -294,7 +325,7 @@ async def deploy(
             if len(names) > 1:
                 exit_with_error(
                     "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
+                    " configuration was found. Please provide a single deployment"
                     " name."
                 )
             else:
@@ -365,7 +396,7 @@ async def _run_single_deploy(
             " name:\n\n\t[yellow]prefect project register-flow"
             " path/to/file.py:flow_function\n\tprefect deploy --flow"
             " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-            " name in this project's deployment.yaml file."
+            " name in this project's prefect.yaml file."
         )
     if flow_name and entrypoint:
         raise ValueError(
@@ -395,7 +426,7 @@ async def _run_single_deploy(
         app.console.print(
             generate_deprecation_message(
                 "The ability to deploy by flow name",
-                end_date="Jun 2023",
+                start_date="Jun 2023",
                 help=(
                     "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
                     " an entrypoint instead."
@@ -521,7 +552,7 @@ async def _run_single_deploy(
         if not is_interactive() or ci:
             raise ValueError(
                 "A work pool is required to deploy this flow. Please specify a work"
-                " pool name via the '--pool' flag or in your deployment.yaml file."
+                " pool name via the '--pool' flag or in your prefect.yaml file."
             )
         base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
             console=app.console, client=client
@@ -746,7 +777,7 @@ def _merge_with_default_deployment(base_deploy: Dict):
     if DEFAULT_DEPLOYMENT is None:
         # load the default deployment file for key consistency
         default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
+            Path(__file__).parent.parent / "projects" / "templates" / "prefect.yaml"
         )
 
         # load default file

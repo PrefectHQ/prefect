@@ -349,7 +349,7 @@ async def prompt_create_work_pool(
     ):
         raise ValueError(
             "A work pool is required to deploy this flow. Please specify a work pool"
-            " name via the '--pool' flag or in your deployment.yaml file."
+            " name via the '--pool' flag or in your prefect.yaml file."
         )
     async with get_collections_metadata_client() as collections_client:
         worker_metadata = await collections_client.read_worker_metadata()
