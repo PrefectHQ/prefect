@@ -113,13 +113,11 @@ nav:
         - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorial:
         - tutorial/index.md
-        - Flows & Tasks: tutorial/first-steps.md
-        - Flow & Task Configuration: tutorial/flow-task-config.md
-        - Execution: tutorial/execution.md
-        - Orchestration: tutorial/orchestration.md
-        - Projects: tutorial/projects.md
-        - Deployments: tutorial/deployments.md
-        - Storage & Infrastructure: tutorial/storage.md
+        - Flows: tutorial/first-steps.md
+        - Tasks: tutorial/flow-task-config.md
+        - Creating a Deployment: tutorial/execution.md
+        - Deploying our Flows: tutorial/orchestration.md
+        - Next Steps: tutorial/storage.md
     - Concepts:
         - concepts/index.md
         - Develop:

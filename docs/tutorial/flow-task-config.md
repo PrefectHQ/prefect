@@ -83,8 +83,8 @@ Locally we'll see something like this:
 ```
 
 If we click the link in our terminal and follow it to Prefect Cloud, we'll see something like this:
-![Prefect Cloud](/img/tutorial/org-members.png)
-74:![Invite new members to an organization in Prefect Cloud.](/img/ui/org-invite-members.
+
+![Prefect Cloud](/img/tutorial/cloud-flow-run.png)
 
 By encapsulating a specific unit of work within a task, you can define its inputs, outputs, and behavior. This modular approach allows for easier management and composition of complex workflows.
 
