@@ -672,7 +672,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                     }
@@ -728,7 +728,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://example.com/org/repo-override.git",
                         "branch": "dev",
                     }
@@ -777,7 +777,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                         "token": (

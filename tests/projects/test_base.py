@@ -92,9 +92,7 @@ class TestRecipes:
         recipe_config = configure_project_by_recipe(
             recipe, repository="test-org/test-repo"
         )
-        clone_step = recipe_config["pull"][0][
-            "prefect.projects.steps.git_clone_project"
-        ]
+        clone_step = recipe_config["pull"][0]["prefect.projects.steps.git_clone"]
         assert clone_step["repository"] == "test-org/test-repo"
         assert clone_step["branch"] == "{{ branch }}"
 
@@ -138,7 +136,7 @@ class TestInitProject:
             contents = yaml.safe_load(f)
 
         clone_step = contents["pull"][0]
-        assert "prefect.projects.steps.git_clone_project" in clone_step
+        assert "prefect.projects.steps.git_clone" in clone_step
 
         build_step = contents["build"][0]
         assert "prefect_docker.projects.steps.build_docker_image" in build_step
