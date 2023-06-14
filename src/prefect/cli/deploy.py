@@ -746,7 +746,10 @@ def _merge_with_default_deployment(base_deploy: Dict):
     if DEFAULT_DEPLOYMENT is None:
         # load the default deployment file for key consistency
         default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
+            Path(__file__).parent.parent
+            / "deployment"
+            / "templates"
+            / "deployment.yaml"
         )
 
         # load default file
@@ -852,14 +855,14 @@ async def _generate_default_pull_action(
                 ).save(name=token_secret_block_name, overwrite=True)
 
         git_clone_step = {
-            "prefect.projects.steps.git_clone": {
+            "prefect.deployment.steps.git_clone": {
                 "repository": remote_url,
                 "branch": branch,
             }
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.projects.steps.git_clone"]["token"] = (
+            git_clone_step["prefect.deployment.steps.git_clone"]["token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 
@@ -870,11 +873,11 @@ async def _generate_default_pull_action(
             "Your Prefect workers will attempt to load your flow from:"
             f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
-            " prefect project recipes ls[/]\n"
+            " prefect init[/]\n"
         )
         return [
             {
-                "prefect.projects.steps.set_working_directory": {
+                "prefect.deployment.steps.set_working_directory": {
                     "directory": str(Path.cwd().absolute().resolve())
                 }
             }

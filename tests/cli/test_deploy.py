@@ -777,7 +777,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                         "token": (
