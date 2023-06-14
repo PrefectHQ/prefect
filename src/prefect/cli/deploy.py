@@ -31,15 +31,15 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.projects import find_prefect_directory, register_flow
+from prefect.deployment import find_prefect_directory, register_flow
 from prefect.settings import PREFECT_UI_URL, PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployment.steps.core import run_steps
 
-from prefect.projects.base import (
+from prefect.deployment.base import (
     _copy_deployments_into_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
@@ -256,7 +256,6 @@ async def deploy(
 
     except FileNotFoundError:
         deployments = project.get("deployments", [])
-
     try:
         if len(deployments) > 1:
             if deploy_all or len(names) > 1:
@@ -777,7 +776,7 @@ def _merge_with_default_deployment(base_deploy: Dict):
     if DEFAULT_DEPLOYMENT is None:
         # load the default deployment file for key consistency
         default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "prefect.yaml"
+            Path(__file__).parent.parent / "deployment" / "templates" / "prefect.yaml"
         )
 
         # load default file
@@ -883,14 +882,14 @@ async def _generate_default_pull_action(
                 ).save(name=token_secret_block_name, overwrite=True)
 
         git_clone_step = {
-            "prefect.projects.steps.git_clone": {
+            "prefect.deployment.steps.git_clone": {
                 "repository": remote_url,
                 "branch": branch,
             }
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.projects.steps.git_clone"]["token"] = (
+            git_clone_step["prefect.deployment.steps.git_clone"]["token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 
@@ -905,7 +904,7 @@ async def _generate_default_pull_action(
         )
         return [
             {
-                "prefect.projects.steps.set_working_directory": {
+                "prefect.deployment.steps.set_working_directory": {
                     "directory": str(Path.cwd().absolute().resolve())
                 }
             }

@@ -5,7 +5,7 @@ description: "Store project within git repository"
 build: null
 push: null
 pull:
-  - prefect.projects.steps.git_clone_project:
+  - prefect.deployment.steps.git_clone:
       repository: "{{ repository }}"
       branch: "{{ branch }}"
       access_token: null

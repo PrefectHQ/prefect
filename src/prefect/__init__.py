@@ -115,6 +115,7 @@ register_renamed_module(
     "prefect.infrastructure.container",
     start_date="Mar 2023",
 )
+register_renamed_module("prefect.projects", "prefect.deployment", start_date="Jun 2023")
 inject_renamed_module_alias_finder()
 
 

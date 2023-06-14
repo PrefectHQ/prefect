@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 import prefect
-from prefect.projects.base import (
+from prefect.deployment.base import (
     configure_project_by_recipe,
     find_prefect_directory,
     initialize_project,
@@ -63,7 +63,7 @@ class TestRecipes:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "projects"
+                / "deployment"
                 / "recipes"
             ).iterdir()
             if d.is_dir()
@@ -82,7 +82,7 @@ class TestRecipes:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "projects"
+                / "deployment"
                 / "recipes"
             ).iterdir()
             if d.is_dir() and "git" in d.absolute().name
@@ -151,7 +151,7 @@ class TestInitProject:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "projects"
+                / "deployment"
                 / "recipes"
             ).iterdir()
             if d.is_dir() and "docker" in d.absolute().name

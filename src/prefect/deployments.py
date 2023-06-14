@@ -42,7 +42,7 @@ from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployment.steps.core import run_steps
 
 
 @sync_compatible

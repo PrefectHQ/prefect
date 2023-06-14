@@ -5,7 +5,7 @@ description: "Store project on a local filesystem"
 build: null
 push: null
 pull: 
-  - prefect.projects.steps.set_working_directory:
+  - prefect.deployment.steps.set_working_directory:
       directory: "{{ directory }}"
 
 deployments:
