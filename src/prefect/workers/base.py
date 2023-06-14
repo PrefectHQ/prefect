@@ -8,6 +8,7 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
+
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
@@ -350,6 +351,7 @@ class BaseWorker(abc.ABC):
         self._work_pool: Optional[WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
@@ -483,9 +485,40 @@ class BaseWorker(abc.ABC):
         self._runs_task_group = None
         self._client = None
 
+    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
+        """
+        This method is invoked by a webserver healthcheck handler
+        and returns a boolean indicating if the worker has recorded a
+        scheduled flow run poll within a variable amount of time.
+
+        The `query_interval_seconds` is the same value that is used by
+        the loop services - we will evaluate if the _last_polled_time
+        was within that interval x 30 (so 10s -> 5m)
+
+        The instance property `self._last_polled_time`
+        is currently set/updated in `get_and_submit_flow_runs()`
+        """
+        threshold_seconds = query_interval_seconds * 30
+
+        seconds_since_last_poll = (
+            pendulum.now("utc") - self._last_polled_time
+        ).in_seconds()
+
+        is_still_polling = seconds_since_last_poll <= threshold_seconds
+
+        if not is_still_polling:
+            self._logger.error(
+                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
+                "and should be restarted"
+            )
+
+        return is_still_polling
+
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
-        self._emit_worker_poll_flow_run_event()
+
+        self._last_polled_time = pendulum.now("utc")
+
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def check_for_cancelled_flow_runs(self):
@@ -533,8 +566,6 @@ class BaseWorker(abc.ABC):
         )
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
-
-        self._emit_worker_poll_cancelled_flow_run_event()
 
         if cancelling_flow_runs:
             self._logger.info(
@@ -1067,20 +1098,6 @@ class BaseWorker(abc.ABC):
             resource=self._event_resource(),
             related=related,
             follows=submitted_event,
-        )
-
-    def _emit_worker_poll_flow_run_event(self) -> Event:
-        return emit_event(
-            "prefect.worker.poll.flow-run",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
-        )
-
-    def _emit_worker_poll_cancelled_flow_run_event(self) -> Event:
-        return emit_event(
-            "prefect.worker.poll.cancelled-flow-run",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
         )
 
     async def _emit_worker_started_event(self) -> Event:

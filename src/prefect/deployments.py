@@ -20,11 +20,12 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -34,13 +35,14 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
-from prefect.projects.steps import run_step
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
+
+from prefect.projects.steps.core import run_steps
 
 
 @sync_compatible
@@ -198,10 +200,7 @@ async def load_flow_from_flow_run(
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
-        # TODO: allow for passing values between steps / stacking them
-        output = {}
-        for step in deployment.pull_steps:
-            output.update(await run_step(step))
+        output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
             logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
@@ -471,6 +470,10 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
+    triggers: List[DeploymentTrigger] = Field(
+        default_factory=list,
+        description="The triggers that should cause this deployment to run.",
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -516,11 +519,19 @@ class Deployment(BaseModel):
             return ParameterSchema()
         return value
 
+    @validator("triggers")
+    def validate_automation_names(cls, field_value, values, field, config):
+        """Ensure that each trigger has a name for its automation if none is provided."""
+        for i, trigger in enumerate(field_value, start=1):
+            if trigger.name is None:
+                trigger.name = f"{values['name']}__automation_{i}"
+
+        return field_value
+
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
         data = yaml.safe_load(await anyio.Path(path).read_bytes())
-
         # load blocks from server to ensure secret values are properly hydrated
         if data.get("storage"):
             block_doc_name = data["storage"].get("_block_document_name")
@@ -564,7 +575,7 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp"}
+                    {"infrastructure", "storage", "timestamp", "triggers"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -718,6 +729,19 @@ class Deployment(BaseModel):
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
             )
+
+            if client.server_type == ServerType.CLOUD:
+                # The triggers defined in the deployment spec are, essentially,
+                # anonymous and attempting truly sync them with cloud is not
+                # feasible. Instead, we remove all automations that are owned
+                # by the deployment, meaning that they were created via this
+                # mechanism below, and then recreate them.
+                await client.delete_resource_owned_automations(
+                    f"prefect.deployment.{deployment_id}"
+                )
+                for trigger in self.triggers:
+                    trigger.set_deployment_id(deployment_id)
+                    await client.create_automation(trigger.as_automation())
 
             return deployment_id
 

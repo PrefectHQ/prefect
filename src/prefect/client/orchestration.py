@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import httpcore
+import asyncio
 import httpx
 import pendulum
 import pydantic
@@ -17,6 +18,8 @@ import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.deprecated.data_documents import DataDocument
+from prefect.logging import get_logger
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -73,8 +76,8 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
-    WorkPool,
     WorkQueue,
+    WorkPool,
 )
 from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -87,8 +90,7 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
-from prefect.deprecated.data_documents import DataDocument
-from prefect.logging import get_logger
+from prefect.events.schemas import Automation
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
@@ -126,6 +128,7 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
+
     if not api:
         # create an ephemeral API if none was provided
         from prefect.server.api.server import create_app
@@ -275,9 +278,8 @@ class PrefectClient:
             ),
         )
 
-        self._client = PrefectHttpxClient(
-            **httpx_settings,
-        )
+        self._client = PrefectHttpxClient(**httpx_settings)
+        self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
@@ -839,7 +841,7 @@ class PrefectClient:
             httpx.RequestError: If request fails
 
         Returns:
-            UUID: The UUID of the newly created workflow
+            The created work queue
         """
         if tags:
             warnings.warn(
@@ -2493,6 +2495,24 @@ class PrefectClient:
         response.raise_for_status()
         return response.json()
 
+    async def create_automation(self, automation: Automation) -> UUID:
+        """Creates an automation in Prefect Cloud."""
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        response = await self._client.post(
+            "/automations/",
+            json=automation.dict(json_compatible=True),
+        )
+
+        return UUID(response.json()["id"])
+
+    async def delete_resource_owned_automations(self, resource_id: str):
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        await self._client.delete(f"/automations/owned-by/{resource_id}")
+
     async def __aenter__(self):
         """
         Start the client.
@@ -2513,6 +2533,7 @@ class PrefectClient:
             # httpx.AsyncClient does not allow reentrancy so we will not either.
             raise RuntimeError("The client cannot be started more than once.")
 
+        self._loop = asyncio.get_running_loop()
         await self._exit_stack.__aenter__()
 
         # Enter a lifespan context if using an ephemeral application.

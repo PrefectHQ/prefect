@@ -16,7 +16,7 @@ Automations in Prefect Cloud enable you to configure [actions](#actions) that Pr
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](../../concepts/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
 
 ## Automations overview
 
@@ -92,6 +92,20 @@ For example, if you would only like a trigger to execute an action if it receive
 }
 ```
 
+!!! note "Matching on multiple resources"
+    Each key in `match` and `match_related` can accept a list of multiple values that are `OR`'d together. For example, to match on multiple deployments:
+
+    ```json
+    "match_related": {
+      "prefect.resource.id": [
+        "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761",
+        "prefect.deployment.c33b8eaa-1ba7-43c4-ac43-7904a9550611"
+      ],
+      "prefect.resource.role": "deployment"
+    },
+    ```
+
+
 Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
 
 ```json
@@ -165,6 +179,25 @@ Specify a name and, optionally, a description for the automation.
 
 ![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
 
+
+## Create an automation via deployment triggers
+
+To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+To 
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: my.external.resource
+    expect:
+      - external.resource.pinged
+    parameters:
+      param_1: "{{ event }}"
+```
+
+When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
+
 ## Automation notifications
 
 Notifications enable you to set up automation actions that send a message. 
@@ -221,7 +254,7 @@ Flow run {{ flow_run.name }} for flow {{ flow.name }}
 entered state {{ flow_run.state.name }}
 with message {{ flow_run.state.message }}
 
-Flow tags: {{ flow.tags }}
+Flow tags: {{ flow_run.tags }}
 Deployment name: {{ deployment.name }}
 Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}

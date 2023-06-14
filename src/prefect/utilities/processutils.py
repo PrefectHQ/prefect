@@ -297,21 +297,22 @@ async def consume_process_output(
         )
 
 
-async def stream_text(source: TextReceiveStream, sink: Optional[TextSink]):
-    if isinstance(sink, TextIOBase):
-        # Convert the blocking sink to an async-compatible object
-        sink = anyio.wrap_file(sink)
-
+async def stream_text(source: TextReceiveStream, *sinks: TextSink):
+    wrapped_sinks = [
+        anyio.wrap_file(sink) if isinstance(sink, TextIOBase) else sink
+        for sink in sinks
+    ]
     async for item in source:
-        if isinstance(sink, TextSendStream):
-            await sink.send(item)
-        elif isinstance(sink, anyio.AsyncFile):
-            await sink.write(item)
-            await sink.flush()
-        elif sink is None:
-            pass  # Consume the item but perform no action
-        else:
-            raise TypeError(f"Unsupported sink type {type(sink).__name__}")
+        for sink in wrapped_sinks:
+            if isinstance(sink, TextSendStream):
+                await sink.send(item)
+            elif isinstance(sink, anyio.AsyncFile):
+                await sink.write(item)
+                await sink.flush()
+            elif sink is None:
+                pass  # Consume the item but perform no action
+            else:
+                raise TypeError(f"Unsupported sink type {type(sink).__name__}")
 
 
 def forward_signal_handler(
