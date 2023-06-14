@@ -3,7 +3,6 @@ Command line interface for working with projects.
 """
 from pathlib import Path
 from typing import List
-from prefect.cli._prompts import confirm
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 
 import typer
@@ -15,7 +14,7 @@ from prefect.cli._prompts import prompt_select_from_table
 import prefect
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.projects import find_prefect_directory, initialize_project
@@ -103,45 +102,40 @@ async def init(
         key, value = field.split("=")
         inputs[key] = value
 
-    if not recipe:
-        if confirm(
+    if not recipe and is_interactive():
+        recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+        recipes = []
+
+        for r in recipe_paths.iterdir():
+            if r.is_dir() and (r / "prefect.yaml").exists():
+                with open(r / "prefect.yaml") as f:
+                    recipe_data = yaml.safe_load(f)
+                    recipe_name = r.name
+                    recipe_description = recipe_data.get(
+                        "description", "(no description available)"
+                    )
+                    recipe = {
+                        "name": recipe_name,
+                        "description": recipe_description,
+                    }
+                    recipes.append(recipe)
+
+        selected_recipe = prompt_select_from_table(
+            app.console,
             (
-                "You haven't specified a recipe. Would you like to see a list of"
-                " available recipes?"
+                "You haven't specified a deployment configuration recipe. Would you"
+                " like to see a list of available recipes?"
             ),
-            default=True,
-            console=app.console,
-        ):
-            recipe_paths = prefect.__module_path__ / "projects" / "recipes"
-            recipes = []
-
-            for r in recipe_paths.iterdir():
-                if r.is_dir() and (r / "prefect.yaml").exists():
-                    with open(r / "prefect.yaml") as f:
-                        recipe_data = yaml.safe_load(f)
-                        recipe_name = r.name
-                        recipe_description = recipe_data.get(
-                            "description", "(no description available)"
-                        )
-                        recipe = {
-                            "name": recipe_name,
-                            "description": recipe_description,
-                        }
-                        recipes.append(recipe)
-
-            selected_recipe = prompt_select_from_table(
-                app.console,
-                "",
-                columns=[
-                    {"header": "Name", "key": "name"},
-                    {"header": "Description", "key": "description"},
-                ],
-                data=recipes,
-                opt_out_message="No, I'll use the default deployment configuration.",
-                opt_out_response={},
-            )
-            if selected_recipe != {}:
-                recipe = selected_recipe["name"]
+            columns=[
+                {"header": "Name", "key": "name"},
+                {"header": "Description", "key": "description"},
+            ],
+            data=recipes,
+            opt_out_message="No, I'll use the default deployment configuration.",
+            opt_out_response={},
+        )
+        if selected_recipe != {}:
+            recipe = selected_recipe["name"]
 
     if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
         with open(recipe_paths / recipe / "prefect.yaml") as f:
