@@ -116,7 +116,7 @@ register_renamed_module(
     start_date="Mar 2023",
 )
 register_renamed_module(
-    "prefect.project",
+    "prefect.projects",
     "prefect.deployment",
     start_date="Jun 2023",
 )
