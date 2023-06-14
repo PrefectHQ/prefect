@@ -88,6 +88,8 @@ API_ROUTERS = (
     api.root.router,
 )
 
+SQLITE_LOCKED_MSG = "database is locked"
+
 
 class SPAStaticFiles(StaticFiles):
     """
@@ -158,7 +160,7 @@ def is_client_retryable_exception(exc: Exception):
         if getattr(exc.orig, "sqlite_errorname", None) in {
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
-        }:
+        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", []):
             return True
         else:
             # Avoid falling through to the generic `DBAPIError` case below

@@ -15,6 +15,7 @@ from prefect.server.api.server import (
     create_api_app,
     create_app,
     method_paths_from_routes,
+    SQLITE_LOCKED_MSG,
 )
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -53,11 +54,14 @@ async def test_validation_error_handler_409(client):
 
 
 @pytest.mark.parametrize("ephemeral", [True, False])
-@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT"])
+@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT", None])
 async def test_sqlite_database_locked_handler(errorname, ephemeral):
     async def raise_busy_error():
-        orig = sqlite3.OperationalError("database locked")
-        setattr(orig, "sqlite_errorname", errorname)
+        if errorname is None:
+            orig = sqlite3.OperationalError(SQLITE_LOCKED_MSG)
+        else:
+            orig = sqlite3.OperationalError("db locked")
+            setattr(orig, "sqlite_errorname", errorname)
         raise sa.exc.OperationalError(
             "statement",
             {"params": 1},
@@ -66,7 +70,7 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
         )
 
     async def raise_other_error():
-        orig = sqlite3.OperationalError("database locked")
+        orig = sqlite3.OperationalError("db locked")
         setattr(orig, "sqlite_errorname", "FOO")
         raise sa.exc.OperationalError(
             "statement",
