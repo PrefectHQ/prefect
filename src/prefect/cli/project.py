@@ -185,8 +185,8 @@ async def init(
     except ValueError as exc:
         if "Unknown recipe" in str(exc):
             exit_with_error(
-                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect project"
-                " recipe ls`[/yellow] to see all available recipes."
+                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect init"
+                "`[/yellow] to see all available recipes."
             )
         else:
             raise
