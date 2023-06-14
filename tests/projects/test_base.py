@@ -109,7 +109,7 @@ class TestRecipes:
 class TestInitProject:
     async def test_initialize_project_works(self):
         files = initialize_project()
-        assert len(files) >= 3
+        assert len(files) >= 2
 
         for file in files:
             assert Path(file).exists()
@@ -123,7 +123,7 @@ class TestInitProject:
 
     async def test_initialize_project_with_name(self):
         files = initialize_project(name="my-test-its-a-test")
-        assert len(files) >= 3
+        assert len(files) >= 2
 
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
@@ -132,7 +132,7 @@ class TestInitProject:
 
     async def test_initialize_project_with_recipe(self):
         files = initialize_project(recipe="docker-git")
-        assert len(files) >= 3
+        assert len(files) >= 2
 
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
@@ -159,7 +159,7 @@ class TestInitProject:
     )
     async def test_initialize_project_with_docker_recipe_default_image(self, recipe):
         files = initialize_project(recipe=recipe)
-        assert len(files) >= 3
+        assert len(files) >= 2
 
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
@@ -167,12 +167,9 @@ class TestInitProject:
         build_step = contents["build"][0]
         assert "prefect_docker.projects.steps.build_docker_image" in build_step
 
-        with open("deployment.yaml", "r") as f:
-            contents = yaml.safe_load(f)
-
         assert (
             contents["deployments"][0]["work_pool"]["job_variables"]["image"]
-            == "{{ image_name }}"
+            == "{{ build_image.image_name }}"
         )
 
 
