@@ -213,7 +213,7 @@ A few important notes on what we're looking at here:
     The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone_project:
+    - prefect.projects.steps.git_clone:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
         access_token: null
@@ -221,14 +221,14 @@ A few important notes on what we're looking at here:
     If pulling from a private repository, your pull step might appear like below.  Note that the access_token is a "Secret" type, which will be retrieved and inferred.
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone_project:
+    - prefect.projects.steps.git_clone:
         repository: https://github.com/PrivateRepo/test-private-repo.git
         branch: main
         access_token: "{{ prefect.blocks.secret.my-github-secret }}"
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
-    For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
+    For more examples of configuration options available for cloning projects, see [the `git_clone` step documentation](/api-ref/prefect/projects/steps/pull).
 
 
 ### Dockerized deployment  
@@ -273,7 +273,7 @@ build:
     push: false
 
 pull:
-- prefect.projects.steps.git_clone_project:
+- prefect.projects.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: main
     access_token: null

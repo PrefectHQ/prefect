@@ -128,7 +128,7 @@ def git_clone(
     return {"directory": directory}
 
 
-@deprecated_callable(start_date="Feb 2023", help="Use 'git clone' instead.")
+@deprecated_callable(start_date="Jun 2023", help="Use 'git clone' instead.")
 def git_clone_project(
     repository: str,
     branch: Optional[str] = None,

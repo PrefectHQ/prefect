@@ -430,7 +430,7 @@ The pull section is the most important section within the `prefect.yaml` file as
 There are three main types of steps that typically show up in a `pull` section:
 
 - `set_working_directory`: this step simply sets the working directory for the process prior to importing your flow
-- `git_clone_project`: this step clones the provided repository on the provided branch
+- `git_clone`: this step clones the provided repository on the provided branch
 - `pull_project_from_{cloud}`: this step pulls the project directory from a Cloud storage location (e.g., S3)
 
 !!! tip "Use block and variable references"
@@ -462,7 +462,7 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 
 ```yaml
 pull:
-    - prefect.projects.steps.git_clone_project:
+    - prefect.projects.steps.git_clone:
         id: clone-step
         repository: https://github.com/org/repo.git
     - prefect.projects.steps.pip_install_requirements:
