@@ -2496,6 +2496,9 @@ class TestDeleteBlock:
         new_block_name = "my-block"
         await new_block.save(new_block_name)
 
+        loaded_new_block = await new_block.load(new_block_name)
+        assert loaded_new_block._block_document_name == new_block_name
+
         await NewBlock.delete(new_block_name)
 
         with pytest.raises(ValueError) as exception:
