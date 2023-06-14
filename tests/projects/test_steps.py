@@ -1,5 +1,7 @@
 from pathlib import Path
 import sys
+import warnings
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.testing.utilities import AsyncMock, MagicMock
 from unittest.mock import ANY
 import pytest
@@ -157,6 +159,66 @@ class TestRunSteps:
         ]
         await run_steps(steps, {}, print_function=mock_print)
         mock_print.assert_any_call(" > Running run_shell_script step...")
+
+    async def test_run_steps_prints_deprecation_warnings(self, monkeypatch):
+        def func(*args, **kwargs):
+            warnings.warn("this is a warning", DeprecationWarning)
+            return {}
+
+        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+
+        mock_print = MagicMock()
+        steps = [
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
+        ]
+        await run_steps(steps, {}, print_function=mock_print)
+        mock_print.assert_any_call("this is a warning", style="yellow")
+
+    async def test_run_steps_prints_prefect_deprecation_warnings(self, monkeypatch):
+        def func(*args, **kwargs):
+            warnings.warn("this is a warning", PrefectDeprecationWarning)
+            return {}
+
+        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+
+        mock_print = MagicMock()
+        steps = [
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
+        ]
+        await run_steps(steps, {}, print_function=mock_print)
+        mock_print.assert_any_call("this is a warning", style="yellow")
+
+    async def test_run_steps_can_print_warnings_without_style(self, monkeypatch):
+        def func(*args, **kwargs):
+            warnings.warn("this is a warning", PrefectDeprecationWarning)
+            return {}
+
+        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+
+        # raise an exception when style is passed. exception type is irrelevant
+        mock_print = MagicMock(
+            side_effect=lambda *args, **kwargs: 1 / 0 if kwargs.get("style") else None
+        )
+        steps = [
+            {
+                "prefect.projects.steps.run_shell_script": {
+                    "script": "echo 'this is a test'",
+                    "id": "why_not_to_panic",
+                }
+            },
+        ]
+        await run_steps(steps, {}, print_function=mock_print)
+        mock_print.assert_any_call("this is a warning")
 
 
 class TestGitCloneStep:
