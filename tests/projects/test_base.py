@@ -92,7 +92,9 @@ class TestRecipes:
         recipe_config = configure_project_by_recipe(
             recipe, repository="test-org/test-repo"
         )
-        clone_step = recipe_config["pull"][0]["prefect.projects.steps.git_clone_project"]
+        clone_step = recipe_config["pull"][0][
+            "prefect.projects.steps.git_clone_project"
+        ]
         assert clone_step["repository"] == "test-org/test-repo"
         assert clone_step["branch"] == "{{ branch }}"
 
