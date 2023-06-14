@@ -3,8 +3,8 @@ import json
 import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
-from uuid import UUID, uuid4
 from unittest.mock import Mock
+from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
@@ -2477,3 +2477,30 @@ class TestBlockSchemaMigration:
 
         # new local schema ID should now be saved to Prefect
         assert updated_schema_id == new_schema_id
+
+
+class TestDeleteBlock:
+    @pytest.fixture
+    def NewBlock(self):
+        # Ignore warning caused by matching key in registry due to block fixture
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class NewBlock(Block):
+            a: str
+            b: str
+
+        return NewBlock
+
+    async def test_delete_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+        new_block_name = "my-block"
+        await new_block.save(new_block_name)
+
+        await NewBlock.delete(new_block_name)
+
+        with pytest.raises(ValueError) as exception:
+            await new_block.load(new_block_name)
+            assert (
+                f"Unable to find block document named {new_block_name}"
+                in exception.value
+            )
