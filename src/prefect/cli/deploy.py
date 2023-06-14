@@ -216,11 +216,11 @@ async def deploy(
                 deployments = base_deploy["deployments"]
             else:
                 deployments = [base_deploy]
-        if is_interactive() and not ci and project and deployments:
+        if is_interactive() and not ci and project:
             if confirm(
                 generate_deprecation_message(
                     "Using a `deployment.yaml` file with `prefect deploy`",
-                    end_date="Jul 2023",
+                    start_date="Jun 2023",
                     help=(
                         "Would you like to copy the contents of your `deployment.yaml`"
                         " file into your `prefect.yaml` file now?"
@@ -244,7 +244,7 @@ async def deploy(
             app.console.print(
                 generate_deprecation_message(
                     "Using a `deployment.yaml` file with `prefect deploy`",
-                    end_date="Jul 2023",
+                    start_date="Jun 2023",
                     help=(
                         "Please use the `prefect.yaml` file instead by copying the"
                         " contents of your `deployment.yaml` file into your"
@@ -426,7 +426,7 @@ async def _run_single_deploy(
         app.console.print(
             generate_deprecation_message(
                 "The ability to deploy by flow name",
-                end_date="Jun 2023",
+                start_date="Jun 2023",
                 help=(
                     "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
                     " an entrypoint instead."
