@@ -102,7 +102,7 @@ async def init(
         key, value = field.split("=")
         inputs[key] = value
 
-    if not recipe or is_interactive():
+    if not recipe and is_interactive():
         recipe_paths = prefect.__module_path__ / "projects" / "recipes"
         recipes = []
 
