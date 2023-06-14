@@ -1,6 +1,6 @@
+from datetime import timedelta
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 from uuid import UUID, uuid4
-from datetime import timedelta
 
 import pendulum
 from pydantic import Extra, Field, PrivateAttr, root_validator, validator
@@ -11,7 +11,6 @@ from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.transformations import FieldFrom, copy_model_fields
 from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
-
 
 # These are defined by Prefect Cloud
 MAXIMUM_LABELS_PER_RESOURCE = 500
@@ -274,6 +273,10 @@ class Automation(PrefectBaseModel):
     owner_resource: Optional[str] = Field(
         default=None, description="The owning resource of this automation"
     )
+
+
+class ExistingAutomation(Automation):
+    id: UUID = Field(..., description="The ID of this automation")
 
 
 @copy_model_fields

@@ -286,6 +286,14 @@ async def inspect(name: str):
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
+        if client.server_type == ServerType.CLOUD:
+            deployment_json["automations"] = [
+                a.dict()
+                for a in await client.read_resource_related_automations(
+                    f"prefect.deployment.{deployment.id}"
+                )
+            ]
+
     app.console.print(Pretty(deployment_json))
 
 
