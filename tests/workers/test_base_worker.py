@@ -17,6 +17,7 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    CrashedRun,
 )
 from prefect.flows import flow
 from prefect.server import models
@@ -1747,6 +1748,40 @@ async def test_get_flow_run_logger(
             "work_pool_name": "test-work-pool",
             "work_pool_id": str(work_pool.id),
         }
+
+
+class TestInfrastructureIntegration:
+    async def test_agent_crashes_flow_if_infrastructure_submission_fails(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1,
+        work_pool,
+        monkeypatch,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_run = MagicMock()
+        mock_run.run = raise_value_error
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run)
+            monkeypatch.setattr(worker, "run", mock_run)
+            await worker.get_and_submit_flow_runs()
+
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
+        assert state.is_crashed()
+        with pytest.raises(
+            CrashedRun, match="Flow run could not be submitted to infrastructure"
+        ):
+            await state.result()
 
 
 async def test_worker_set_last_polled_time(
