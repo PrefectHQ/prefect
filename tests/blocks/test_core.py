@@ -2488,6 +2488,7 @@ class TestDeleteBlock:
         class NewBlock(Block):
             a: str
             b: str
+            _block_type_slug = "new-block"
 
         return NewBlock
 
@@ -2500,6 +2501,24 @@ class TestDeleteBlock:
         assert loaded_new_block._block_document_name == new_block_name
 
         await NewBlock.delete(new_block_name)
+
+        with pytest.raises(ValueError) as exception:
+            await new_block.load(new_block_name)
+            assert (
+                f"Unable to find block document named {new_block_name}"
+                in exception.value
+            )
+
+    async def test_delete_block_from_base_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+        new_block_name = "my-block"
+
+        await new_block.save(new_block_name)
+
+        loaded_new_block = await new_block.load(new_block_name)
+        assert loaded_new_block._block_document_name == new_block_name
+
+        await Block.delete(f"{new_block._block_type_slug}/{new_block_name}")
 
         with pytest.raises(ValueError) as exception:
             await new_block.load(new_block_name)
