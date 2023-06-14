@@ -87,7 +87,7 @@ class TestProjectInit:
     def test_project_init(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                "init --name test_project ", temp_dir=str(tempdir), user_input="n"
+                "init --name test_project", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
             for file in ["prefect.yaml", "deployment.yaml", ".prefectignore"]:
@@ -99,7 +99,6 @@ class TestProjectInit:
             result = invoke_and_assert(
                 "init --name test_project --recipe local",
                 temp_dir=str(tempdir),
-                user_input="n",
             )
             assert result.exit_code == 0
 
