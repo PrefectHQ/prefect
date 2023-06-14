@@ -1,5 +1,5 @@
 ---
-description: Prefect Python API for utility steps for projects.
+description: Prefect Python API for utility steps for deployment management.
 tags:
     - Python API
     - projects
@@ -10,4 +10,4 @@ tags:
     - requirements.txt
 ---
 
-::: prefect.projects.steps.utility
+::: prefect.deployment.steps.utility

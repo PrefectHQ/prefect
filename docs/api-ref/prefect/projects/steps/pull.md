@@ -1,5 +1,5 @@
 ---
-description: Prefect Python API for pull steps for projects.
+description: Prefect Python API for pull steps for deployment management.
 tags:
     - Python API
     - projects
@@ -8,4 +8,4 @@ tags:
     - pull step
 ---
 
-::: prefect.projects.steps.pull
+::: prefect.deployment.steps.pull

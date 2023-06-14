@@ -1,5 +1,5 @@
 ---
-description: Learn how Prefect projects allow you to easily manage your code and deployments.
+description: Learn how to easily manage your code and deployments.
 tags:
     - work pools
     - workers
@@ -24,8 +24,8 @@ A project is a directory of code and configuration for your workflows that can b
 
 The main components of a project are:
 
-- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
-- [`.prefect/`](/concepts/projects/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
+- [`prefect.yaml`](/concepts/deployment/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
+- [`.prefect/`](/concepts/deployment/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 <a name="worker-tip"></a>
 !!! tip "Projects require workers"
@@ -121,11 +121,11 @@ This command will create a new deployment for your `"Call API"` flow with the na
 
 Note that Prefect has automatically done a few things for you:
 
-- registered the existence of this flow [with your local project](/concepts/projects/#the-prefect-directory)
+- registered the existence of this flow [with your local project](/concepts/deployment/#the-prefect-directory)
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
-You can customize all of this either by [manually editing `prefect.yaml`](/concepts/projects/#deployment-configurations) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
+You can customize all of this either by [manually editing `prefect.yaml`](/concepts/deployment/#deployment-configurations) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
 
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">
@@ -214,7 +214,7 @@ A few important notes on what we're looking at here:
     The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone:
+    - prefect.deployment.steps.git_clone:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
         access_token: null
@@ -222,14 +222,14 @@ A few important notes on what we're looking at here:
     If pulling from a private repository, your pull step might appear like below.  Note that the access_token is a "Secret" type, which will be retrieved and inferred.
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone:
+    - prefect.deployment.steps.git_clone:
         repository: https://github.com/PrivateRepo/test-private-repo.git
         branch: main
         access_token: "{{ prefect.blocks.secret.my-github-secret }}"
     ```
-    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
+    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/deployment/).
 
-    For more examples of configuration options available for cloning projects, see [the `git_clone` step documentation](/api-ref/prefect/projects/steps/pull).
+    For more examples of configuration options available for cloning, see [the `git_clone` step documentation](/api-ref/prefect/deployment/steps/pull).
 
 
 ### Dockerized deployment  
@@ -274,7 +274,7 @@ build:
     push: false
 
 pull:
-- prefect.projects.steps.git_clone:
+- prefect.deployment.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: main
     access_token: null
@@ -282,7 +282,7 @@ pull:
 
 A few notes:
 
-- [each step](/concepts/projects/#the-prefect-yaml-file) references a function with inputs and outputs
+- [each step](/concepts/deployment/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
 - to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
@@ -302,7 +302,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 Your run should complete successfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
 
 !!! tip "Templating values"
-    As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/projects/#templating-options).
+    As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/deployment/#templating-options).
 
 #### Dockerizing a local deployment
 
@@ -328,17 +328,17 @@ The reason this occurs is because our deployment has a fundamentally local `pull
 
 ```yaml
 pull:
-- prefect.projects.steps.set_working_directory:
+- prefect.deployment.steps.set_working_directory:
     directory: /Users/chris/dev/my-first-project
 ```
 
 In order to successfully submit such a project to a dockerized environment, we need to either:
 
-- [`push` this project](/concepts/projects/#the-push-section) to a remote location (such as a Cloud storage bucket)
-- [`build` this project](/concepts/projects/#the-build-section) into a Docker image artifact 
+- [`push` this project](/concepts/deployment/#the-push-section) to a remote location (such as a Cloud storage bucket)
+- [`build` this project](/concepts/deployment/#the-build-section) into a Docker image artifact 
 
 !!! tip "Advanced: `push` steps"
-    Populating a `push` step is considered an advanced feature of projects that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
+    Populating a `push` step is considered an advanced feature that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
 
 Following the same structure as above, we will include a new `build` step as well as alter our `pull` step to be compatible with the built image's filesystem:
 
@@ -353,7 +353,7 @@ build:
     push: false
 
 pull:
-- prefect.projects.steps.set_working_directory:
+- prefect.deployment.steps.set_working_directory:
     directory: /opt/prefect/hello-projects
 ```
 
@@ -362,4 +362,4 @@ Rerunning the same `deploy` command above now makes this a healthy deployment!
 
 ## Customizing the steps
 
-For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/projects/).
+For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/deployment/).

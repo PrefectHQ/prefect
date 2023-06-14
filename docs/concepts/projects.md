@@ -1,5 +1,5 @@
 ---
-description: Learn how Prefect projects allow you to easily manage your code and deployments.
+description: Learn how to easily manage your code and deployments.
 tags:
     - work pools
     - workers
@@ -96,7 +96,7 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
     The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition instead of the project's `prefect.yaml` file.
 
-    This capability is useful for projects that have multiple deployments that require different deployment instructions.
+    This capability is useful with multiple deployments that require different deployment instructions.
 
 For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
@@ -132,7 +132,7 @@ build:
     push: true
 ```
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image_name }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/concepts/projects/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image_name }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/concepts/deployment/#dockerized-deployment).
 
 
 !!! note Some steps require Prefect integrations
@@ -143,7 +143,7 @@ Once you've confirmed that these fields are set to their desired values, this st
 
     ```yaml
     build:
-        - prefect.projects.steps.run_shell_script:
+        - prefect.deployment.steps.run_shell_script:
             id: get-commit-hash
             script: git rev-parse --short HEAD
             stream_output: false
@@ -224,7 +224,7 @@ Here is an example of retrieving the short Git commit hash of the current reposi
 
 ```yaml
 build:
-    - prefect.projects.steps.run_shell_script:
+    - prefect.deployment.steps.run_shell_script:
         id: get-commit-hash
         script: git rev-parse --short HEAD
         stream_output: false
@@ -241,10 +241,10 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 
 ```yaml
 pull:
-    - prefect.projects.steps.git_clone:
+    - prefect.deployment.steps.git_clone:
         id: clone-step
         repository: https://github.com/org/repo.git
-    - prefect.projects.steps.pip_install_requirements:
+    - prefect.deployment.steps.pip_install_requirements:
         directory: {{ clone-step.directory }}
         requirements_file: requirements.txt
         stream_output: False
@@ -299,7 +299,7 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
 
-    For an example, [check out the project tutorial](/tutorial/projects/#dockerized-deployment).
+    For an example, [check out the project tutorial](/tutorial/deployment/#dockerized-deployment).
 
 
 ### Deployment Configurations
@@ -501,7 +501,7 @@ $ prefect deploy -f 'My Flow Name'
 ```
 </div>
 
-Registration also allows users to share their projects without requiring a full understanding of the project's file structure; for example, you can commit `./prefect/flows.json` to a version control system, and allow users to deploy these flows without needing to know each flow's individual entrypoint.
+Registration also allows users to share their deployment configuration without requiring a full understanding of the file structure; for example, you can commit `./prefect/flows.json` to a version control system, and allow users to deploy these flows without needing to know each flow's individual entrypoint.
 
 ## Deployment mechanics
 

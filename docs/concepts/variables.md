@@ -82,11 +82,11 @@ print(answer)
 
 ### In Project steps
 
-In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize project steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a projects `pull` step:
+In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize project steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a deployment `pull` step:
 
 ```
 pull:
-- prefect.projects.steps.git_clone:
+- prefect.deployment.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: "{{ prefect.variables.deployment_branch }}"
 ```

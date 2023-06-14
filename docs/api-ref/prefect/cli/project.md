@@ -1,5 +1,5 @@
 ---
-description: Prefect command line interface for working with Prefect projects.
+description: Prefect command line interface for managing Prefect deployments.
 tags:
     - Python API
     - CLI
@@ -8,4 +8,4 @@ tags:
     - storage
 ---
 
-::: prefect.cli.project
+::: prefect.cli.deployment
