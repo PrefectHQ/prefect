@@ -27,7 +27,7 @@ async def deployment_with_pull_step(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
@@ -54,12 +54,12 @@ async def deployment_with_pull_steps(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/marvin.git"
                     }
                 },
@@ -246,7 +246,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
@@ -264,7 +264,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(

@@ -17,10 +17,10 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import find_prefect_directory, initialize_project
-from prefect.projects import register_flow as register
+from prefect.deployment import find_prefect_directory, initialize_project
+from prefect.deployment import register_flow as register
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployment.steps.core import run_steps
 
 # Deprecated compatibility
 project_app = PrefectTyper(
@@ -50,7 +50,7 @@ async def ls():
     List available recipes.
     """
 
-    recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+    recipe_paths = prefect.__module_path__ / "deployment" / "recipes"
     recipes = {}
 
     for recipe in recipe_paths.iterdir():
@@ -96,14 +96,14 @@ async def init(
     """
     inputs = {}
     fields = fields or []
-    recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+    recipe_paths = prefect.__module_path__ / "deployment" / "recipes"
 
     for field in fields:
         key, value = field.split("=")
         inputs[key] = value
 
     if not recipe and is_interactive():
-        recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+        recipe_paths = prefect.__module_path__ / "deployment" / "recipes"
         recipes = []
 
         for r in recipe_paths.iterdir():

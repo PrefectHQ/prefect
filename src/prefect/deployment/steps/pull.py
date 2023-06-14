@@ -10,7 +10,7 @@ from prefect._internal.compatibility.deprecated import deprecated_callable
 
 from prefect.logging.loggers import get_logger
 
-projects_logger = get_logger("projects")
+deployment_logger = get_logger("deployment")
 
 
 def set_working_directory(directory: str) -> dict:
@@ -54,14 +54,14 @@ def git_clone(
         Clone a public repository:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone:
+            - prefect.deployment.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
         ```
 
         Clone a branch of a public repository:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone:
+            - prefect.deployment.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
                 branch: my-branch
         ```
@@ -69,7 +69,7 @@ def git_clone(
         Clone a private repository using an access token:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone:
+            - prefect.deployment.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
         ```
@@ -80,7 +80,7 @@ def git_clone(
         Clone a repository with submodules:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone:
+            - prefect.deployment.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 include_submodules: true
         ```
@@ -89,7 +89,7 @@ def git_clone(
         before executing flows):
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone:
+            - prefect.deployment.steps.git_clone:
                 repository: git@github.com:org/repo.git
         ```
     """
@@ -124,7 +124,7 @@ def git_clone(
         ) from exc_chain
 
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
-    projects_logger.info(f"Cloned repository {repository!r} into {directory!r}")
+    deployment_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
 
 
