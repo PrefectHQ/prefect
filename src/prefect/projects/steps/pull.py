@@ -6,6 +6,7 @@ import subprocess
 import sys
 import urllib.parse
 from typing import Optional
+from prefect._internal.compatibility.deprecated import deprecated_callable
 
 from prefect.logging.loggers import get_logger
 
@@ -27,7 +28,7 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
-def git_clone_project(
+def git_clone(
     repository: str,
     branch: Optional[str] = None,
     include_submodules: bool = False,
@@ -53,14 +54,14 @@ def git_clone_project(
         Clone a public repository:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
         ```
 
         Clone a branch of a public repository:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
                 branch: my-branch
         ```
@@ -68,7 +69,7 @@ def git_clone_project(
         Clone a private repository using an access token:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
         ```
@@ -79,7 +80,7 @@ def git_clone_project(
         Clone a repository with submodules:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 include_submodules: true
         ```
@@ -88,7 +89,7 @@ def git_clone_project(
         before executing flows):
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 repository: git@github.com:org/repo.git
         ```
     """
@@ -125,3 +126,19 @@ def git_clone_project(
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
     projects_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
+
+
+@deprecated_callable(start_date="Jun 2023", help="Use 'git clone' instead.")
+def git_clone_project(
+    repository: str,
+    branch: Optional[str] = None,
+    include_submodules: bool = False,
+    access_token: Optional[str] = None,
+) -> dict:
+    """Deprecated. Use `git_clone` instead."""
+    git_clone(
+        repository=repository,
+        branch=branch,
+        include_submodules=include_submodules,
+        access_token=access_token,
+    )
