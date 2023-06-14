@@ -168,7 +168,7 @@ class TestGitCloneStep:
         )
         output = await run_step(
             {
-                "prefect.projects.steps.git_clone_project": {
+                "prefect.projects.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
                 }
             }
@@ -195,7 +195,7 @@ class TestGitCloneStep:
         )
         output = await run_step(
             {
-                "prefect.projects.steps.git_clone_project": {
+                "prefect.projects.steps.git_clone": {
                     "repository": "https://github.com/org/has-submodules.git",
                     "include_submodules": True,
                 }
@@ -220,7 +220,7 @@ class TestGitCloneStep:
         with pytest.raises(RuntimeError) as exc:
             await run_step(
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/prefect.git",
                         "branch": "definitely-does-not-exist-123",
                         "access_token": None,
@@ -238,7 +238,7 @@ class TestGitCloneStep:
             # we uppercase the token because this test definition does show up in the exception traceback
             await run_step(
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/prefect.git",
                         "branch": "definitely-does-not-exist-123",
                         "access_token": "super-secret-42".upper(),
@@ -403,7 +403,7 @@ class TestPipInstallRequirements:
 
         steps = [
             {
-                "prefect.projects.steps.git_clone_project": {
+                "prefect.projects.steps.git_clone": {
                     "id": "clone-step",
                     "repository": "https://github.com/PrefectHQ/hello-projects.git",
                 }

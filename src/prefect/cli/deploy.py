@@ -883,14 +883,14 @@ async def _generate_default_pull_action(
                 ).save(name=token_secret_block_name, overwrite=True)
 
         git_clone_step = {
-            "prefect.projects.steps.git_clone_project": {
+            "prefect.projects.steps.git_clone": {
                 "repository": remote_url,
                 "branch": branch,
             }
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.projects.steps.git_clone_project"]["token"] = (
+            git_clone_step["prefect.projects.steps.git_clone"]["token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 
