@@ -3,10 +3,13 @@ Command line interface for working with projects.
 """
 from pathlib import Path
 from typing import List
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
 
 import typer
 import yaml
 from rich.table import Table
+
+from prefect.cli._prompts import prompt_select_from_table
 
 import prefect
 from prefect.cli._types import PrefectTyper
@@ -31,16 +34,14 @@ project_app = PrefectTyper(
 app.add_typer(project_app, aliases=["projects"])
 
 recipe_app = PrefectTyper(
-    name="recipe", help="Commands for interacting with project recipes."
+    name="recipe",
+    help="Deprecated. Use `prefect init` instead.",
+    deprecated=True,
+    deprecated_name="prefect project recipe",
+    deprecated_start_date="Jun 2023",
+    deprecated_help="Use `prefect init` instead.",
 )
 project_app.add_typer(recipe_app, aliases=["recipes"])
-
-init_app = PrefectTyper(
-    name="init",
-    help="Commands for initializing a new project.",
-)
-app.add_typer(init_app, aliases=["init"])
-init_app.add_typer(recipe_app, aliases=["recipes"])
 
 
 @recipe_app.command()
@@ -75,8 +76,8 @@ async def ls():
     app.console.print(table)
 
 
-@app.command()
 @project_app.command()
+@app.command()
 async def init(
     name: str = None,
     recipe: str = None,
@@ -100,6 +101,39 @@ async def init(
     for field in fields:
         key, value = field.split("=")
         inputs[key] = value
+
+    if not recipe:
+        recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+        recipes = []
+
+        for r in recipe_paths.iterdir():
+            if r.is_dir() and (r / "prefect.yaml").exists():
+                with open(r / "prefect.yaml") as f:
+                    recipe_data = yaml.safe_load(f)
+                    recipe_name = r.name
+                    recipe_description = recipe_data.get(
+                        "description", "(no description available)"
+                    )
+                    recipe = {"name": recipe_name, "description": recipe_description}
+                    recipes.append(recipe)
+
+        selected_recipe = prompt_select_from_table(
+            app.console,
+            (
+                "You haven't specified a recipe. Would you like to see a list of"
+                " available recipes?"
+            ),
+            columns=[
+                {"header": "Name", "key": "name"},
+                {"header": "Description", "key": "description"},
+            ],
+            data=recipes,
+            opt_out_message="No, I'll use the default deployment configuration.",
+            opt_out_response={},
+        )
+
+        if selected_recipe:
+            recipe = selected_recipe["name"]
 
     if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
         with open(recipe_paths / recipe / "prefect.yaml") as f:
@@ -179,6 +213,12 @@ async def clone(
     """
     Clone an existing project for a given deployment.
     """
+    app.console.print(
+        generate_deprecation_message(
+            "The `prefect project clone` command",
+            start_date="Jun 2023",
+        )
+    )
     if deployment_name and deployment_id:
         exit_with_error(
             "Can only pass one of deployment name or deployment ID options."
