@@ -15,8 +15,8 @@ import prefect
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import register_flow
-from prefect.projects.base import create_default_deployment_yaml, initialize_project
+from prefect.deployment import register_flow
+from prefect.deployment.base import create_default_deployment_yaml, initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert

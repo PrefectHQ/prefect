@@ -18,10 +18,10 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import find_prefect_directory, initialize_project
-from prefect.projects import register_flow as register
+from prefect.deployment import find_prefect_directory, initialize_project
+from prefect.deployment import register_flow as register
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployment.steps.core import run_steps
 
 # Deprecated compatibility
 project_app = PrefectTyper(

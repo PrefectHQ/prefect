@@ -6,10 +6,10 @@ import pytest
 
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
-from prefect.projects.steps import run_step
+from prefect.deployment.steps import run_step
 
-from prefect.projects.steps.utility import run_shell_script
-from prefect.projects.steps.core import StepExecutionError, run_steps
+from prefect.deployment.steps.utility import run_shell_script
+from prefect.deployment.steps.core import StepExecutionError, run_steps
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ class TestRunStep:
     async def test_run_step_runs_importable_functions(self):
         output = await run_step(
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                 }
             },
@@ -41,7 +41,7 @@ class TestRunStep:
         with pytest.raises(ValueError, match="unexpected"):
             await run_step(
                 {
-                    "prefect.projects.steps.run_shell_script": {
+                    "prefect.deployment.steps.run_shell_script": {
                         "script": "echo 'this is a test'"
                     },
                     "jedi": 0,
@@ -53,7 +53,7 @@ class TestRunStep:
 
         output = await run_step(
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": "{{ prefect.blocks.secret.test-secret }}",
                 }
             }
@@ -67,7 +67,7 @@ class TestRunStep:
     async def test_run_step_resolves_variables_before_running(self, variables):
         output = await run_step(
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": (
                         "echo '{{ prefect.variables.test_variable_1 }}:{{"
                         " prefect.variables.test_variable_2 }}'"
@@ -97,13 +97,13 @@ class TestRunSteps:
     async def test_run_steps_runs_multiple_steps(self):
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
             },
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": r"echo Don\'t Panic: {{ why_not_to_panic.stdout }}"
                 }
             },
@@ -121,7 +121,7 @@ class TestRunSteps:
     async def test_run_steps_handles_error_gracefully(self, variables):
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
@@ -142,13 +142,13 @@ class TestRunSteps:
         mock_print = MagicMock()
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
             },
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployment.steps.run_shell_script": {
                     "script": (
                         'bash -c echo "Don\'t Panic: {{ why_not_to_panic.stdout }}"'
                     )
@@ -163,12 +163,12 @@ class TestGitCloneStep:
     async def test_git_clone(self, monkeypatch):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         output = await run_step(
             {
-                "prefect.projects.steps.git_clone": {
+                "prefect.deployment.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
                 }
             }
@@ -190,12 +190,12 @@ class TestGitCloneStep:
     async def test_git_clone_include_submodules(self, monkeypatch):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         output = await run_step(
             {
-                "prefect.projects.steps.git_clone": {
+                "prefect.deployment.steps.git_clone": {
                     "repository": "https://github.com/org/has-submodules.git",
                     "include_submodules": True,
                 }
@@ -220,7 +220,7 @@ class TestGitCloneStep:
         with pytest.raises(RuntimeError) as exc:
             await run_step(
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/prefect.git",
                         "branch": "definitely-does-not-exist-123",
                         "access_token": None,
@@ -238,7 +238,7 @@ class TestGitCloneStep:
             # we uppercase the token because this test definition does show up in the exception traceback
             await run_step(
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/prefect.git",
                         "branch": "definitely-does-not-exist-123",
                         "access_token": "super-secret-42".upper(),
@@ -323,20 +323,20 @@ class TestPipInstallRequirements:
     async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
         open_process_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.utility.open_process",
+            "prefect.deployment.steps.utility.open_process",
             open_process_mock,
         )
 
         mock_stream_capture = AsyncMock()
 
         monkeypatch.setattr(
-            "prefect.projects.steps.utility._stream_capture_process_output",
+            "prefect.deployment.steps.utility._stream_capture_process_output",
             mock_stream_capture,
         )
 
         await run_step(
             {
-                "prefect.projects.steps.pip_install_requirements": {
+                "prefect.deployment.steps.pip_install_requirements": {
                     "id": "pip-install-step"
                 }
             }
@@ -352,20 +352,20 @@ class TestPipInstallRequirements:
     async def test_pip_install_reqs_custom_requirements_file(self, monkeypatch):
         open_process_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.utility.open_process",
+            "prefect.deployment.steps.utility.open_process",
             open_process_mock,
         )
 
         mock_stream_capture = AsyncMock()
 
         monkeypatch.setattr(
-            "prefect.projects.steps.utility._stream_capture_process_output",
+            "prefect.deployment.steps.utility._stream_capture_process_output",
             mock_stream_capture,
         )
 
         await run_step(
             {
-                "prefect.projects.steps.pip_install_requirements": {
+                "prefect.deployment.steps.pip_install_requirements": {
                     "id": "pip-install-step",
                     "requirements_file": "dev-requirements.txt",
                 }
@@ -384,32 +384,32 @@ class TestPipInstallRequirements:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
 
         open_process_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.utility.open_process",
+            "prefect.deployment.steps.utility.open_process",
             open_process_mock,
         )
 
         mock_stream_capture = AsyncMock()
 
         monkeypatch.setattr(
-            "prefect.projects.steps.utility._stream_capture_process_output",
+            "prefect.deployment.steps.utility._stream_capture_process_output",
             mock_stream_capture,
         )
 
         steps = [
             {
-                "prefect.projects.steps.git_clone": {
+                "prefect.deployment.steps.git_clone": {
                     "id": "clone-step",
                     "repository": "https://github.com/PrefectHQ/hello-projects.git",
                 }
             },
             {
-                "prefect.projects.steps.pip_install_requirements": {
+                "prefect.deployment.steps.pip_install_requirements": {
                     "id": "pip-install-step",
                     "directory": "{{ clone-step.directory }}",
                     "requirements_file": "requirements.txt",

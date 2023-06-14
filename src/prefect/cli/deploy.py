@@ -31,15 +31,15 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.projects import find_prefect_directory, register_flow
+from prefect.deployment import find_prefect_directory, register_flow
 from prefect.settings import PREFECT_UI_URL, PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployment.steps.core import run_steps
 
-from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
+from prefect.deployment.base import _get_git_branch, _get_git_remote_origin_url
 
 from prefect.blocks.system import Secret
 
