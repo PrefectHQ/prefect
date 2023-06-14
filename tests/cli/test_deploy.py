@@ -523,7 +523,7 @@ class TestProjectDeploy:
             expected_output_contains=[
                 "Your Prefect workers will attempt to load your flow from:",
                 "To see more options for managing your flow's code, run:",
-                "$ prefect project recipes ls",
+                "$ prefect init",
             ],
         )
 
@@ -569,7 +569,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployment.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir)
                     }
                 }
@@ -597,7 +597,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployment.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_no_remote)
                     }
                 }
@@ -627,7 +627,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployment.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_with_remote)
                     }
                 }
@@ -672,7 +672,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                     }
@@ -728,7 +728,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployment.steps.git_clone": {
                         "repository": "https://example.com/org/repo-override.git",
                         "branch": "dev",
                     }

@@ -73,7 +73,7 @@ async def deployment_with_pull_steps(
 
 class TestProjectRecipes:
     def test_project_recipe_ls(self):
-        result = invoke_and_assert("project recipe ls")
+        result = invoke_and_assert("init")
         assert result.exit_code == 0
 
         lines = result.output.split()
@@ -250,7 +250,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
@@ -268,7 +268,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployment.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
