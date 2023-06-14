@@ -8,6 +8,7 @@ from prefect.server.database.alembic_commands import alembic_downgrade, alembic_
 from prefect.server.database.configurations import BaseDatabaseConfiguration
 from prefect.server.database.orm_models import BaseORMConfiguration
 from prefect.server.database.query_components import BaseQueryComponents
+from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -118,6 +119,10 @@ class PrefectDBInterface(metaclass=DBSingleton):
                     yield session
             else:
                 yield session
+
+    @property
+    def dialect(self) -> sa.engine.Dialect:
+        return get_dialect(self.database_config.connection_url)
 
     @property
     def Base(self):
