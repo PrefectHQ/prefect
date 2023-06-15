@@ -52,7 +52,6 @@ def project_dir(tmp_path):
         prefect_home = tmp_path / ".prefect"
         prefect_home.mkdir(exist_ok=True, mode=0o0700)
         os.chdir(tmp_path)
-        print(os.getcwd())
         initialize_project()
         yield tmp_path
     else:
