@@ -83,6 +83,8 @@ See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9887
 - https://github.com/PrefectHQ/prefect/pull/9930
 - https://github.com/PrefectHQ/prefect/pull/9928
+- https://github.com/PrefectHQ/prefect/pull/9944
+- https://github.com/PrefectHQ/prefect/pull/9942
 - https://github.com/PrefectHQ/prefect-gcp/pull/189
 - https://github.com/PrefectHQ/prefect-aws/pull/278
 
