@@ -43,6 +43,8 @@ In addition, we've removed the need to use `project` through the CLI as well.
 
 Instead of `prefect project init` you can simply run `prefect init`. To use a deployment configuration recipe during initialization, you no longer need to run an additional command. Running `prefect init` will guide you through an interactive experience to choose a recipe if you so desire.
 
+![prefect init recipe interaction](https://github.com/PrefectHQ/prefect/assets/42048900/c2bea9b4-4e1f-4029-8772-50ecde6073a7)
+
 We have also deprecated deploying a flow via flow name, allowing a single, streamlined way to deploy: `prefect deploy ./path/to/flow.py:flow-fn-name`. You no longer have to worry about the `-f` option, or about a flow being registered in a folder. Deploying will always be via entrypoint: `path-to-script:flow-function-name`.
 
 See these pull requests for implementation details:
