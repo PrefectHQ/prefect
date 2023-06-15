@@ -1,5 +1,5 @@
 """
-Command line interface for working with projects.
+Deprecated - Command line interface for working with projects.
 """
 from pathlib import Path
 from typing import List
