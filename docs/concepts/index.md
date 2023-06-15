@@ -30,7 +30,7 @@ search:
 | Keyword                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | __[Deployments](/concepts/deployments)__                 | A server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. |
-| __[Projects](/concepts/projects)__                       | A minimally opinionated set of files that describe how to prepare one or more flow deployments.    |
+| __[Deployment Management](/concepts/deployments-ux)__                       | A minimally opinionated set of files that describe how to prepare one or more flow deployments.    |
 | __[Work Pools, Workers & Agents](/concepts/work-pools)__ | Bridge the Prefect orchestration environment with your execution environment.                      |
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved by Prefect agents.     |
 | __[Filesystems](/concepts/filesystems)__                 | [Blocks](/concepts/blocks/) that allow you to read and write data from paths.                      |

@@ -1,12 +1,14 @@
-name: null
 prefect-version: null
-description: "Store project on a local filesystem"
+name: null
+description: "Store project within git repository"
 
 build: null
 push: null
-pull: 
-  - prefect.projects.steps.set_working_directory:
-      directory: "{{ directory }}"
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: "{{ repository }}"
+      branch: "{{ branch }}"
+      access_token: null
 
 deployments:
   - name: null
