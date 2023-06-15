@@ -36,11 +36,11 @@ This tutorial requires a Prefect API so sign up for a forever free [Prefect Clou
 Prefect automates and orchestrates data workflows - it simplifies the creation, scheduling, and monitoring of complex pipelines. With Prefect, you define workflows as Python code, specify task dependencies, and let it handle the execution order. Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. t's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
 1. By the end of this tutorial we will have:
-        1. [Created a Flow](/tutorial/first-steps/)
+        1. [Created a Flow](/tutorial/flows/)
         2. [Added Tasks to it](/tutorial/tasks/)
-        3. [Created a Work Pool](/tutorial/execution/)
-        4. [Deployed a Worker](/tutorial/execution/)
-        5. [Deployed the Flow](/tutorial/deployments/)
+        3. [Created a Work Pool](/tutorial/deployments/)
+        4. [Deployed a Worker](/tutorial/deployments/)
+        5. [Deployed the Flow](/tutorial/deploying/)
         6. [Run the flow on our worker!](/tutorial/deployments/)
 
 

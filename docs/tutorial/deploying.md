@@ -6,7 +6,6 @@ tags:
     - orchestration
     - flow runs
     - deployments
-    - projects
     - storage
     - infrastructure
     - blocks
