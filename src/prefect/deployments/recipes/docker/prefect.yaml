@@ -19,7 +19,7 @@ build:
 push: null
 
 pull: 
-  - prefect.projects.steps.set_working_directory:
+  - prefect.deployments.steps.set_working_directory:
       directory: "/opt/prefect/{{ name }}"
 
 deployments:

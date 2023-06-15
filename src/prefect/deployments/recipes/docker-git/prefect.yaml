@@ -18,7 +18,7 @@ build:
 push: null
 
 pull:
-  - prefect.projects.steps.git_clone_project:
+  - prefect.deployments.steps.git_clone:
       repository: "{{ repository }}"
       branch: "{{ branch }}"
       access_token: null
