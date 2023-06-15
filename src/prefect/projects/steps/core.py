@@ -14,6 +14,7 @@ from copy import deepcopy
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+import warnings
 
 from prefect._internal.concurrency.api import Call, from_async
 from prefect.utilities.importtools import import_object
@@ -22,6 +23,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 
 from prefect.settings import PREFECT_DEBUG_MODE
 
@@ -87,7 +89,6 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
     inputs = apply_values(inputs, upstream_outputs)
     inputs = await resolve_block_document_references(inputs)
     inputs = await resolve_variables(inputs)
-
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     result = await from_async.call_soon_in_new_thread(
         Call.new(step_func, **inputs)
@@ -108,7 +109,31 @@ async def run_steps(
         step_name = fqn.split(".")[-1]
         print_function(f" > Running {step_name} step...")
         try:
-            step_output = await run_step(step, upstream_outputs)
+            # catch warnings to ensure deprecation warnings are printed
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter(
+                    "always",
+                    category=PrefectDeprecationWarning,
+                )
+                warnings.simplefilter(
+                    "always",
+                    category=DeprecationWarning,
+                )
+                step_output = await run_step(step, upstream_outputs)
+            if w:
+                printed_messages = []
+                for warning in w:
+                    message = str(warning.message)
+                    # prevent duplicate warnings from being printed
+                    if message not in printed_messages:
+                        try:
+                            # try using rich styling
+                            print_function(message, style="yellow")
+                        except Exception:
+                            # default to printing without styling
+                            print_function(message)
+                        printed_messages.append(message)
+
             if not isinstance(step_output, dict):
                 if PREFECT_DEBUG_MODE:
                     get_logger().warning(
