@@ -32,15 +32,19 @@ Deploying your flows is, in essence, the act of informing the Prefect API of:
 2. How to run your flows
 3. When to run your flows 
 
-This information is encapsulated and sent to Prefect as a “[Deployment](https://docs.prefect.io/2.10.13/concepts/deployments/?h=deployment#deployments-overview)” which becomes the server side object containing the crucial metadata needed for Prefect’s API to execute your flow as desired. Deployments elevate workflows from functions that you call manually to API-managed entities.
+This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which becomes a server side object containing the crucial metadata needed for Prefect’s API to execute your flow as desired. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to): 
 
 - Flow entrypoint = path to your flow function would start the flow
 - Workpool = points to the infra you want your flow to run in
 - Schedule = optional schedule for this deployment
+- Tags = optional metadata
 
-In order to run **your flows** on **your infrastructure,** you are going to need to set up a work pool and a worker. 
+Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. In order to run **your flows** on **your infrastructure,** you are going to need to set up a work pool and a worker. 
+
+## Why Workpools and Workers
+Easily running Prefect flows locally is great for testing and development purposes, but in a production setting, Prefect provides you with the worker/work pool concepts to allow you to run flows in the environments best suited to their execution. For example, its considered best practice to leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run. For more information see the [next steps](/tutorials/next_steps/)
 
 ## Why Workpools and Workers
 Easily running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect provides you with the worker/work pool concepts to allow you to run flows in the environments best suited to their execution. For example, its considered best practice to leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run. For more information see the [next steps](/tutorials/next_steps/)
@@ -50,20 +54,20 @@ Workers and work pools bridge the Prefect orchestration API with your execution 
 
 You can configure work pools on Prefect’s side. They describe the infrastructure configuration for deployed flow runs that get sent to that pool. organize the flows for your worker to pick up and execute. They prioritize the flows and respond to polling from its worker.
 
-Workers are light-weight, long-running polling processes polling that you host in your execution environment. Workers pick up work from their work pool and spin up ephemeral infrastructure each flow run according to metadata passed to them in the form of deployments.
+Workers are light-weight, long-running polling processes that you host in your execution environment. Workers pick up work from their work pool and spin up ephemeral infrastructure each flow run according to metadata passed to them in the form of deployments.
 
 ```mermaid
 graph TD;
-    subgraph your_infra["|  Your Execution Environment  |"]
+    subgraph your_infra["-- Your Execution Environment --"]
         worker["Worker"]
-				subgraph flow_run_infra["Flow Run Infra"]
+				subgraph flow_run_infra[Flow Run Infra]
 					flow_run(("Flow Run"))
 				end
         
     end
 
     subgraph api["Prefect API"]
-				deployment --> work_pool
+				deployment --> |assigned to| work_pool
         work_pool(["Work Pool"])
     end
 
@@ -81,8 +85,8 @@ For this tutorial you will create a *process type* work pool via the CLI.
 
 The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.
 
-!!! tip "Security Note:"
-    Aside from process, there are a variety of different work pool types you might consider in a production setting to containerize your flow runs that leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run which are expanded upon in the guides section.
+!!! tip "Work Pool Types"
+    Aside from process, there are a variety of different work pool types.
 
 In your terminal set to your Prefect workspace run the following command to set up a work pool. 
 
@@ -108,33 +112,21 @@ You will need to keep this terminal running in order to have the worker continue
 
 Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets build a deployment that sends work to your `tutorial-process-pool` on a schedule.
 
-!!! tip "Note:"
-    Double check you have same file path as python code you were running earlier.
-
----
-description: Learn about the Prefect orchestration engine and API.
-tags:
-    - work pools
-    - agents
-    - orchestration
-    - database
-    - API
-    - UI
-    - storage
-search:
-  boost: 2
----
-
-From our previous steps we now have:
+### From our previous steps we now have:
 
 1. A flow
 2. A work pool
 3. A worker
 4. An understanding of Prefect Deployments
 
+### *** reminder to push your code to github TODO: Taylor
+
 Now it’s time to put it all together.
 
-In your terminal (not the terminal associated with the worker), let’s run the following command to begin deploying your flow.  Ensure that the current directory is set to the same directory as when you were running the flow locally.  You can double check this by typing `ls` in the terminal and you should see the flow file in the output.
+In your terminal (not the terminal associated with the worker), let’s run the following command to begin deploying your flow.  Ensure that the current directory is set to the same directory as when you were running the flow locally. You can double check this by typing `ls` in the terminal and you should see the flow file in the output.
+
+!!! tip "Warning:"
+    Double check you have same file path as python code you were running earlier. Ensure that you run the prefect deploy command from the top/root/base of your repo, otherwise the worker may struggle to get to the same entrypoint during remote execution.
 
 ```bash
 prefect deploy my_flow.py:get_repo_info
@@ -142,62 +134,17 @@ prefect deploy my_flow.py:get_repo_info
 
 This deployment command follows the following format that you can use to deploy your flows in the future:  `prefect deploy path_to_flow/my_flow_file.py:flow_func_name` 
 
-<aside>
-☝🏼 Warning:
-Ensure that you run the prefect deploy command from the top/root/base of your repo, otherwise the worker may struggle to get to the same entrypoint during remote execution.
-
-</aside>
-
-- <<Screenshot of Deployment Wizard for our reference>>
-    
-    ![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b1087417-16f3-49a2-93e7-9b3897c8f5b0/Untitled.png)
-    
-
 Now that you have run the deploy command, the CLI will prompt you through different options you can set with your deployment.
 
-- name your deployment `my-deployment`
-- type n for now, you can set up a schedule later
-- select the work pool you just created, tutorial-process-pool
-- When asked if you would like your workers to pull your flow code from its remote repository, select yes if you’ve been following along and defining your flow code script from within a github repository.
+1. Name your deployment `my-deployment`
+2. Type `n` for now, you can set up a schedule later
+3. Select the work pool you just created, tutorial-process-pool
+4. When asked if you would like your workers to pull your flow code from its remote repository, select yes if you’ve been following along and defining your flow code script from within a github repository.
     - y: Reccomended: Prefect will automatically register your GitHub repo as the the location of this flow’s remote flow code. This means a worker started on any machine, on your laptop, on your team-mate’s laptop, or in your cloud provider
     - n: If you would like to continue this tutorial without the use of GitHub, thats ok, Prefect will always look first to see if the flow code exists locally before referring to remote flow code storage.
 
 Prefect becomes powerful when it allows you to trigger flow runs in a variety of executions environments, so understanding how Prefect workers access flow code remotely is an important concept to grasp. 
 
-Note that Prefect has automatically done a few things for you:
+!!! tip "Tip:"
+    Aside from GitHub, Prefect offers a variety of options for remote flow code storage.
 
-- registered the existence of this flow [with your local project](https://docs.prefect.io/concepts/projects/#the-prefect-directory)
-- created a description for this deployment based on the docstring of your flow function
-- parsed the parameter schema for this flow function in order to expose an API for running this flow
-
-<aside>
-☝🏼 Aside from GitHub, Prefect offers a variety of options for remote flow code storage.
-
-</aside>
-
-## Deployment YAML
-
-You can use a deployment.yaml file to define this deployment along with all deployments you might create for a given repository of flow code. 
-
-<aside>
-❗ Tip: A flow can have one or many deployments.
-
-</aside>
-
-To start a deployment.yaml file, type:
-
-`prefect project init`
-
-And populate the deployment object information in the `deployment.yaml` like shown below:
-
-```yaml
-deployments:
-- name: my-deployment
-  tags: [my-tag]
-  description: a flow that checks github
-  schedule: null
-  entrypoint: my_flow.py:get_repo_info
-  parameters: {}
-  work_pool:
-    name: tutorial-process-pool
-```
