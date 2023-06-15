@@ -10,7 +10,7 @@ tags:
 
 A [flow](https://docs.prefect.io/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
 
-A [task](https://docs.prefect.io/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow.
+A [task](https://docs.prefect.io/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent a discrete unit of python logic executed within a flow.
 
 Some important points about flows:
 
