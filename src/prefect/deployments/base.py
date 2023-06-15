@@ -430,8 +430,11 @@ def _save_deployment_to_prefect_file(
         if pull_steps != parsed_prefect_file_contents.get("pull"):
             deployment["pull"] = build_steps
 
-        deployments = parsed_prefect_file_contents.get("deployments", [])
-        deployments.append(deployment)
+        deployments = parsed_prefect_file_contents.get("deployments")
+        if deployments is None:
+            parsed_prefect_file_contents["deployments"] = [deployment]
+        else:
+            deployments.append(deployment)
 
         with prefect_file.open(mode="w") as f:
             ryaml.dump(parsed_prefect_file_contents, f)
