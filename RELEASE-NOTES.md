@@ -2,40 +2,6 @@
 
 ## Release 2.10.14
 
-### Introducing deployment triggers in Prefect Cloud
-
-We are thrilled to introduce deployment triggers, an innovative and powerful feature designed to streamline event-driven deployments in Prefect. With deployment triggers, you can create automations to orchestrate the execution of flows based on observed conditions, revolutionizing the way you manage workflows.
-
-By integrating triggers into deployment specifications, you gain control over both the timing and conditions for flow execution. Everything you need to reason about flow execution and scheduling is now conveniently consolidated in one place. For example:
-
-```yaml
-triggers:
-  - enabled: true
-    match:
-      prefect.resource.id: prefect.flow-run.*
-    expect:
-      - prefect.flow-run.Completed
-    match_related:
-      prefect.resource.name: prefect.flow.etl-flow
-      prefect.resource.role: flow
-    parameters:
-      param_1: "{{ event }}"
-```
-
-Furthermore, deployment triggers allow you to pass event data as parameters, empowering you to customize the behavior of your flows based on real-time information. This deepens the contextual awareness and flexibility of your automations, enabling you to respond dynamically to internal and external events.
-
-See the following pull requests for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/9885
-
-
-### Webhooks on Prefect Cloud
-
-Going hand-in-hand with deployment triggers, [webhooks on Prefect Cloud](https://docs.prefect.io/2.10.14/cloud/webhooks/) allow you to capture events from a wide variety of sources in your data stack, translating them into actionable Prefect events in your workspace.  Produce Prefect events from any system that can make an HTTP request and use those events in automations or to trigger event-driven deployments.
-
-Even if you have minimal control over the systems you're integrating with, Prefect Cloud webhooks give you [full programmable control](https://docs.prefect.io/2.10.14/cloud/webhooks/#webhook-templates) over how you transform incoming HTTP requests into Prefect events with Jinja2 templating.  We even have a [built-in preset for CloudEvents](https://docs.prefect.io/2.10.14/cloud/webhooks/#accepting-cloudevents).
-
-Webhooks are currently available [via the API and `prefect` CLI](https://docs.prefect.io/2.10.14/cloud/webhooks/#configuring-webhooks).
-
 ### Simplying deployments
 
 We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name.
@@ -87,6 +53,40 @@ See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9942
 - https://github.com/PrefectHQ/prefect-gcp/pull/189
 - https://github.com/PrefectHQ/prefect-aws/pull/278
+
+### Introducing deployment triggers in Prefect Cloud
+
+We are thrilled to introduce deployment triggers, an innovative and powerful feature designed to streamline event-driven deployments in Prefect. With deployment triggers, you can create automations to orchestrate the execution of flows based on observed conditions, revolutionizing the way you manage workflows.
+
+By integrating triggers into deployment specifications, you gain control over both the timing and conditions for flow execution. Everything you need to reason about flow execution and scheduling is now conveniently consolidated in one place. For example:
+
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: prefect.flow-run.*
+    expect:
+      - prefect.flow-run.Completed
+    match_related:
+      prefect.resource.name: prefect.flow.etl-flow
+      prefect.resource.role: flow
+    parameters:
+      param_1: "{{ event }}"
+```
+
+Furthermore, deployment triggers allow you to pass event data as parameters, empowering you to customize the behavior of your flows based on real-time information. This deepens the contextual awareness and flexibility of your automations, enabling you to respond dynamically to internal and external events.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9885
+
+
+### Webhooks on Prefect Cloud
+
+Going hand-in-hand with deployment triggers, [webhooks on Prefect Cloud](https://docs.prefect.io/2.10.14/cloud/webhooks/) allow you to capture events from a wide variety of sources in your data stack, translating them into actionable Prefect events in your workspace.  Produce Prefect events from any system that can make an HTTP request and use those events in automations or to trigger event-driven deployments.
+
+Even if you have minimal control over the systems you're integrating with, Prefect Cloud webhooks give you [full programmable control](https://docs.prefect.io/2.10.14/cloud/webhooks/#webhook-templates) over how you transform incoming HTTP requests into Prefect events with Jinja2 templating.  We even have a [built-in preset for CloudEvents](https://docs.prefect.io/2.10.14/cloud/webhooks/#accepting-cloudevents).
+
+Webhooks are currently available [via the API and `prefect` CLI](https://docs.prefect.io/2.10.14/cloud/webhooks/#configuring-webhooks).
 
 ### Enhancements
 - Make related automations visible from `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
