@@ -1,16 +1,16 @@
 prefect-version: null
 name: null
 
-description: "Store project within a custom docker image alongside its runtime environment"
+description: "Store code within a custom docker image alongside its runtime environment"
 
 required_inputs:
   image_name: "The image name, including repository, to give the built Docker image"
   tag: "The tag to give the built Docker image"
 
 build:
-  - prefect_docker.projects.steps.build_docker_image:
+  - prefect_docker.deployments.steps.build_docker_image:
       id: "build_image"
-      requires: "prefect-docker>=0.2.0<0.3.0"
+      requires: "prefect-docker>=0.3.0"
       image_name: "{{ image_name }}"
       tag: "{{ tag }}"
       dockerfile: "{{ dockerfile }}"
@@ -35,4 +35,5 @@ deployments:
       name: null
       work_queue_name: null
       job_variables: 
-        image: "{{ build_image.image_name }}"
+        # uses the `image` output from the `build_image` step
+        image: "{{ build_image.image }}"
