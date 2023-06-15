@@ -51,7 +51,10 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Flow run state change
     -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work queue health
-- [Custom event](#automations-api) triggers
+- Custom event triggers
+
+!!! note "Automations API"
+    The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
@@ -84,7 +87,7 @@ For example, if you would only like a trigger to execute an action if it receive
   ],
   "after": [],
   "expect": [
-    "prefect.flow-run.Completed"
+    "prefect.flow-run.Failed"
   ],
   "posture": "Reactive",
   "threshold": 2,
@@ -129,31 +132,16 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
 }
 ```
 
-Or, if you wanted your trigger to fire if your log write events passed a threshold of 100 within 10 seconds, you could paste in the following trigger configuration:
-
-```json
-{
-  "match": {
-    "prefect.resource.id": "prefect.flow-run.*"
-  },
-  "after": [],
-  "expect": [
-    "prefect.log.write"
-  ],
-  "posture": "Reactive",
-  "threshold": 100,
-  "within": 10
-}
-```
-
 ### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
 
 - Cancel a flow run
-- Pause or resume a deployment schedule
+- Pause a flow run
 - Run a deployment
+- Pause or resume a deployment schedule
 - Pause or resume a work queue
+- Pause or resume an automation
 - Send a [notification](#automation-notifications)
 - Call a webhook
 
@@ -290,7 +278,3 @@ Related Resources:
 ```
 
 Note that this example also illustrates the ability to use Jinja features such as iterator and for loop [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when templating notifications.
-
-## Automations API 
-
-The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
