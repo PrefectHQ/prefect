@@ -193,7 +193,7 @@ class TestProjectInit:
 
             assert (
                 configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ build_image.image_name }}"
+                == "{{ build_image.image }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
