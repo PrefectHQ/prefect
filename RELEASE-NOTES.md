@@ -90,14 +90,14 @@ See these pull requests for implementation details:
 - Make related automations visible from `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
 - Enable deleting blocks with Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
 - Enhance ability to delete a single flow on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
+- Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
+- Add httpx request method to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9873
+- Mark flow as crashed if infrastructure submission fails — https://github.com/PrefectHQ/prefect/pull/9691
 
-- chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
 - Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
 - Add `prefect --prompt/--no-prompt` to force toggle interactive CLI sessions — https://github.com/PrefectHQ/prefect/pull/9897
-- Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
 - Sort task run ids before returning output of cli inspect concurrency limit — https://github.com/PrefectHQ/prefect/pull/9711
-- Change agent behavior to mark flow as crashed if infra submission fails — https://github.com/PrefectHQ/prefect/pull/9691
 
 ### Fixes
 - Provide a default `DTSTART` to anchor `RRULE` schedules to ensure extra schedules not created — https://github.com/PrefectHQ/prefect/pull/9872
