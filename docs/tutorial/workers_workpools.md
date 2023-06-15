@@ -12,9 +12,6 @@ tags:
 search:
   boost: 2
 ---
-
-#### Configuring Remote Execution Env + Schedule
-
 # Deploying Flows
 
 ## Why Deploy
@@ -27,7 +24,7 @@ A deployed flow gets the following additional cababilities:
 - remote execution of flows triggered from the UI
 - flow triggered by automations or events
 
-## Deployment Definition
+## What is a Deployment
 
 Deploying your flows is, in essence, the act of informing the Prefect API of:
 
