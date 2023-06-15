@@ -24,7 +24,7 @@ A project is a directory of code and configuration for your workflows that can b
 
 The main components of a project are:
 
-- [`prefect.yaml`](/concepts/deployment/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
+- [`prefect.yaml`](/concepts/deployments-ux/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
 - [`.prefect/`](/concepts/deployment/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 <a name="worker-tip"></a>
