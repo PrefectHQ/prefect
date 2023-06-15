@@ -6,6 +6,8 @@ tags:
     - orchestration
     - infrastructure
     - deployments
+search:
+  boost: 2
 ---
 
 # Using Prefect Helm Chart for Prefect Workers

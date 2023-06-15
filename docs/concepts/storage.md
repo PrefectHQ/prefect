@@ -10,6 +10,8 @@ tags:
     - Azure Blob Storage
     - Google Cloud Storage
     - SMB
+search:
+  boost: 2
 ---
 
 # Storage

@@ -6,6 +6,8 @@ tags:
     - examples
 hide:
   - toc
+search:
+  boost: 2
 ---
 
 # Prefect Recipes

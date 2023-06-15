@@ -9,6 +9,8 @@ tags:
     - asynchronous execution
     - async
     - submit
+search:
+  boost: 2
 ---
 
 # Flow and task execution

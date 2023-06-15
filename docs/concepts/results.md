@@ -6,6 +6,8 @@ tags:
     - tasks
     - states
     - results
+search:
+  boost: 2
 ---
 
 # Results

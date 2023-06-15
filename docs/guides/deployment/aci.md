@@ -5,6 +5,8 @@ tags:
     - containers
     - agents
     - cloud
+search:
+  boost: 2
 ---
 
 # Run an Agent with Azure Container Instances

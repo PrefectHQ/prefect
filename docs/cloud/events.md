@@ -6,6 +6,8 @@ tags:
     - Prefect Cloud
     - Observability
     - Events
+search:
+  boost: 2
 ---
 
 # Events <span class="badge cloud"></span>

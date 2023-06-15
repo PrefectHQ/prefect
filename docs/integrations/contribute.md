@@ -9,6 +9,8 @@ tags:
   - integrations
   - integrations
   - contributing
+search:
+  boost: 2
 ---
 
 # Contribute

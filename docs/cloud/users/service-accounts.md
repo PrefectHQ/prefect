@@ -5,6 +5,8 @@ tags:
     - Prefect Cloud
     - workspaces
     - deployments
+search:
+  boost: 2
 ---
 
 # Service Accounts <span class="badge cloud"></span> <span class="badge orgs"></span>

@@ -8,12 +8,14 @@ tags:
     - Windows
     - SQLite
     - upgrading
+search:
+  boost: 2
 ---
 
 
 # Installation
 
-Prefect requires Python 3.7 or later.
+Prefect requires Python 3.7 or later. 
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">

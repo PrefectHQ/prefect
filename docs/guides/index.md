@@ -5,6 +5,8 @@ title: Guides
 tags:
     - guides
     - how to
+search:
+  boost: 2
 ---
 
 - Learn how Prefect makes [testing your workflows a breeze](/guides/testing/).

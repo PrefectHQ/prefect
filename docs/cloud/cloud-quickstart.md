@@ -8,6 +8,8 @@ tags:
     - workspaces
     - tutorial
     - getting started
+search:
+  boost: 2
 ---
 
 # Prefect Cloud Quickstart <span class="badge cloud"></span>

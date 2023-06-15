@@ -10,6 +10,8 @@ tags:
     - infrastructure
     - tutorial
     - recipes
+search:
+  boost: 2
 ---
 
 # Developing a New Worker Type
