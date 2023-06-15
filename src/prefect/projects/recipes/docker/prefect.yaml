@@ -9,7 +9,8 @@ required_inputs:
 
 build:
   - prefect_docker.projects.steps.build_docker_image:
-      requires: "prefect-docker>0.1.0"
+      id: "build_image"
+      requires: "prefect-docker>=0.2.0<0.3.0"
       image_name: "{{ image_name }}"
       tag: "{{ tag }}"
       dockerfile: "{{ dockerfile }}"
@@ -20,3 +21,18 @@ push: null
 pull: 
   - prefect.projects.steps.set_working_directory:
       directory: "/opt/prefect/{{ name }}"
+
+deployments:
+  - name: null
+    version: null
+    tags: []
+    description: null
+    schedule: {}
+    flow_name: null
+    entrypoint: null
+    parameters: {}
+    work_pool:
+      name: null
+      work_queue_name: null
+      job_variables: 
+        image: "{{ build_image.image_name }}"
