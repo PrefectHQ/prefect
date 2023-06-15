@@ -711,6 +711,31 @@ class Block(BaseModel, ABC):
                 )
 
     @classmethod
+    @inject_client
+    async def _get_block_document(
+        cls,
+        name: str,
+        client: "PrefectClient" = None,
+    ):
+        if cls.__name__ == "Block":
+            block_type_slug, block_document_name = name.split("/", 1)
+        else:
+            block_type_slug = cls.get_block_type_slug()
+            block_document_name = name
+
+        try:
+            block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+        except prefect.exceptions.ObjectNotFound as e:
+            raise ValueError(
+                f"Unable to find block document named {block_document_name} for block"
+                f" type {block_type_slug}"
+            ) from e
+
+        return block_document, block_document_name
+
+    @classmethod
     @sync_compatible
     @inject_client
     async def load(
@@ -792,21 +817,7 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        if cls.__name__ == "Block":
-            block_type_slug, block_document_name = name.split("/", 1)
-        else:
-            block_type_slug = cls.get_block_type_slug()
-            block_document_name = name
-
-        try:
-            block_document = await client.read_block_document_by_name(
-                name=block_document_name, block_type_slug=block_type_slug
-            )
-        except prefect.exceptions.ObjectNotFound as e:
-            raise ValueError(
-                f"Unable to find block document named {block_document_name} for block"
-                f" type {block_type_slug}"
-            ) from e
+        block_document, block_document_name = await cls._get_block_document(name)
 
         try:
             return cls._from_block_document(block_document)
@@ -981,6 +992,18 @@ class Block(BaseModel, ABC):
         document_id = await self._save(name=name, overwrite=overwrite, client=client)
 
         return document_id
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def delete(
+        cls,
+        name: str,
+        client: "PrefectClient" = None,
+    ):
+        block_document, block_document_name = await cls._get_block_document(name)
+
+        await client.delete_block_document(block_document.id)
 
     def _iter(self, *, include=None, exclude=None, **kwargs):
         # Injects the `block_type_slug` into serialized payloads for dispatch
