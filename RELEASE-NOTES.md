@@ -18,6 +18,7 @@
 - Change agent behavior to mark flow as crashed if infra submission fails — https://github.com/PrefectHQ/prefect/pull/9691
 - Consolidate `prefect.yaml` and `deployment.yaml` files — https://github.com/PrefectHQ/prefect/pull/9887
 - Add capability to delete block from Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
+- Add ability to delete a flow from the overflow menu on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
 
 ### Fixes
 - Provide a default `DTSTART` to anchor `RRULE` schedules — https://github.com/PrefectHQ/prefect/pull/9872
@@ -49,6 +50,7 @@
 - @Hongbo-Miao
 - @rito-sixt made their first contribution in https://github.com/PrefectHQ/prefect/pull/9711
 - @drpin2341 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9905
+- @amansal1 made their first contribution in https://github.com/PrefectHQ/prefect-ui-library/pull/1478
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.13...2.10.14
 
