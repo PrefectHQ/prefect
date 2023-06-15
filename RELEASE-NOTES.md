@@ -117,7 +117,7 @@ Webhooks are currently available [via the API and `prefect` CLI](https://docs.pr
 - Add more detailed documentation to the engine api-ref — https://github.com/PrefectHQ/prefect/pull/9924
 - Add note on matching on multiple resources when using automations — https://github.com/PrefectHQ/prefect/pull/9867
 - Updates automations examples in docs — https://github.com/PrefectHQ/prefect/pull/9952
-- Update Prefect Cloud users documtnation on user settings — https://github.com/PrefectHQ/prefect/pull/9920
+- Update Prefect Cloud users documentation on user settings — https://github.com/PrefectHQ/prefect/pull/9920
 - Boost non-API docs pages to optimize search results — https://github.com/PrefectHQ/prefect/pull/9854
 - Update testing documentation tag — https://github.com/PrefectHQ/prefect/pull/9905
 - Exemplify how to import Prefect client — https://github.com/PrefectHQ/prefect/pull/9671
