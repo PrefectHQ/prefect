@@ -16,7 +16,7 @@ build:
       dockerfile: "{{ dockerfile }}"
       push: true
 
-push: 
+push:
   - prefect_aws.deployments.steps.push_to_s3:
       id: "push_code"
       requires: "prefect-aws>=0.3.4"
@@ -42,5 +42,6 @@ deployments:
     work_pool:
       name: null
       work_queue_name: null
-      job_variables: 
+      job_variables:
+        # uses the `image` output from the `build_image` step
         image: "{{ build_image.image }}"

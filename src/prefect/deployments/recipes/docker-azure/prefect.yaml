@@ -43,4 +43,5 @@ deployments:
       name: null
       work_queue_name: null
       job_variables: 
+        # uses the `image` output from the `build_image` step
         image: "{{ build_image.image }}"
