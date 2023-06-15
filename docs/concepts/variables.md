@@ -13,7 +13,7 @@ Variables enable you to store and reuse non-sensitive bits of data, such as conf
 
 Variables can be created or modified at any time, but are intended for values with infrequent writes and frequent reads. Variable values may be cached for quicker retrieval.
 
-While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as project steps.
+While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as deployment configuration steps.
 
 !!! warning "Variables are not Encrypted"
     Using variables to store sensitive information, such as credentials, is not recommended. Instead, use [Secret blocks](https://docs.prefect.io/concepts/blocks/#prefect-built-in-blocks) to store and access sensitive information.
@@ -82,7 +82,7 @@ print(answer)
 
 ### In Project steps
 
-In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize project steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a deployment `pull` step:
+In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize deployment steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a deployment `pull` step:
 
 ```
 pull:
