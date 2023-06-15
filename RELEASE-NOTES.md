@@ -39,9 +39,7 @@ build:
         folder: my-project
 ```
 
-In addition, we've removed the need to use `project` through the CLI as well.
-
-Instead of `prefect project init` you can simply run `prefect init`. To use a deployment configuration recipe during initialization, you no longer need to run an additional command. Running `prefect init` will guide you through an interactive experience to choose a recipe if you so desire.
+In addition, we've removed the need to use the `project` command group through the CLI. Now, instead of `prefect project init` you can simply run `prefect init`. To use a deployment configuration recipe during initialization, you no longer need to run a `prefect project` command. Running `prefect init` will guide you through an interactive experience to choose a recipe if you so desire.
 
 ![prefect init recipe interaction](https://github.com/PrefectHQ/prefect/assets/42048900/c2bea9b4-4e1f-4029-8772-50ecde6073a7)
 
