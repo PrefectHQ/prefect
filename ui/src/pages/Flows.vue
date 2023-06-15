@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <FlowList @delete="handleDelete" />
+        <FlowList selectable @delete="handleDelete" />
       </template>
     </template>
   </p-layout-default>
