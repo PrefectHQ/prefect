@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add infra_overrides to FlowRun table
+SQLite: `f33c7f8c041d`
+Postgres: `18eb8aa2afa8`
+
 # Migrate Artifact data to Artifact Collection
 SQLite: `2dbcec43c857`
 Postgres: `15f5083c16bd`
@@ -264,7 +268,7 @@ Adds tables for storing block data.
 SQLite: `619bea85701a`
 Postgres: `5f376def75c3`
 
-## Intial
+## Initial
 
 Creates the database that previously was not managed by migrations.
 

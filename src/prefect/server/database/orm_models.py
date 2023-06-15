@@ -558,6 +558,8 @@ class ORMFlowRun(ORMRun):
             index=True,
         )
 
+    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
