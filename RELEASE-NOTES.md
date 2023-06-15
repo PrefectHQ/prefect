@@ -2,9 +2,6 @@
 
 ## Release 2.10.14
 
-### Exciting New Features 🎉
-- feat: Cloud Webhook CLI — https://github.com/PrefectHQ/prefect/pull/9874
-
 ### Simplying deployments
 
 We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name. This is to emphasize this deployment experience as the recommended one.
