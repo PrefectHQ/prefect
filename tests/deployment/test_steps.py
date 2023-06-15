@@ -165,12 +165,12 @@ class TestRunSteps:
             warnings.warn("this is a warning", DeprecationWarning)
             return {}
 
-        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+        monkeypatch.setattr("prefect.deployments.steps.run_shell_script", func)
 
         mock_print = MagicMock()
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployments.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
@@ -184,12 +184,12 @@ class TestRunSteps:
             warnings.warn("this is a warning", PrefectDeprecationWarning)
             return {}
 
-        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+        monkeypatch.setattr("prefect.deployments.steps.run_shell_script", func)
 
         mock_print = MagicMock()
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployments.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
@@ -203,7 +203,7 @@ class TestRunSteps:
             warnings.warn("this is a warning", PrefectDeprecationWarning)
             return {}
 
-        monkeypatch.setattr("prefect.projects.steps.run_shell_script", func)
+        monkeypatch.setattr("prefect.deployments.steps.run_shell_script", func)
 
         # raise an exception when style is passed. exception type is irrelevant
         mock_print = MagicMock(
@@ -211,7 +211,7 @@ class TestRunSteps:
         )
         steps = [
             {
-                "prefect.projects.steps.run_shell_script": {
+                "prefect.deployments.steps.run_shell_script": {
                     "script": "echo 'this is a test'",
                     "id": "why_not_to_panic",
                 }
