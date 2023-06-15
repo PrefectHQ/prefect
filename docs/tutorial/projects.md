@@ -214,7 +214,7 @@ A few important notes on what we're looking at here:
     The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
     ```yaml
     pull:
-    - prefect.deployment.steps.git_clone:
+    - prefect.deployments.steps.git_clone:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
         access_token: null
@@ -222,7 +222,7 @@ A few important notes on what we're looking at here:
     If pulling from a private repository, your pull step might appear like below.  Note that the access_token is a "Secret" type, which will be retrieved and inferred.
     ```yaml
     pull:
-    - prefect.deployment.steps.git_clone:
+    - prefect.deployments.steps.git_clone:
         repository: https://github.com/PrivateRepo/test-private-repo.git
         branch: main
         access_token: "{{ prefect.blocks.secret.my-github-secret }}"
@@ -274,7 +274,7 @@ build:
     push: false
 
 pull:
-- prefect.deployment.steps.git_clone:
+- prefect.deployments.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: main
     access_token: null
@@ -328,7 +328,7 @@ The reason this occurs is because our deployment has a fundamentally local `pull
 
 ```yaml
 pull:
-- prefect.deployment.steps.set_working_directory:
+- prefect.deployments.steps.set_working_directory:
     directory: /Users/chris/dev/my-first-project
 ```
 
@@ -353,7 +353,7 @@ build:
     push: false
 
 pull:
-- prefect.deployment.steps.set_working_directory:
+- prefect.deployments.steps.set_working_directory:
     directory: /opt/prefect/hello-projects
 ```
 

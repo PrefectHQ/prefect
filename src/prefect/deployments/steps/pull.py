@@ -54,14 +54,14 @@ def git_clone(
         Clone a public repository:
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
         ```
 
         Clone a branch of a public repository:
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
                 branch: my-branch
         ```
@@ -69,7 +69,7 @@ def git_clone(
         Clone a private repository using an access token:
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
         ```
@@ -80,7 +80,7 @@ def git_clone(
         Clone a repository with submodules:
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 repository: https://github.com/org/repo.git
                 include_submodules: true
         ```
@@ -89,7 +89,7 @@ def git_clone(
         before executing flows):
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 repository: git@github.com:org/repo.git
         ```
     """

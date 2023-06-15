@@ -86,7 +86,7 @@ In `.yaml` files, variables are denoted by quotes and double curly brackets, lik
 
 ```
 pull:
-- prefect.deployment.steps.git_clone:
+- prefect.deployments.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: "{{ prefect.variables.deployment_branch }}"
 ```

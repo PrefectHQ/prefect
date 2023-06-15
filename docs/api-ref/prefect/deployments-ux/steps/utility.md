@@ -10,4 +10,4 @@ tags:
     - requirements.txt
 ---
 
-::: prefect.deployment.steps.utility
+::: prefect.deployments.steps.utility

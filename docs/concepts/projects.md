@@ -143,7 +143,7 @@ Once you've confirmed that these fields are set to their desired values, this st
 
     ```yaml
     build:
-        - prefect.deployment.steps.run_shell_script:
+        - prefect.deployments.steps.run_shell_script:
             id: get-commit-hash
             script: git rev-parse --short HEAD
             stream_output: false
@@ -224,7 +224,7 @@ Here is an example of retrieving the short Git commit hash of the current reposi
 
 ```yaml
 build:
-    - prefect.deployment.steps.run_shell_script:
+    - prefect.deployments.steps.run_shell_script:
         id: get-commit-hash
         script: git rev-parse --short HEAD
         stream_output: false
@@ -241,10 +241,10 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 
 ```yaml
 pull:
-    - prefect.deployment.steps.git_clone:
+    - prefect.deployments.steps.git_clone:
         id: clone-step
         repository: https://github.com/org/repo.git
-    - prefect.deployment.steps.pip_install_requirements:
+    - prefect.deployments.steps.pip_install_requirements:
         directory: {{ clone-step.directory }}
         requirements_file: requirements.txt
         stream_output: False

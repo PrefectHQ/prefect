@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 import prefect
-from prefect.deployment.base import (
+from prefect.deployments.base import (
     configure_project_by_recipe,
     find_prefect_directory,
     initialize_project,
@@ -92,14 +92,14 @@ class TestRecipes:
         recipe_config = configure_project_by_recipe(
             recipe, repository="test-org/test-repo"
         )
-        clone_step = recipe_config["pull"][0]["prefect.deployment.steps.git_clone"]
+        clone_step = recipe_config["pull"][0]["prefect.deployments.steps.git_clone"]
         assert clone_step["repository"] == "test-org/test-repo"
         assert clone_step["branch"] == "{{ branch }}"
 
     async def test_configure_project_replaces_templates_on_docker(self):
         recipe_config = configure_project_by_recipe("docker", name="test-dir")
         clone_step = recipe_config["pull"][0][
-            "prefect.deployment.steps.set_working_directory"
+            "prefect.deployments.steps.set_working_directory"
         ]
         assert clone_step["directory"] == "/opt/prefect/test-dir"
 
@@ -136,7 +136,7 @@ class TestInitProject:
             contents = yaml.safe_load(f)
 
         clone_step = contents["pull"][0]
-        assert "prefect.deployment.steps.git_clone" in clone_step
+        assert "prefect.deployments.steps.git_clone" in clone_step
 
         build_step = contents["build"][0]
         assert "prefect_docker.projects.steps.build_docker_image" in build_step

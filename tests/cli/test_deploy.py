@@ -15,8 +15,8 @@ import prefect
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
-from prefect.deployment import register_flow
-from prefect.deployment.base import create_default_prefect_yaml, initialize_project
+from prefect.deployments import register_flow
+from prefect.deployments.base import create_default_prefect_yaml, initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
@@ -600,7 +600,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir)
                     }
                 }
@@ -628,7 +628,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_no_remote)
                     }
                 }
@@ -658,7 +658,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_with_remote)
                     }
                 }
@@ -703,7 +703,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                     }
@@ -759,7 +759,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo-override.git",
                         "branch": "dev",
                     }
@@ -808,7 +808,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.deployment.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                         "token": (

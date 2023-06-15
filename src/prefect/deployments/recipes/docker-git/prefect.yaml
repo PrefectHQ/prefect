@@ -1,7 +1,6 @@
 prefect-version: null
 name: null
-
-description: "Store project within a custom docker image alongside its runtime environment"
+description: "Store project within a git repository and build a custom docker image for runtime"
 
 required_inputs:
   image_name: "The image name, including repository, to give the built Docker image"
@@ -18,9 +17,11 @@ build:
 
 push: null
 
-pull: 
-  - prefect.deployment.steps.set_working_directory:
-      directory: "/opt/prefect/{{ name }}"
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: "{{ repository }}"
+      branch: "{{ branch }}"
+      access_token: null
 
 deployments:
   - name: null

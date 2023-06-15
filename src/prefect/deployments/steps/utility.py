@@ -8,7 +8,7 @@ Example:
         repository and use it as a Docker image tag:
     ```yaml
     build:
-        - prefect.deployment.steps.run_shell_script:
+        - prefect.deployments.steps.run_shell_script:
             id: get-commit-hash
             script: git rev-parse --short HEAD
             stream_output: false
@@ -96,7 +96,7 @@ async def run_shell_script(
             a Docker image tag:
         ```yaml
         build:
-            - prefect.deployment.steps.run_shell_script:
+            - prefect.deployments.steps.run_shell_script:
                 id: get-commit-hash
                 script: git rev-parse --short HEAD
                 stream_output: false
@@ -110,7 +110,7 @@ async def run_shell_script(
         Run a multi-line shell script:
         ```yaml
         build:
-            - prefect.deployment.steps.run_shell_script:
+            - prefect.deployments.steps.run_shell_script:
                 script: |
                     echo "Hello"
                     echo "World"
@@ -119,7 +119,7 @@ async def run_shell_script(
         Run a shell script with environment variables:
         ```yaml
         build:
-            - prefect.deployment.steps.run_shell_script:
+            - prefect.deployments.steps.run_shell_script:
                 script: echo "Hello $NAME"
                 env:
                     NAME: World
@@ -128,7 +128,7 @@ async def run_shell_script(
         Run a shell script in a specific directory:
         ```yaml
         build:
-            - prefect.deployment.steps.run_shell_script:
+            - prefect.deployments.steps.run_shell_script:
                 script: echo "Hello"
                 directory: /path/to/directory
         ```
@@ -136,7 +136,7 @@ async def run_shell_script(
         Run a script stored in a file:
         ```yaml
         build:
-            - prefect.deployment.steps.run_shell_script:
+            - prefect.deployments.steps.run_shell_script:
                 script: "bash path/to/script.sh"
         ```
     """
@@ -198,10 +198,10 @@ async def pip_install_requirements(
     Example:
         ```yaml
         pull:
-            - prefect.deployment.steps.git_clone:
+            - prefect.deployments.steps.git_clone:
                 id: clone-step
                 repository: https://github.com/org/repo.git
-            - prefect.deployment.steps.pip_install_requirements:
+            - prefect.deployments.steps.pip_install_requirements:
                 directory: {{ clone-step.directory }}
                 requirements_file: requirements.txt
                 stream_output: False

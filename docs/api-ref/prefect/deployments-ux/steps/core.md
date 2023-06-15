@@ -7,4 +7,4 @@ tags:
     - steps
 ---
 
-::: prefect.deployment.steps.core
+::: prefect.deployments.steps.core

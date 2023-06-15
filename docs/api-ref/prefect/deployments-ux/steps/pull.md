@@ -8,4 +8,4 @@ tags:
     - pull step
 ---
 
-::: prefect.deployment.steps.pull
+::: prefect.deployments.steps.pull
