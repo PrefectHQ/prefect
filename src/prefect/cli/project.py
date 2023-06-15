@@ -114,11 +114,11 @@ async def init(
                     recipe_description = recipe_data.get(
                         "description", "(no description available)"
                     )
-                    recipe = {
+                    recipe_name = {
                         "name": recipe_name,
                         "description": recipe_description,
                     }
-                    recipes.append(recipe)
+                    recipes.append(recipe_name)
 
         selected_recipe = prompt_select_from_table(
             app.console,
