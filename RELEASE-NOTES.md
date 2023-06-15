@@ -45,7 +45,11 @@ Instead of `prefect project init` you can simply run `prefect init`. To use a de
 
 ![prefect init recipe interaction](https://github.com/PrefectHQ/prefect/assets/42048900/c2bea9b4-4e1f-4029-8772-50ecde6073a7)
 
-We have also deprecated deploying a flow via flow name, allowing a single, streamlined way to deploy: `prefect deploy ./path/to/flow.py:flow-fn-name`. You no longer have to worry about the `-f` option, or about a flow being registered in a folder. Deploying will always be via entrypoint: `path-to-script:flow-function-name`.
+We have also deprecated deploying a flow via flow name, allowing a single, streamlined way to deploy:
+```python
+prefect deploy ./path/to/flow.py:flow-fn-name
+```
+You no longer have to worry about the `-f` option, or about a flow being registered in a folder. Deploying will always be via entrypoint.
 
 See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9887
