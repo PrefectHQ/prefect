@@ -21,7 +21,7 @@ You can manage your deployments with a `prefect.yaml` file that describes how to
 
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing base settings for your deployments, procedural steps for preparing deployments, as well as instructions for preparing the execution environment for a deployment run
 
-You can initialize a deployment configuration, which creates the `.prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
+You can initialize your deployment configuration, which creates the `.prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
 
 !!! tip "Deployment configuration recipes"
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect init` to be prompted with available recipes in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your working directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
