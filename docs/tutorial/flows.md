@@ -18,7 +18,7 @@ Some important points about flows:
 2. Every Prefect workflow must contain at least one `flow` function that serves as the entrypoint for execution of the flow.
 3. Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
-The simplest way to begin with Prefect is to import `flow` and annotate your Python function using the [@flow](api-ref/prefect/flows/#prefect.flows.flow) decorator.
+The simplest way get started with Prefect is to import `flow` and annotate your Python function using the [@flow](api-ref/prefect/flows/#prefect.flows.flow) decorator.
 
 ```python
 import httpx
@@ -57,9 +57,10 @@ Forks 🍴 : 1245
 
 ### Retries
 
-Organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries. It helps provide for additional ways to respond on how your workflows fail, and offer more control on fail safe options for your workflow.
+It helps provide for additional ways to respond on how your workflows fail, and offer more control on fail safe options for your workflow.
 
-*Potentially insert code example? It might be redundant
+
+The flow decorator lets you specify the number of retries.
 
 ### Subflow
 
@@ -71,7 +72,7 @@ import httpx
 from prefect import flow, task
 
 
-@flow(log_prints = True)
+@flow(log_prints = True, retries=3)
 def get_repo_info():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
