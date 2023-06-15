@@ -49,7 +49,7 @@ We have also deprecated deploying a flow via flow name, allowing a single, strea
 ```python
 prefect deploy ./path/to/flow.py:flow-fn-name
 ```
-You no longer have to worry about the `-f` option, or about a flow being registered in a folder. Deploying will always be via entrypoint.
+You no longer have to worry about the `-f` option, or about a flow being registered in a `.prefect` folder. Deploying will always be via entrypoint.
 
 See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9887
