@@ -1,10 +1,11 @@
 prefect-version: null
 name: null
-description: "Store code within a git repository and build a custom docker image for runtime"
+description: "Store code within an Azure Blob Storage container and build a custom docker image for runtime"
 
 required_inputs:
   image_name: "The image name, including repository, to give the built Docker image"
   tag: "The tag to give the built Docker image"
+  container: "The container to store and retrieve code from"
 
 build:
   - prefect_docker.deployments.steps.build_docker_image:
@@ -15,13 +16,19 @@ build:
       dockerfile: "{{ dockerfile }}"
       push: true
 
-push: null
+push: 
+  - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+      id: "push_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ container }}"
+      folder: "{{ name }}"
 
 pull:
-  - prefect.deployments.steps.git_clone:
-      repository: "{{ repository }}"
-      branch: "{{ branch }}"
-      access_token: null
+  - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+      id: "pull_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ push_code.container }}"
+      folder: "{{ push_code.folder }}"
 
 deployments:
   - name: null

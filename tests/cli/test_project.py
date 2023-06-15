@@ -124,13 +124,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "testing"
             )
@@ -153,13 +153,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
@@ -180,13 +180,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )

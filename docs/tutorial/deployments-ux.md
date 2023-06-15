@@ -239,7 +239,7 @@ In this tutorial, we will focus on building a custom Docker image. First, we nee
 # partial contents of prefect.yaml
 
 build:
-- prefect_docker.projects.steps.build_docker_image:
+- prefect_docker.deployments.steps.build_docker_image:
     image_name: local-only/testing
     tag: dev
     dockerfile: auto
@@ -257,7 +257,7 @@ A few notes:
 - [each step](/concepts/deployments-ux/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
-- to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
+- to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.build_docker_image)
 
 All that's left to do is create our deployment and specify our image name to instruct the worker what image to pull:
 
@@ -318,7 +318,7 @@ Following the same structure as above, we will include a new `build` step as wel
 # partial contents of prefect.yaml
 
 build:
-- prefect_docker.projects.steps.build_docker_image:
+- prefect_docker.deployments.steps.build_docker_image:
     image_name: local-only/testing
     tag: dev2
     dockerfile: auto
