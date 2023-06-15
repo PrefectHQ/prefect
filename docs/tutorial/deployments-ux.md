@@ -20,7 +20,7 @@ search:
 
 We recommend organizing and managing Prefect deployments with a `prefect.yaml` file, allowing you to easily specify multiple configurations for different deployments, reuse configuration across deployments, and deploy multiple flows at once!
 
-- [`prefect.yaml`](/concepts/deployments-ux/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
+- [`prefect.yaml`](/concepts/deployments-ux/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for your deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
 
 <a name="worker-tip"></a>
 !!! tip "Deployment management requires workers"
