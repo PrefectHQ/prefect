@@ -2,7 +2,7 @@
 
 ## Release 2.10.14
 
-### Introducing deployment triggers
+### Introducing deployment triggers in Prefect Cloud
 
 We are thrilled to introduce deployment triggers, an innovative and powerful feature designed to streamline event-driven deployments in Prefect. With deployment triggers, you can create automations to orchestrate the execution of flows based on observed conditions, revolutionizing the way you manage workflows.
 
