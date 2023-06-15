@@ -291,10 +291,14 @@ from = "/concepts/database/"
 to = "/host/"
 status = 301
 
+[[redirects]]
+from = "/ui/notifications/"
+to = "/host/#notifications"
+status = 301
 
 [[redirects]]
 from = "/concepts/notifications/"
-to = "/host/"
+to = "/host/#notifications"
 status = 301
 
 
