@@ -35,7 +35,7 @@ Prefect automates and orchestrates data workflows - it simplifies the creation, 
 
 1. By the end of this tutorial we will have:
         1. [Created a Flow](/tutorial/first-steps/)
-        2. [Added Tasks to it](/tutorial/flow-task-config/)
+        2. [Added Tasks to it](/tutorial/tasks/)
         3. [Created a Work Pool](/tutorial/execution/)
         4. [Deployed a Worker](/tutorial/execution/)
         5. [Deployed the Flow](/tutorial/deployments/)

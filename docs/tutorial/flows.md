@@ -1,12 +1,10 @@
 ---
-description: Learn the basics of creating and running Prefect flows and tasks.
+description: Learn the basics of creating and running Prefect flows
 tags:
     - tutorial
     - getting started
     - basics
-    - tasks
     - flows
-    - subflows
 ---
 ## What is a flow?
 

@@ -113,8 +113,8 @@ nav:
         - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorial:
         - tutorial/index.md
-        - Flows: tutorial/first-steps.md
-        - Tasks: tutorial/flow-task-config.md
+        - Flows: tutorial/flows.md
+        - Tasks: tutorial/tasks.md
         - Creating a Deployment: tutorial/execution.md
         - Deploying our Flows: tutorial/orchestration.md
         - Next Steps: tutorial/storage.md
