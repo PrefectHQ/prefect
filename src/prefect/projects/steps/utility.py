@@ -198,7 +198,7 @@ async def pip_install_requirements(
     Example:
         ```yaml
         pull:
-            - prefect.projects.steps.git_clone_project:
+            - prefect.projects.steps.git_clone:
                 id: clone-step
                 repository: https://github.com/org/repo.git
             - prefect.projects.steps.pip_install_requirements:

@@ -1,19 +1,84 @@
 """
 Client-side execution and orchestration of flows and tasks.
 
-Engine process overview
+## Engine process overview
 
-- The flow or task is called by the user.
-    See `Flow.__call__`, `Task.__call__`
+### Flows
 
-- A synchronous engine function acts as an entrypoint to the async engine.
-    See `enter_flow_run_engine`, `enter_task_run_engine`
+- **The flow is called by the user or an existing flow run is executed in a new process.**
 
-- The async engine creates a run via the API and prepares for execution of user-code.
-    See `begin_flow_run`, `begin_task_run`
+    See `Flow.__call__` and `prefect.engine.__main__` (`python -m prefect.engine`)
 
-- The run is orchestrated through states, calling the user's function as necessary.
-    See `orchestrate_flow_run`, `orchestrate_task_run`
+- **A synchronous function acts as an entrypoint to the engine.**
+    The engine executes on a dedicated "global loop" thread. For asynchronous flow calls,
+    we return a coroutine from the entrypoint so the user can enter the engine without
+    blocking their event loop.
+
+    See `enter_flow_run_engine_from_flow_call`, `enter_flow_run_engine_from_subprocess`
+
+- **The thread that calls the entrypoint waits until orchestration of the flow run completes.**
+    This thread is referred to as the "user" thread and is usually the "main" thread.
+    The thread is not blocked while waiting — it allows the engine to send work back to it.
+    This allows us to send calls back to the user thread from the global loop thread.
+
+    See `wait_for_call_in_loop_thread` and `call_soon_in_waiting_thread`
+
+- **The asynchronous engine branches depending on if the flow run exists already and if
+    there is a parent flow run in the current context.**
+
+    See `create_then_begin_flow_run`, `create_and_begin_subflow_run`, and `retrieve_flow_then_begin_flow_run`
+
+- **The asynchronous engine prepares for execution of the flow run.**
+    This includes starting the task runner, preparing context, etc.
+
+    See `begin_flow_run`
+
+- **The flow run is orchestrated through states, calling the user's function as necessary.**
+    Generally the user's function is sent for execution on the user thread.
+    If the flow function cannot be safely executed on the user thread, e.g. it is
+    a synchronous child in an asynchronous parent it will be scheduled on a worker
+    thread instead.
+
+    See `orchestrate_flow_run`, `call_soon_in_waiting_thread`, `call_soon_in_new_thread`
+
+### Tasks
+
+- **The task is called or submitted by the user.**
+    We require that this is always within a flow.
+
+    See `Task.__call__` and `Task.submit`
+    
+- **A synchronous function acts as an entrypoint to the engine.**
+    Unlike flow calls, this _will not_ block until completion if `submit` was used.
+
+    See `enter_task_run_engine`
+
+- **A future is created for the task call.**
+    Creation of the task run and submission to the task runner is scheduled as a 
+    background task so submission of many tasks can occur concurrently.
+
+    See `create_task_run_future` and `create_task_run_then_submit`
+
+- **The engine branches depending on if a future, state, or result is requested.**
+    If a future is requested, it is returned immediately to the user thread.
+    Otherwise, the engine will wait for the task run to complete and return the final
+    state or result.
+
+    See `get_task_call_return_value`
+
+- **An engine function is submitted to the task runner.**
+    The task runner will schedule this function for execution on a worker.
+    When executed, it will prepare for orchestration and wait for completion of the run.
+
+    See `create_task_run_then_submit` and `begin_task_run`
+
+- **The task run is orchestrated through states, calling the user's function as necessary.**
+    The user's function is always executed in a worker thread for isolation. 
+    
+    See `orchestrate_task_run`, `call_soon_in_new_thread`
+
+    _Ideally, for local and sequential task runners we would send the task run to the
+    user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
 """
 import asyncio
 import contextlib

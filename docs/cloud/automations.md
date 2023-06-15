@@ -92,6 +92,20 @@ For example, if you would only like a trigger to execute an action if it receive
 }
 ```
 
+!!! note "Matching on multiple resources"
+    Each key in `match` and `match_related` can accept a list of multiple values that are `OR`'d together. For example, to match on multiple deployments:
+
+    ```json
+    "match_related": {
+      "prefect.resource.id": [
+        "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761",
+        "prefect.deployment.c33b8eaa-1ba7-43c4-ac43-7904a9550611"
+      ],
+      "prefect.resource.role": "deployment"
+    },
+    ```
+
+
 Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
 
 ```json
@@ -164,6 +178,25 @@ Prefect tries to infer the relevant event whenever possible, but sometimes one d
 Specify a name and, optionally, a description for the automation.
 
 ![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
+
+
+## Create an automation via deployment triggers
+
+To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+To 
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: my.external.resource
+    expect:
+      - external.resource.pinged
+    parameters:
+      param_1: "{{ event }}"
+```
+
+When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
 
 ## Automation notifications
 

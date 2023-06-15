@@ -27,7 +27,7 @@ async def deployment_with_pull_step(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
@@ -54,12 +54,12 @@ async def deployment_with_pull_steps(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.projects.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/marvin.git"
                     }
                 },
@@ -87,17 +87,18 @@ class TestProjectInit:
     def test_project_init(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                "project init --name test_project", temp_dir=str(tempdir)
+                "init --name test_project", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
-            for file in ["prefect.yaml", "deployment.yaml", ".prefectignore"]:
+            for file in ["prefect.yaml", ".prefectignore"]:
                 # temp_dir creates a *new* nested temporary directory within tempdir
                 assert any(Path(tempdir).rglob(file))
 
     def test_project_init_with_recipe(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                "project init --name test_project --recipe local", temp_dir=str(tempdir)
+                "init --name test_project --recipe local",
+                temp_dir=str(tempdir),
             )
             assert result.exit_code == 0
 
@@ -105,7 +106,7 @@ class TestProjectInit:
     def test_project_init_with_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
-                "project init --name test_project --recipe docker",
+                "init --name test_project --recipe docker",
                 expected_code=0,
                 temp_dir=str(tempdir),
                 user_input="my-image/foo"
@@ -138,7 +139,7 @@ class TestProjectInit:
     def test_project_init_with_partial_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
-                "project init --name test_project --recipe docker --field tag=my-tag",
+                "init --name test_project --recipe docker --field tag=my-tag",
                 expected_code=0,
                 temp_dir=str(tempdir),
                 user_input="my-image/foo" + readchar.key.ENTER,
@@ -167,7 +168,7 @@ class TestProjectInit:
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
                 (
-                    "project init --name test_project --recipe docker --field"
+                    "init --name test_project --recipe docker --field"
                     " tag=my-tag --field image_name=my-image/foo"
                 ),
                 expected_code=0,
@@ -190,22 +191,18 @@ class TestProjectInit:
                 == "my-tag"
             )
 
-            deployment_file = list(Path(tempdir).rglob("deployment.yaml")).pop()
-            with open(deployment_file, "r") as f:
-                deploy_config = yaml.safe_load(f)
-
             assert (
-                deploy_config["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ image_name }}"
+                configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
+                == "{{ build_image.image_name }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
         result = invoke_and_assert(
-            "project init --name test_project --recipe def-not-a-recipe",
+            "init --name test_project --recipe def-not-a-recipe",
             expected_code=1,
         )
         assert result.exit_code == 1
-        assert "prefect project recipe ls" in result.output
+        assert "prefect init" in result.output
 
 
 class TestProjectClone:

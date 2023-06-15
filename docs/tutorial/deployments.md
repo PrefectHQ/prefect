@@ -7,6 +7,8 @@ tags:
     - flow runs
     - deployments
     - schedules
+    - triggers
+    - automations
     - tutorial
 ---
 
@@ -643,7 +645,7 @@ Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspa
 
 ## Next steps
 
-So far you've seen a simple example of a single deployment for a single flow. But a common and useful pattern is to create multiple deployments for a flow. By using tags, parameters, and schedules effectively, you can have a single flow definition that serves multiple purposes or can be configured to run in different environments.
+So far you've seen a simple example of a single deployment for a single flow. But a common and useful pattern is to create multiple deployments for a flow. By using tags, parameters, triggers, and schedules effectively, you can have a single flow definition that serves multiple purposes or can be configured to run in different environments.
 
 ## Cleaning up
 
