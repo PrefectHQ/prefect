@@ -104,14 +104,14 @@ See these pull requests for implementation details:
 - make more sqlite locking retryable — https://github.com/PrefectHQ/prefect/pull/9938
 
 ### Documentation
-- Updating Agent/Worker docs with minimum role needed — https://github.com/PrefectHQ/prefect/pull/9882
-- deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/9886
+- Add tip on `PREFECT_API_URL` setting for workers and agents — https://github.com/PrefectHQ/prefect/pull/9882
+- Add deployment triggers documentation — https://github.com/PrefectHQ/prefect/pull/9886
 - Add more detailed documentation to the engine api-ref — https://github.com/PrefectHQ/prefect/pull/9924
-- Update automation docs to explaining matching on multiple resources — https://github.com/PrefectHQ/prefect/pull/9867
-- Adds notifications page redirect to docs — https://github.com/PrefectHQ/prefect/pull/9889
-- Boost non-API docs pages — https://github.com/PrefectHQ/prefect/pull/9854
+- Add note on matching on multiple resources when using automations — https://github.com/PrefectHQ/prefect/pull/9867
 - Updates automations examples in docs — https://github.com/PrefectHQ/prefect/pull/9952
-- Update Prefect Cloud Users page with user setting information — https://github.com/PrefectHQ/prefect/pull/9920
+- Update Prefect Cloud users documtnation on user settings — https://github.com/PrefectHQ/prefect/pull/9920
+- Boost non-API docs pages to optimize search results — https://github.com/PrefectHQ/prefect/pull/9854
+
 
 ### Uncategorized
 - adding worker role docs — https://github.com/PrefectHQ/prefect/pull/9922
