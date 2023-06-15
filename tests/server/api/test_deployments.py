@@ -1255,6 +1255,25 @@ class TestCreateFlowRunFromDeployment:
         )
         assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
 
+    async def test_create_flow_run_from_deployment_infra_overrides(
+        self, deployment, client
+    ):
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate().dict(json_compatible=True),
+        )
+
+        assert response.json()["infra_overrides"] == {}
+
+        infra_overrides = {"cpu": 99999}  # Wow!
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(
+                infra_overrides=infra_overrides
+            ).dict(json_compatible=True),
+        )
+        assert response.json()["infra_overrides"] == infra_overrides
+
 
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):

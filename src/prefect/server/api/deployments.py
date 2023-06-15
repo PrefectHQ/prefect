@@ -407,6 +407,10 @@ async def create_flow_run_from_deployment(
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
 
+        infra_overrides = deployment.infra_overrides
+        for k, v in flow_run.infra_overrides.items():
+            infra_overrides[k] = v
+
         # hydrate the input model into a full flow run / state model
         flow_run = schemas.core.FlowRun(
             **flow_run.dict(
@@ -414,6 +418,7 @@ async def create_flow_run_from_deployment(
                     "parameters",
                     "tags",
                     "infrastructure_document_id",
+                    "infra_overrides",
                 }
             ),
             flow_id=deployment.flow_id,
@@ -426,6 +431,7 @@ async def create_flow_run_from_deployment(
             ),
             work_queue_name=deployment.work_queue_name,
             work_queue_id=deployment.work_queue_id,
+            infra_overrides=infra_overrides,
         )
 
         if not flow_run.state:
