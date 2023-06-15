@@ -9,6 +9,8 @@ tags:
     - schedules
     - triggers
     - tutorial
+search:
+  boost: 2
 ---
 
 # Deploying Flows

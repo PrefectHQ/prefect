@@ -7,6 +7,8 @@ tags:
 
 Prefect tasks are a fundamental component of Prefect's workflow orchestration framework. While flows provide a high-level structure for organizing and executing your code, tasks add another atomic component that can be orchestrated and observed within the context of a flow. 
 
+!!! note "Check out the [tasks concept doc](/docs/concepts/tasks.md) for more features and detailed information"
+
 !!! tip "Tasks cannot be called from other tasks directly, but they enable concurrency, allowing you to execute multiple tasks concurrently. This concurrency can greatly enhance the efficiency and performance of your workflows."
 
 To demonstrate the usage of tasks, let's modify our existing flow by adding some tasks. 
@@ -78,9 +80,7 @@ Locally we'll see something like this:
 
 If we click the link in our terminal and follow it to Prefect Cloud, we'll see something like this:
 
-
 ![Tasks provide greater visibility as well as concurrency](/img/tutorial/cloud-flow-run.png)
-
 
 By encapsulating a specific unit of work within a task, you can define its inputs, outputs, and behavior. This modular approach allows for easier management and composition of complex workflows.
 

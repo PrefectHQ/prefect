@@ -12,6 +12,8 @@ tags:
     - blocks
     - tutorial
     - recipes
+search:
+  boost: 2
 ---
 
 # Projects<span class="badge beta"></span>
@@ -20,10 +22,9 @@ Prefect projects are the recommended way to organize and manage Prefect deployme
 
 A project is a directory of code and configuration for your workflows that can be customized for portability.
 
-The main components of a project are 3 files:
+The main components of a project are:
 
-- [`deployment.yaml`](/concepts/projects/#the-deployment-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments
-- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
+- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
 - [`.prefect/`](/concepts/projects/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 <a name="worker-tip"></a>
@@ -48,7 +49,7 @@ $ prefect project init
 
 Note that you can safely run this command in a non-empty directory where you already have work, as well.
 
-This command will create your `.prefect/` directory along with the two YAML files `deployment.yaml` and `prefect.yaml`; if any of these files or directories already exist, they will not be altered or overwritten.
+This command will create your `.prefect/` directory along with a `prefect.yaml` file; if either of these already exist, they will not be altered or overwritten.
 
 !!! tip "Project Recipes"
     Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure suited to a particular use.  You can see all available recipes by running:
@@ -124,7 +125,7 @@ Note that Prefect has automatically done a few things for you:
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
-You can customize all of this either by [manually editing `deployment.yaml`](/concepts/projects/#the-deployment-yaml-file) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
+You can customize all of this either by [manually editing `prefect.yaml`](/concepts/projects/#deployment-configurations) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
 
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">
@@ -213,7 +214,7 @@ A few important notes on what we're looking at here:
     The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone_project:
+    - prefect.projects.steps.git_clone:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
         access_token: null
@@ -221,14 +222,14 @@ A few important notes on what we're looking at here:
     If pulling from a private repository, your pull step might appear like below.  Note that the access_token is a "Secret" type, which will be retrieved and inferred.
     ```yaml
     pull:
-    - prefect.projects.steps.git_clone_project:
+    - prefect.projects.steps.git_clone:
         repository: https://github.com/PrivateRepo/test-private-repo.git
         branch: main
         access_token: "{{ prefect.blocks.secret.my-github-secret }}"
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
-    For more examples of configuration options available for cloning projects, see [the `git_clone_project` step documentation](/api-ref/prefect/projects/steps/pull).
+    For more examples of configuration options available for cloning projects, see [the `git_clone` step documentation](/api-ref/prefect/projects/steps/pull).
 
 
 ### Dockerized deployment  
@@ -273,7 +274,7 @@ build:
     push: false
 
 pull:
-- prefect.projects.steps.git_clone_project:
+- prefect.projects.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: main
     access_token: null

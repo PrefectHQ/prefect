@@ -3,6 +3,8 @@ description: Prefect variables are dynamic-named, mutable string values, much li
 tags:
     - variables
     - blocks
+search:
+  boost: 2
 ---
 
 # Variables
@@ -84,7 +86,7 @@ In `.yaml` files, variables are denoted by quotes and double curly brackets, lik
 
 ```
 pull:
-- prefect.projects.steps.git_clone_project:
+- prefect.projects.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: "{{ prefect.variables.deployment_branch }}"
 ```

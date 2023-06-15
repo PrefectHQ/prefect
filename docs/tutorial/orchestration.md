@@ -8,6 +8,8 @@ tags:
     - API
     - UI
     - storage
+search:
+  boost: 2
 ---
 
 From our previous steps we now have:
