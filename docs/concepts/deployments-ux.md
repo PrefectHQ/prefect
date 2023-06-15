@@ -15,21 +15,20 @@ search:
   boost: 2
 ---
 
-# Projects<span class="badge beta"></span>
+# Managing Deployments<span class="badge beta"></span>
 
-A project is a minimally opinionated set of files that describe how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, a project is a directory with the following key files stored in the root:
+You can manage your deployments with a `prefect.yaml` file that describe how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
 
-- [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing base settings for deployments produced from this project, procedural steps for preparing deployments from this project, as well as instructions for preparing the execution environment for a deployment run
-- [`.prefect/`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
+- [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing base settings for your deployments, procedural steps for preparing deployments, as well as instructions for preparing the execution environment for a deployment run
 
-Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.
+You can initialize a deployment configuration, which creates the `.prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
 
-!!! tip "Project recipes"
-    Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect project recipe ls` to see what recipes are available in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your project directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
+!!! tip "Deployment configuration recipes"
+    Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect init` to be prompted with available recipes in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your working directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
 
 ## The Prefect YAML file
 
-The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images) from this project, and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
+The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images), and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
 
 Any deployment configuration can be overridden via options available on the `prefect deploy` CLI command when creating a deployment. 
 
@@ -70,11 +69,11 @@ deployments:
 
 The metadata fields are always pre-populated for you and are currently for bookkeeping purposes only.  The other sections are pre-populated based on recipe; if no recipe is provided, Prefect will attempt to guess an appropriate one based on local configuration.
 
-You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. However, it is useful for version-controlling your deployments and managing multiple deployments from the same project.
+You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. However, it is useful for version-controlling your deployments and managing multiple deployments from the sa.
 
 ### Deployment Actions
 
-Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of deployments in your project. The three actions available are `build`, `push`, and `pull`. `pull` is the only required deployment action — it is used to define how Prefect will pull your deployment in remote execution environments.
+Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments. The three actions available are `build`, `push`, and `pull`. `pull` is the only required deployment action — it is used to define how Prefect will pull your deployment in remote execution environments.
 
 Each action is defined as a list of steps that are executing in sequence.
 
@@ -92,9 +91,9 @@ section:
 Every step can optionally provide a `requires` field that Prefect will use to auto-install in the event that the step cannot be found in the current environment. Each step can also specify an `id` for the step which is used when referencing step outputs in later steps. The additional fields map directly onto Python keyword arguments to the step function.  Within a given section, steps always run in the order that they are provided within the `prefect.yaml` file.
 
 !!! tip "Deployment Instruction Overrides"
-    `build`, `push`, and `pull` sections can all be overridden a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the project's `prefect.yaml` file.
+    `build`, `push`, and `pull` sections can all be overridden a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the `prefect.yaml` file.
 
-    The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition instead of the project's `prefect.yaml` file.
+    The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition in the `prefect.yaml` file.
 
     This capability is useful with multiple deployments that require different deployment instructions.
 
@@ -106,17 +105,17 @@ The build section of `prefect.yaml` is where any necessary side effects for runn
 
 <div class="terminal">
 ```bash
-$ prefect project init --recipe docker
+$ prefect init --recipe docker
 >> image_name: < insert image name here >
 >> tag: < insert image tag here >
 ```
 </div>
 
 !!! tip "Use `--field` to avoid the interactive experience"
-    We recommend that you only initialize a recipe when you begin a project, and afterwards store your configuration files within version control; however, sometimes you may need to initialize programmatically and avoid the interactive prompts.  To do so, provide all required fields for your recipe using the `--field` flag:
+    We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control; however, sometimes you may need to initialize programmatically and avoid the interactive prompts.  To do so, provide all required fields for your recipe using the `--field` flag:
     <div class="terminal">
     ```bash
-    $ prefect project init --recipe docker \
+    $ prefect init --recipe docker \
         --field image_name=my-repo/my-image \
         --field tag=my-tag
     ```
@@ -158,13 +157,13 @@ Once you've confirmed that these fields are set to their desired values, this st
 
 #### The Push Action
 
-The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations.
+The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this code repository to arbitrary remote locations.
 
-For example, a user wishing to store their project in an S3 bucket and rely on default worker settings for its runtime environment could use the `s3` recipe:
+For example, a user wishing to store their code in an S3 bucket and rely on default worker settings for its runtime environment could use the `s3` recipe:
 
 <div class="terminal">
 ```bash
-$ prefect project init --recipe s3
+$ prefect init --recipe s3
 >> bucket: < insert bucket name here >
 ```
 </div>
@@ -204,13 +203,13 @@ Anytime you run `prefect deploy`, this `push` section will be executed upon succ
 
 #### The Pull Action
 
-The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing this project for a deployment run.  These instructions will be executed each time a deployment created within this project is run via a worker.
+The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing your flows for a deployment run.  These instructions will be executed each time a deployment created within this folder is run via a worker.
 
 There are three main types of steps that typically show up in a `pull` section:
 
 - `set_working_directory`: this step simply sets the working directory for the process prior to importing your flow
 - `git_clone`: this step clones the provided repository on the provided branch
-- `pull_project_from_{cloud}`: this step pulls the project directory from a Cloud storage location (e.g., S3)
+- `pull_project_from_{cloud}`: this step pulls the working directory from a Cloud storage location (e.g., S3)
 
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
@@ -237,7 +236,7 @@ build:
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
-Below is an example of installing dependencies from a `requirements.txt` file after cloning a project:
+Below is an example of installing dependencies from a `requirements.txt` file after cloning:
 
 ```yaml
 pull:
@@ -304,13 +303,13 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
 
 ### Deployment Configurations
 
-Each `prefect.yaml` file can have multiple deployment configurations that control the behavior of deployments created from the project. These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations from the same project.
+Each `prefect.yaml` file can have multiple deployment configurations that control the behavior of created deployments. These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
 
 #### Working With Multiple Deployments
 
-Projects can support multiple deployment declarations within a project's `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments within a project to be version controlled and deployed with a single command.
+Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
 
-New deployment declarations can be added to a project's `prefect.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
+New deployment declarations can be added to the `prefect.yaml` file by adding a new entry to the `deployments` list. Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the `prefect deploy` command.
 
 For example, consider the following `prefect.yaml` file:
 
@@ -342,7 +341,7 @@ deployments:
         work_queue_name: tertiary-queue
 ```
 
-This file has three deployment declarations, each referencing a different flow in the project. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
+This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
 
 For example, to deploy `deployment-1` we would run:
 
@@ -360,7 +359,7 @@ $ prefect deploy --name deployment-1 --name deployment-2
 ```
 </div>
 
-To deploy all deployments in a project you can use the `--all` flag:
+To deploy all deployments you can use the `--all` flag:
 
 <div class="terminal">
 ```bash
@@ -376,7 +375,7 @@ $ prefect deploy --all
 
 #### Reusing Configuration Across Deployments
 
-Because a project's `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
+Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
 
 This functionality is useful when multiple deployments need to share the work pool configuration, deployment actions, or other configurations.
 
@@ -450,13 +449,13 @@ Below are fields that can be added to each deployment declaration.
 
 | Property                                   | Description                                                                                                                                                                                                                                                                   |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                                     | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments in a project.                                                                                                                                     |
+| `name`                                     | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments.                                                                                                                                     |
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                       |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                        |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                   |
 | `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                           |
-| `flow_name`                                | The name of a flow that has been registered in the current project's [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                      |
-| `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your project) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
+| `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                      |
+| `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                         |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                   |
 
@@ -485,29 +484,11 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
-
-## The `.prefect/` directory
-
-In general this directory doesn't need to be altered or inspected by users (hence the fact that it is hidden); its only use case right now is storing the existence of known workflows within your project in the `flows.json` file.  Workflows get registered into `.prefect/flows.json` through two mechanisms:
-
-- running `prefect deploy` with an entrypoint (e.g., `prefect deploy ./path/to/file.py:flow_func`) will automatically register this flow within this project
-- explicitly running `prefect project register-flow ./path/to/file.py:flow_func` allows users to register flows explicitly themselves
-
-Registration of flows allows you to to deploy based on flow name reference using the `--flow` or `-f` flag of `prefect deploy`:
-
-<div class="terminal">
-```bash
-$ prefect deploy -f 'My Flow Name'
-```
-</div>
-
-Registration also allows users to share their deployment configuration without requiring a full understanding of the file structure; for example, you can commit `./prefect/flows.json` to a version control system, and allow users to deploy these flows without needing to know each flow's individual entrypoint.
-
 ## Deployment mechanics
 
 Anytime you run `prefect deploy`, the following actions are taken in order:
 
-- The project `prefect.yaml` file is loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
+- The `prefect.yaml` file is loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
 - Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
 - Next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime
 - Next, all variable and block references are resolved with the deployment declaration.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file.
