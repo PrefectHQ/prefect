@@ -112,12 +112,10 @@ Subflows are a great way to organize your workflows and offer more visibility wi
 Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
 ```python
-
 import httpx
-from prefect import flow, task
+from prefect import flow
 
-
-@flow(log_prints = True, retries=3)
+@flow(log_prints = True)
 def get_repo_info():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
@@ -126,21 +124,24 @@ def get_repo_info():
         stars = repo_info['stargazers_count']
         forks = repo_info['forks_count']
         contributors_url = repo_info['contributors_url']
-        average_commits = calculate_average_commits(contributors_url)
+        contributors = get_contributors(contributors_url)
+        average_commits = calculate_average_commits(contributors)
         print(f"PrefectHQ/prefect repository statistics 🤓:")
         print(f"Stars 🌠 : {stars}")
         print(f"Forks 🍴 : {forks}")
         print(f"Average commits per contributor 💌 : {average_commits:.2f}")
     else:
         raise Exception('Failed to fetch repository information.')
-    
-@flow()
-def calculate_average_commits(contributors_url):
-    response = httpx.get(contributors_url)
+@task()
+def get_contributors(url):
+    response = httpx.get(url)
     if response.status_code == 200:
-        contributors = len(response.json())
+        contributors = response.json()
+        return len(contributors)
     else:
-        raise Exception('Failed to fetch contributors.')      
+        raise Exception('Failed to fetch contributors.')
+@task()
+def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
     if response.status_code == 200:

@@ -58,7 +58,28 @@ Forks 🍴 : 1245
 ### Retries
 
 It helps provide for additional ways to respond on how your workflows fail, and offer more control on fail safe options for your workflow.
+```python
+import httpx
+from prefect import flow
 
+@flow # <--- This is a flow decorator!
+def get_repo_info(retries = 3, retry_delay_seconds = 0.2):
+    url = 'https://api.github.com/repos/PrefectHQ/prefect'
+    api_response = httpx.get(url)
+    if api_response.status_code == 200:
+        repo_info = api_response.json()
+        stars = repo_info['stargazers_count']
+        forks = repo_info['forks_count']
+        contributors_url = repo_info['contributors_url']
+        print(f"PrefectHQ/prefect repository statistics 🤓:")
+        print(f"Stars 🌠 : {stars}")
+        print(f"Forks 🍴 : {forks}")
+    else:
+        raise Exception('Failed to fetch repository information.')
+
+if __name__ == '__main__':
+    get_repo_info()
+```
 
 The flow decorator lets you specify the number of retries.
 
