@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 sa = lazy_import("sqlalchemy")
 
+
 # TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
@@ -372,6 +373,36 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterEndTime(PrefectFilterBaseModel):
+    """Filter by `FlowRun.end_time`."""
+
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include flow runs ending at or before this time",
+    )
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include flow runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return flow runs without a end time"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(db.FlowRun.end_time <= self.before_)
+        if self.after_ is not None:
+            filters.append(db.FlowRun.end_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                db.FlowRun.end_time.is_(None)
+                if self.is_null_
+                else db.FlowRun.end_time.is_not(None)
+            )
+        return filters
+
+
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
@@ -489,6 +520,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     )
     start_time: Optional[FlowRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.start_time`"
+    )
+    end_time: Optional[FlowRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `FlowRun.end_time`"
     )
     expected_start_time: Optional[FlowRunFilterExpectedStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.expected_start_time`"
@@ -698,6 +732,36 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class TaskRunFilterEndTime(PrefectFilterBaseModel):
+    """Filter by `TaskRun.end_time`."""
+
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs ending at or before this time",
+    )
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return task runs without a end time"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(db.TaskRun.end_time <= self.before_)
+        if self.after_ is not None:
+            filters.append(db.TaskRun.end_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                db.TaskRun.end_time.is_(None)
+                if self.is_null_
+                else db.TaskRun.end_time.is_not(None)
+            )
+        return filters
+
+
 class TaskRunFilter(PrefectOperatorFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
@@ -715,6 +779,9 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     )
     start_time: Optional[TaskRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.start_time`"
+    )
+    end_time: Optional[TaskRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `TaskRun.end_time`"
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
