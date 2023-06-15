@@ -12,7 +12,7 @@ Example:
             id: get-commit-hash
             script: git rev-parse --short HEAD
             stream_output: false
-        - prefect_docker.projects.steps.build_docker_image:
+        - prefect_docker.deployments.steps.build_docker_image:
             requires: prefect-docker
             image_name: my-image
             image_tag: "{{ get-commit-hash.stdout }}"
@@ -100,7 +100,7 @@ async def run_shell_script(
                 id: get-commit-hash
                 script: git rev-parse --short HEAD
                 stream_output: false
-            - prefect_docker.projects.steps.build_docker_image:
+            - prefect_docker.deployments.steps.build_docker_image:
                 requires: prefect-docker
                 image_name: my-image
                 image_tag: "{{ get-commit-hash.stdout }}"

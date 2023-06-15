@@ -139,7 +139,7 @@ class TestInitProject:
         assert "prefect.deployments.steps.git_clone" in clone_step
 
         build_step = contents["build"][0]
-        assert "prefect_docker.projects.steps.build_docker_image" in build_step
+        assert "prefect_docker.deployments.steps.build_docker_image" in build_step
 
     @pytest.mark.parametrize(
         "recipe",
@@ -163,11 +163,11 @@ class TestInitProject:
             contents = yaml.safe_load(f)
 
         build_step = contents["build"][0]
-        assert "prefect_docker.projects.steps.build_docker_image" in build_step
+        assert "prefect_docker.deployments.steps.build_docker_image" in build_step
 
         assert (
             contents["deployments"][0]["work_pool"]["job_variables"]["image"]
-            == "{{ build_image.image_name }}"
+            == "{{ build_image.image }}"
         )
 
 
