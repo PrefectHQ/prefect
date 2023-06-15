@@ -352,12 +352,12 @@ from = "/tutorial/projects/"
 to = "/tutorial/deployments-ux/"
 
 [[redirects]]
-from = "/api-ref/prefect/projects/
-to = "/api-ref/prefect/deployments-ux/
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
 
 [[redirects]]
-from = "/api-ref/prefect/projects/
-to = "/api-ref/prefect/deployments-ux/
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
 
 
 [[headers]]
