@@ -42,6 +42,19 @@ build:
         folder: my-project
 ```
 
+In addition, we've removed the need to use `project` through the CLI as well.
+
+Instead of `prefect project init` you can simply run `prefect init`. To use a deployment configuration recipe during initialization, you no longer need to run an additional command. Running `prefect init` will guide you through an interactive experience to choose a recipe if you so desire.
+
+We have also deprecated deploying a flow via flow name, allowing a single, streamlined way to deploy: `prefect deploy ./path/to/flow.py:flow-fn-name`. You no longer have to worry about the `-f` option, or about a flow being registered in a folder. Deploying will always be via entrypoint: `path-to-script:flow-function-name`.
+
+See these pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9887
+- https://github.com/PrefectHQ/prefect/pull/9930
+- https://github.com/PrefectHQ/prefect/pull/9928
+- https://github.com/PrefectHQ/prefect-gcp/pull/189
+- https://github.com/PrefectHQ/prefect-aws/pull/278
+
 ### Introducing Deployment Triggers
 
 We are thrilled to introduce Deployment Triggers, an innovative and powerful feature designed to streamline event-driven deployments in Prefect. With Deployment Triggers, you can effortlessly create automations to orchestrate the execution of flows based on observed conditions, revolutionizing the way you manage workflows.
