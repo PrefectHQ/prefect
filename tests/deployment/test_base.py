@@ -63,7 +63,7 @@ class TestRecipes:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "deployment"
+                / "deployments"
                 / "recipes"
             ).iterdir()
             if d.is_dir()
@@ -82,7 +82,7 @@ class TestRecipes:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "deployment"
+                / "deployments"
                 / "recipes"
             ).iterdir()
             if d.is_dir() and "git" in d.absolute().name
@@ -149,7 +149,7 @@ class TestInitProject:
                 prefect.__development_base_path__
                 / "src"
                 / "prefect"
-                / "deployment"
+                / "deployments"
                 / "recipes"
             ).iterdir()
             if d.is_dir() and "docker" in d.absolute().name
