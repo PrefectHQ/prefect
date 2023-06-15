@@ -6,6 +6,8 @@ tags:
     - development
     - standards
     - migrations
+search:
+  boost: 2
 ---
 
 # Contributing

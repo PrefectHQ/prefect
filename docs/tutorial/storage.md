@@ -7,6 +7,8 @@ tags:
     - filesystems
     - infrastructure
     - blocks
+search:
+  boost: 2
 ---
 
 # Storage and Infrastructure

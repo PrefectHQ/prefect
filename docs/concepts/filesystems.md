@@ -6,6 +6,8 @@ tags:
     - deployments
     - LocalFileSystem
     - RemoteFileSystem
+search:
+  boost: 2
 ---
 
 # Filesystems

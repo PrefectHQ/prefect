@@ -11,6 +11,8 @@ tags:
     - workspaces
     - PaaS
 title: Prefect Cloud
+search:
+  boost: 2
 ---
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>

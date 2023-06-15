@@ -4,6 +4,8 @@ tags:
     - migration
     - upgrading
     - best practices
+search:
+  boost: 2
 ---
 
 # Migrating from Prefect 1 to Prefect 2

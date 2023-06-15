@@ -9,6 +9,8 @@ tags:
     - workspaces
     - organizations
     - service accounts
+search:
+  boost: 2
 ---
 
 # Organizations <span class="badge cloud"></span> <span class="badge orgs"></span>

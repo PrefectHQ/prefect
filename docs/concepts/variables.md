@@ -3,6 +3,8 @@ description: Prefect variables are dynamic-named, mutable string values, much li
 tags:
     - variables
     - blocks
+search:
+  boost: 2
 ---
 
 # Variables

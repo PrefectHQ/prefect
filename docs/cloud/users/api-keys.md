@@ -4,6 +4,13 @@ tags:
     - Prefect Cloud
     - API keys
     - configuration
+search:
+  boost: 2
+---
+
+# Document title
+...
+
 ---
 
 # Manage Prefect Cloud API Keys <span class="badge cloud"></span>

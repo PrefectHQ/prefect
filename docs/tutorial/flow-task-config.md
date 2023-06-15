@@ -7,6 +7,8 @@ tags:
     - flows
     - parameters
     - caching
+search:
+  boost: 2
 ---
 
 # Flow and task configuration

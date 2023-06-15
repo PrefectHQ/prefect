@@ -10,6 +10,8 @@ tags:
     - schedules
     - concurrency limits
     - priority
+search:
+  boost: 2
 ---
 
 # Work Pools, Workers & Agents

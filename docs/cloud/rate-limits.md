@@ -4,6 +4,8 @@ tags:
     - API
     - Prefect Cloud
     - rate limits
+search:
+  boost: 2
 ---
 
 # API Rate Limits & Retention Periods <span class="badge cloud"></span>

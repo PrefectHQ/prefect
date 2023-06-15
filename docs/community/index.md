@@ -5,11 +5,13 @@ tags:
     - community
     - Slack
     - Discourse
+search:
+  boost: 2
 ---
 
 # Community
 
-There are lots of ways to get involved with the Prefect community
+There are many ways to get involved with the Prefect community
 
 - Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base

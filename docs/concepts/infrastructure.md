@@ -10,6 +10,8 @@ tags:
     - ECS
     - Cloud Run
     - Container Instances
+search:
+  boost: 2
 ---
 
 # Infrastructure

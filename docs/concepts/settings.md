@@ -6,6 +6,8 @@ tags:
     - environment variables
     - profiles
 title: Profiles and Configuration
+search:
+  boost: 2
 ---
 
 # Profiles & Configuration

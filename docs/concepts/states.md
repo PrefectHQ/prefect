@@ -8,6 +8,8 @@ tags:
     - status
     - state change hooks
     - triggers
+search:
+  boost: 2
 ---
 
 # States

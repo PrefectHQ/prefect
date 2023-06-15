@@ -11,6 +11,8 @@ tags:
     - infrastructure
     - blocks
     - tutorial
+search:
+  boost: 2
 ---
 
 # Projects<span class="badge beta"></span>

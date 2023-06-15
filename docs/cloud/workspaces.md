@@ -5,6 +5,8 @@ tags:
     - Prefect Cloud
     - workspaces
     - deployments
+search:
+  boost: 2
 ---
 
 # Workspaces <span class="badge cloud"></span>

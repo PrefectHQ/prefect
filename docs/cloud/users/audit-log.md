@@ -10,6 +10,8 @@ tags:
     - organizations
     - audit logs
     - compliance
+search:
+  boost: 2
 ---
 
 # Audit Log <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>

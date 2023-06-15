@@ -5,6 +5,8 @@ tags:
     - code style
     - coding practices
     - contributing
+search:
+  boost: 2
 ---
 
 # Code style and practices

@@ -7,6 +7,8 @@ tags:
     - events
     - triggers
     - Prefect Cloud
+search:
+  boost: 2
 ---
 
 # Automations <span class="badge cloud"></span>

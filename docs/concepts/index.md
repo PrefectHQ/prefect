@@ -5,6 +5,8 @@ tags:
     - concepts
     - features
     - overview
+search:
+  boost: 2
 ---
 
 # Explore Prefect concepts

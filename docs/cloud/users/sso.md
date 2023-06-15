@@ -11,6 +11,8 @@ tags:
     - single sign-on
     - SSO
     - authentication
+search:
+  boost: 2
 ---
 
 # Single Sign-on (SSO) <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>

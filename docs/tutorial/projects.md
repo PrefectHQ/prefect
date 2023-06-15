@@ -12,6 +12,8 @@ tags:
     - blocks
     - tutorial
     - recipes
+search:
+  boost: 2
 ---
 
 # Projects<span class="badge beta"></span>

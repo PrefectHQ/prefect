@@ -10,6 +10,8 @@ tags:
     - organizations
     - custom roles
     - RBAC
+search:
+  boost: 2
 ---
 
 # User and Service Account Roles <span class="badge cloud"></span> <span class="badge orgs"></span>

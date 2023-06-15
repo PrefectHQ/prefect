@@ -10,6 +10,8 @@ tags:
     - Serve
     - Database
     - SQLite 
+search:
+  boost: 2
 ---
 
 # Hosting a Prefect server

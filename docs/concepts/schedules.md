@@ -9,6 +9,8 @@ tags:
     - cron
     - RRule
     - iCal
+search:
+  boost: 2
 ---
 
 # Schedules

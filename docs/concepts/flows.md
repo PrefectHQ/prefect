@@ -8,6 +8,8 @@ tags:
     - parameters
     - states
     - final state
+search:
+  boost: 2
 ---
 
 # Flows

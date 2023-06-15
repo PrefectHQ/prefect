@@ -8,6 +8,8 @@ tags:
     - distributed execution
     - Dask
     - Ray
+search:
+  boost: 2
 ---
 
 # Dask and Ray task runners
