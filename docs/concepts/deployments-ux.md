@@ -495,7 +495,7 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 - The final step occurs when the fully realized deployment specification is registered with the Prefect API
 
 !!! tip "Deployment Instruction Overrides"
-    The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections in `prefect.yaml`.
+    The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections above them in `prefect.yaml`.
 
 
 Anytime a step is run, the following actions are taken in order:
