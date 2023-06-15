@@ -415,6 +415,7 @@ def _save_deployment_to_prefect_file(
                 "pull": pull_steps,
             },
         )
+        create_default_ignore_file(".")
     else:
         # use ruamel.yaml to preserve comments
         ryaml = YAML()
