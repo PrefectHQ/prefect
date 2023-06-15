@@ -100,17 +100,20 @@ Some examples of task features include:
 - Retries
 - Advanced dependency management
 
-!!! warning :lightbulb: **Tip:** When to use tasks?
+!!! warning Task Usage
 
     By separating network calls between tasks, Prefect features like caching or retries are most useful.
 
-!!! warning What if I have more complex workflows and want more information? 
-Subflows are a great way to organize your workflows and offer more visibility within the UI. 
+!!! note Complex workflows
+
+    What if I have more complex workflows and want more information? 
+    Subflows are a great way to organize your workflows and offer more visibility within the UI. 
 
 ### Subflow
 
 Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
+We can replace the `@task` decorator with a `@flow` decorator on `calculate_average_commits`, which allows for more visibility on this flow pattern. 
 ```python
 import httpx
 from prefect import flow
@@ -140,7 +143,7 @@ def get_contributors(url):
         return len(contributors)
     else:
         raise Exception('Failed to fetch contributors.')
-@task()
+@flow()
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
