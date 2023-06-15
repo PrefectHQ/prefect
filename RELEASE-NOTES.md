@@ -43,11 +43,10 @@ In addition, we've removed the need to use the `project` command group through t
 
 ![prefect init recipe interaction](https://github.com/PrefectHQ/prefect/assets/42048900/c2bea9b4-4e1f-4029-8772-50ecde6073a7)
 
-We have also deprecated deploying a flow via flow name, allowing a single, streamlined way to deploy:
+We have also deprecated deploying a flow via flow name (`-f`), allowing a single, streamlined way to deploy.
 ```python
 prefect deploy ./path/to/flow.py:flow-fn-name
 ```
-You no longer have to worry about the `-f` option, or about a flow being registered in a `.prefect` folder. Deploying will always be via entrypoint.
 
 See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9887
