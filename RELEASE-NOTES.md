@@ -87,6 +87,7 @@ See these pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect-aws/pull/278
 
 ### Enhancements
+- Make related automations visible from `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
 - chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
 - Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
@@ -111,13 +112,7 @@ See these pull requests for implementation details:
 - Updates automations examples in docs — https://github.com/PrefectHQ/prefect/pull/9952
 - Update Prefect Cloud users documtnation on user settings — https://github.com/PrefectHQ/prefect/pull/9920
 - Boost non-API docs pages to optimize search results — https://github.com/PrefectHQ/prefect/pull/9854
-
-
-### Uncategorized
-- adding worker role docs — https://github.com/PrefectHQ/prefect/pull/9922
-- updating tense to make the list consistent for testing.md — https://github.com/PrefectHQ/prefect/pull/9905
-- Adding any related automations to `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
-- bump prefect deps — https://github.com/PrefectHQ/prefect/pull/9946
+- Update testing documentation tag — https://github.com/PrefectHQ/prefect/pull/9905
 
 ## Contributors
 - @Hongbo-Miao
