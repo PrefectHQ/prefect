@@ -86,7 +86,7 @@ For this tutorial you will create a *process type* work pool via the CLI.
 The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.
 
 !!! tip "Work Pool Types"
-    Aside from process, there are a variety of different work pool types.
+    Aside from process, there are a variety of different work pool types.  You can check them out in the worker [documentation.](/concepts/work-pools/#worker-overview)
 
 In your terminal set to your Prefect workspace run the following command to set up a work pool. 
 
