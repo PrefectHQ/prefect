@@ -100,9 +100,9 @@ See these pull requests for implementation details:
 - Add ability to delete a flow from the overflow menu on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
 
 ### Fixes
-- Provide a default `DTSTART` to anchor `RRULE` schedules — https://github.com/PrefectHQ/prefect/pull/9872
+- Provide a default `DTSTART` to anchor `RRULE` schedules to ensure extra schedules not created — https://github.com/PrefectHQ/prefect/pull/9872
 - Fix bug where attribute error raised on service shutdown when the app startup fails — https://github.com/PrefectHQ/prefect/pull/9900
-- make more sqlite locking retryable — https://github.com/PrefectHQ/prefect/pull/9938
+- Improve retry behavior when SQLite database locked — https://github.com/PrefectHQ/prefect/pull/9938
 
 ### Documentation
 - Add tip on `PREFECT_API_URL` setting for workers and agents — https://github.com/PrefectHQ/prefect/pull/9882
