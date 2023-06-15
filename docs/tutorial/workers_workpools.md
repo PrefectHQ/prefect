@@ -46,6 +46,10 @@ Before you build your first deployment, its helpful to understand how Prefect co
 ## Why Workpools and Workers
 Easily running Prefect flows locally is great for testing and development purposes, but in a production setting, Prefect provides you with the worker/work pool concepts to allow you to run flows in the environments best suited to their execution. For example, its considered best practice to leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run. For more information see the [next steps](/tutorials/next_steps/)
 
+## Why Workpools and Workers
+Easily running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect provides you with the worker/work pool concepts to allow you to run flows in the environments best suited to their execution. For example, its considered best practice to leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run. For more information see the [next steps](/tutorials/next_steps/)
+
+
 Workers and work pools bridge the Prefect orchestration API with your execution environments in your cloud provider.
 
 You can configure work pools on Prefect’s side. They describe the infrastructure configuration for deployed flow runs that get sent to that pool. organize the flows for your worker to pick up and execute. They prioritize the flows and respond to polling from its worker.
@@ -54,7 +58,7 @@ Workers are light-weight, long-running polling processes that you host in your e
 
 ```mermaid
 graph TD;
-    subgraph your_infra[Your Execution Environment]
+    subgraph your_infra["-- Your Execution Environment --"]
         worker["Worker"]
 				subgraph flow_run_infra[Flow Run Infra]
 					flow_run(("Flow Run"))
