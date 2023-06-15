@@ -42,6 +42,29 @@ build:
         folder: my-project
 ```
 
+### Introducing Deployment Triggers
+
+We are thrilled to introduce Deployment Triggers, an innovative and powerful feature designed to streamline event-driven deployments in Prefect. With Deployment Triggers, you can effortlessly create automations to orchestrate the execution of flows based on observed conditions, revolutionizing the way you manage workflows.
+
+By seamlessly integrating triggers into deployment specifications, you gain complete control over both the timing and conditions for flow execution. Everything you need to reason about flow execution and scheduling is now conveniently consolidated in one place. For example:
+
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: prefect.flow-run.*
+    expect:
+      - prefect.flow-run.Completed
+    match_related:
+      prefect.resource.name: prefect.flow.etl-flow
+      prefect.resource.role: flow
+    parameters:
+      param_1: "{{ event }}"
+```
+
+Furthermore, Deployment Triggers allow you to pass event data as parameters, empowering you to customize the behavior of your flows based on real-time information. This deepens the contextual awareness and flexibility of your automations, enabling you to respond dynamically to internal and external events.
+
+
 ### Enhancements
 - chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
