@@ -93,11 +93,10 @@ See these pull requests for implementation details:
 - Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
 - Add httpx request method to Prefect Cloud client — https://github.com/PrefectHQ/prefect/pull/9873
 - Mark flow as crashed if infrastructure submission fails — https://github.com/PrefectHQ/prefect/pull/9691
-
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
-- Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
 - Add `prefect --prompt/--no-prompt` to force toggle interactive CLI sessions — https://github.com/PrefectHQ/prefect/pull/9897
-- Sort task run ids before returning output of cli inspect concurrency limit — https://github.com/PrefectHQ/prefect/pull/9711
+- Return sorted task run ids when inspecting concurrency limit via CLI — https://github.com/PrefectHQ/prefect/pull/9711
+- Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
 
 ### Fixes
 - Provide a default `DTSTART` to anchor `RRULE` schedules to ensure extra schedules not created — https://github.com/PrefectHQ/prefect/pull/9872
