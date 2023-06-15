@@ -92,7 +92,6 @@ See these pull requests for implementation details:
 - Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
 - Sort task run ids before returning output of cli inspect concurrency limit — https://github.com/PrefectHQ/prefect/pull/9711
 - Change agent behavior to mark flow as crashed if infra submission fails — https://github.com/PrefectHQ/prefect/pull/9691
-- Consolidate `prefect.yaml` and `deployment.yaml` files — https://github.com/PrefectHQ/prefect/pull/9887
 - Add capability to delete block from Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
 - Add ability to delete a flow from the overflow menu on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
 
@@ -100,10 +99,6 @@ See these pull requests for implementation details:
 - Provide a default `DTSTART` to anchor `RRULE` schedules — https://github.com/PrefectHQ/prefect/pull/9872
 - Fix bug where attribute error raised on service shutdown when the app startup fails — https://github.com/PrefectHQ/prefect/pull/9900
 - make more sqlite locking retryable — https://github.com/PrefectHQ/prefect/pull/9938
-
-### Deprecations
-- Deprecate project deployment via `—flow/-f` — https://github.com/PrefectHQ/prefect/pull/9888
-- Rename `git_clone_project` step to `git_clone` — https://github.com/PrefectHQ/prefect/pull/9930
 
 ### Documentation
 - Updating Agent/Worker docs with minimum role needed — https://github.com/PrefectHQ/prefect/pull/9882
@@ -119,7 +114,6 @@ See these pull requests for implementation details:
 - adding worker role docs — https://github.com/PrefectHQ/prefect/pull/9922
 - updating tense to make the list consistent for testing.md — https://github.com/PrefectHQ/prefect/pull/9905
 - Adding any related automations to `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
-- Deprecate `prefect project` CLI command group — https://github.com/PrefectHQ/prefect/pull/9928
 - bump prefect deps — https://github.com/PrefectHQ/prefect/pull/9946
 
 ## Contributors
