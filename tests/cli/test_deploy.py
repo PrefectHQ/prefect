@@ -716,7 +716,7 @@ class TestProjectDeploy:
             prefect_file_contents = yaml.safe_load(Path("prefect.yaml").read_text())
             assert prefect_file_contents["pull"] == [
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                     }
