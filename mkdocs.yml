@@ -113,6 +113,7 @@ nav:
         - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorial:
         - tutorial/index.md
+        - Deployment Quick Start: tutorial/deployment_quickstart.md
         - Flows: tutorial/flows.md
         - Tasks: tutorial/tasks.md
         - Deploying Flows: tutorial/workers_workpools.md
