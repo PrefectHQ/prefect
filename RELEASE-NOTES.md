@@ -1,5 +1,57 @@
 # Prefect Release Notes
 
+## Release 2.10.14
+
+### Exciting New Features 🎉
+- feat: Cloud Webhook CLI — https://github.com/PrefectHQ/prefect/pull/9874
+
+### Enhancements
+- chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
+- Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
+- Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
+- Create automations when applying deployments that have trigger specifications — https://github.com/PrefectHQ/prefect/pull/9885
+- Add `prefect --prompt/--no-prompt` to force toggle interactive CLI sessions — https://github.com/PrefectHQ/prefect/pull/9897
+- chore: split up webhook get and ls commands — https://github.com/PrefectHQ/prefect/pull/9899
+- docs: update to `from prefect import get_client` — https://github.com/PrefectHQ/prefect/pull/9671
+- Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
+- Sort task run ids before returning output of cli inspect concurrency limit — https://github.com/PrefectHQ/prefect/pull/9711
+- Change agent behavior to mark flow as crashed if infra submission fails — https://github.com/PrefectHQ/prefect/pull/9691
+- Consolidate `prefect.yaml` and `deployment.yaml` files — https://github.com/PrefectHQ/prefect/pull/9887
+- Add capability to delete block from Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
+
+### Fixes
+- Provide a default `DTSTART` to anchor `RRULE` schedules — https://github.com/PrefectHQ/prefect/pull/9872
+- Fix bug where attribute error raised on service shutdown when the app startup fails — https://github.com/PrefectHQ/prefect/pull/9900
+- make more sqlite locking retryable — https://github.com/PrefectHQ/prefect/pull/9938
+
+### Deprecations
+- Deprecate project deployment via `—flow/-f` — https://github.com/PrefectHQ/prefect/pull/9888
+- Rename `git_clone_project` step to `git_clone` — https://github.com/PrefectHQ/prefect/pull/9930
+
+### Documentation
+- Updating Agent/Worker docs with minimum role needed — https://github.com/PrefectHQ/prefect/pull/9882
+- deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/9886
+- Add new documentation to the engine — https://github.com/PrefectHQ/prefect/pull/9924
+- Adds note explaining multiple match_related syntax — https://github.com/PrefectHQ/prefect/pull/9867
+- Adds notifications page redirect to docs — https://github.com/PrefectHQ/prefect/pull/9889
+- Boost non-API docs pages — https://github.com/PrefectHQ/prefect/pull/9854
+- Updates automations examples in docs — https://github.com/PrefectHQ/prefect/pull/9952
+
+### Uncategorized
+- Add additional user profile info to docs — https://github.com/PrefectHQ/prefect/pull/9920
+- adding worker role docs — https://github.com/PrefectHQ/prefect/pull/9922
+- updating tense to make the list consistent for testing.md — https://github.com/PrefectHQ/prefect/pull/9905
+- Adding any related automations to `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
+- Deprecate `prefect project` CLI command group — https://github.com/PrefectHQ/prefect/pull/9928
+- bump prefect deps — https://github.com/PrefectHQ/prefect/pull/9946
+
+## Contributors
+- @Hongbo-Miao
+- @rito-sixt made their first contribution in https://github.com/PrefectHQ/prefect/pull/9711
+- @drpin2341 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9905
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.13...2.10.14
+
 ## Release 2.10.13
 
 ### Improvements to projects-based deployments
