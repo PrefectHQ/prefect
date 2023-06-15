@@ -24,9 +24,13 @@ triggers:
 
 Furthermore, deployment triggers allow you to pass event data as parameters, empowering you to customize the behavior of your flows based on real-time information. This deepens the contextual awareness and flexibility of your automations, enabling you to respond dynamically to internal and external events.
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9885
+
+
 ### Webhooks on Prefect Cloud
 
-Hand-in-hand with deployment triggers, [webhooks on Prefect Cloud](https://docs.prefect.io/2.10.14/cloud/webhooks/) allow you to capture events from a wide variety of sources in your data stack, translating them into actionable Prefect events in your workspace.  Produce Prefect events from any system that can make an HTTP request and use those events in automations or to trigger event-driven deployments.
+Going hand-in-hand with deployment triggers, [webhooks on Prefect Cloud](https://docs.prefect.io/2.10.14/cloud/webhooks/) allow you to capture events from a wide variety of sources in your data stack, translating them into actionable Prefect events in your workspace.  Produce Prefect events from any system that can make an HTTP request and use those events in automations or to trigger event-driven deployments.
 
 Even if you have minimal control over the systems you're integrating with, Prefect Cloud webhooks give you [full programmable control](https://docs.prefect.io/2.10.14/cloud/webhooks/#webhook-templates) over how you transform incoming HTTP requests into Prefect events with Jinja2 templating.  We even have a [built-in preset for CloudEvents](https://docs.prefect.io/2.10.14/cloud/webhooks/#accepting-cloudevents).
 
@@ -86,7 +90,6 @@ See these pull requests for implementation details:
 - chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
 - Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
-- Create automations when applying deployments that have trigger specifications — https://github.com/PrefectHQ/prefect/pull/9885
 - Add `prefect --prompt/--no-prompt` to force toggle interactive CLI sessions — https://github.com/PrefectHQ/prefect/pull/9897
 - docs: update to `from prefect import get_client` — https://github.com/PrefectHQ/prefect/pull/9671
 - Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
@@ -103,14 +106,14 @@ See these pull requests for implementation details:
 ### Documentation
 - Updating Agent/Worker docs with minimum role needed — https://github.com/PrefectHQ/prefect/pull/9882
 - deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/9886
-- Add new documentation to the engine — https://github.com/PrefectHQ/prefect/pull/9924
-- Adds note explaining multiple match_related syntax — https://github.com/PrefectHQ/prefect/pull/9867
+- Add more detailed documentation to the engine api-ref — https://github.com/PrefectHQ/prefect/pull/9924
+- Update automation docs to explaining matching on multiple resources — https://github.com/PrefectHQ/prefect/pull/9867
 - Adds notifications page redirect to docs — https://github.com/PrefectHQ/prefect/pull/9889
 - Boost non-API docs pages — https://github.com/PrefectHQ/prefect/pull/9854
 - Updates automations examples in docs — https://github.com/PrefectHQ/prefect/pull/9952
+- Update Prefect Cloud Users page with user setting information — https://github.com/PrefectHQ/prefect/pull/9920
 
 ### Uncategorized
-- Add additional user profile info to docs — https://github.com/PrefectHQ/prefect/pull/9920
 - adding worker role docs — https://github.com/PrefectHQ/prefect/pull/9922
 - updating tense to make the list consistent for testing.md — https://github.com/PrefectHQ/prefect/pull/9905
 - Adding any related automations to `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
