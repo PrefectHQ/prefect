@@ -115,8 +115,7 @@ nav:
         - tutorial/index.md
         - Flows: tutorial/flows.md
         - Tasks: tutorial/tasks.md
-        - Creating a Deployment: tutorial/deployments-workers.md
-        - Deploying our Flows: tutorial/orchestration.md
+        - Deploying our Flows: tutorial/deployments.md
         - Next Steps: tutorial/storage.md
     - Concepts:
         - concepts/index.md
