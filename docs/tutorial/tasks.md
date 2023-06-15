@@ -9,7 +9,8 @@ Prefect tasks are a fundamental component of Prefect's workflow orchestration fr
 
 !!! note "Check out the [tasks concept doc](/docs/concepts/tasks.md) for more features and detailed information"
 
-!!! tip "Tasks cannot be called from other tasks directly, but they enable concurrency, allowing you to execute multiple tasks concurrently. This concurrency can greatly enhance the efficiency and performance of your workflows."
+!!! warning Task Gotchas 
+    Tasks cannot be called from other tasks directly, but they enable concurrency, allowing you to execute multiple tasks concurrently. This concurrency can greatly enhance the efficiency and performance of your workflows.
 
 To demonstrate the usage of tasks, let's modify our existing flow by adding some tasks. 
 
@@ -77,14 +78,15 @@ Locally we'll see something like this:
 13:04:22.395 | INFO    | Flow run 'invisible-millipede' - Average commits per contributor 💌 : 344.43
 13:04:22.532 | INFO    | Flow run 'invisible-millipede' - Finished in state Completed('All states completed.')
 ```
+</div>
 
 If we click the link in our terminal and follow it to Prefect Cloud, we'll see something like this:
 
 ![Tasks provide greater visibility as well as concurrency](/img/tutorial/cloud-flow-run.png)
 
-By encapsulating a specific unit of work within a task, you can define its inputs, outputs, and behavior. This modular approach allows for easier management and composition of complex workflows.
+By encapsulating a specific unit of work within a `task`, you can define its inputs, outputs, and behavior. This modular approach allows for easier management and composition of complex workflows.
 
-For example, you can create a task that makes a network call to an external API and retrieves data. This task can then be orchestrated alongside other tasks within the flow, providing a clear structure to our workflow.
+For example, you can create a `task` that makes a network call to an external API and retrieves data. This `task` can then be orchestrated alongside other tasks within the flow, providing a clear structure to our workflow.
 
 Flows and tasks share some common features. Both have metadata attributes such as name, description (which can be in full markdown format), and tags. They also support type-checked parameters, allowing you to define the expected data types of inputs and outputs. Additionally, both flows and tasks provide functionality for retries, timeouts, and other hooks to handle failure and completion events. This overlap in functionality ensures consistency and flexibility in managing your workflows.
 
@@ -98,6 +100,5 @@ Some examples of task features include:
 - Retries
 - Advanced dependency management
 
-When to use tasks vs flows?
-
-By separating network calls between tasks Prefect can most effectively
+!!! tip When to use tasks?
+    By separating network calls between tasks, Prefect features like caching or retries are most useful.
