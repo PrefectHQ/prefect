@@ -1,264 +1,113 @@
 ---
-description: Learn the basics of Prefect task runners and task execution within a flow.
+description: Learn the basics of Prefect deployments and workers
 tags:
     - tutorial
-    - tasks
-    - task runners
-    - sequential execution
-    - parallel execution
-    - asynchronous execution
-    - async
-    - submit
+    - deployment
+    - work pool
+    - worker
 search:
   boost: 2
 ---
+### Why Deploy
 
-# Flow and task execution
+The most common reason to use a tool like Prefect, is scheduling and orchestration. You want your workflows running in some production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on events you’ll need to understand Prefect’s concept of a flow Deployment.
 
-So far you've seen that flows are the fundamental component of Prefect workflows, and tasks are components that enable you to encapsulate discrete, repeatable units of work within flows. You've also seen some of the configuration options for flows and tasks.
+### Deployment Definition
 
-One of the configuration options demonstrated in the [Flow and task configuration](/tutorial/tasks/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
+Deploying your flows is, in essence, the act of informing the Prefect API of:
 
-## Task runners
+1. Where to run your flows 
+2. How to run your flows
+3. When to run your flows 
 
-Task runners are responsible for running Prefect tasks within a flow. Each flow has a task runner associated with it. Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. You can even configure task runners to use distributed execution infrastructure such as a Dask cluster.
+This information is encapsulated and sent to Prefect as a “[Deployment](https://docs.prefect.io/2.10.13/concepts/deployments/?h=deployment#deployments-overview)” which becomes the server side object containing the crucial metadata needed for Prefect’s orchestration api to execute your flow as desired. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
-The default task runner is the `ConcurrentTaskRunner`, which will run submitted tasks concurrently. If you don't specify a task runner, Prefect uses the `ConcurrentTaskRunner`.
+In doing so, flow scripts get these additional features:
 
-All Prefect task runners support asynchronous task execution.
+- flows triggered by scheduling
+- remote execution of flows triggered from the UI
+- flow triggered by automations or events
 
-## Result
-By default, the result of a task is a Python object, and execution of the task blocks the execution of the next task in a flow. To make sure that the tasks within your flow can run concurrently or in parallel, add `.submit()` to your task run. This method will return a `PrefectFuture` instead of a Python object.
+**Attributes of a deployment include (but are not limited to):** 
 
-A `PrefectFuture` is an object that provides access to a computation happening in a task runner. Here's an example of using `.submit` in a flow.
+- Flow entrypoint = path to your flow function would start the flow
+- Workpool = points to the infra you want your flow to run in
+- Schedule = optional schedule for this deployment
 
-```python
-import time
-from prefect import task, flow
+In order to run **your flows** on **************************************your infrastructure,************************************** you are going to need to set up a work pool and a worker. 
 
-@task
-def my_task():
-    return 1
+Workers and work pools bridge the Prefect orchestration API with your execution environments in your cloud provider.
 
-@flow
-def my_flow():
-    result = my_task.submit()
+You can configure work pools on Prefect’s side. They describe the infrastructure configuration for deployed flow runs that get sent to that pool. organize the flows for your worker to pick up and execute. They prioritize the flows and respond to polling from its worker.
 
-if __name__ == "__main__":
-    my_flow()
+Workers are light-weight long-running polling processes polling that you host in your execution environment. They pick up work from their work pool and spin up ephemeral infrastructure each flow run according to metadata passed to them in the form of deployments.
+
+```mermaid
+graph BT
+    subgraph your_infra["-- Your Execution Environment --"]
+        worker["Worker"]
+				subgraph flow_run_infra["Flow Run Infra"]
+					flow_run(("Flow Run"))
+				end
+        
+    end
+
+    subgraph api["-- Prefect API --"]
+				deployment --> work_pool
+        work_pool(["Work Pool"])
+    end
+
+    worker --> |polls| work_pool
+    worker --> |creates| flow_run_infra
+
 ```
 
-## Concurrent execution
+<aside>
+🔒 Security Note:
+Prefect provides execution through the hybrid model which allows you to deploy workflows that run in the environments best suited to their execution while allowing you to keep your code and data completely private. There is no ingress required. For more information see here.
 
-As mentioned, by default Prefect flows use the `ConcurrentTaskRunner` for non-blocking, concurrent execution of tasks.
+</aside>
 
+Now that we’ve reviewed the concepts of a Work Pool and Worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect Orchestration API.
 
-Here's a basic flow and task using the default task runner.
+For this tutorial you will create a *process type* work pool via the CLI. 
 
-```python
-import time
-from prefect import task, flow
+The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.  
 
-@task
-def print_values(values):
-    for value in values:
-        time.sleep(0.5)
-        print(value, end="\r")
+<aside>
+⚙️ Tip:
+Aside from process, there are a variety of different work pool types you might consider in a production setting to containerize your flow runs that leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run which are expanded upon in the guides section.
 
-@flow
-def my_flow():
-    print_values.submit(["AAAA"] * 15)
-    print_values.submit(["BBBB"] * 10)
+</aside>
 
-if __name__ == "__main__":
-    my_flow()
-```
+In your terminal set to your Prefect workspace run the following command to set up a work pool. 
 
-When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed not blocking.
-
-Also notice that `Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...` indicates Prefect is, in fact, using concurrent execution by default for the tasks in this flow.
-
-<div class="terminal">
 ```bash
-15:07:10.015 | INFO    | prefect.engine - Created flow run 'mindful-tortoise' for flow 'parallel-flow'
-15:07:10.015 | INFO    | Flow run 'mindful-tortoise' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
-15:07:10.255 | INFO    | Flow run 'mindful-tortoise' - Created task run 'print_values-0bb9a2c3-0' for task 'print_values'
-15:07:10.255 | INFO    | Flow run 'mindful-tortoise' - Submitted task run 'print_values-0bb9a2c3-0' for execution.
-15:07:10.291 | INFO    | Flow run 'mindful-tortoise' - Created task run 'print_values-0bb9a2c3-1' for task 'print_values'
-15:07:10.292 | INFO    | Flow run 'mindful-tortoise' - Submitted task run 'print_values-0bb9a2c3-1' for execution.
-15:07:15.364 | INFO    | Task run 'print_values-0bb9a2c3-1' - Finished in state Completed()
-15:07:17.849 | INFO    | Task run 'print_values-0bb9a2c3-0' - Finished in state Completed()
-15:07:17.876 | INFO    | Flow run 'mindful-tortoise' - Finished in state Completed('All states completed.')
-```
-</div>
-
-## Sequential execution
-
-Sometimes you may want to intentionally run tasks sequentially. The built-in Prefect `SequentialTaskRunner` lets you do this.
-
-When using non-default task runner, you must import the task runner into your flow script.
-
-```python hl_lines="3 11"
-import time
-from prefect import task, flow
-from prefect.task_runners import SequentialTaskRunner
-
-@task
-def print_values(values):
-    for value in values:
-        time.sleep(0.5)
-        print(value, end="\r")
-
-@flow(task_runner=SequentialTaskRunner())
-def my_flow():
-    print_values.submit(["AAAA"] * 15)
-    print_values.submit(["BBBB"] * 10)
-
-if __name__ == "__main__":
-    my_flow()
+prefect work-pool create --type process tutorial-process-pool
 ```
 
-When you run this flow you should see the terminal output first display `AAAA`, then `BBBB` showing that these two task runs execute sequentially, one completing before the second starts.
+Now that you have created the work pool, let’s confirm that the work pool was successfully created by running the following command in the same terminal.  You should see your new `tutorial-process-pool` in the output list.
 
-Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...` indicates Prefect is, in fact, using sequential execution.
-
-<div class="terminal">
 ```bash
-15:15:28.226 | INFO    | prefect.engine - Created flow run 'thundering-camel' for flow 'my-flow'
-15:15:28.227 | INFO    | Flow run 'thundering-camel' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
-15:15:28.460 | INFO    | Flow run 'thundering-camel' - Created task run 'print_values-0bb9a2c3-0' for task 'print_values'
-15:15:28.461 | INFO    | Flow run 'thundering-camel' - Executing 'print_values-0bb9a2c3-0' immediately...
-15:15:36.087 | INFO    | Task run 'print_values-0bb9a2c3-0' - Finished in state Completed()
-15:15:36.110 | INFO    | Flow run 'thundering-camel' - Created task run 'print_values-0bb9a2c3-1' for task 'print_values'
-15:15:36.111 | INFO    | Flow run 'thundering-camel' - Executing 'print_values-0bb9a2c3-1' immediately...
-15:15:41.207 | INFO    | Task run 'print_values-0bb9a2c3-1' - Finished in state Completed()
-15:15:41.237 | INFO    | Flow run 'thundering-camel' - Finished in state Completed('All states completed.')
-```
-</div>
-
-## Parallel execution
-
-You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Integrations](/integrations/catalog/). 
-
-For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
-
-1. Install the [prefect-dask collection](https://prefecthq.github.io/prefect-dask/) with `pip install prefect-dask`.
-1. Switch your task runner to the `DaskTaskRunner`. 
-1. Call `.submit` on the task instead of calling the task directly. This submits the task to the task runner rather than running the task in-process.
-
-<!-- To do: add brief explanation of `.submit()` -->
-
-```python
-import time
-from prefect import task, flow
-from prefect_dask.task_runners import DaskTaskRunner
-
-@task
-def print_values(values):
-    for value in values:
-        time.sleep(0.5)
-        print(value, end="\r")
-
-@flow(task_runner=DaskTaskRunner())
-def my_flow():
-    print_values.submit(["AAAA"] * 15)
-    print_values.submit(["BBBB"] * 10)
-
-if __name__ == "__main__":
-    my_flow()
+prefect work-pool ls
 ```
 
-!!! tip "Multiprocessing task runners"
-    Because the `DaskTaskRunner` uses multiprocessing, it must be protected by an `if __name__ == "__main__":` guard when used in a script.
+Finally, let’s double check in the Prefect Cloud UI that you can see this work pool. Navigate to the Work Pool tab and verify that you see `tutorial-process-pool` listed.
 
-When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed running in parallel.
+When you click into the `tutorial-process-pool` you can click into the tab for work queues.  You should see a red status icon next listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced topic to help determine flow priority. You can learn more about work queues in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
 
-If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package installed you can follow the link to the Dask dashaboard in the terminal output and watch the Dask workers in action!
+To get the work queue healthy and ready to submit flow runs, you need to start a worker in your execution environment. For this tutorial, your execution environment is on your laptop or dev machine.
 
-<div class="terminal">
+As mentioned above, workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start your worker you will open a new terminal, make sure the same virtual environment is enabled as your python script.  Run the following command in this new terminal to start the worker:
+
 ```bash
-22:49:06.969 | INFO    | prefect.engine - Created flow run 'bulky-unicorn' for flow 'parallel-flow'
-22:49:06.969 | INFO    | Flow run 'bulky-unicorn' - Using task runner 'DaskTaskRunner'
-22:49:06.970 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-22:49:09.182 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
-...
-```
-</div>
-
-!!! warning "The Dask scheduler can be hard to predict"
-    When using the `DaskTaskRunner`, Prefect is submitting each task run to a Dask cluster object.  The Dask scheduler then [determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
-
-    This means the only way to _force_ Dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
-
-Read more about using Dask in the [Dask task runner tutorial](/guides/dask-ray-task-runners/#running-parallel-tasks-with-dask).
-
-## Asynchronous execution
-
-Prefect also supports asynchronous task and flow definitions by default. All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
-
-```python
-import asyncio
-
-from prefect import task, flow
-
-@task
-async def print_values(values):
-    for value in values:
-        await asyncio.sleep(1) # yield
-        print(value, end=" ")
-
-@flow
-async def async_flow():
-    await print_values([1, 2])  # runs immediately
-    coros = [print_values("abcd"), print_values("6789")]
-
-    # asynchronously gather the tasks
-    await asyncio.gather(*coros)
-
-asyncio.run(async_flow())
+prefect worker start --pool tutorial-process-pool
 ```
 
-When you run this flow, the coroutines that were gathered yield control to one another and are run concurrently:
+You should see the worker start, its now polling the Prefect API to see if there are any scheduled flow runs to kick off. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent Last Polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
 
-<div class="terminal">
-```bash
-1 2 a 6 b 7 c 8 d 9
-```
-</div>
+You will need to keep this terminal running in order to have the worker continue to pick up jobs.  Since you are running this worker locally, the worker will terminate if you close the terminal.  When running in a production environment, this worker should be running as a damonized or managed process.
 
-The example above is equivalent to below:
+Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets build a deployment that sends work to your `tutorial-process-pool` on a schedule.
 
-```python
-import asyncio
-
-from prefect import task, flow
-
-@task
-async def print_values(values):
-    for value in values:
-        await asyncio.sleep(1) # yield
-        print(value, end=" ")
-
-@flow
-async def async_flow():
-    await print_values([1, 2])  # runs immediately
-    await print_values.submit("abcd")
-    await print_values.submit("6789")
-
-asyncio.run(async_flow())
-```
-
-Note, if you are not using `asyncio.gather`, calling `submit` is required for asynchronous execution on the `ConcurrentTaskRunner`.
-
-## Flow execution
-
-Task runners only manage _task runs_ within a flow run. But what about flows?
-
-Any given flow run &mdash; meaning in this case your workflow including any subflows and tasks &mdash; executes in its own environment using the infrastructure configured for that environment. In these examples, that infrastructure is probably your local computing environment. But for flow runs based on [deployments](/concepts/deployments/), that infrastructure might be a server in a datacenter, a VM, a Docker container, or a Kubernetes cluster.
-
-The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work pools](/concepts/work-pools/) &mdash; advanced topics that are covered in other tutorials.
-
-Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
-
-!!! tip "Next steps: Flow orchestration with Prefect"
-    The next step is learning about [the components of Prefect](/tutorial/orchestration/) that enable coordination and orchestration of your flow and task runs.
+! Notes - need to have same file path as python code you were running earlier (double check)
