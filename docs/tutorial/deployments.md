@@ -10,6 +10,8 @@ tags:
     - triggers
     - automations
     - tutorial
+search:
+  boost: 2
 ---
 
 # Flow deployments

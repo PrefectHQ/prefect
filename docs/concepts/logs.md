@@ -10,6 +10,8 @@ tags:
     - log formatters
     - configuration
     - debug
+search:
+  boost: 2
 ---
 
 # Logging

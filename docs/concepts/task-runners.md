@@ -11,6 +11,8 @@ tags:
     - parallel execution
     - Dask
     - Ray
+search:
+  boost: 2
 ---
 
 # Task runners
