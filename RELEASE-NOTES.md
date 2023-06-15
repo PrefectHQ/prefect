@@ -85,7 +85,6 @@ Furthermore, deployment triggers allow you to pass event data as parameters, emp
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9885
 
-
 ### Webhooks on Prefect Cloud
 
 Going hand-in-hand with deployment triggers, [webhooks on Prefect Cloud](https://docs.prefect.io/2.10.14/cloud/webhooks/) allow you to capture events from a wide variety of sources in your data stack, translating them into actionable Prefect events in your workspace.  Produce Prefect events from any system that can make an HTTP request and use those events in automations or to trigger event-driven deployments.
