@@ -334,8 +334,8 @@ pull:
 
 In order to successfully submit such a project to a dockerized environment, we need to either:
 
-- [`push` this project](/concepts/deployment/#the-push-section) to a remote location (such as a Cloud storage bucket)
-- [`build` this project](/concepts/deployment/#the-build-section) into a Docker image artifact 
+- [`push` this project](/concepts/deployments-ux/#the-push-section) to a remote location (such as a Cloud storage bucket)
+- [`build` this project](/concepts/deployments-ux/#the-build-section) into a Docker image artifact 
 
 !!! tip "Advanced: `push` steps"
     Populating a `push` step is considered an advanced feature that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
