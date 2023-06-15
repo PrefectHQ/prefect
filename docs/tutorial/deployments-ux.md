@@ -121,7 +121,7 @@ This command will create a new deployment for your `"Call API"` flow with the na
 
 Note that Prefect has automatically done a few things for you:
 
-- registered the existence of this flow [with your local project](/concepts/deployment/#the-prefect-directory)
+- registered the existence of this flow [with your local project](/concepts/deployments-ux/#the-prefect-directory)
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
