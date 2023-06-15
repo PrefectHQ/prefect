@@ -16,20 +16,15 @@ search:
   boost: 2
 ---
 
-# Projects<span class="badge beta"></span>
+# Managing Deployments<span class="badge beta"></span>
 
-Prefect projects are the recommended way to organize and manage Prefect deployments; projects provide a minimally opinionated, transparent way to organize your code and configuration so that its easy to debug.
-
-A project is a directory of code and configuration for your workflows that can be customized for portability.
-
-The main components of a project are:
+We recommend organizing and managing Prefect deployments with a `prefect.yaml` file, allowing you to easily specify multiple configurations for different deployments, reuse configuration across deployments, and deploy multiple flows at once!
 
 - [`prefect.yaml`](/concepts/deployments-ux/#the-prefect-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments and contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
-- [`.prefect/`](/concepts/deployments-ux/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 <a name="worker-tip"></a>
-!!! tip "Projects require workers"
-    Note that using a project to manage your deployments requires the use of workers.  
+!!! tip "Deployment management requires workers"
+    Note that managing your deployments this way requires the use of workers.  
     This tutorial assumes that you have already set up two work pools, each with a worker, which only requires a single CLI command for each:
 
     - **Local**: `prefect worker start -t process -p local-work`
@@ -37,26 +32,26 @@ The main components of a project are:
 
     Each command will automatically create an appropriately typed work pool with default settings. For each type of worker you will need to install the specific worker from the collection repo.  For example, to start the Docker worker you will need to run `pip install prefect-docker`.  
 
-## Initializing a project
+## Initialize your deployment configuration
 
-Initializing a project is simple: within any directory that you plan to develop flow code, run:
+Initializing a `prefect.yaml` file is simple: within any directory that you plan to develop flow code, run:
 
 <div class="terminal">
 ```bash
-$ prefect project init
+$ prefect init
 ```
 </div>
 
 Note that you can safely run this command in a non-empty directory where you already have work, as well.
 
-This command will create your `.prefect/` directory along with a `prefect.yaml` file; if either of these already exist, they will not be altered or overwritten.
+This command will create your `prefect.yaml` file; if it already exisst, it will not be altered or overwritten.
 
-!!! tip "Project Recipes"
-    Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure suited to a particular use.  You can see all available recipes by running:
+!!! tip "Deployment Configuration Recipes"
+    Prefect ships with multiple recipes, which allow you to initialize a more opinionated structure suited to a particular use.  You can see all available recipes by running:
 
     <div class="terminal">
     ```bash
-    $ prefect project recipe ls
+    $ prefect init
     ```
     </div>
 
@@ -64,29 +59,26 @@ This command will create your `.prefect/` directory along with a `prefect.yaml` 
 
     <div class="terminal">
     ```bash
-    $ prefect project init --recipe docker
+    $ prefect init --recipe docker
     ```
     </div>
 
-    Providing this flag will prompt you for required variables needed to make the recipe work properly.  If you want to run this CLI programmatically, these required fields can be provided via the `--field` flag: `prefect project init --recipe docker --field image_name=my-image/foo --field tag=dev`.
+    Providing this flag will prompt you for required variables needed to make the recipe work properly.  If you want to run this CLI programmatically, these required fields can be provided via the `--field` flag: `prefect init --recipe docker --field image_name=my-image/foo --field tag=dev`.
 
-    If no recipe is provided, the `init` command makes an intelligent choice of recipe based on local configuration; for example, if you initialize a project within a git repository, Prefect will automatically use the `git` recipe.
+    If no recipe is provided, the `init` command makes an intelligent choice of recipe based on local configuration; for example, if you initialize within a git repository, Prefect will automatically use the `git` recipe.
 
 
 ## Creating a basic deployment
 
-Projects are most useful for creating deployments; let's walk through some examples.  
-
-
 ### Local deployment
 
-In this example, we'll create a project from scratch that runs locally.  Let's start by creating a new directory, making that our working directory, and initializing a project:
+In this example, we'll create a deployment configuration from scratch that runs locally.  Let's start by creating a new directory, making that our working directory, and initialize:
 
 <div class="terminal">
 ```bash
 $ mkdir my-first-project
 $ cd my-first-project
-$ prefect project init --recipe local
+$ prefect init --recipe local
 ```
 </div>
 
@@ -107,7 +99,7 @@ def call_api(url: str = "http://time.jsontest.com/"):
     return resp
 ```
 
-You can experiment by importing and running this flow in your favorite REPL; let's now elevate this flow to a [deployment](/concepts/deployments/) via the `prefect deploy` CLI command:
+You can experiment by importing and running this flow in your favorite REPL; let's now elevate this flow to a [deployment](/concepts/deployments-ux/) via the `prefect deploy` CLI command:
 
 <div class="terminal">
 ```bash
@@ -121,11 +113,10 @@ This command will create a new deployment for your `"Call API"` flow with the na
 
 Note that Prefect has automatically done a few things for you:
 
-- registered the existence of this flow [with your local project](/concepts/deployments-ux/#the-prefect-directory)
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
-You can customize all of this either by [manually editing `prefect.yaml`](/concepts/deployment/#deployment-configurations) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
+You can customize all of this either by [manually editing `prefect.yaml`](/concepts/deployments-ux/#deployment-configurations) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will be prioritized over hard-coded values in your deployment's YAML file when creating or updating a single deployment.
 
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">
@@ -138,34 +129,17 @@ $ prefect deployment run 'Call API/my-first-deployment' \
 
 You should now be able to monitor and confirm these runs were created and ran in the UI.
 
-!!! tip "Flow registration"
-    `prefect deploy` will automatically register your flow with your local project; you can register flows yourself explicitly with the `prefect project register-flow` command:
-    <div class="terminal">
-    ```bash
-    $ prefect project register-flow ./api_flow.py:call_api
-    ```
-    </div>
-
-    This pre-registration allows you to deploy based on name instead of entrypoint path:
-    <div class="terminal">
-    ```bash
-    $ prefect deploy -f 'Call API' \
-        -n my-first-deployment \
-        -p local-work
-    ```
-    </div>
-
 ### Git-based deployment
 
-In this example, we'll initialize a project from [a pre-built GitHub repository](https://github.com/PrefectHQ/hello-projects) and see how it is automatically portable across machines.
+In this example, we'll initialize our deployment configuration from [a pre-built GitHub repository](https://github.com/PrefectHQ/hello-projects) and see how it is automatically portable across machines.
 
-We start by cloning the remote repository and initializing a project within the root of the repo directory:
+We start by cloning the remote repository and initializing within the root of the repo directory:
 
 <div class="terminal">
 ```bash
 $ git clone https://github.com/PrefectHQ/hello-projects
 $ cd hello-projects
-$ prefect project init --recipe git
+$ prefect init --recipe git
 ```
 </div>
 
@@ -173,16 +147,14 @@ We can now proceed with the same steps as above to create a new deployment:
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'log-flow' \
+$ prefect deploy ./log_flow.py:log_flow \
     -n my-git-deployment \
     -p local-work
 ```
 </div>
 
-Notice that we were able to deploy based on flow name alone; this is because the repository owner [pre-registered the `log-flow` for us](https://github.com/PrefectHQ/hello-projects/blob/main/.prefect/flows.json).  Alternatively, if we knew the full entrypoint path, we could run `prefect deploy ./flows/log_flow.py:log_flow`.
 
-
-Let's run this flow and discuss it's output:
+Let's run this flow and discuss its output:
 <div class="terminal">
 ```bash
 $ prefect deployment run 'log-flow/my-git-deployment'
@@ -206,12 +178,12 @@ Cloning into 'hello-projects'...
 
 A few important notes on what we're looking at here:
 
-- You'll notice the message "Hello from another file"; this flow imports code from [other related files](https://github.com/PrefectHQ/hello-projects/tree/main/flows) within the project. Prefect takes care of migrating the _entire_ project directory for you, which includes files that you may import from
-- Similarly, the configuration that is logged is located within [the root directory](https://github.com/PrefectHQ/hello-projects/blob/main/config.json) of this project; you can always consider this root directory your working directory both locally and when this deployment is executed remotely
-- Lastly, note the top line "Cloning into 'hello-projects'..."; because this project is based out of a GitHub repository, it is _automatically_ portable to any remote location where both `git` and `prefect` are configured! You can convince yourself of this by either running a new local worker on a different machine, or by switching this deployment to run with your docker work pool (more on this shortly).
+- You'll notice the message "Hello from another file"; this flow imports code from [other related files](https://github.com/PrefectHQ/hello-projects/tree/main/flows) within the codebase. Prefect takes care of migrating the _entire_ project directory for you, which includes files that you may import from
+- Similarly, the configuration that is logged is located within [the chosen root directory](https://github.com/PrefectHQ/hello-projects/blob/main/config.json) of your codebase; you can always consider this root directory your working directory both locally and when this deployment is executed remotely
+- Lastly, note the top line "Cloning into 'hello-projects'..."; because it is based out of a GitHub repository, it is _automatically_ portable to any remote location where both `git` and `prefect` are configured! You can convince yourself of this by either running a new local worker on a different machine, or by switching this deployment to run with your docker work pool (more on this shortly).
 
 !!! note "`prefect.yaml`"
-    The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
+    The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect init`:
     ```yaml
     pull:
     - prefect.deployments.steps.git_clone:
@@ -227,9 +199,9 @@ A few important notes on what we're looking at here:
         branch: main
         access_token: "{{ prefect.blocks.secret.my-github-secret }}"
     ```
-    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/deployment/).
+    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone from remote locations. For more information, see [the deployment management concept documentation](/concepts/deployments-ux/).
 
-    For more examples of configuration options available for cloning, see [the `git_clone` step documentation](/api-ref/prefect/deployment/steps/pull).
+    For more examples of configuration options available for cloning, see [the `git_clone` step documentation](/api-ref/prefect/deployments-ux/steps/pull).
 
 
 ### Dockerized deployment  
@@ -238,7 +210,7 @@ In this example, we extend the examples above by dockerizing our setup and execu
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'log-flow' \
+$ prefect deploy ./log_flow.py:log-flow \
     -n my-docker-git-deployment \
     -p docker-work
 $ prefect deployment run 'log-flow/my-docker-git-deployment'
@@ -247,7 +219,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 
 As promised above, this worked out of the box!  
 
-Let's deploy a new flow from this project that requires additional dependencies that might not be available in the default image our work pool is using; this flow requires both `pandas` and `numpy` as a dependency, which we will install locally first to confirm the flow is working:
+Let's deploy a new flow that requires additional dependencies that might not be available in the default image our work pool is using; this flow requires both `pandas` and `numpy` as a dependency, which we will install locally first to confirm the flow is working:
 
 <div class="terminal">
 ```bash
@@ -282,7 +254,7 @@ pull:
 
 A few notes:
 
-- [each step](/concepts/deployment/#the-prefect-yaml-file) references a function with inputs and outputs
+- [each step](/concepts/deployments-ux/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
 - to see all available configuration options for building Docker images, see [the `build_docker_image` step documentation](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image)
@@ -291,11 +263,11 @@ All that's left to do is create our deployment and specify our image name to ins
 
 <div class="terminal">
 ```bash
-$ prefect deploy -f 'pandas-flow' \
+$ prefect deploy ./log_flow.py:log_flow \
     -n docker-build-deployment \
     -p docker-work \
     -v image=local-only/testing:dev
-$ prefect deployment run 'log-flow/my-docker-git-deployment'
+$ prefect deployment run 'log-flow/docker-build-deployment'
 ```
 </div>
 
@@ -362,4 +334,4 @@ Rerunning the same `deploy` command above now makes this a healthy deployment!
 
 ## Customizing the steps
 
-For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/deployment/).
+For more information on what can be customized with `prefect.yaml`, check out the [Deployment Management concept doc](/concepts/deployments-ux/).
