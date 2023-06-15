@@ -17,7 +17,7 @@ search:
 
 # Managing Deployments<span class="badge beta"></span>
 
-You can manage your deployments with a `prefect.yaml` file that describe how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
+You can manage your deployments with a `prefect.yaml` file that describes how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
 
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing base settings for your deployments, procedural steps for preparing deployments, as well as instructions for preparing the execution environment for a deployment run
 
