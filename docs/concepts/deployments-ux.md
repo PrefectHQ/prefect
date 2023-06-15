@@ -297,7 +297,7 @@ deployments:
 So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
+    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.build_docker_image) which produces both the `image_name` and `tag` fields.
 
     For an example, [check out the deployments tutorial](/tutorial/deployments-ux/#dockerized-deployment).
 
