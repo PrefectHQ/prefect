@@ -5,6 +5,43 @@
 ### Exciting New Features 🎉
 - feat: Cloud Webhook CLI — https://github.com/PrefectHQ/prefect/pull/9874
 
+### Simplying deployments
+
+We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name. This is to emphasize this deployment experience as the recommended one. 
+
+For example:
+
+```yaml
+pull:
+    - prefect.projects.steps.git_clone_project:
+        id: clone-step
+        repository: https://github.com/org/repo.git
+```
+is now
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        id: clone-step
+        repository: https://github.com/org/repo.git
+```
+
+An example using the `prefect_gcp` library:
+```yaml
+build:
+    - prefect_gcp.projects.steps.push_project_to_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-project
+```
+is now
+```yaml
+build:
+    - prefect_gcp.deployments.steps.push_to_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-project
+```
+
 ### Enhancements
 - chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
