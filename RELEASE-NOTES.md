@@ -38,7 +38,7 @@ Webhooks are currently available [via the API and `prefect` CLI](https://docs.pr
 
 ### Simplying deployments
 
-We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name. This is to emphasize this deployment experience as the recommended one.
+We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name.
 
 For example:
 
