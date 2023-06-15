@@ -47,7 +47,7 @@ Workers and work pools bridge the Prefect orchestration API with your execution 
 
 You can configure work pools on Prefect’s side. They describe the infrastructure configuration for deployed flow runs that get sent to that pool. organize the flows for your worker to pick up and execute. They prioritize the flows and respond to polling from its worker.
 
-Workers are light-weight long-running polling processes polling that you host in your execution environment. They pick up work from their work pool and spin up ephemeral infrastructure each flow run according to metadata passed to them in the form of deployments.
+Workers are light-weight, long-running polling processes polling that you host in your execution environment. Workers pick up work from their work pool and spin up ephemeral infrastructure each flow run according to metadata passed to them in the form of deployments.
 
 ```mermaid
 graph TD;
