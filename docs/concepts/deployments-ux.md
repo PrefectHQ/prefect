@@ -123,15 +123,15 @@ $ prefect init --recipe docker
 
 ```yaml
 build:
-- prefect_docker.projects.steps.build_docker_image:
-    requires: prefect-docker>=0.2.0
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker>=0.3.0
     image_name: my-repo/my-image
     tag: my-tag
     dockerfile: auto
     push: true
 ```
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image_name }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/concepts/deployments-ux/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/concepts/deployments-ux/#dockerized-deployment).
 
 
 !!! note Some steps require Prefect integrations
@@ -146,7 +146,7 @@ Once you've confirmed that these fields are set to their desired values, this st
             id: get-commit-hash
             script: git rev-parse --short HEAD
             stream_output: false
-        - prefect_docker.projects.steps.build_docker_image:
+        - prefect_docker.deployments.steps.build_docker_image:
             requires: prefect-docker
             image_name: my-image
             image_tag: "{{ get-commit-hash.stdout }}"
@@ -172,27 +172,28 @@ Inspecting our newly created `prefect.yaml` file we find that the `push` and `pu
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.push_project_to_s3:
+  - prefect_aws.deployments.steps.push_to_s3:
+      id: push-code
       requires: prefect-aws>=0.3.0
       bucket: my-bucket
       folder: project-name
       credentials: null
 
 pull:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.deployments.steps.pull_from_s3:
       requires: prefect-aws>=0.3.0
       bucket: my-bucket
-      folder: "{{ folder }}"
+      folder: "{{ push-code.folder }}"
       credentials: null
 ```
 
-The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the `folder` property of the `push` step is a template - the `pull_project_from_s3` step outputs both a `bucket` value as well as a `folder` value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits.
+The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the `folder` property of the `push` step is a template - the `pull_from_s3` step outputs both a `bucket` value as well as a `folder` value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits.
 
 As discussed above, if you are using [blocks](/concepts/blocks/), the credentials section can be templated with a block reference for secure and dynamic credentials access:
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.push_project_to_s3:
+  - prefect_aws.deployments.steps.push_to_s3:
       requires: prefect-aws>=0.3.0
       bucket: my-bucket
       folder: project-name
@@ -209,7 +210,7 @@ There are three main types of steps that typically show up in a `pull` section:
 
 - `set_working_directory`: this step simply sets the working directory for the process prior to importing your flow
 - `git_clone`: this step clones the provided repository on the provided branch
-- `pull_project_from_{cloud}`: this step pulls the working directory from a Cloud storage location (e.g., S3)
+- `pull_from_{cloud}`: this step pulls the working directory from a Cloud storage location (e.g., S3)
 
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
@@ -227,8 +228,8 @@ build:
         id: get-commit-hash
         script: git rev-parse --short HEAD
         stream_output: false
-    - prefect_docker.projects.steps.build_docker_image:
-        requires: prefect-docker
+    - prefect_docker.deployments.steps.build_docker_image:
+        requires: prefect-docker>=0.3.0
         image_name: my-image
         image_tag: "{{ get-commit-hash.stdout }}"
         dockerfile: auto
@@ -261,9 +262,9 @@ As an example, consider the following `prefect.yaml` file:
 
 ```yaml
 build:
-- prefect_docker.projects.steps.build_docker_image:
+- prefect_docker.deployments.steps.build_docker_image:
     id: build-image`
-    requires: prefect-docker>=0.2.0
+    requires: prefect-docker>=0.3.0
     image_name: my-repo/my-image
     tag: my-tag
     dockerfile: auto
@@ -272,9 +273,9 @@ build:
 deployments:
   - # base metadata
     name: null
-    version: "{{ build_image.image_tag }}"
+    version: "{{ build_image.tag }}"
     tags:
-        - "{{ build_image.image_tag }}"
+        - "{{ build_image.tag }}"
         - "{{ prefect.variables.some_common_tag }}"
     description: null
     schedule: null
@@ -289,14 +290,14 @@ deployments:
         name: "my-k8s-work-pool"
         work_queue_name: null
         job_variables:
-            image: "{{ build_image.image_name }}"
+            image: "{{ build_image.image }}"
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
 So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
+    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.build_docker_image) which produces both the `image_name` and `tag` fields.
 
     For an example, [check out the deployments tutorial](/tutorial/deployments-ux/#dockerized-deployment).
 
@@ -396,14 +397,15 @@ definitions:
             name: my-docker-work-pool
             work_queue_name: default
             job_variables:
-                image: "{{ image_name }}"
+                image: "{{ build-image.image }}"
     schedules:
         every_ten_minutes: &every_10_minutes
             interval: 600
     actions:
         docker_build: &docker_build
-            - prefect_docker.projects.steps.build_docker_image: &docker_build_config
-                requires: prefect-docker>=0.2.0
+            - prefect_docker.deployments.steps.build_docker_image: &docker_build_config
+                id: build-image
+                requires: prefect-docker>=0.3.0
                 image_name: my-example-image
                 tag: dev
                 dockerfile: auto
@@ -423,7 +425,7 @@ deployments:
     entrypoint: flows/goodbye.py:my_other_flow
     work_pool: *my_docker_work_pool
     build:
-        - prefect_docker.projects.steps.build_docker_image:
+        - prefect_docker.deployments.steps.build_docker_image:
             <<: *docker_build_config # Uses the docker_build_config alias and overrides the dockerfile field
             dockerfile: Dockerfile.custom
 

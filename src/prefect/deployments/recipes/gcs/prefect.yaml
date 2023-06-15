@@ -1,23 +1,23 @@
 prefect-version: null
 name: null
-description: "Store project within a GCS bucket"
+description: "Store code within a GCS bucket"
 
 required_inputs:
-  bucket: "The bucket to store and retrieve this project from"
+  bucket: "The bucket to store and retrieve this code from"
 
 build: null
 
 push: 
-  - prefect_gcp.projects.steps.push_project_to_gcs:
+  - prefect_gcp.deployment.steps.push_to_gcs:
       id: "push_code"
-      requires: "prefect-gcp>=0.4.0"
+      requires: "prefect-gcp>=0.4.3"
       bucket: "{{ bucket }}" 
       folder: "{{ name }}"
 
 pull:
-  - prefect_gcp.projects.steps.pull_project_from_gcs:
+  - prefect_gcp.deployment.steps.pull_from_gcs:
       id: "pull_code"
-      requires: "prefect-gcp>=0.4.0"
+      requires: "prefect-gcp>=0.4.3"
       bucket: "{{ push_code.bucket }}"
       folder: "{{ pull_code.folder }}"
 

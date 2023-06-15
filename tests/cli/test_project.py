@@ -124,13 +124,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "testing"
             )
@@ -153,13 +153,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
@@ -180,20 +180,20 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
 
             assert (
                 configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ build_image.image_name }}"
+                == "{{ build_image.image }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
