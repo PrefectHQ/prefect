@@ -88,16 +88,16 @@ See these pull requests for implementation details:
 
 ### Enhancements
 - Make related automations visible from `prefect deployment inspect` — https://github.com/PrefectHQ/prefect/pull/9929
+- Enable deleting blocks with Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
+- Enhance ability to delete a single flow on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
+
 - chore: add httpx request method to CloudClient — https://github.com/PrefectHQ/prefect/pull/9873
 - Re-enable the retrieval of existing clients from flow and task run contexts when safe — https://github.com/PrefectHQ/prefect/pull/9880
 - Use existing thread in `BatchedQueueService` to reduce queue retrieval overhead — https://github.com/PrefectHQ/prefect/pull/9877
 - Add `prefect --prompt/--no-prompt` to force toggle interactive CLI sessions — https://github.com/PrefectHQ/prefect/pull/9897
-- docs: update to `from prefect import get_client` — https://github.com/PrefectHQ/prefect/pull/9671
 - Add `work_pool_name` to work queue API responses — https://github.com/PrefectHQ/prefect/pull/9659
 - Sort task run ids before returning output of cli inspect concurrency limit — https://github.com/PrefectHQ/prefect/pull/9711
 - Change agent behavior to mark flow as crashed if infra submission fails — https://github.com/PrefectHQ/prefect/pull/9691
-- Add capability to delete block from Python SDK — https://github.com/PrefectHQ/prefect/pull/9932
-- Add ability to delete a flow from the overflow menu on the flows page - https://github.com/PrefectHQ/prefect-ui-library/pull/1478
 
 ### Fixes
 - Provide a default `DTSTART` to anchor `RRULE` schedules to ensure extra schedules not created — https://github.com/PrefectHQ/prefect/pull/9872
@@ -113,6 +113,7 @@ See these pull requests for implementation details:
 - Update Prefect Cloud users documtnation on user settings — https://github.com/PrefectHQ/prefect/pull/9920
 - Boost non-API docs pages to optimize search results — https://github.com/PrefectHQ/prefect/pull/9854
 - Update testing documentation tag — https://github.com/PrefectHQ/prefect/pull/9905
+- Exemplify how to import Prefect client — https://github.com/PrefectHQ/prefect/pull/9671
 
 ## Contributors
 - @Hongbo-Miao
