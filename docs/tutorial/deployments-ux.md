@@ -302,7 +302,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 Your run should complete successfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
 
 !!! tip "Templating values"
-    As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/deployment/#templating-options).
+    As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/deployments-ux/#templating-options).
 
 #### Dockerizing a local deployment
 
