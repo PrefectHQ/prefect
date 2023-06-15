@@ -1,5 +1,5 @@
 ---
-description: Prefect Python API for project steps.
+description: Prefect Python API for deployment configuration steps.
 tags:
     - Python API
     - projects
