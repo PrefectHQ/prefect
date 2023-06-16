@@ -143,6 +143,6 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-### Next Steps
+## Next Steps
 
 As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to organize the workflow's complexity.

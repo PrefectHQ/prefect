@@ -30,7 +30,7 @@ Network calls (such as our GET requests to the GitHub API) are particularly usef
 
 Let's take our flow from before and move the request into a task:
 
-```python hl_lines="2 5-10 17"
+```python hl_lines="2 5-9 16"
 import httpx
 from prefect import flow, task, get_run_logger
 
@@ -198,7 +198,7 @@ Average open issues per user 💌 : 2.27
 ```
 </div>
 
-## Subflow
+## Subflows
 
 Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
