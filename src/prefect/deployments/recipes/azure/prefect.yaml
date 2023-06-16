@@ -1,0 +1,36 @@
+prefect-version: null
+name: null
+description: "Store code within an Azure Blob Storage container"
+
+required_inputs:
+  container: "The container to store and retrieve code from"
+
+build: null
+
+push: 
+  - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+      id: "push_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ container }}"
+      folder: "{{ name }}"
+
+pull:
+  - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+      id: "pull_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ push_code.container }}"
+      folder: "{{ push_code.folder }}"
+
+deployments:
+  - name: null
+    version: null
+    tags: []
+    description: null
+    schedule: {}
+    flow_name: null
+    entrypoint: null
+    parameters: {}
+    work_pool:
+      name: null
+      work_queue_name: null
+      job_variables: {}

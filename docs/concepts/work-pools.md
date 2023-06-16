@@ -10,6 +10,8 @@ tags:
     - schedules
     - concurrency limits
     - priority
+search:
+  boost: 2
 ---
 
 # Work Pools, Workers & Agents
@@ -198,7 +200,7 @@ We see these configuration options available in the Prefect UI:
 
 For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
 
-You can override each of these attributes on a per-deployment basis. When deploying a project, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
+You can override each of these attributes on a per-deployment basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
 If we wanted to turn off streaming output for a specific deployment, we could add the following to our `deployment.yaml`:
 

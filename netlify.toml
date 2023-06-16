@@ -291,10 +291,14 @@ from = "/concepts/database/"
 to = "/host/"
 status = 301
 
+[[redirects]]
+from = "/ui/notifications/"
+to = "/host/#notifications"
+status = 301
 
 [[redirects]]
 from = "/concepts/notifications/"
-to = "/host/"
+to = "/host/#notifications"
 status = 301
 
 
@@ -338,6 +342,22 @@ status = 301
 from = "/api-ref/rest-api-overview/"
 to = "/api-ref/rest-api/"
 status = 301
+
+[[redirects]]
+from = "/concepts/projects/"
+to = "/concepts/deployments-ux/"
+
+[[redirects]]
+from = "/tutorial/projects/"
+to = "/tutorial/deployments-ux/"
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
 
 
 [[headers]]

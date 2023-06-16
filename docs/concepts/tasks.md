@@ -16,6 +16,8 @@ tags:
     - concurrency
     - concurrency limits
     - task concurrency
+search:
+  boost: 2
 ---
 
 # Tasks

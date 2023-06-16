@@ -27,7 +27,7 @@ async def deployment_with_pull_step(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
@@ -54,12 +54,12 @@ async def deployment_with_pull_steps(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
                 {
-                    "prefect.projects.steps.git_clone": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/marvin.git"
                     }
                 },
@@ -124,13 +124,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "testing"
             )
@@ -153,13 +153,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
@@ -180,20 +180,20 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
 
             assert (
                 configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ build_image.image_name }}"
+                == "{{ build_image.image }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
@@ -246,7 +246,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployments.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
@@ -264,7 +264,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployments.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
