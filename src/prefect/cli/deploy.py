@@ -420,6 +420,9 @@ async def _run_single_deploy(
                     "Could not find .prefect directory. Flow entrypoint will not be"
                     " registered."
                 )
+            flow = await run_sync_in_worker_thread(
+                load_flow_from_entrypoint, entrypoint
+            )
         flow_name = flow.name
     elif flow_name:
         app.console.print(
@@ -435,7 +438,7 @@ async def _run_single_deploy(
         prefect_dir = find_prefect_directory()
         if not prefect_dir:
             raise ValueError(
-                "No .prefect directory could be found - run [yellow]`prefect project"
+                "No .prefect directory could be found - run [yellow]`prefect"
                 " init`[/yellow] to create one."
             )
         if not (prefect_dir / "flows.json").exists():
