@@ -1324,6 +1324,20 @@ class TestProjectDeploy:
         assert config["deployments"][0]["schedule"] == {"interval": 3600}
         assert config["deployments"][0]["work_pool"]["name"] == work_pool.name
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_entrypoint_does_not_fail_with_missing_prefect_folder(
+        self, work_pool
+    ):
+        Path(".prefect").rmdir()
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                "Deployment 'An important name/test-name' successfully created"
+            ],
+        )
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
