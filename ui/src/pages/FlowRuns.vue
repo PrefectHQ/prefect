@@ -35,7 +35,7 @@
             <FlowRunsSort v-model="filter.sort" />
           </div>
 
-          <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
+          <FlowRunList v-model:selected="selectedFlowRuns" selectable :flow-runs="flowRuns" />
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>

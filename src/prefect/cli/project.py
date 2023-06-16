@@ -1,5 +1,5 @@
 """
-Command line interface for working with projects.
+Deprecated - Command line interface for working with projects.
 """
 from pathlib import Path
 from typing import List
@@ -17,10 +17,10 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import find_prefect_directory, initialize_project
-from prefect.projects import register_flow as register
+from prefect.deployments import find_prefect_directory, initialize_project
+from prefect.deployments import register_flow as register
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployments.steps.core import run_steps
 
 # Deprecated compatibility
 project_app = PrefectTyper(
@@ -50,7 +50,7 @@ async def ls():
     List available recipes.
     """
 
-    recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+    recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
     recipes = {}
 
     for recipe in recipe_paths.iterdir():
@@ -96,14 +96,14 @@ async def init(
     """
     inputs = {}
     fields = fields or []
-    recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+    recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
 
     for field in fields:
         key, value = field.split("=")
         inputs[key] = value
 
     if not recipe and is_interactive():
-        recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+        recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
         recipes = []
 
         for r in recipe_paths.iterdir():
@@ -114,18 +114,15 @@ async def init(
                     recipe_description = recipe_data.get(
                         "description", "(no description available)"
                     )
-                    recipe = {
+                    recipe_dict = {
                         "name": recipe_name,
                         "description": recipe_description,
                     }
-                    recipes.append(recipe)
+                    recipes.append(recipe_dict)
 
         selected_recipe = prompt_select_from_table(
             app.console,
-            (
-                "You haven't specified a deployment configuration recipe. Would you"
-                " like to see a list of available recipes?"
-            ),
+            "Would you like to initialize your deployment configuration with a recipe?",
             columns=[
                 {"header": "Name", "key": "name"},
                 {"header": "Description", "key": "description"},
