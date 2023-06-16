@@ -7,7 +7,7 @@ We are excited to announce a significant enhancement to our `prefect deploy` com
 
 Previously, users had to recall their deployment configurations each time they wanted to redeploy with the same settings. Recognizing this potential inconvenience, we've now incorporated a feature to save your deployment inputs for future use, thereby streamlining redeployments.
 
-The new interactive `prefect deploy` command guides you through the deployment process, from setting the schedule and the work pool to the pull step. After your deployment is created, it will prompt you to save your inputs. Opting 'yes' will create a prefect.yaml file with your inputs stored in the deployments list, along with the generated pull step, should one not exist.
+The new interactive `prefect deploy` command guides you through the deployment process, from setting the schedule and the work pool to the pull step. After your deployment is created, it will prompt you to save your inputs. Opting 'yes' will create a `prefect.yaml` file with your inputs stored in the deployments list, along with the generated `pull` step, should one not exist.
 
 -- demo or pic --
 
