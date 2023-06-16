@@ -37,10 +37,10 @@ This information is encapsulated and sent to Prefect as a [Deployment](/concepts
 
 Attributes of a deployment include (but are not limited to): 
 
-- Flow entrypoint = path to your flow function would start the flow
-- Workpool = points to the infra you want your flow to run in
-- Schedule = optional schedule for this deployment
-- Tags = optional metadata
+- Flow entrypoint: path to your flow function would start the flow
+- Workpool: points to the infra you want your flow to run in
+- Schedule: optional schedule for this deployment
+- Tags: optional metadata
 
 Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. In order to run **your flows** on **your infrastructure,** you are going to need to set up a work pool and a worker. 
 
@@ -90,23 +90,40 @@ The process work pool type specifies that all work sent to this work pool will r
     Aside from process, there are a variety of different work pool types you might consider in a production setting to containerize your flow runs that leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run which are expanded upon in the guides section.
 
 In your terminal set to your Prefect workspace run the following command to set up a work pool. 
-
-```prefect work-pool create --type process tutorial-process-pool```
-
+<div class="terminal">
+```bash
+prefect work-pool create --type process tutorial-process-pool
+```
+</div>
 Now that you have created the work pool, let’s confirm that the work pool was successfully created by running the following command in the same terminal.  You should see your new ```tutorial-process-pool``` in the output list.
-
-```prefect work-pool ls```
-
+<div class="terminal">
+```bash
+prefect work-pool ls 
+```
+</div>
 Finally, let’s double check in the Prefect Cloud UI that you can see this work pool. Navigate to the Work Pool tab and verify that you see `tutorial-process-pool` listed.
 
+<div class="terminal">
+```bash
+                                             Work Pools                                             
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Name                  ┃ Type          ┃                                   ID ┃ Concurrency Limit ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ tutorial-process-pool │ process       │ 33ce63a5-cc80-4f43-9092-11122ccea60b │ None              │
+│ default-agent-pool    │ prefect-agent │ 157dbcd7-7e8a-4ec6-82b8-1036d2c76c6f │ None              │
+└───────────────────────┴───────────────┴──────────────────────────────────────┴───────────────────┘
+```
+</div>
 When you click into the `tutorial-process-pool` you can click into the tab for work queues.  You should see a red status icon next listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced topic to help determine flow priority. You can learn more about work queues in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker in your execution environment. For this tutorial, your execution environment is on your laptop or dev machine.
 
 As mentioned above, workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start your worker you will open a new terminal, make sure the same virtual environment is enabled as your python script.  Run the following command in this new terminal to start the worker:
-
-```prefect worker start --pool tutorial-process-pool```
-
+<div class="terminal">
+```bash
+prefect worker start --pool tutorial-process-pool
+```
+</div>
 You should see the worker start, its now polling the Prefect API to see if there are any scheduled flow runs to kick off. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent Last Polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
 
 You will need to keep this terminal running in order to have the worker continue to pick up jobs.  Since you are running this worker locally, the worker will terminate if you close the terminal.  When running in a production environment, this worker should be running as a damonized or managed process.
@@ -129,6 +146,7 @@ In your terminal (not the terminal associated with the worker), let’s run the 
 !!! warning "Warning:"
     Before running any `prefect deploy` or `prefect init` commands, double check that you are at the **top/root/base of your repo**, otherwise the worker may struggle to get to the same entrypoint during remote execution!
 
+<div class="terminal">
 ```bash
 prefect deploy my_flow.py:get_repo_info
 ```
