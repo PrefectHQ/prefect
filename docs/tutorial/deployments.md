@@ -16,7 +16,7 @@ search:
 
 ## Why Deploy
 
-The most common reason to use a tool like Prefect, is scheduling. You want your workflows running in some production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on events you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
+The most common reason to use a tool like Prefect, is [scheduling](/concepts/schedules). You want your workflows running in some production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
 
 A deployed flow gets the following additional cababilities:
 
@@ -28,13 +28,13 @@ A deployed flow gets the following additional cababilities:
 
 Deploying your flows is, in essence, the act of informing the Prefect API of:
 
-1. Where to run your flows 
+1. Where to run your flows
 2. How to run your flows
-3. When to run your flows 
+3. When to run your flows
 
 This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which becomes a server side object containing the crucial metadata needed for orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
-Attributes of a deployment include (but are not limited to): 
+Attributes of a deployment include (but are not limited to):
 
 - __Flow entrypoint__: path to your flow function would start the flow
 - __Workpool__: points to the infra you want your flow to run in
@@ -52,7 +52,7 @@ You'll configure work pools on Prefect’s side. Workers are light-weight, long-
 
 **Work Pools:**
 
-- Organize the flows for your worker to pick up and execute. 
+- Organize the flows for your worker to pick up and execute.
 - Describe the ephemeral infrastructure configuration that the worker will create for each flow run.
 - They prioritize the flows and respond to polling from its worker.
 
