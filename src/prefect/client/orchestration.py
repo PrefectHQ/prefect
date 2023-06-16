@@ -508,6 +508,7 @@ class PrefectClient:
         context = context or {}
         state = state or prefect.states.Scheduled()
         tags = tags or []
+        infra_overrides = infra_overrides or {}
 
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
@@ -535,6 +536,7 @@ class PrefectClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: "prefect.states.State" = None,
+        infra_overrides: Dict[str, Any] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -558,6 +560,7 @@ class PrefectClient:
         """
         parameters = parameters or {}
         context = context or {}
+        infra_overrides = infra_overrides or {}
 
         if state is None:
             state = prefect.states.Pending()
@@ -578,6 +581,7 @@ class PrefectClient:
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
             ),
+            infra_overrides=infra_overrides,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)

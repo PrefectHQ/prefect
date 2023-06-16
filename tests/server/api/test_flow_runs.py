@@ -196,6 +196,43 @@ class TestCreateFlowRun:
 
         assert response.json()["deployment_id"] == str(deployment.id)
 
+    async def test_create_flow_run_with_infra_overrides(
+        self,
+        flow,
+        client,
+        session,
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=core.Deployment(
+                name="",
+                flow_id=flow.id,
+                manifest_path="file.json",
+                infra_overrides={
+                    "cpu": 1,
+                },
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id, deployment_id=deployment.id
+            ).dict(json_compatible=True),
+        )
+
+        assert response.json()["infra_overrides"] == {}
+
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id, deployment_id=deployment.id, infra_overrides={"cpu": 2}
+            ).dict(json_compatible=True),
+        )
+
+        assert response.json()["infra_overrides"] == {"cpu": 2}
+
 
 class TestUpdateFlowRun:
     async def test_update_flow_run_succeeds(self, flow, session, client):
