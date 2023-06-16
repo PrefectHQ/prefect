@@ -213,7 +213,7 @@ Deployment YAML created at
 
 Note that we used the `--path` option on the `build` CLI to provide this information. Other ways of specifying a deployment's `path` include:
 
-- Providing a value for `path` to `Deployment.build_from_flow` or at `Deployment` initialization (see [the API reference for more details](/api-ref/prefect/deployments/#prefect.deployments.Deployment)).
+- Providing a value for `path` to `Deployment.build_from_flow` or at `Deployment` initialization (see [the API reference for more details](/api-ref/prefect/deployments/deployments/#prefect.deployments.Deployment)).
 - Prefect offers [syntatic sugar](https://en.wikipedia.org/wiki/Syntactic_sugar) on storage block specification where the path can be provided after the block slug: `-sb s3/log-test/log-flow-directory`.
 
 ### Sharing infrastructure
