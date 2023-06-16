@@ -2,7 +2,7 @@
 
 ## Release 2.10.14
 
-### Simplying project-based deployments
+### Simplifying project-based deployments
 
 We've now simplified deployment management even further by consolidating the `prefect.yaml` and `deployment.yaml` files and removing the creation of the `.prefect` folder when running `prefect init`. We've also deprecated the name `projects`, renaming steps that had `projects` in the name.
 
