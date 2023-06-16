@@ -15,6 +15,7 @@ tags:
 A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. While flows provide a high-level structure for executing your code, tasks help organize your code by adding an atomic component that can be orchestrated and observed within the context of a flow.
 
 Flows and tasks share some common features:
+
 * Both have metadata attributes such as name, description, and tags.
 * Both support type-checked parameters, allowing you to define the expected data types of inputs and outputs.
 * Both provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
