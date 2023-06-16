@@ -118,7 +118,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or we may hit a rate limit. Let's add retries to make our script resilient:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. Let's add retries to make our script resilient:
 
 ```python hl_lines="7"
 import httpx
@@ -145,4 +145,4 @@ if __name__ == "__main__":
 
 ### Next Steps
 
-As we have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section we'll supercharge our flow by using tasks to organize the workflow's complexity.
+As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to organize the workflow's complexity.

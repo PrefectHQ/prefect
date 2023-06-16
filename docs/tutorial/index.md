@@ -34,7 +34,7 @@ Prefect also provides error handling, retry mechanisms, and a user-friendly dash
 
 Just bring your Python code, sprinkle in a few decorators, and go!
 
-By the end of this tutorial we will have:
+By the end of this tutorial you will have:
 
 1. [Created a Flow](/tutorial/flows/)
 2. [Added Tasks to it](/tutorial/tasks/)
