@@ -219,6 +219,6 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
 
 Whenever we run the parent flow, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
 
-## Next Steps
+## [Next: Deployments](/tutorial/deployments/)
 
 We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure.

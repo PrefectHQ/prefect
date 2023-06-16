@@ -43,3 +43,5 @@ By the end of this tutorial you will have:
 5. [Deployed the Flow](/tutorial/deploying/)
 6. [Run the flow on our worker!](/tutorial/deployments/)
 
+
+## [Next: Flows](/tutorial/flows/)
