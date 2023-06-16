@@ -3,7 +3,21 @@
 ## Release 2.10.15
 
 ## Highlight blurb
-- Add prompt to save inputs to interactive `prefect deploy` command — https://github.com/PrefectHQ/prefect/pull/9948
+Introducing Deployment Configuration Saving in in `prefect deploy`
+We are excited to announce a significant enhancement to our PrefectDeploy command, aimed at making your deployment process even more user-friendly.
+
+Previously, users had to recall their deployment configurations each time they wanted to redeploy with the same settings. Recognizing this potential inconvenience, we've now incorporated a feature to save your deployment inputs for future use, thereby streamlining redeployments.
+
+The new interactive `prefect deploy` command guides you through the deployment process, from setting the schedule and the work pool to the pull step. After your deployment is created, it will prompt you to save your inputs. Opting 'yes' will create a prefect.yaml file with your inputs stored in the deployments list, along with the generated pull step, should one not exist.
+
+-- demo or pic --
+
+Running the deploy command again provides you with the option to reuse the saved deployment configuration or to create a new one. Should you choose to create a new deployment, you will again be given the option to save your inputs. This way, you can maintain a list of multiple deployment configurations, ready to be used whenever needed.
+
+We believe this new functionality will simplify your deployment experience and are eager to hear your feedback.
+
+For more details on implementation, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/9948
 
 ### Fixes
 - Fix error in `prefect deploy` when `.prefect` folder is absent — https://github.com/PrefectHQ/prefect/pull/9972
