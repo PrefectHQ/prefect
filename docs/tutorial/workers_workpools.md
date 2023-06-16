@@ -36,10 +36,10 @@ This information is encapsulated and sent to Prefect as a [Deployment](/concepts
 
 Attributes of a deployment include (but are not limited to): 
 
-- Flow entrypoint: path to your flow function would start the flow
-- Workpool: points to the infra you want your flow to run in
-- Schedule: optional schedule for this deployment
-- Tags: optional metadata
+- __Flow entrypoint__: path to your flow function would start the flow
+- __Workpool__: points to the infra you want your flow to run in
+- __Schedule__: optional schedule for this deployment
+- __Tags__: optional metadata
 
 Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. In order to run **your flows** on **your infrastructure,** you are going to need to set up a work pool and a worker. 
 
@@ -132,7 +132,7 @@ In your terminal (not the terminal associated with the worker), let’s run the 
 prefect deploy my_flow.py:get_repo_info
 ```
 
-This deployment command follows the following format that you can use to deploy your flows in the future:  `prefect deploy path_to_flow/my_flow_file.py:flow_func_name` 
+This deployment command follows the following format that you can use to deploy your flows in the future:  `prefect deploy path_to_flow/my_flow_file.py:flow_func_name`
 
 Now that you have run the deploy command, the CLI will prompt you through different options you can set with your deployment.
 
@@ -140,8 +140,8 @@ Now that you have run the deploy command, the CLI will prompt you through differ
 2. Type `n` for now, you can set up a schedule later
 3. Select the work pool you just created, tutorial-process-pool
 4. When asked if you would like your workers to pull your flow code from its remote repository, select yes if you’ve been following along and defining your flow code script from within a github repository.
-    - y: Reccomended: Prefect will automatically register your GitHub repo as the the location of this flow’s remote flow code. This means a worker started on any machine, on your laptop, on your team-mate’s laptop, or in your cloud provider
-    - n: If you would like to continue this tutorial without the use of GitHub, thats ok, Prefect will always look first to see if the flow code exists locally before referring to remote flow code storage.
+    - __y__: Reccomended: Prefect will automatically register your GitHub repo as the the location of this flow’s remote flow code. This means a worker started on any machine, on your laptop, on your team-mate’s laptop, or in your cloud provider
+    - __n__: If you would like to continue this tutorial without the use of GitHub, thats ok, Prefect will always look first to see if the flow code exists locally before referring to remote flow code storage.
 
 Prefect becomes powerful when it allows you to trigger flow runs in a variety of executions environments, so understanding how Prefect workers access flow code remotely is an important concept to grasp. 
 
