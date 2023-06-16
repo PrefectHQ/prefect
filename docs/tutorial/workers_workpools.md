@@ -126,7 +126,7 @@ Now it’s time to put it all together.
 
 In your terminal (not the terminal associated with the worker), let’s run the following command to begin deploying your flow.  Ensure that the current directory is set to the same directory as when you were running the flow locally. You can double check this by typing `ls` in the terminal and you should see the flow file in the output.
 
-!!! tip "Warning:"
+!!! warning "Warning:"
     Before running any `prefect deploy` or `prefect init` commands, double check that you are at the **top/root/base of your repo**, otherwise the worker may struggle to get to the same entrypoint during remote execution!
 
 ```bash
