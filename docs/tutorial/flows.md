@@ -10,7 +10,17 @@ tags:
 ---
 ## What is a flow?
 
-A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
+A [flow](/concepts/flows/) is the basis of all Prefect workflows. 
+
+Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
+
+- State transitions are reported to the API, allowing observation of flow execution.
+- Input arguments types can be validated.
+- Retries can be performed on failure.
+- Timeouts can be enforced to prevent unintentional, long-running workflows.
+
+Flows also take advantage of automatic Prefect logging to capture details about flow runs such as run time, task tags, and final state.
+
 
 Some important points about flows:
 
@@ -20,6 +30,7 @@ Some important points about flows:
 
 The simplest way get started with Prefect is to import `flow` and annotate your Python function using the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator.
 
+<sub>`my_flow.py`</sub>
 ```python
 import httpx
 from prefect import flow
@@ -42,7 +53,14 @@ def get_repo_info():
 if __name__ == '__main__':
     get_repo_info()
 ```
-If you run this flow in your terminal you will see some interesting output:
+
+A flow run represents a single execution of the flow.
+
+You can create a flow run by calling the flow. For example, by running a Python script or importing the flow into an interactive session.
+
+```bash
+python my_flow.py
+```
 <div class="terminal">
 ```bash
 12:47:42.792 | INFO    | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'

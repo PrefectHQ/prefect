@@ -18,7 +18,7 @@ Clone a test repo in GitHub or equivalent and write your Prefect Flow:
 `my_flow.py`
 ```python
 import httpx
-from prefect import flow
+from prefect import flow, task
 
 @flow(name="Repo Info", log_prints=True)
 def get_repo_info():
@@ -45,7 +45,7 @@ def get_contributors(url):
         return len(contributors)
     else:
         raise Exception('Failed to fetch contributors.')
-@task()
+@task(retries=4)
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)

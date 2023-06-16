@@ -16,7 +16,7 @@ To demonstrate the usage of tasks, let's modify our existing flow by adding some
 
 ```python
 import httpx
-from prefect import flow
+from prefect import flow, task
 
 @flow(log_prints = True)
 def get_repo_info():
