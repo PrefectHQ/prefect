@@ -642,6 +642,10 @@ class TestCountFlowRunModels:
             ),
             3,
         ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=True))),
+            6,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
