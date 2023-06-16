@@ -55,7 +55,7 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called parameters. Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
 ```python hl_lines="6"
 import httpx
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
 ## Logging
 
-Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some logging to our flow:
+Prefect enables you to log a variety of useful information about your flow and task runs with your own custom [logging](https://docs.prefect.io/2.10.15/concepts/logs/?h=logging). This promotes capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some logging to our flow:
 
 ```python hl_lines="2 11-14"
 import httpx
@@ -118,7 +118,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. Let's add retries to make our script resilient:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's try to add a retry functionality to our example above:
 
 ```python hl_lines="7"
 import httpx
@@ -145,4 +145,4 @@ if __name__ == "__main__":
 
 ## Next Steps
 
-As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to organize the workflow's complexity.
+As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using [tasks](https://docs.prefect.io/2.10.15/concepts/tasks/) to organize the workflow's complexity.
