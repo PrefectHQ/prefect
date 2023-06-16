@@ -170,3 +170,14 @@ Now that you have run the deploy command, the CLI will prompt you through differ
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple different schedules. 
 
 As you continue to use Prefect you'll likely author many different flows and want to define a variety of deployments for them. Check out the next section to learn about defining deployment objects in a `deployment.yaml` file.
+
+## Next Steps
+
+- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
+- Check out some of our other [work pools](/concepts/work-pools/)
+- [Our Concepts](/concepts/) contain deep dives into Prefect components.
+- [Guides](/guides/) provide step by step recipes for common Prefect operations including:
+    - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
+    - [Deploying flows in Docker](/guides/deployment/docker/)
+    - [Writing tests](/guides/testing)
+And more!
