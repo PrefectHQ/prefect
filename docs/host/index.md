@@ -52,6 +52,7 @@ The self-hosted Prefect server and Prefect Cloud share a base of features. Prefe
 - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
 - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
+You can read more about Prefect Cloud in the [Cloud](/cloud/) section. 
 
 ### Configuring a Prefect Server
 
