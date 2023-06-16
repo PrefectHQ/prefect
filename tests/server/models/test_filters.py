@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from typing import cast
 from uuid import uuid4
 
 import pendulum
@@ -9,6 +10,7 @@ import pytest
 from prefect.client import get_client
 from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
+from prefect.server.utilities.schemas import DateTimeTZ
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -115,6 +117,7 @@ async def data(flow_function, db):
                 tags=["db", "blue"],
                 state=states.Completed(),
                 deployment_id=d_1_1.id,
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
             )
         )
 
@@ -124,6 +127,7 @@ async def data(flow_function, db):
                 name="sad-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 15, tz="UTC")),
             )
         )
         await create_flow_run(
@@ -133,6 +137,7 @@ async def data(flow_function, db):
                 tags=["db", "red"],
                 state=states.Failed(),
                 deployment_id=d_1_1.id,
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 15, tz="UTC")),
             )
         )
         await create_flow_run(
@@ -158,6 +163,7 @@ async def data(flow_function, db):
                 name="another-test-happy-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
             )
         )
 
@@ -174,6 +180,7 @@ async def data(flow_function, db):
                 flow_id=f_2.id,
                 tags=["db", "red"],
                 state=states.Failed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 15, tz="UTC")),
             )
         )
 
@@ -186,6 +193,7 @@ async def data(flow_function, db):
                 state=states.Completed(),
                 deployment_id=d_3_1.id,
                 work_queue_id=wp.default_queue_id,
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
             )
         )
 
@@ -609,6 +617,30 @@ class TestCountFlowRunModels:
                 ),
             ),
             0,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(
+                        after_=cast(
+                            DateTimeTZ, pendulum.datetime(2023, 1, 10, tz="UTC")
+                        )
+                    )
+                )
+            ),
+            3,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(
+                        before_=cast(
+                            DateTimeTZ, pendulum.datetime(2023, 1, 10, tz="UTC")
+                        )
+                    )
+                )
+            ),
+            3,
         ],
     ]
 

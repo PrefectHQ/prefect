@@ -557,6 +557,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.state.as_sql_filter(db))
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter(db))
+        if self.end_time is not None:
+            filters.append(self.end_time.as_sql_filter(db))
         if self.expected_start_time is not None:
             filters.append(self.expected_start_time.as_sql_filter(db))
         if self.next_scheduled_start_time is not None:
@@ -800,6 +802,8 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.state.as_sql_filter(db))
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter(db))
+        if self.end_time is not None:
+            filters.append(self.end_time.as_sql_filter(db))
         if self.subflow_runs is not None:
             filters.append(self.subflow_runs.as_sql_filter(db))
 
