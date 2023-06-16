@@ -17,7 +17,7 @@ Some important points about flows:
 
 1. All Prefect workflows are defined within the context of a flow.
 2. Every Prefect workflow must contain at least one `flow` function that serves as the entrypoint for execution of the flow.
-3. Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
+3. Flows can include calls to tasks, vanilla python as well as child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
 The simplest way get started with Prefect is to import and annotate your Python function with the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
@@ -55,7 +55,7 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called parameters. Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
 ```python hl_lines="6"
 import httpx
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
 ## Logging
 
-Prefect enables you to log a variety of useful information about your flow and task runs with your own custom [logging](https://docs.prefect.io/2.10.15/concepts/logs/?h=logging). This promotes capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some logging to our flow:
+Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some logging to our flow:
 
 ```python hl_lines="2 11-14"
 import httpx
@@ -118,7 +118,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's try to add a retry functionality to our example above:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. Let's add retries to make our script resilient:
 
 ```python hl_lines="7"
 import httpx
@@ -143,6 +143,6 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-## Next Steps
+### Next Steps
 
-As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using [tasks](https://docs.prefect.io/2.10.15/concepts/tasks/) to organize the workflow's complexity.
+As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to organize the workflow's complexity.

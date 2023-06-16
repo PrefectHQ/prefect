@@ -22,7 +22,7 @@ Specific examples of how to perform more advanced operations can be found in our
 1. Before you start, install Prefect: `pip install -U prefect`
       1. See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-2. Create a github repository for your tutorial, let's call it `prefect-tutorial`
+2. Create aGitHubrepository for your tutorial, let's call it `prefect-tutorial`
 
 3. This tutorial requires a Prefect API so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/), use a local Prefect API or a self hosted [Prefect Server](/host/).
 
