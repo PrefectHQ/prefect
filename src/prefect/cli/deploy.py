@@ -43,6 +43,7 @@ from prefect.deployments.base import (
     _copy_deployments_into_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
+    _save_deployment_to_prefect_file,
 )
 
 from prefect.blocks.system import Secret
@@ -182,6 +183,8 @@ async def deploy(
 
     Should be run from a project root directory.
     """
+    # TODO: This function is getting out of hand. It should be refactored into smaller
+    # functions.
 
     options = {
         "entrypoint": entrypoint,
@@ -200,7 +203,9 @@ async def deploy(
         "param": param,
         "params": params,
     }
-
+    # flag to track deployment.yaml format
+    # TODO: remove when deployment.yaml support is removed
+    multi_deployment_format = True
     try:
         with open("prefect.yaml", "r") as f:
             project = yaml.safe_load(f)
@@ -211,10 +216,12 @@ async def deploy(
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
             if not base_deploy:
-                deployments = []
+                multi_deployment_format = False
+                deployments = [{}]
             elif base_deploy.get("deployments"):
                 deployments = base_deploy["deployments"]
             else:
+                multi_deployment_format = False
                 deployments = [base_deploy]
         if is_interactive() and not ci and project:
             if confirm(
@@ -257,7 +264,7 @@ async def deploy(
     except FileNotFoundError:
         deployments = project.get("deployments", [])
     try:
-        if len(deployments) > 1:
+        if len(deployments) >= 1:
             if deploy_all or len(names) > 1:
                 if any(options.values()):
                     app.console.print(
@@ -275,16 +282,16 @@ async def deploy(
                     deploy_all=deploy_all,
                     ci=ci,
                 )
-            elif len(names) == 1:
+            elif len(names) == 1 and multi_deployment_format:
                 deployment = next(
                     (d for d in deployments if d.get("name") == names[0]), {}
                 )
                 if not deployment:
                     app.console.print(
                         (
-                            "Could not find deployment configuration with name "
-                            f"{names[0]!r}. Only CLI options "
-                            "will be used for this deployment."
+                            "Could not find deployment configuration with name"
+                            f" {names[0]!r}. Your flow will be deployed with a new"
+                            " deployment configuration."
                         ),
                         style="yellow",
                     )
@@ -292,49 +299,59 @@ async def deploy(
                 await _run_single_deploy(
                     base_deploy=deployment, project=project, options=options, ci=ci
                 )
+            elif not multi_deployment_format:
+                options["name"] = names[0] if len(names) == 1 else None
+                await _run_single_deploy(
+                    base_deploy=deployments[0],
+                    project=project,
+                    options=options,
+                    ci=ci,
+                )
             else:
                 if not is_interactive() or ci:
                     exit_with_error(
-                        "Discovered multiple deployment configurations,"
+                        "Discovered one or more deployment configurations,"
                         " but no name was given. Please specify the name of at least"
                         " one deployment to create or update."
                     )
-                selected_deployment = prompt_select_from_table(
-                    app.console,
-                    "Would you like to use an existing deployment configuration?",
-                    [
-                        {"header": "Name", "key": "name"},
-                        {"header": "Description", "key": "description"},
-                    ],
-                    [
-                        deployment
-                        for deployment in deployments
-                        if deployment.get("name")
-                    ],
-                    opt_out_message="No, configure a new deployment",
-                    opt_out_response={},
-                )
+                deployments = [
+                    deployment
+                    for deployment in deployments
+                    if deployment.get("name") and deployment.get("entrypoint")
+                ]
+                if deployments:
+                    selected_deployment = prompt_select_from_table(
+                        app.console,
+                        "Would you like to use an existing deployment configuration?",
+                        [
+                            {"header": "Name", "key": "name"},
+                            {"header": "Entrypoint", "key": "entrypoint"},
+                            {"header": "Description", "key": "description"},
+                        ],
+                        [
+                            deployment
+                            for deployment in deployments
+                            if deployment.get("name")
+                        ],
+                        opt_out_message="No, configure a new deployment",
+                        opt_out_response={},
+                    )
+                else:
+                    selected_deployment = {}
                 await _run_single_deploy(
                     base_deploy=selected_deployment,
                     project=project,
                     options=options,
                     ci=ci,
                 )
-        elif len(deployments) <= 1:
-            if len(names) > 1:
-                exit_with_error(
-                    "Multiple deployment names were provided, but only one deployment"
-                    " configuration was found. Please provide a single deployment"
-                    " name."
-                )
-            else:
-                options["name"] = names[0] if names else None
-                await _run_single_deploy(
-                    base_deploy=deployments[0] if deployments else {},
-                    project=project,
-                    options=options,
-                    ci=ci,
-                )
+        else:
+            options["name"] = names[0] if len(names) == 1 else None
+            await _run_single_deploy(
+                base_deploy={},
+                project=project,
+                options=options,
+                ci=ci,
+            )
     except ValueError as exc:
         exit_with_error(str(exc))
 
@@ -351,6 +368,7 @@ async def _run_single_deploy(
     project = deepcopy(project) if project else {}
     options = deepcopy(options) if options else {}
 
+    should_prompt_for_save = is_interactive() and not ci and not bool(base_deploy)
     base_deploy = _merge_with_default_deployment(base_deploy)
 
     base_deploy_schedule = base_deploy.get("schedule")
@@ -546,9 +564,10 @@ async def _run_single_deploy(
                 )
         except ObjectNotFound:
             raise ValueError(
-                "This deployment references a work pool that does not exist."
-                " This means no worker will be able to pick up its runs. You"
-                " can create a work pool in the Prefect UI."
+                "This deployment configuration references work pool"
+                f" {base_deploy['work_pool']['name']!r} which does not exist. This"
+                " means no worker will be able to pick up its runs. You can create a"
+                " work pool in the Prefect UI."
             )
     else:
         if not is_interactive() or ci:
@@ -637,7 +656,30 @@ async def _run_single_deploy(
     if PREFECT_UI_URL:
         app.console.print(
             "\nView Deployment in UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+        )
+
+    if should_prompt_for_save and confirm(
+        (
+            "Would you like to save configuration for this deployment for faster"
+            " deployments in the future?"
+        ),
+        console=app.console,
+    ):
+        _save_deployment_to_prefect_file(
+            base_deploy,
+            build_steps=build_steps or None,
+            push_steps=push_steps or None,
+            pull_steps=pull_steps or None,
+        )
+        app.console.print(
+            (
+                "\n[green]Deployment configuration saved to prefect.yaml![/] You can"
+                " now deploy using this deployment configuration with:\n\n\t[blue]$"
+                f" prefect deploy -n {base_deploy['name']}[/]\n\nYou can also make"
+                " changes to this deployment configuration by making changes to the"
+                " prefect.yaml file."
+            ),
         )
 
     app.console.print(
@@ -689,7 +731,7 @@ async def _run_multi_deploy(
                     app.console.print("Skipping unnamed deployment.", style="yellow")
                     continue
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
-            await _run_single_deploy(base_deploy, project)
+            await _run_single_deploy(base_deploy, project, ci=ci)
     else:
         picked_base_deploys = [
             base_deploy for base_deploy in base_deploys if base_deploy["name"] in names
@@ -708,7 +750,7 @@ async def _run_multi_deploy(
         app.console.print("Deploying selected deployments for current project...")
         for base_deploy in picked_base_deploys:
             app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
-            await _run_single_deploy(base_deploy, project)
+            await _run_single_deploy(base_deploy, project, ci=ci)
 
 
 def _construct_schedule(
@@ -757,9 +799,6 @@ def _construct_schedule(
     return schedule
 
 
-DEFAULT_DEPLOYMENT = None
-
-
 def _merge_with_default_deployment(base_deploy: Dict):
     """
     Merge a base deployment dictionary with the default deployment dictionary.
@@ -774,18 +813,21 @@ def _merge_with_default_deployment(base_deploy: Dict):
         The merged deployment dictionary.
     """
     base_deploy = deepcopy(base_deploy)
-    global DEFAULT_DEPLOYMENT
-
-    if DEFAULT_DEPLOYMENT is None:
-        # load the default deployment file for key consistency
-        default_file = (
-            Path(__file__).parent.parent / "deployments" / "templates" / "prefect.yaml"
-        )
-
-        # load default file
-        with open(default_file, "r") as df:
-            contents = yaml.safe_load(df)
-            DEFAULT_DEPLOYMENT = contents["deployments"][0]
+    DEFAULT_DEPLOYMENT = {
+        "name": None,
+        "version": None,
+        "tags": [],
+        "description": None,
+        "schedule": {},
+        "flow_name": None,
+        "entrypoint": None,
+        "parameters": {},
+        "work_pool": {
+            "name": None,
+            "work_queue_name": None,
+            "job_variables": {},
+        },
+    }
 
     # merge default and base deployment
     # this allows for missing keys in a user's deployment file

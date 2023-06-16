@@ -476,7 +476,7 @@ class TestProjectDeploySingleDeploymentYAML:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            user_input="y" + readchar.key.ENTER,
+            user_input="y" + readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_code=0,
         )
 
@@ -606,7 +606,6 @@ class TestProjectDeploy:
                 }
             ]
 
-        @pytest.mark.usefixtures("interactive_console")
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
             work_pool,
@@ -648,8 +647,9 @@ class TestProjectDeploy:
                     f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
                     " --interval 60"
                 ),
-                # User rejects pulling from the remote repo
-                user_input="n" + readchar.key.ENTER,
+                # User rejects pulling from the remote repo and rejects saving the
+                # deployment configuration
+                user_input="n" + readchar.key.ENTER + "n" + readchar.key.ENTER,
                 expected_code=0,
             )
 
@@ -691,6 +691,9 @@ class TestProjectDeploy:
                     # Choose public repo
                     "n"
                     + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "Would you like your workers to pull your flow code from its remote"
@@ -702,6 +705,16 @@ class TestProjectDeploy:
                 "An important name/test-name"
             )
             assert deployment.pull_steps == [
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://example.com/org/repo.git",
+                        "branch": "main",
+                    }
+                }
+            ]
+
+            prefect_file_contents = yaml.safe_load(Path("prefect.yaml").read_text())
+            assert prefect_file_contents["pull"] == [
                 {
                     "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
@@ -746,6 +759,9 @@ class TestProjectDeploy:
                     +
                     # Choose public repo
                     "n"
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
@@ -795,6 +811,9 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                     # Enter token
                     + "my-token"
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
@@ -849,6 +868,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
+        contents["deployments"][0]["name"] = "test-name"
         contents["deployments"][0]["version"] = "{{ input }}"
         contents["deployments"][0]["tags"] = "{{ output2 }}"
         contents["deployments"][0]["description"] = "{{ output1 }}"
@@ -908,7 +928,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -941,7 +961,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy {option}",
+            command=f"deploy -n test-name {option}",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -1020,7 +1040,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -1040,7 +1060,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -1061,7 +1081,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -f 'An important name' flows/hello.py:my_flow",
+            command="deploy -f 'An important name' -n test-name flows/hello.py:my_flow",
             expected_code=1,
             expected_output=(
                 "Received an entrypoint and a flow name for this deployment. Please"
@@ -1085,7 +1105,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=1,
             expected_output_contains="An entrypoint or flow name must be provided.",
         )
@@ -1098,7 +1118,10 @@ class TestProjectDeploy:
                 f"deploy ./flows/hello.py:my_flow -p {work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input="test-prompt-name" + readchar.key.ENTER,
+            user_input="test-prompt-name"
+            + readchar.key.ENTER
+            + "n"
+            + readchar.key.ENTER,
             expected_output_contains=[
                 "Deployment name",
             ],
@@ -1131,7 +1154,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
                 "Which work pool would you like to deploy this flow to?",
             ],
@@ -1155,7 +1178,7 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name}"
             ),
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "Cannot create a project-style deployment with work pool of type"
                 " 'prefect-agent'. If you wish to use an agent with your deployment,"
                 " please use the `prefect deployment build` command."
@@ -1173,7 +1196,7 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
                 (
                     "You've chosen a work pool with type 'prefect-agent' which cannot"
@@ -1207,6 +1230,9 @@ class TestProjectDeploy:
                 +
                 # Enter a name for the new work pool
                 "test-created-via-deploy"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
@@ -1304,8 +1330,18 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            # accept migration
-            user_input="y" + readchar.key.ENTER,
+            user_input=(
+                # accept migration
+                "y"
+                + readchar.key.ENTER
+                +
+                # choose existing deployment configuration
+                readchar.key.ENTER
+                +
+                # accept save
+                "n"
+                + readchar.key.ENTER
+            ),
             expected_code=0,
             expected_output_contains=[
                 "Successfully copied your deployment configurations into your"
@@ -1363,6 +1399,7 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
@@ -1391,6 +1428,7 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
@@ -1439,6 +1477,7 @@ class TestSchedules:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["interval"] = 42
         deploy_config["deployments"][0]["schedule"]["anchor_date"] = "2040-02-02"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
@@ -1543,7 +1582,7 @@ class TestSchedules:
             command="deploy ./flows/hello.py:my_flow -n test-name "
             + " ".join(schedules),
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains=["Only one schedule type can be provided."],
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
@@ -1572,6 +1611,9 @@ class TestSchedules:
                 +
                 # Enter valid interval
                 "42"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -1616,6 +1658,10 @@ class TestSchedules:
                 +
                 # Select default timezone
                 readchar.key.ENTER
+                +
+                # Decline save
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_contains=[
@@ -1660,6 +1706,10 @@ class TestSchedules:
                 +
                 # Select default timezone
                 readchar.key.ENTER
+                +
+                # Decline save
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
         )
@@ -1682,6 +1732,9 @@ class TestSchedules:
             user_input=(
                 # Decline schedule creation
                 "n"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -1966,10 +2019,12 @@ class TestMultiDeploy:
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(contents, f)
-        # Deploy the deployment with an invalid name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy --name from-cli-name",
+            command=(
+                "deploy --name from-cli-name --pool"
+                f" {work_pool.name} ./flows/hello.py:my_flow"
+            ),
             expected_code=0,
             expected_output_contains=[
                 "Deployment 'An important name/from-cli-name' successfully created"
@@ -2179,7 +2234,7 @@ class TestMultiDeploy:
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name-1",
             expected_code=0,
             expected_output_contains=[
                 "An important name/test-name-1",
@@ -2320,7 +2375,7 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Discovered multiple deployment configurations, but"
+                    "Discovered one or more deployment configurations, but"
                     " no name was given. Please specify the name of at least one"
                     " deployment to create or update."
                 ),
@@ -2355,15 +2410,14 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Could not find deployment configuration with name "
-                    "'test-name-1'. Only CLI options "
-                    "will be used for this deployment."
+                    "Could not find deployment configuration with name 'test-name-1'."
+                    " Your flow will be deployed with a new deployment configuration."
                 ),
             ],
         )
 
     async def test_deploy_exits_with_single_deployment_and_multiple_names(
-        self, project_dir
+        self, project_dir, work_pool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -2373,6 +2427,7 @@ class TestMultiDeploy:
             {
                 "name": "test-name-1",
                 "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
             }
         ]
 
@@ -2383,12 +2438,11 @@ class TestMultiDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name-1 -n test-name-2",
-            expected_code=1,
+            expected_code=0,
             expected_output_contains=[
                 (
-                    "Multiple deployment names were provided, but only one deployment"
-                    " configuration was found. Please provide a single deployment"
-                    " name."
+                    "The following deployment(s) could not be found and will not be"
+                    " deployed: test-name-2"
                 ),
             ],
         )
@@ -2405,12 +2459,14 @@ class TestMultiDeploy:
             {
                 "name": "test-name-1",
                 "description": "test-description-1",
+                "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
             {
                 "name": "test-name-2",
                 "description": "test-description-2",
+                "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
@@ -2421,9 +2477,9 @@ class TestMultiDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow",
+            command="deploy",
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
                 "Would you like to use an existing deployment configuration?",
                 "test-name-1",
@@ -2498,3 +2554,266 @@ class TestMultiDeploy:
         assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
         assert config["deployments"][1]["schedule"] == {"interval": 3600}
         assert config["deployments"][1]["work_pool"]["name"] == work_pool.name
+
+
+@pytest.mark.usefixtures("interactive_console", "project_dir")
+class TestSaveUserInputs:
+    def test_save_user_inputs_no_existing_prefect_file(self):
+        prefect_file = Path("prefect.yaml")
+        prefect_file.unlink()
+        assert not prefect_file.exists()
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        assert prefect_file.exists()
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "default"
+        assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][0]["schedule"] is None
+        assert config["deployments"][0]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_existing_prefect_file(self):
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_with_interval_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["interval"] == 3600
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+        assert config["deployments"][1]["schedule"]["anchor_date"] is not None
+
+    def test_save_user_inputs_with_cron_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select cron schedule
+                readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # enter cron schedule
+                "* * * * *"
+                + readchar.key.ENTER
+                +
+                # accept default timezone
+                readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["cron"] == "* * * * *"
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+        assert config["deployments"][1]["schedule"]["day_or"]
+
+    def test_save_user_inputs_with_rrule_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select rrule schedule
+                readchar.key.DOWN
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # enter rrule schedule
+                "FREQ=MINUTELY"
+                + readchar.key.ENTER
+                +
+                # accept default timezone
+                readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
