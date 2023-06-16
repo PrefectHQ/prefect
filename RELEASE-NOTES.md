@@ -2,8 +2,7 @@
 
 ## Release 2.10.15
 
-## Highlight blurb
-Introducing Deployment Configuration Saving in in `prefect deploy`
+## Introducing deployment configuration Saving in `prefect deploy`
 We are excited to announce a significant enhancement to our PrefectDeploy command, aimed at making your deployment process even more user-friendly.
 
 Previously, users had to recall their deployment configurations each time they wanted to redeploy with the same settings. Recognizing this potential inconvenience, we've now incorporated a feature to save your deployment inputs for future use, thereby streamlining redeployments.
