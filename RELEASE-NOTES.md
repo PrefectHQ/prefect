@@ -1,5 +1,31 @@
 # Prefect Release Notes
 
+## Release 2.10.15
+
+## Introducing deployment configuration saving in `prefect deploy`
+We are excited to announce a significant enhancement to our `prefect deploy` command to make your deployment process even more intuitive.
+
+Previously, users had to recall their deployment configurations each time they wanted to redeploy with the same settings. Recognizing this potential inconvenience, we've now incorporated a feature to save your deployment inputs for future use, thereby streamlining redeployments.
+
+The new interactive `prefect deploy` command guides you through the deployment process, from setting the schedule and the work pool to the `pull` step. After your deployment is created, you will have the option to save your inputs. Choosing "yes" will create a `prefect.yaml` file if one does not exist. The `prefect.yaml` file will contain your inputs stored in the deployments list and the generated `pull` step.
+
+![saving with prefect deploy demo](https://github.com/PrefectHQ/prefect/assets/12350579/47d30cee-b0db-42c8-9d35-d7b25cd7856c)
+
+If you have a `prefect.yaml` file in the same directory where you run your command, running the `deploy` command again allows you to reuse the saved deployment configuration or create a new one. If you choose to create a new deployment, you will again be given the option to save your inputs. This way, you can maintain a list of multiple deployment configurations, ready to be used whenever needed!
+
+For more details on implementation, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/9948
+
+### Fixes
+- Fix error in `prefect deploy` when `.prefect` folder is absent — https://github.com/PrefectHQ/prefect/pull/9972
+- Fix use of deprecated `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9978
+- Fix exception raised in `prefect init` command when no recipe is selected — https://github.com/PrefectHQ/prefect/pull/9963
+
+### Documentation
+- Fix broken deployments api-ref page — https://github.com/PrefectHQ/prefect/pull/9965
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.14...2.10.15
+
 ## Release 2.10.14
 
 ### Simplifying project-based deployments
