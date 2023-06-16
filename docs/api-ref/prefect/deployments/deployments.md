@@ -6,4 +6,4 @@ tags:
     - deployments
 ---
 
-::: prefect.deployments
+::: prefect.deployments.deployments
