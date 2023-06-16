@@ -235,6 +235,7 @@ class TestProjectInit:
             assert result.exit_code == 0
             assert any(Path(tempdir).rglob("prefect.yaml"))
 
+    @pytest.mark.usefixtures("interactive_console")
     def test_project_init_use_first_recipe(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
