@@ -343,6 +343,22 @@ from = "/api-ref/rest-api-overview/"
 to = "/api-ref/rest-api/"
 status = 301
 
+[[redirects]]
+from = "/concepts/projects/"
+to = "/concepts/deployments-ux/"
+
+[[redirects]]
+from = "/tutorial/projects/"
+to = "/tutorial/deployments-ux/"
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
