@@ -11,9 +11,7 @@ The new interactive `prefect deploy` command guides you through the deployment p
 
 -- demo or pic --
 
-If you have a `prefect.yaml` file in the same directory where you run your command, running the `deploy` command again gives you the option to reuse the saved deployment configuration or to create a new one. 
-
-We believe this new functionality will simplify your deployment experience.
+If you have a `prefect.yaml` file in the same directory where you run your command, running the `deploy` command again gives you the option to reuse the saved deployment configuration or to create a new one!
 
 For more details on implementation, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/9948
