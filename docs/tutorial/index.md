@@ -43,13 +43,3 @@ By the end of this tutorial you will have:
 5. [Deployed the Flow](/tutorial/deploying/)
 6. [Run the flow on our worker!](/tutorial/deployments/)
 
-
-### Reference Material
-If you've never used Prefect before, let's start by exploring the core concepts:
-
-- [Our Concepts](/concepts/) contain deep dives into Prefect components.
-- [Guides](/guides/) provide step by step recipes for common Prefect operations including:
-    - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
-
-Our tutorial offers a brief introduciton to key Prefect concepts and should be suffiencient for those new to orchestration, for anyone looking for a fast-track to creating their first deployment, checkout our [quickstart guide](/tutorial/deployment_quickstart/).
-
