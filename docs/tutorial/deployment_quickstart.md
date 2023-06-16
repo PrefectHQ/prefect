@@ -43,6 +43,7 @@ def get_contributors(url):
         return len(contributors)
     else:
         raise Exception('Failed to fetch contributors.')
+
 @task(retries=4)
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
@@ -92,10 +93,20 @@ prefect deploy my_flow.py:get_repo_info
 ```
 
 !!! note "CLI Note:"
-    This deployment command follows the following format `prefect deploy entrypoint` that you can use to deploy your flows in the future:
+    The above deployment command follows the following format `prefect deploy entrypoint` that you can use to deploy your flows in the future:
     
-    `prefect deploy path_to_flow/my_flow_file.py:flow_func_name`
+    `prefect deploy my_flow.py:get_repo_info`
 
-Now that you have run the deploy command, the CLI will prompt you through different options you can set with your deployment. Follow the wizard. 🧙 
+Now that you have run the deploy command, the CLI will prompt you through different options you can set with your deployment. 🧙 Follow the wizard to name your deployment and select or create a Work Pool among other optional steps.  
 
-### Step 6: Start a Worker
+### Step 6: Start a Worker and Run Deployed Flow
+
+```bash
+prefect worker start --pool <name-of-your-work-pool>
+```
+
+Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
+
+```bash
+prefect deployment run <my-flow-name>/<my-deployment-name>
+```
