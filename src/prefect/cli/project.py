@@ -114,18 +114,15 @@ async def init(
                     recipe_description = recipe_data.get(
                         "description", "(no description available)"
                     )
-                    recipe_name = {
+                    recipe_dict = {
                         "name": recipe_name,
                         "description": recipe_description,
                     }
-                    recipes.append(recipe_name)
+                    recipes.append(recipe_dict)
 
         selected_recipe = prompt_select_from_table(
             app.console,
-            (
-                "You haven't specified a deployment configuration recipe. Would you"
-                " like to see a list of available recipes?"
-            ),
+            "Would you like to initialize your deployment configuration with a recipe?",
             columns=[
                 {"header": "Name", "key": "name"},
                 {"header": "Description", "key": "description"},

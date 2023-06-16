@@ -1,15 +1,35 @@
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
 import pytest
 import readchar
+from typer import Exit
 import yaml
 from prefect.server import models
 from prefect.client import schemas
-from test_cloud import interactive_console  # noqa
 
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.project.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
@@ -203,6 +223,27 @@ class TestProjectInit:
         )
         assert result.exit_code == 1
         assert "prefect init" in result.output
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_opt_out_of_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "init --name test_project",
+                temp_dir=str(tempdir),
+                user_input=(readchar.key.DOWN * 10) + readchar.key.ENTER,
+            )
+            assert result.exit_code == 0
+            assert any(Path(tempdir).rglob("prefect.yaml"))
+
+    def test_project_init_use_first_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "init --name test_project",
+                temp_dir=str(tempdir),
+                user_input=readchar.key.DOWN + readchar.key.ENTER,
+            )
+            assert result.exit_code == 0
+            assert any(Path(tempdir).rglob("prefect.yaml"))
 
 
 class TestProjectClone:
