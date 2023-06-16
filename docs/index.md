@@ -8,6 +8,8 @@ tags:
     - overview
 hide:
   - toc
+search:
+  boost: 2
 ---
 
 

@@ -5,6 +5,8 @@ tags:
     - development
     - troubleshooting
     - errors
+search:
+  boost: 2
 ---
 
 # Troubleshooting
