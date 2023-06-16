@@ -10,7 +10,7 @@ tags:
 ---
 ## What is a flow?
 
-A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator.
+A [flow](/concepts/flows/) is the basis of all Prefect workflows, it's a Python function decorated with a `@flow` decorator.
 
 Some important points about flows:
 
