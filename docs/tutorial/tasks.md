@@ -5,6 +5,9 @@ tags:
     - getting started
     - basics
     - tasks
+    - caching
+    - concurrency
+    - subflows
 ---
 
 ## What is a task?
@@ -32,9 +35,8 @@ from prefect import flow, task, get_run_logger
 
 
 @task
-def get_url(path: str):
-    url = f"https://api.github.com/repos/{path}"
-    response = httpx.get(url)
+def get_url(url: str, params: dict = None):
+    response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
 
@@ -43,7 +45,7 @@ def get_url(path: str):
 def get_repo_info(
     repo_name: str = "PrefectHQ/prefect", retries=3, retry_delay_seconds=5
 ):
-    repo = get_url(repo_name)
+    repo = get_url(f"https://api.github.com/repos/{repo_name}")
     logger = get_run_logger()
     logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
@@ -73,100 +75,153 @@ If we click the link in our terminal and follow it to Prefect Cloud, we'll see s
 
 ![Tasks provide greater visibility as well as concurrency](/img/tutorial/cloud-flow-run.png)
 
-## Concurrency
-
-Tasks also enable concurrency, allowing you to execute multiple tasks asynchronously. This concurrency can greatly enhance the efficiency and performance of your workflows.
-
 ## Caching
 
-By encapsulating a specific unit of work within a `task`, you can define its inputs, outputs, and behavior. This modular approach allows for easier management and composition of complex workflows.
+Tasks support the ability to cache their return value. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
 
-Some examples of task features include:
+To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect `task_input_hash`. Let's add caching to our `get_url` task:
 
-- Concurrency
-- Caching
-- Parallelism
-- Concurrency Limits
-- Tagging
-- Retries
-- Advanced dependency management
-
-!!! warning Task Usage
-
-    By separating network calls between tasks, Prefect features like caching or retries are most useful.
-
-!!! note Complex workflows
-
-    What if I have more complex workflows and want more information? 
-    Subflows are a great way to organize your workflows and offer more visibility within the UI. 
-
-### Subflow
-
-Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
-
-We can replace the `@task` decorator with a `@flow` decorator on `calculate_average_commits`, which allows for more visibility on this flow pattern. 
-```python
+```python hl_lines="2 4 7"
 import httpx
-from prefect import flow
+from datetime import timedelta
+from prefect import flow, task, get_run_logger
+from prefect.tasks import task_input_hash
 
-@flow(log_prints = True)
-def get_repo_info():
-    url = 'https://api.github.com/repos/PrefectHQ/prefect'
-    api_response = httpx.get(url)
-    if api_response.status_code == 200:
-        repo_info = api_response.json()
-        stars = repo_info['stargazers_count']
-        forks = repo_info['forks_count']
-        contributors_url = repo_info['contributors_url']
-        contributors = get_contributors(contributors_url)
-        average_commits = calculate_average_commits(contributors)
-        print(f"PrefectHQ/prefect repository statistics 🤓:")
-        print(f"Stars 🌠 : {stars}")
-        print(f"Forks 🍴 : {forks}")
-        print(f"Average commits per contributor 💌 : {average_commits:.2f}")
-    else:
-        raise Exception('Failed to fetch repository information.')
-@task()
-def get_contributors(url):
-    response = httpx.get(url)
-    if response.status_code == 200:
-        contributors = response.json()
-        return len(contributors)
-    else:
-        raise Exception('Failed to fetch contributors.')
-@flow()
-def calculate_average_commits(contributors):
-    commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
-    response = httpx.get(commits_url)
-    if response.status_code == 200:
-        commit_data = response.json()
-        total_commits = sum(c['total'] for c in commit_data)
-        average_commits = total_commits / contributors
-        return average_commits
-    else:
-        raise Exception('Failed to fetch commit information.')
 
-if __name__ == '__main__':
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def get_url(url: str, params: dict = None):
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+```
+
+!!! warning "Task results and caching"
+    Task results are cached in memory during a flow run and persisted to your home directory by default. Prefect Cloud only stores the cache key, not the data itself.
+
+## Concurrency
+
+Tasks enable concurrency, allowing you to execute multiple tasks asynchronously. This concurrency can greatly enhance the efficiency and performance of your workflows. Let's expand our script to calculate the average open issues per user. This will require making more requests:
+
+```python hl_lines="14-24 32-33 38"
+import httpx
+from datetime import timedelta
+from prefect import flow, task, get_run_logger
+from prefect.tasks import task_input_hash
+
+
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def get_url(url: str, params: dict = None):
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p]
+
+
+@flow
+def get_repo_info(
+    repo_name: str = "PrefectHQ/prefect", retries=3, retry_delay_seconds=5
+):
+    repo = get_url(f"https://api.github.com/repos/{repo_name}")
+    issues = get_open_issues(repo_name, repo["open_issues_count"])
+    issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
+    logger = get_run_logger()
+    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
+    logger.info(f"Forks 🍴 : {repo['forks_count']}")
+    logger.info(f"Average open issues per user 💌 : {issues_per_user:.2f}")
+
+
+if __name__ == "__main__":
     get_repo_info()
 ```
 
-Whenever we run the parent flow is run, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
+Now we're fetching the data we need, but the requests are happening sequentially. Tasks expose a `submit` method which changes the execution from sequential to concurrent. In our specific example, we also need to use the `result` method since we are unpacking a list of return values:
 
-You will be able to visualize this subflow pattern within your logging in the CLI. Note that a new subflow is generated for `calculate-average-commits`
+```python hl_lines="6 11"
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p.result()]
+```
+
+The logs show that each task is running concurrently:
+
 <div class="terminal">
 ```bash
-23:39:05.722 | INFO    | prefect.engine - Created flow run 'sparkling-mandrill' for flow 'get-repo-info'
-23:39:05.723 | INFO    | Flow run 'sparkling-mandrill' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/80d66ded-76f2-46fe-98e6-576ebe2a707c/flow-runs/flow-run/44a06d2d-a876-477b-98af-345baf05eba1
-23:39:06.910 | INFO    | Flow run 'sparkling-mandrill' - Created subflow run 'dexterous-walrus' for flow 'calculate-average-commits'
-23:39:06.912 | INFO    | Flow run 'dexterous-walrus' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/80d66ded-76f2-46fe-98e6-576ebe2a707c/flow-runs/flow-run/02e8ecff-7e30-422b-a118-6f745fe1bc53
-23:39:08.807 | INFO    | Flow run 'dexterous-walrus' - Finished in state Completed()
-23:39:08.809 | INFO    | Flow run 'sparkling-mandrill' - PrefectHQ/prefect repository statistics 🤓:
-23:39:08.810 | INFO    | Flow run 'sparkling-mandrill' - Stars 🌠 : 12147
-23:39:08.811 | INFO    | Flow run 'sparkling-mandrill' - Forks 🍴 : 1245
-23:39:08.812 | INFO    | Flow run 'sparkling-mandrill' - Average commits per contributor 💌 : 344.47
-23:39:08.957 | INFO    | Flow run 'sparkling-mandrill' - Finished in state Completed('All states completed.')
+12:45:28.241 | INFO    | prefect.engine - Created flow run 'intrepid-coua' for flow 'get-repo-info'
+12:45:28.311 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-0' for task 'get_url'
+12:45:28.312 | INFO    | Flow run 'intrepid-coua' - Executing 'get_url-0' immediately...
+12:45:28.543 | INFO    | Task run 'get_url-0' - Finished in state Completed()
+12:45:28.583 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-1' for task 'get_url'
+12:45:28.584 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-1' for execution.
+12:45:28.594 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-2' for task 'get_url'
+12:45:28.594 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-2' for execution.
+12:45:28.609 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-4' for task 'get_url'
+12:45:28.610 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-4' for execution.
+12:45:28.624 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-5' for task 'get_url'
+12:45:28.625 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-5' for execution.
+12:45:28.640 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-6' for task 'get_url'
+12:45:28.641 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-6' for execution.
+12:45:28.708 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-3' for task 'get_url'
+12:45:28.708 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-3' for execution.
+12:45:29.096 | INFO    | Task run 'get_url-6' - Finished in state Completed()
+12:45:29.565 | INFO    | Task run 'get_url-2' - Finished in state Completed()
+12:45:29.721 | INFO    | Task run 'get_url-5' - Finished in state Completed()
+12:45:29.749 | INFO    | Task run 'get_url-4' - Finished in state Completed()
+12:45:29.801 | INFO    | Task run 'get_url-3' - Finished in state Completed()
+12:45:29.817 | INFO    | Task run 'get_url-1' - Finished in state Completed()
+12:45:29.820 | INFO    | Flow run 'intrepid-coua' - PrefectHQ/prefect repository statistics 🤓:
+12:45:29.820 | INFO    | Flow run 'intrepid-coua' - Stars 🌠 : 12159
+12:45:29.821 | INFO    | Flow run 'intrepid-coua' - Forks 🍴 : 1251
+Average open issues per user 💌 : 2.27
+12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
 </div>
 
-With subflows, you easily have coupled workflows in just a few lines!
+## Subflow
 
+Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+
+Subflows are a great way to organize your workflows and offer more visibility within the UI.
+
+Let's add a `flow` decorator to our `get_open_issues` function:
+
+```python hl_lines="1"
+@flow
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p.result()]
+```
+
+Whenever we run the parent flow, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
+
+## Next Steps
+
+We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure.
