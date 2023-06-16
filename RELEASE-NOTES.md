@@ -1,5 +1,21 @@
 # Prefect Release Notes
 
+## Release 2.10.15
+
+## Highlight blurb
+- Add prompt to save inputs to interactive `prefect deploy` command — https://github.com/PrefectHQ/prefect/pull/9948
+
+### Fixes
+- Fix error in `prefect deploy` when `.prefect` folder is absent — https://github.com/PrefectHQ/prefect/pull/9972
+- Fixes use of deprecated `git_clone_project` — https://github.com/PrefectHQ/prefect/pull/9978
+- Fix exception raised in `prefect init` command when no recipe is selected — https://github.com/PrefectHQ/prefect/pull/9963
+
+### Documentation
+- Fix broken deployments api-ref page — https://github.com/PrefectHQ/prefect/pull/9965
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.14...2.10.15
+
 ## Release 2.10.14
 
 ### Simplifying project-based deployments
