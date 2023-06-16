@@ -8,6 +8,8 @@ tags:
     - API
     - UI
     - storage
+search:
+  boost: 2
 ---
 
 # Flow orchestration with Prefect
