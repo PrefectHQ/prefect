@@ -1,12 +1,13 @@
 ---
-description: Learn the basics of creating and running Prefect flows and tasks.
+description: Learn the basics of defining and running flows.
 tags:
     - tutorial
     - getting started
     - basics
-    - tasks
     - flows
-    - subflows
+    - logging
+    - parameters
+    - retries
 ---
 ## What is a flow?
 
@@ -18,73 +19,130 @@ Some important points about flows:
 2. Every Prefect workflow must contain at least one `flow` function that serves as the entrypoint for execution of the flow.
 3. Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
-The simplest way get started with Prefect is to import `flow` and annotate your Python function using the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator.
+The simplest way get started with Prefect is to import and annotate your Python function with the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
-```python
+```python hl_lines="2 5"
 import httpx
 from prefect import flow
 
-@flow # <--- This is a flow decorator!
-def get_repo_info():
-    url = 'https://api.github.com/repos/PrefectHQ/prefect'
-    api_response = httpx.get(url)
-    if api_response.status_code == 200:
-        repo_info = api_response.json()
-        stars = repo_info['stargazers_count']
-        forks = repo_info['forks_count']
-        contributors_url = repo_info['contributors_url']
-        print(f"PrefectHQ/prefect repository statistics 🤓:")
-        print(f"Stars 🌠 : {stars}")
-        print(f"Forks 🍴 : {forks}")
-    else:
-        raise Exception('Failed to fetch repository information.')
 
-if __name__ == '__main__':
+@flow
+def get_repo_info():
+    url = "https://api.github.com/repos/PrefectHQ/prefect"
+    response = httpx.get(url)
+    response.raise_for_status()
+    repo = response.json()
+    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo['stargazers_count']}")
+    print(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
     get_repo_info()
 ```
-If you run this flow in your terminal you will see some interesting output:
+
+Running this flow in your terminal will result in some interesting output:
+
 <div class="terminal">
 ```bash
 12:47:42.792 | INFO    | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
-12:47:42.832 | INFO    | Flow run 'ludicrous-warthog' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/f579e720-7969-4ab8-93b7-2dfa784903e6/flow-runs/flow-run/d15662f9-f959-4c1a-9a01-fc99fe302241
 PrefectHQ/prefect repository statistics 🤓:
 Stars 🌠 : 12146
 Forks 🍴 : 1245
 12:47:45.008 | INFO    | Flow run 'ludicrous-warthog' - Finished in state Completed()
 ```
 </div>
-## What can you do with flows?
 
-### Retries
+## Parameters
 
-It helps provide for additional ways to respond on how your workflows fail, and offer more control on fail safe options for your workflow.
-```python
+As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called parameters. Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+
+```python hl_lines="6"
 import httpx
 from prefect import flow
 
-@flow # <--- This is a flow decorator!
-def get_repo_info(retries = 3, retry_delay_seconds = 0.2):
-    url = 'https://api.github.com/repos/PrefectHQ/prefect'
-    api_response = httpx.get(url)
-    if api_response.status_code == 200:
-        repo_info = api_response.json()
-        stars = repo_info['stargazers_count']
-        forks = repo_info['forks_count']
-        contributors_url = repo_info['contributors_url']
-        print(f"PrefectHQ/prefect repository statistics 🤓:")
-        print(f"Stars 🌠 : {stars}")
-        print(f"Forks 🍴 : {forks}")
-    else:
-        raise Exception('Failed to fetch repository information.')
 
-if __name__ == '__main__':
+@flow
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    url = f"https://api.github.com/repos/{repo_name}"
+    response = httpx.get(url)
+    response.raise_for_status()
+    repo = response.json()
+    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo['stargazers_count']}")
+    print(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
     get_repo_info()
 ```
 
-The flow decorator lets you specify the number of retries.
+## Logging
+
+Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some logging to our flow:
+
+```python hl_lines="2 11-14"
+import httpx
+from prefect import flow, get_run_logger
+
+
+@flow
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    url = f"https://api.github.com/repos/{repo_name}"
+    response = httpx.get(url)
+    response.raise_for_status()
+    repo = response.json()
+    logger = get_run_logger()
+    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
+    logger.info(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
+    get_repo_info()
+```
+
+Now the output looks more consistent:
+
+<div class="terminal">
+```bash
+12:47:42.792 | INFO    | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
+PrefectHQ/prefect repository statistics 🤓:
+12:47:43.016 | INFO    | Flow run 'ludicrous-warthog' - Stars 🌠 : 12146
+12:47:43.042 | INFO    | Flow run 'ludicrous-warthog' - Forks 🍴 : 1245
+12:47:45.008 | INFO    | Flow run 'ludicrous-warthog' - Finished in state Completed()
+```
+</div>
+
+Prefect can also capture `print` statements as info logs by specifying `log_prints=True` in your `flow` decorator (e.g. `@flow(log_prints=True)`).
+
+## Retries
+
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or we may hit a rate limit. Let's add retries to make our script resilient:
+
+```python hl_lines="7"
+import httpx
+from prefect import flow, get_run_logger
+
+
+@flow
+def get_repo_info(
+    repo_name: str = "PrefectHQ/prefect", retries=3, retry_delay_seconds=5
+):
+    url = f"https://api.github.com/repos/{repo_name}"
+    response = httpx.get(url)
+    response.raise_for_status()
+    repo = response.json()
+    logger = get_run_logger()
+    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
+    logger.info(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
+    get_repo_info()
+```
 
 ### Next Steps
 
-To recap, simply adding an @flow decorator will convert a python function into an observed workflow. This pattern is coupled with a responsive user interface and fine tune orchestration features that are easy to add and quick to develop with.
-
-On the next guide, we will showcase how to use tasks to in order to supercharge this github example even further and to help organize your complex workflows.
+As we have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section we'll supercharge our flow by using tasks to organize the workflow's complexity.
