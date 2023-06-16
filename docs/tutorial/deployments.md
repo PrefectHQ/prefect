@@ -150,6 +150,7 @@ In your terminal (not the terminal in which the worker is running), let’s run 
 ```bash
 prefect deploy my_flow.py:get_repo_info
 ```
+</div>
 
 !!! note "CLI Note:"
     This deployment command follows the following format `prefect deploy entrypoint` that you can use to deploy your flows in the future:
