@@ -36,10 +36,10 @@ This information is encapsulated and sent to Prefect as a [Deployment](/concepts
 
 Attributes of a deployment include (but are not limited to): 
 
-- Flow entrypoint = path to your flow function would start the flow
-- Workpool = points to the infra you want your flow to run in
-- Schedule = optional schedule for this deployment
-- Tags = optional metadata
+- Flow entrypoint: path to your flow function would start the flow
+- Workpool: points to the infra you want your flow to run in
+- Schedule: optional schedule for this deployment
+- Tags: optional metadata
 
 Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. In order to run **your flows** on **your infrastructure,** you are going to need to set up a work pool and a worker. 
 
