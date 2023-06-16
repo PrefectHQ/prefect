@@ -136,7 +136,7 @@ def git_clone_project(
     access_token: Optional[str] = None,
 ) -> dict:
     """Deprecated. Use `git_clone` instead."""
-    git_clone(
+    return git_clone(
         repository=repository,
         branch=branch,
         include_submodules=include_submodules,

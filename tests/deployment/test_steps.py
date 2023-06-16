@@ -249,6 +249,34 @@ class TestGitCloneStep:
             stdout=ANY,
         )
 
+    async def test_deprecated_git_clone_project(self, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        with pytest.warns(DeprecationWarning):
+            output = await run_step(
+                {
+                    "prefect.projects.steps.git_clone_project": {
+                        "repository": "https://github.com/org/repo.git",
+                    }
+                }
+            )
+        assert output["directory"] == "repo"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/repo.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
     async def test_git_clone_include_submodules(self, monkeypatch):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
