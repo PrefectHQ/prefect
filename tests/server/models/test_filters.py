@@ -222,6 +222,7 @@ async def data(flow_function, db):
                 name="task-run-2",
                 task_key="b",
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
                 dynamic_key="0",
             )
         )
@@ -231,6 +232,7 @@ async def data(flow_function, db):
                 flow_run_id=fr_1_1.id,
                 task_key="c",
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 15, tz="UTC")),
                 dynamic_key="0",
             )
         )
@@ -248,6 +250,7 @@ async def data(flow_function, db):
                 flow_run_id=fr_2_2.id,
                 task_key="b",
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
                 dynamic_key="0",
             )
         )
@@ -256,6 +259,7 @@ async def data(flow_function, db):
                 flow_run_id=fr_2_2.id,
                 task_key="c",
                 state=states.Completed(),
+                end_time=cast(DateTimeTZ, pendulum.datetime(2023, 1, 1, tz="UTC")),
                 dynamic_key="0",
             )
         )
@@ -618,6 +622,7 @@ class TestCountFlowRunModels:
             ),
             0,
         ],
+        # filter on flow_run end_time
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
@@ -809,6 +814,35 @@ class TestCountTaskRunsModels:
                 flow_run_filter=filters.FlowRunFilter(),
             ),
             10,
+        ],
+        # filter on task_run end_time
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(
+                        before_=cast(
+                            DateTimeTZ, pendulum.datetime(2023, 1, 10, tz="UTC")
+                        )
+                    )
+                )
+            ),
+            3,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(
+                        after_=cast(
+                            DateTimeTZ, pendulum.datetime(2023, 1, 10, tz="UTC")
+                        )
+                    )
+                )
+            ),
+            1,
+        ],
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=True))),
+            6,
         ],
     ]
 
