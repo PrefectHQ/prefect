@@ -20,7 +20,7 @@ Flows and tasks share some common features:
 * Both support type-checked parameters, allowing you to define the expected data types of inputs and outputs.
 * Both provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
 
-Network calls (such as our GET requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as retries, caching, and concurrency.
+Network calls (such as our GET requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
 
 !!! warning "Tasks must be called from flows"
     All tasks must be called from within a flow. Tasks may not call other tasks directly.
@@ -72,15 +72,11 @@ Running the flow in your terminal will result in something like this:
 ```
 </div>
 
-If we click the link in our terminal and follow it to Prefect Cloud, we'll see something like this:
-
-![Tasks provide greater visibility as well as concurrency](/img/tutorial/cloud-flow-run.png)
-
 ## Caching
 
-Tasks support the ability to cache their return value. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
+Tasks support the ability to cache their return value. This allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
 
-To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect `task_input_hash`. Let's add caching to our `get_url` task:
+To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
 
 ```python hl_lines="2 4 7"
 import httpx
@@ -148,7 +144,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-Now we're fetching the data we need, but the requests are happening sequentially. Tasks expose a `submit` method which changes the execution from sequential to concurrent. In our specific example, we also need to use the `result` method since we are unpacking a list of return values:
+Now we're fetching the data we need, but the requests are happening sequentially. Tasks expose a [`submit`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method which changes the execution from sequential to concurrent. In our specific example, we also need to use the [`result`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method since we are unpacking a list of return values:
 
 ```python hl_lines="6 11"
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
@@ -200,7 +196,7 @@ Average open issues per user 💌 : 2.27
 
 ## Subflows
 
-Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+Not only can you call tasks within a flow, but you can also call other flows! Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
 Subflows are a great way to organize your workflows and offer more visibility within the UI.
 
