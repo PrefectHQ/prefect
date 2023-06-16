@@ -11,7 +11,7 @@ The new interactive `prefect deploy` command guides you through the deployment p
 
 -- demo or pic --
 
-Running the deploy command again provides you with the option to reuse the saved deployment configuration or to create a new one. Should you choose to create a new deployment, you will again be given the option to save your inputs. This way, you can maintain a list of multiple deployment configurations, ready to be used whenever needed.
+Running the `deploy` command again provides you with the option to reuse the saved deployment configuration or to create a new one. Should you choose to create a new deployment, you will again be given the option to save your inputs. This way, you can maintain a list of multiple deployment configurations, ready to be used whenever needed.
 
 We believe this new functionality will simplify your deployment experience.
 
