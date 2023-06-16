@@ -30,7 +30,7 @@ Specific examples of how to perform more advanced operations can be found in our
 
 Prefect automates and orchestrates data workflows - it simplifies the creation, scheduling, and monitoring of complex pipelines. With Prefect, you define workflows as Python code, specify task dependencies, and let it handle the execution order.
 
-Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. t's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
 Just bring your Python code, sprinkle in a few decorators, and go!
 
@@ -50,3 +50,6 @@ If you've never used Prefect before, let's start by exploring the core concepts:
 - [Our Concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step by step recipes for common Prefect operations including:
     - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
+
+Our tutorial offers a brief introduciton to key Prefect concepts and should be suffiencient for those new to orchestration, for anyone looking for a fast-track to creating their first deployment, checkout our [quickstart guide](/tutorial/deployment_quickstart/).
+
