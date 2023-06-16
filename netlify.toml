@@ -349,18 +349,22 @@ status = 301
 [[redirects]]
 from = "/concepts/projects/"
 to = "/concepts/deployments-ux/"
+status = 301
 
 [[redirects]]
 from = "/tutorial/projects/"
 to = "/tutorial/deployments-ux/"
+status = 301
 
 [[redirects]]
 from = "/api-ref/prefect/projects/"
 to = "/api-ref/prefect/deployments-ux/"
+status = 301
 
 [[redirects]]
 from = "/api-ref/prefect/projects/"
 to = "/api-ref/prefect/deployments-ux/"
+status = 301
 
 
 [[headers]]
