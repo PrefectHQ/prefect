@@ -130,7 +130,7 @@ This enables you to run a single flow with different parameters, based on multip
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
 - Run the [`prefect deployment build` CLI command](#create-a-deployment-on-the-cli) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
-- Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
+- Define a [`Deployment`](/api-ref/prefect/deployments/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
 
@@ -433,7 +433,7 @@ deployment.load() # loads server-side settings
 
 Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
 
-View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/).
+View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/deployments/).
 
 ## Deployment API representation
 
