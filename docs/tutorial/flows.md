@@ -11,20 +11,21 @@ tags:
 ---
 ## What is a flow?
 
-A [flow](/concepts/flows/) is the basis of all Prefect workflows, it's a Python function decorated with a `@flow` decorator.
+[Flows](/concepts/flows/) are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-Some important points about flows:
+- State transitions are reported to the API, allowing observation of flow execution.
+- Input arguments types can be validated.
+- Retries can be performed on failure.
+- Timeouts can be enforced to prevent unintentional, long-running workflows.
+- Capture details about [flow runs](#flow-runs) such as run time, task tags, and final state.
 
-1. All Prefect workflows are defined within the context of a flow.
-2. Every Prefect workflow must contain at least one `flow` function that serves as the entrypoint for execution of the flow.
-3. Flows can include calls to tasks, vanilla python as well as child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
+## Run your First Flow:
 
 The simplest way get started with Prefect is to import and annotate your Python function with the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
 ```python hl_lines="2 5"
 import httpx
 from prefect import flow
-
 
 @flow
 def get_repo_info():
