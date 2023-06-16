@@ -58,22 +58,12 @@ Forks 🍴 : 1245
 ### Retries
 
 It helps provide for additional ways to respond on how your workflows fail, and offer more control on fail safe options for your workflow.
-
-
-The flow decorator lets you specify the number of retries.
-
-### Subflow
-
-Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](https://docs.prefect.io/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
-
 ```python
-
 import httpx
-from prefect import flow, task
+from prefect import flow
 
-
-@flow(log_prints = True, retries=3)
-def get_repo_info():
+@flow # <--- This is a flow decorator!
+def get_repo_info(retries = 3, retry_delay_seconds = 0.2):
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
     if api_response.status_code == 200:
@@ -81,54 +71,17 @@ def get_repo_info():
         stars = repo_info['stargazers_count']
         forks = repo_info['forks_count']
         contributors_url = repo_info['contributors_url']
-        average_commits = calculate_average_commits(contributors_url)
         print(f"PrefectHQ/prefect repository statistics 🤓:")
         print(f"Stars 🌠 : {stars}")
         print(f"Forks 🍴 : {forks}")
-        print(f"Average commits per contributor 💌 : {average_commits:.2f}")
     else:
         raise Exception('Failed to fetch repository information.')
-    
-@flow()
-def calculate_average_commits(contributors_url):
-    response = httpx.get(contributors_url)
-    if response.status_code == 200:
-        contributors = len(response.json())
-    else:
-        raise Exception('Failed to fetch contributors.')      
-    commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
-    response = httpx.get(commits_url)
-    if response.status_code == 200:
-        commit_data = response.json()
-        total_commits = sum(c['total'] for c in commit_data)
-        average_commits = total_commits / contributors
-        return average_commits
-    else:
-        raise Exception('Failed to fetch commit information.')
 
 if __name__ == '__main__':
     get_repo_info()
 ```
 
-Whenever we run the parent flow is run, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
-
-You will be able to visualize this subflow pattern within your logging in the CLI. Note that a new subflow is generated for `calculate-average-commits`
-<div class="terminal">
-```bash
-23:39:05.722 | INFO    | prefect.engine - Created flow run 'sparkling-mandrill' for flow 'get-repo-info'
-23:39:05.723 | INFO    | Flow run 'sparkling-mandrill' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/80d66ded-76f2-46fe-98e6-576ebe2a707c/flow-runs/flow-run/44a06d2d-a876-477b-98af-345baf05eba1
-23:39:06.910 | INFO    | Flow run 'sparkling-mandrill' - Created subflow run 'dexterous-walrus' for flow 'calculate-average-commits'
-23:39:06.912 | INFO    | Flow run 'dexterous-walrus' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/80d66ded-76f2-46fe-98e6-576ebe2a707c/flow-runs/flow-run/02e8ecff-7e30-422b-a118-6f745fe1bc53
-23:39:08.807 | INFO    | Flow run 'dexterous-walrus' - Finished in state Completed()
-23:39:08.809 | INFO    | Flow run 'sparkling-mandrill' - PrefectHQ/prefect repository statistics 🤓:
-23:39:08.810 | INFO    | Flow run 'sparkling-mandrill' - Stars 🌠 : 12147
-23:39:08.811 | INFO    | Flow run 'sparkling-mandrill' - Forks 🍴 : 1245
-23:39:08.812 | INFO    | Flow run 'sparkling-mandrill' - Average commits per contributor 💌 : 344.47
-23:39:08.957 | INFO    | Flow run 'sparkling-mandrill' - Finished in state Completed('All states completed.')
-```
-</div>
-
-With subflows, you easily have coupled workflows in just a few lines!
+The flow decorator lets you specify the number of retries.
 
 ### Next Steps
 
