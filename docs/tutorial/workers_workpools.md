@@ -33,6 +33,7 @@ Deploying your flows is, in essence, the act of informing the Prefect API of:
 3. When to run your flows 
 
 This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which becomes a server side object containing the crucial metadata needed for Prefect’s API to execute your flow as desired. Deployments elevate workflows from functions that you call manually to API-managed entities.
+This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which becomes a server side object containing the crucial metadata needed for Prefect’s API to execute your flow as desired. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to): 
 
@@ -85,8 +86,8 @@ For this tutorial you will create a *process type* work pool via the CLI.
 
 The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.
 
-!!! tip "Work Pool Types"
-    Aside from process, there are a variety of different work pool types.
+!!! tip "Security Note:"
+    Aside from process, there are a variety of different work pool types you might consider in a production setting to containerize your flow runs that leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run which are expanded upon in the guides section.
 
 In your terminal set to your Prefect workspace run the following command to set up a work pool. 
 
