@@ -201,7 +201,7 @@ A few important notes on what we're looking at here:
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone from remote locations. For more information, see [the deployment management concept documentation](/concepts/deployments-ux/).
 
-    For more examples of configuration options available for cloning, see [the `git_clone` step documentation](/api-ref/prefect/deployments-ux/steps/pull).
+    For more examples of configuration options available for cloning, see [the `git_clone` step documentation](/api-ref/prefect/deployments/steps/pull).
 
 
 ### Dockerized deployment  
