@@ -16,7 +16,7 @@ search:
 
 ## Why Deploy
 
-The most common reason to use a tool like Prefect, is [scheduling](/concepts/schedules). You want your workflows running on production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
+The most common reason to use a tool like Prefect, is [scheduling](/concepts/schedules). You want your flows running on production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
 
 A deployed flow gets the following additional cababilities:
 
@@ -37,7 +37,7 @@ This information is encapsulated and sent to Prefect as a [Deployment](/concepts
 Attributes of a deployment include (but are not limited to):
 
 - __Flow entrypoint__: path to your flow function would start the flow
-- __Workpool__: points to the infra you want your flow to run in
+- __Workpool__: points to the infrastructure you want your flow to run in
 - __Schedule__: optional schedule for this deployment
 - __Tags__: optional metadata
 
@@ -46,9 +46,9 @@ Before you build your first deployment, its helpful to understand how Prefect co
 ## Why Workpools and Workers
 Easily running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect provides you with the worker and work pool concepts to allow you to run flows in the environments best suited to their execution.
 
-Workers and work pools bridge the Prefect orchestration API with your execution environments in your cloud provider.
+Workers and work pools bridge the Prefect orchestration layer with the infrastructure the actual flows need to be executed on.
 
-You'll configure work pools on Prefect’s side. Workers are light-weight, long-running polling processes that you host in your execution environment.
+You can configure work pools within the Prefect UI or server. They prioritize the flows and respond to polling from the worker. Workers are light-weight, pieces of infrastructure where flows get executed.
 
 **Work Pools:**
 
