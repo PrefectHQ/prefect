@@ -37,7 +37,7 @@ Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
 
-### Differences between Prefect Server and Cloud
+### Differences between a Prefect server and Prefect Cloud
 
 The self-hosted Prefect server and Prefect Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
 
