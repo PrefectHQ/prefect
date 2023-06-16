@@ -9,7 +9,7 @@ tags:
     - parameters
     - retries
 ---
-## What is a flow?
+## What is a Flow?
 
 [Flows](/concepts/flows/) are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
@@ -19,7 +19,7 @@ tags:
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Capture details about [flow runs](#flow-runs) such as run time, task tags, and final state.
 
-## Run your First Flow:
+## Run Your First flow:
 
 The simplest way get started with Prefect is to import and annotate your Python function with the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
