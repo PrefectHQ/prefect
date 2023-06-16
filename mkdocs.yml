@@ -116,7 +116,6 @@ nav:
         - Flows: tutorial/flows.md
         - Tasks: tutorial/tasks.md
         - Deploying Flows: tutorial/deployments.md
-        - Defining Multiple Deployments: tutorial/deployment_yaml.md
     - Concepts:
         - concepts/index.md
         - Develop:

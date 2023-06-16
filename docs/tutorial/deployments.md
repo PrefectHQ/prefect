@@ -16,7 +16,7 @@ search:
 
 ## Why Deploy
 
-The most common reason to use a tool like Prefect, is scheduling. You want your workflows running in some production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on events you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
+The most common reason to use a tool like Prefect, is [scheduling](/concepts/schedules). You want your workflows running in some production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
 
 A deployed flow gets the following additional cababilities:
 
@@ -137,11 +137,11 @@ Now that we’ve set up your work pool and worker, they are ready to kick off de
 3. A worker
 4. An understanding of Prefect Deployments
 
-### *** reminder to push your code to github TODO: Taylor
-
 Now it’s time to put it all together.
 
-In your terminal (not the terminal associated with the worker), let’s run the following command to begin deploying your flow.  Ensure that the current directory is set to the same directory as when you were running the flow locally. You can double check this by typing `ls` in the terminal and you should see the flow file in the output.
+First push your code to GitHub if you haven't already.
+
+Next, in your terminal (not the terminal associated with the worker), let’s run the following command to begin deploying your flow.  Ensure that the current directory is set to the same directory as when you were running the flow locally. You can double check this by typing `ls` in the terminal and you should see the flow file in the output.
 
 !!! warning "Warning:"
     Before running any `prefect deploy` or `prefect init` commands, double check that you are at the **top/root/base of your repo**, otherwise the worker may struggle to get to the same entrypoint during remote execution!
