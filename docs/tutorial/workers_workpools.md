@@ -95,11 +95,24 @@ prefect work-pool create --type process tutorial-process-pool
 ```
 </div>
 Now that you have created the work pool, let’s confirm that the work pool was successfully created by running the following command in the same terminal.  You should see your new ```tutorial-process-pool``` in the output list.
-
-```prefect work-pool ls```
-
+<div class="terminal">
+```bash
+prefect work-pool ls 
+```
+</div>
 Finally, let’s double check in the Prefect Cloud UI that you can see this work pool. Navigate to the Work Pool tab and verify that you see `tutorial-process-pool` listed.
 
+<div class="terminal">
+```bash
+                                             Work Pools                                             
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Name                  ┃ Type          ┃                                   ID ┃ Concurrency Limit ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ tutorial-process-pool │ process       │ 33ce63a5-cc80-4f43-9092-11122ccea60b │ None              │
+│ default-agent-pool    │ prefect-agent │ 157dbcd7-7e8a-4ec6-82b8-1036d2c76c6f │ None              │
+└───────────────────────┴───────────────┴──────────────────────────────────────┴───────────────────┘
+```
+</div>
 When you click into the `tutorial-process-pool` you can click into the tab for work queues.  You should see a red status icon next listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced topic to help determine flow priority. You can learn more about work queues in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker in your execution environment. For this tutorial, your execution environment is on your laptop or dev machine.
