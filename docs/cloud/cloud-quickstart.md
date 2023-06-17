@@ -108,7 +108,7 @@ If you choose to log in via the browser, Prefect opens a new tab in your default
 
 ## Run a flow with Prefect Cloud
 
-Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like [running local flows](/tutorial/flows/). However, because you logged into Prefect Cloud locally, your local flow runs show up in Prefect Cloud!
+Okay, you're all set to run a flow locally, orchestrated with Prefect Cloud. Notice that everything works just like [running local flows](/tutorial/flows/). However, because you logged into Prefect Cloud, your local flow runs show up in Prefect Cloud!
 
 In your local environment, where you configured the previous steps, create a file named `quickstart_flow.py` with the following contents:
 

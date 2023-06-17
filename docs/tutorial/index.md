@@ -40,7 +40,7 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 ## What is Prefect?
 
-Prefect automates and orchestrates data workflows—it simplifies the creation, scheduling, and monitoring of complex pipelines. With Prefect, you define workflows as Python code and let it handle the execution order.
+Prefect automates and orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines. With Prefect, you define workflows as Python code and let it handle the rest.
 
 Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 

@@ -12,7 +12,7 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. While flows provide a high-level structure for executing your code, tasks help organize your code by adding an atomic component that can be orchestrated and observed within the context of a flow.
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks are atomic pieces of work that are executed independently within a flow. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe and understand. When a function becomes a task, it can be executed concurrently and its return value can be cached. makes it independent of the code around itWhile flows provide a high-level structure for executing your code, 
 
 Flows and tasks share some common features:
 
@@ -26,7 +26,7 @@ Network calls (such as our GET requests to the GitHub API) are particularly usef
     All tasks must be called from within a flow. Tasks may not call other tasks directly.
 
 !!! note "When to use tasks"
-    Not all functions need be tasks. Use tasks when the features of tasks are useful.
+    Not all functions in a flow need be tasks. Use them only when their features are useful.
 
 Let's take our flow from before and move the request into a task:
 
@@ -221,4 +221,4 @@ Whenever we run the parent flow, a new run will be generated for related functio
 
 ## [Next: Deployments](/tutorial/deployments/)
 
-We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure.
+We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure.

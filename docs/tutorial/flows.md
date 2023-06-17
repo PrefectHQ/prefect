@@ -13,7 +13,7 @@ tags:
 
 [Flows](/concepts/flows/) are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- State transitions are reported to the API, allowing observation of flow execution.
+- State transitions are recorded, allowing for flow execution to be observed.
 - Input arguments types can be validated.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
@@ -21,7 +21,7 @@ tags:
 
 ## Run Your First flow:
 
-The simplest way get started with Prefect is to import and annotate your Python function with the [@flow](/api-ref/prefect/flows/#prefect.flows.flow) decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
+The simplest way get started with Prefect is to import and annotate your Python function with the `@flow` decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
 ```python hl_lines="2 5"
 import httpx
@@ -119,7 +119,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or you may hit a rate limit. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's try to add a retry functionality to our example above:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
 ```python hl_lines="7"
 import httpx
 from prefect import flow, get_run_logger
@@ -145,4 +145,4 @@ if __name__ == "__main__":
 
 ## [Next: Tasks](/tutorial/tasks/)
 
-As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to organize the workflow's complexity.
+As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to break down the workflow's complexity and make it more performant.
