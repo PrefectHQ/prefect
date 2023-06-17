@@ -32,7 +32,7 @@ Deploying your flows is, in essence, the act of informing Prefect of:
 2. How to run your flows
 3. When to run your flows
 
-This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which becomes a server side object containing the crucial metadata needed for orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
+This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which contains the crucial metadata needed for orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to):
 
