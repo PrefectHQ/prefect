@@ -16,7 +16,7 @@ search:
 
 ## Why Deploy
 
-The most common reason to use a tool like Prefect, is [scheduling](/concepts/schedules). You want your flows running on production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to understand Prefect’s concept of a flow's [Deployment](/concepts/deployments/).
+One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules). You want your flows running on production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to [deploy](/concepts/deployments/) them.
 
 A deployed flow gets the following additional cababilities:
 
