@@ -37,7 +37,7 @@ This information is encapsulated and sent to Prefect as a [Deployment](/concepts
 Attributes of a deployment include (but are not limited to):
 
 - __Flow entrypoint__: path to your flow function would start the flow
-- __Workpool__: points to the infrastructure you want your flow to run in
+- __Work pool__: points to the infrastructure you want your flow to run in
 - __Schedule__: optional schedule for this deployment
 - __Tags__: optional metadata
 
