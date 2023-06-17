@@ -112,7 +112,7 @@ Finally, let’s double check that you can see this work pool in the Prefect Clo
 └───────────────────────┴───────────────┴──────────────────────────────────────┴───────────────────┘
 ```
 </div>
-When you click into the `my-process-pool` you can click into the tab for work queues. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced feature. You can learn more about them in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
+When you click into the `my-process-pool` you can click into the tab for work queues. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced feature. You can learn more about them in the [work queue documentation.](/concepts/work-pools/#work-queues) 
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
