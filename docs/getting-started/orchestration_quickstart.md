@@ -1,6 +1,6 @@
 # Orchestration Quickstart
 
-This guide is desinged to get you to the point of successfully deploying a Prefect flow in as few steps as possible. For a more comprhensive introduction to Prefect's concepts and approach to orchestration, please follow our [tutorial pages](/tutorial/index/).
+This guide is desinged to get you to the point of successfully deploying a Prefect flow in as few steps as possible. For a more comprhensive introduction to Prefect's core orchestration concepts, please follow our [tutorial pages](/tutorial/index/).
 
 ### Step 1: [Install Prefect](/getting-started/installation/)
 
@@ -10,21 +10,23 @@ We recommend installing Prefect using a Python virtual environment manager such 
 pip install -U prefect
 ```
 ### Step 2: Connect to Cloud or Self Host Prefect Server
-[Create a forever free cloud accoun](/cloud/cloud-quickstart) and authenticate via your terminal by running:
+[Create a forever free cloud account](/cloud/cloud-quickstart) and authenticate to your workspace via your terminal by running:
 ```bash
 prefect cloud login -k <your API key>
 ```
-OR to use our open source offering, in a new terminal run
+OR to use our open source offering, in a new terminal run to host the Prefect engine locally.
 ```bash
 prefect server start
 ```
 
 ### Step 3: Author a Flow
-Clone a test repo in GitHub or equivalent and get started by by **adding an `@flow` decorator to any python function**. This is the fastest way to get started with Prefect.
+**The fastest way to get started with Prefect is to clone a test repo in GitHub or equivalent and simply add an `@flow` decorator to any python function**.
 
-!!! Tip "Reminder"
-    - At a minimum you need to define at least one flow function, tasks are optional but add more granular observability and added orchestration functionality.
-    - Flows can be called inside of other flows, we call these subflows, but a task cannot contain task or flow calls as a task represents a discrete unit of python logic.
+!!! Tip "Quick Tips"
+    - At a minimum you need to define at least one flow function.
+    - Tasks, which are called from within a flow, are optional but add more granular observability and orchestration functionality.
+    - Flows resemble parent functions, containing a comprehensive range of workflow logic, whereas a task represents a discrete unit of Python logic.
+    - Flows can be called inside of other flows (we call these subflows) but a task cannot be run inside of another task or from outside the context of a flow.
 
 Here is an example flow that contains two task calls in a script called `my_flow.py`:
 
@@ -76,27 +78,34 @@ if __name__ == '__main__':
 ```
 
 ### Step 4: Run your Flow Locally
-Prefect flows don't just look pythonic, they run like python function too. 
+Prefect Flows don't just look pythonic, they run like python functions too! 
 
-Call the function that you've decorated with the `@flow` decorator to see a local instance of a FlowRun.
+Run any function that you've decorated with a `@flow` decorator to see a local instance of a FlowRun.
 
 ```bash
 python my_flow.py
 ``` 
 
-#### TODO: Update the terminal output
 <div class="terminal">
 ```bash
-15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
-15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
-What is your favorite number?
-15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed()
-42
+14:36:55.567 | INFO    | prefect.engine - Created flow run 'dazzling-hawk' for flow 'Repo Info'
+14:36:55.570 | INFO    | Flow run 'dazzling-hawk' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/aaf96bd2-298c-4fe4-98b0-6b4d520951e1/flow-runs/flow-run/5a891994-8ac3-44e5-894a-1b2f801c9333
+14:36:56.497 | INFO    | Flow run 'dazzling-hawk' - Created task run 'get_contributors-0' for task 'get_contributors'
+14:36:56.499 | INFO    | Flow run 'dazzling-hawk' - Executing 'get_contributors-0' immediately...
+14:36:57.405 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
+14:36:57.525 | INFO    | Flow run 'dazzling-hawk' - Created task run 'calculate_average_commits-0' for task 'calculate_average_commits'
+14:36:57.526 | INFO    | Flow run 'dazzling-hawk' - Executing 'calculate_average_commits-0' immediately...
+14:36:58.227 | INFO    | Task run 'calculate_average_commits-0' - Finished in state Completed()
+14:36:58.256 | INFO    | Flow run 'dazzling-hawk' - PrefectHQ/prefect repository statistics 🤓:
+14:36:58.257 | INFO    | Flow run 'dazzling-hawk' - Stars 🌠 : 12160
+14:36:58.258 | INFO    | Flow run 'dazzling-hawk' - Forks 🍴 : 1252
+14:36:58.259 | INFO    | Flow run 'dazzling-hawk' - Average commits per contributor 💌 : 345.07
+14:36:58.494 | INFO    | Flow run 'dazzling-hawk' - Finished in state Completed('All states completed.')
 ```
 </div>
 
 
-In addition to seeing these logs, you can also checkout out the flow run from the UI to see its dependecy diagram. Just head to the flow runs dashboard.
+In addition to seeing these logs, you can also checkout out the FlowRun from the UI to see its dependecy diagram. A link to the FlowRun page should be provided near the top of your flow logs.
 
 Local execution is great for development and testing, but for productionized execution and scheduling you'll want to deploy your flow.
 
@@ -106,11 +115,15 @@ Local execution is great for development and testing, but for productionized exe
 !!! warning "Warning"
     Before running any `prefect deploy` or `prefect init` commands, double check that you are at the **root of your repo**, otherwise the Prefect Worker may struggle to get to the same entrypoint during remote execution!
 
+Deploying your flows is, in essence, the act of informing the Prefect API of where, how, and when to run your flows.
+
+When you run the deploy command, the CLI will prompt you through different options you can set with your deployment. 🧙 Follow the wizard to name your deployment, add an optional schedule, create a Work Pool, and optionally configure a flow code pull step.
+
 ```bash
 prefect deploy my_flow.py:my_flow_function
 ```
-
-Now that you have run the deploy command, the CLI will prompt you through different options you can set with your deployment. 🧙 Follow the wizard to name your deployment, add an optional schedule, create a Work Pool, and optionally configure a flow code pull step.
+!!! Tip "Process Type Work Pool Recommended:"
+    A `process` type WorkPool is the simplist option for local execution and is reccomended for beginners.
 
 !!! note "CLI Note"
     The above deployment command follows the following format `prefect deploy entrypoint` that you can use to deploy your flows in the future. It will always be relative to the root of your repo:
@@ -120,7 +133,7 @@ Now that you have run the deploy command, the CLI will prompt you through differ
 
 ### Step 6: Start a Worker and Run Deployed Flow
 
-A worker should be started to poll the Work Pool created when you build your deployment. In a new terminal run:
+A worker should be started to poll the Work Pool created when you defined your deployment. In a new terminal run:
 
 ```bash
 prefect worker start --pool <name-of-your-work-pool>
@@ -129,7 +142,21 @@ prefect worker start --pool <name-of-your-work-pool>
 Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
 
 ```bash
-prefect deployment run <my-flow-name>/<my-deployment-name>
+prefect deployment run 'Repo Info/<my-deployment-name>'
 ```
 
-For more information see tutorials or guides.
+!!! reminder "Reminder: A flow name can be different from its function name!"
+    The above deployment run command follows the following format:
+    
+    `prefect deployment run '<flow name>/<deployment-name>`
+
+### Next Steps
+
+- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
+- Check out some of our other [work pools](/concepts/work-pools/)
+- [Our Concepts](/concepts/) contain deep dives into Prefect components.
+- [Guides](/guides/) provide step by step recipes for common Prefect operations including:
+    - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
+    - [Deploying flows in Docker](/guides/deployment/docker/)
+    - [Writing tests](/guides/testing)
+And more!
