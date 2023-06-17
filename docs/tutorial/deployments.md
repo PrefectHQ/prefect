@@ -26,7 +26,7 @@ A deployed flow gets the following additional cababilities:
 
 ## What is a Deployment
 
-Deploying your flows is, in essence, the act of informing the Prefect API of:
+Deploying your flows is, in essence, the act of informing Prefect of:
 
 1. Where to run your flows
 2. How to run your flows
@@ -44,17 +44,17 @@ Attributes of a deployment include (but are not limited to):
 Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. This means setting up a work pool and a worker to enable **your flows** to run on **your infrastructure**.
 
 ## Why Workpools and Workers
-Easily running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect provides you with the worker and work pool concepts to allow you to run flows in the environments best suited to their execution.
+Running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect work pools and workers allow you to run flows in the environments best suited to their execution.
 
-Workers and work pools bridge the Prefect orchestration layer with the infrastructure the actual flows need to be executed on.
+Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on.
 
-You can configure work pools within the Prefect UI or server. They prioritize the flows and respond to polling from the worker. Workers are light-weight, pieces of infrastructure where flows get executed.
+You can configure work pools within the Prefect UI. They prioritize the flows and respond to polling from the worker. Workers are light-weight processes that run in the environment where flows are executed.
 
 **Work Pools:**
 
 - Organize the flows for your worker to pick up and execute.
 - Describe the ephemeral infrastructure configuration that the worker will create for each flow run.
-- They prioritize the flows and respond to polling from its worker.
+- Prioritize the flows and respond to polling from its worker.
 
 ```mermaid
 graph TD;
@@ -86,7 +86,7 @@ For this tutorial you will create a *process type* work pool via the CLI.
 The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.
 
 !!! tip "Other Workpools"
-    Aside from process, there are a variety of different work pool types you might consider in a production setting to containerize your flow runs that leverage managed execution platforms, like Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run which are expanded upon in the guides section.
+    There are work pool types for all major managed code execution platforms, such as Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, or GCP Cloud Run, which are expanded upon in the guides section.
 
 In your terminal run the following command to set up a work pool. 
 <div class="terminal">
@@ -94,13 +94,13 @@ In your terminal run the following command to set up a work pool.
 prefect work-pool create --type process my-process-pool
 ```
 </div>
-Now that you have created the work pool, let’s confirm that the work pool was successfully created by running the following command in the same terminal.  You should see your new `my-process-pool` in the output list.
+Let’s confirm that the work pool was successfully created by running the following command in the same terminal. You should see your new `my-process-pool` in the output list.
 <div class="terminal">
 ```bash
 prefect work-pool ls 
 ```
 </div>
-Finally, let’s double check in the Prefect Cloud UI that you can see this work pool. Navigate to the Work Pool tab and verify that you see `my-process-pool` listed.
+Finally, let’s double check that you can see this work pool in the Prefect Cloud UI . Navigate to the Work Pool tab and verify that you see `my-process-pool` listed.
 
 <div class="terminal">
 ```bash
@@ -112,11 +112,11 @@ Finally, let’s double check in the Prefect Cloud UI that you can see this work
 └───────────────────────┴───────────────┴──────────────────────────────────────┴───────────────────┘
 ```
 </div>
-When you click into the `my-process-pool` you can click into the tab for work queues. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced topic to help determine flow priority. You can learn more about work queues in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
+When you click into the `my-process-pool` you can click into the tab for work queues. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced feature. You can learn more about them in the [work queue documentation.](https://docs.prefect.io/2.10.13/concepts/work-pools/#work-queues) 
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
-As mentioned above, workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start your worker on your laptop you will open a new terminal and double check that your virutual envionment is activated. Run the following command in this new terminal to start the worker:
+Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start your worker on your laptop you will open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
 <div class="terminal">
 ```bash
 prefect worker start --pool my-process-pool
