@@ -17,7 +17,7 @@ tags:
 - Input arguments types can be validated.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
-- Capture details about [flow runs](#flow-runs) such as run time, task tags, and final state.
+- Metadata about [flow runs](#flow-runs), such as run time and final state, is tracked.
 
 ## Run Your First flow:
 
