@@ -1874,3 +1874,17 @@ async def test_server_error_does_not_raise_on_client():
     ) as client:
         with pytest.raises(prefect.exceptions.HTTPStatusError, match="500"):
             await client._client.get("/raise_error")
+
+
+async def test_prefect_client_follow_redirects():
+    app = create_app(ephemeral=True)
+    async with PrefectClient(api=app) as client:
+        assert client._client.follow_redirects is True
+
+    httpx_settings = {"follow_redirects": True}
+    async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
+        assert client._client.follow_redirects is True
+
+    httpx_settings = {"follow_redirects": False}
+    async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
+        assert client._client.follow_redirects is False
