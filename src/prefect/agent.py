@@ -37,7 +37,7 @@ from prefect.exceptions import (
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
+from prefect.states import Crashed, Pending, StateType
 
 
 class PrefectAgent:
@@ -572,23 +572,6 @@ class PrefectAgent:
             return False
 
         return True
-
-    async def _propose_failed_state(self, flow_run: FlowRun, exc: Exception) -> None:
-        try:
-            await propose_state(
-                self.client,
-                await exception_to_failed_state(message="Submission failed.", exc=exc),
-                flow_run_id=flow_run.id,
-            )
-        except Abort:
-            # We've already failed, no need to note the abort but we don't want it to
-            # raise in the agent process
-            pass
-        except Exception:
-            self.logger.error(
-                f"Failed to update state of flow run '{flow_run.id}'",
-                exc_info=True,
-            )
 
     async def _propose_crashed_state(self, flow_run: FlowRun, message: str) -> None:
         try:

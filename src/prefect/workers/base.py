@@ -38,7 +38,7 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import Crashed, Pending
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import apply_values, resolve_block_document_references
@@ -938,24 +938,6 @@ class BaseWorker(abc.ABC):
             return False
 
         return True
-
-    async def _propose_failed_state(self, flow_run: "FlowRun", exc: Exception) -> None:
-        run_logger = self.get_flow_run_logger(flow_run)
-        try:
-            await propose_state(
-                self._client,
-                await exception_to_failed_state(message="Submission failed.", exc=exc),
-                flow_run_id=flow_run.id,
-            )
-        except Abort:
-            # We've already failed, no need to note the abort but we don't want it to
-            # raise in the agent process
-            pass
-        except Exception:
-            run_logger.error(
-                f"Failed to update state of flow run '{flow_run.id}'",
-                exc_info=True,
-            )
 
     async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
         run_logger = self.get_flow_run_logger(flow_run)
