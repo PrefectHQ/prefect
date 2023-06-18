@@ -448,11 +448,13 @@ class PrefectAgent:
         if ready_to_submit:
             try:
                 infrastructure = await self.get_infrastructure(flow_run)
-            except Exception as exc:
+            except Exception:
                 self.logger.exception(
                     f"Failed to get infrastructure for flow run '{flow_run.id}'."
                 )
-                await self._propose_failed_state(flow_run, exc)
+                await self._propose_crashed_state(
+                    flow_run, "Flow run could not be submitted to infrastructure"
+                )
                 if self.limiter:
                     self.limiter.release_on_behalf_of(flow_run.id)
             else:
