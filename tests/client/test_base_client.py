@@ -39,6 +39,43 @@ def disable_jitter():
         yield
 
 
+def redirects(request: httpx.Request) -> httpx.Response:
+    """
+    Taken from:
+        https://github.com/encode/httpx/blob/master/tests/client/test_redirects.py
+    """
+    if request.url.path == "/redirect_301":
+        status_code = httpx.codes.MOVED_PERMANENTLY
+        content = b"<a href='https://example.org/'>here</a>"
+        headers = {"location": "https://example.org/"}
+        return httpx.Response(status_code, headers=headers, content=content)
+
+    elif request.url.path == "/redirect_302":
+        status_code = httpx.codes.FOUND
+        headers = {"location": "https://example.org/redirected_302"}
+        return httpx.Response(status_code, headers=headers)
+
+    elif request.url.path == "/redirect_303":
+        status_code = httpx.codes.SEE_OTHER
+        headers = {"location": "https://example.org/redirected_303"}
+        return httpx.Response(status_code, headers=headers)
+
+    elif request.url.path == "/redirect_307":
+        status_code = httpx.codes.TEMPORARY_REDIRECT
+        headers = {"location": "https://example.org/redirected_307"}
+        return httpx.Response(status_code, headers=headers)
+
+    elif request.url.path == "/redirect_308":
+        status_code = httpx.codes.PERMANENT_REDIRECT
+        headers = {"location": "https://example.org/redirected_308"}
+        return httpx.Response(status_code, headers=headers)
+
+    if request.method == "HEAD":
+        return httpx.Response(200)
+
+    return httpx.Response(200, html="<html><body>Hello, world!</body></html>")
+
+
 class TestPrefectHttpxClient:
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
@@ -469,7 +506,39 @@ class TestPrefectHttpxClient:
         base_client_send.return_value = RESPONSE_400
         with pytest.raises(PrefectHTTPStatusError) as exc:
             await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
-            assert (
-                "Response: {'extra_info': [{'message': 'a test error message'}]}"
-                in str(exc)
-            )
+        expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
+        assert expected in str(exc)
+
+    @pytest.mark.parametrize(
+        "mock_redirects",
+        [
+            ["https://example.org/redirect_301", "https://example.org/"],
+            ["https://example.org/redirect_302", "https://example.org/redirected_302"],
+            ["https://example.org/redirect_307", "https://example.org/redirected_307"],
+            ["https://example.org/redirect_308", "https://example.org/redirected_308"],
+        ],
+    )
+    async def test_prefect_httpx_client_follow_redirect_true(self, mock_redirects):
+        mock_transport = httpx.MockTransport(redirects)
+        client = PrefectHttpxClient(follow_redirects=True, transport=mock_transport)
+        original_url, redirected_url = mock_redirects
+        response = await client.get(original_url)
+        assert response.url == redirected_url
+
+    @pytest.mark.parametrize(
+        "mock_redirects",
+        [
+            ["https://example.org/redirect_301", "301 Moved Permanently"],
+            ["https://example.org/redirect_302", "302 Found"],
+            ["https://example.org/redirect_307", "307 Temporary Redirect"],
+            ["https://example.org/redirect_308", "308 Permanent Redirect"],
+        ],
+    )
+    async def test_prefect_httpx_client_follow_redirect_false(self, mock_redirects):
+        mock_transport = httpx.MockTransport(redirects)
+        client = PrefectHttpxClient(follow_redirects=False, transport=mock_transport)
+        original_url, redirect_response = mock_redirects
+        with pytest.raises(PrefectHTTPStatusError) as exc:
+            await client.get(original_url)
+        expected = f"Redirect response '{redirect_response}' for url '{original_url}'"
+        assert expected in str(exc)
