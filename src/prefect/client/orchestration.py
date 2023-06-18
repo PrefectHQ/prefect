@@ -278,6 +278,7 @@ class PrefectClient:
             ),
         )
 
+        httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxClient(**httpx_settings)
         self._loop = None
 

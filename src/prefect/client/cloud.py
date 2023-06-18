@@ -57,6 +57,7 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
+        httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxClient(**httpx_settings)
 
     async def api_healthcheck(self):
