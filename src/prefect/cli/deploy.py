@@ -934,7 +934,7 @@ async def _generate_default_pull_action(
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.deployments.steps.git_clone"]["token"] = (
+            git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 

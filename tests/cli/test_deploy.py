@@ -830,7 +830,7 @@ class TestProjectDeploy:
                     "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
-                        "token": (
+                        "access_token": (
                             "{{ prefect.blocks.secret.deployment-test-name-an-important-name-repo-token }}"
                         ),
                     }
