@@ -102,17 +102,23 @@ def prompt_select_from_table(
         return table
 
     with Live(build_table(), auto_refresh=False, console=console) as live:
-        live.console.print(
+        instructions_message = (
             f"[bold][green]?[/] {prompt} [bright_blue][Use arrows to move; enter to"
-            " select][/]"
+            " select"
         )
+        if opt_out_message:
+            instructions_message += "; n to select none"
+        instructions_message += "]"
+        live.console.print(instructions_message)
         while selected_row is None:
             key = readchar.readkey()
 
             if key == readchar.key.UP:
                 current_idx = current_idx - 1
                 # wrap to bottom if at the top
-                if current_idx < 0:
+                if opt_out_message and current_idx < 0:
+                    current_idx = len(data)
+                elif not opt_out_message and current_idx < 0:
                     current_idx = len(data) - 1
             elif key == readchar.key.DOWN:
                 current_idx = current_idx + 1
@@ -129,6 +135,8 @@ def prompt_select_from_table(
                     return opt_out_response
                 else:
                     selected_row = data[current_idx]
+            elif key == "n" and opt_out_message:
+                return opt_out_response
 
             live.update(build_table(), refresh=True)
 
