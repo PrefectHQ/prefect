@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@prefecthq/graphs": "^1.0.7",
-    "@prefecthq/prefect-design": "1.11.1",
+    "@prefecthq/prefect-design": "1.11.2",
     "@prefecthq/prefect-ui-library": "1.6.16",
     "@prefecthq/vue-charts": "1.0.0",
     "@prefecthq/vue-compositions": "1.5.6",
