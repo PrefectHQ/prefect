@@ -126,7 +126,7 @@ def prompt_select_from_table(
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
                 if current_idx >= len(data):
-                    selected_row = opt_out_response
+                    return opt_out_response
                 else:
                     selected_row = data[current_idx]
 
@@ -395,6 +395,7 @@ class EntrypointPrompt(PromptBase[str]):
                 f"[prompt.invalid]Failed to load flow from entrypoint {value!r}."
                 f" {self.validate_error_message}"
             )
+        return value
 
 
 async def prompt_entrypoint(console: Console) -> str:
@@ -421,5 +422,14 @@ async def prompt_entrypoint(console: Console) -> str:
             {"header": "Location", "key": "filepath"},
         ],
         data=discovered_flows,
+        opt_out_message="Enter a flow entrypoint manually",
     )
+    if selected_flow is None:
+        return EntrypointPrompt.ask(
+            (
+                "[bold][green]?[/] Flow entrypoint (expected format"
+                " path/to/file.py:function_name)"
+            ),
+            console=console,
+        )
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
