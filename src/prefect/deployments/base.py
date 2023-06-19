@@ -514,14 +514,15 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     return decorated_functions
 
 
-async def _search_for_flow_functions():
+async def _search_for_flow_functions(directory: str = "."):
     """
-    Search for flow functions in the current directory.
+    Search for flow functions in the provided directory. If no directory is provided,
+    the current working directory is used.
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
     """
-    path = anyio.Path(".")
+    path = anyio.Path(directory)
     coros = []
     async for file in path.rglob("*.py"):
         coros.append(_find_flow_functions_in_file(file))

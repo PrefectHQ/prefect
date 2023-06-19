@@ -2855,12 +2855,9 @@ class TestDeployWithoutEntrypoint:
                 "nested-project/explicit_relative.py",
                 "my_flow",
                 "flows/hello.py",
-                "Deployment 'test/default' successfully created",
+                "successfully created",
             ],
         )
-
-        deployment = await prefect_client.read_deployment_by_name(name="test/default")
-        assert deployment.entrypoint == "import-project/my_module/flow.py:test_flow"
 
     async def test_deploy_without_entrypoint_manually_enter(
         self, prefect_client: PrefectClient

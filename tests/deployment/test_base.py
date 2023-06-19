@@ -13,6 +13,7 @@ from prefect.deployments.base import (
     find_prefect_directory,
     initialize_project,
     register_flow,
+    _search_for_flow_functions,
 )
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
@@ -213,3 +214,44 @@ class TestRegisterFlow:
             force=True,
         )
         assert f.name == "test"
+
+
+class TestDiscoverFlows:
+    async def test_find_all_flows_in_dir_tree(self, project_dir):
+        flows = await _search_for_flow_functions(str(project_dir))
+        assert len(flows) == 5
+        assert sorted(flows, key=lambda f: f["function_name"]) == [
+            {
+                "flow_name": "foobar",
+                "function_name": "foobar",
+                "filepath": str(
+                    project_dir / "nested-project" / "implicit_relative.py"
+                ),
+            },
+            {
+                "flow_name": "foobar",
+                "function_name": "foobar",
+                "filepath": str(
+                    project_dir / "nested-project" / "explicit_relative.py"
+                ),
+            },
+            {
+                "flow_name": "my_flow",
+                "function_name": "my_flow",
+                "filepath": str(project_dir / "flows" / "hello.py"),
+            },
+            {
+                "flow_name": "prod_flow",
+                "function_name": "prod_flow",
+                "filepath": str(
+                    project_dir / "import-project" / "my_module" / "flow.py"
+                ),
+            },
+            {
+                "flow_name": "test_flow",
+                "function_name": "test_flow",
+                "filepath": str(
+                    project_dir / "import-project" / "my_module" / "flow.py"
+                ),
+            },
+        ]
