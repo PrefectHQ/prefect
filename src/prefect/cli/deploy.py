@@ -57,10 +57,6 @@ from prefect._internal.compatibility.deprecated import (
 )
 
 
-def _when(y):
-    return y is True
-
-
 @app.command()
 async def deploy(
     entrypoint: str = typer.Argument(
