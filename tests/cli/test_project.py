@@ -1,15 +1,35 @@
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
 import pytest
 import readchar
+from typer import Exit
 import yaml
 from prefect.server import models
 from prefect.client import schemas
-from test_cloud import interactive_console  # noqa
 
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.project.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
@@ -27,7 +47,7 @@ async def deployment_with_pull_step(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
@@ -54,12 +74,12 @@ async def deployment_with_pull_steps(
             flow_id=flow.id,
             pull_steps=[
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/hello-projects.git"
                     }
                 },
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/PrefectHQ/marvin.git"
                     }
                 },
@@ -87,17 +107,18 @@ class TestProjectInit:
     def test_project_init(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                "project init --name test_project", temp_dir=str(tempdir)
+                "init --name test_project", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
-            for file in ["prefect.yaml", "deployment.yaml", ".prefectignore"]:
+            for file in ["prefect.yaml", ".prefectignore"]:
                 # temp_dir creates a *new* nested temporary directory within tempdir
                 assert any(Path(tempdir).rglob(file))
 
     def test_project_init_with_recipe(self):
         with TemporaryDirectory() as tempdir:
             result = invoke_and_assert(
-                "project init --name test_project --recipe local", temp_dir=str(tempdir)
+                "init --name test_project --recipe local",
+                temp_dir=str(tempdir),
             )
             assert result.exit_code == 0
 
@@ -105,7 +126,7 @@ class TestProjectInit:
     def test_project_init_with_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
-                "project init --name test_project --recipe docker",
+                "init --name test_project --recipe docker",
                 expected_code=0,
                 temp_dir=str(tempdir),
                 user_input="my-image/foo"
@@ -123,13 +144,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "testing"
             )
@@ -138,7 +159,7 @@ class TestProjectInit:
     def test_project_init_with_partial_interactive_recipe(self):
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
-                "project init --name test_project --recipe docker --field tag=my-tag",
+                "init --name test_project --recipe docker --field tag=my-tag",
                 expected_code=0,
                 temp_dir=str(tempdir),
                 user_input="my-image/foo" + readchar.key.ENTER,
@@ -152,13 +173,13 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
@@ -167,7 +188,7 @@ class TestProjectInit:
         with TemporaryDirectory() as tempdir:
             invoke_and_assert(
                 (
-                    "project init --name test_project --recipe docker --field"
+                    "init --name test_project --recipe docker --field"
                     " tag=my-tag --field image_name=my-image/foo"
                 ),
                 expected_code=0,
@@ -179,33 +200,51 @@ class TestProjectInit:
 
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["image_name"]
                 == "my-image/foo"
             )
             assert (
                 configuration["build"][0][
-                    "prefect_docker.projects.steps.build_docker_image"
+                    "prefect_docker.deployments.steps.build_docker_image"
                 ]["tag"]
                 == "my-tag"
             )
 
-            deployment_file = list(Path(tempdir).rglob("deployment.yaml")).pop()
-            with open(deployment_file, "r") as f:
-                deploy_config = yaml.safe_load(f)
-
             assert (
-                deploy_config["deployments"][0]["work_pool"]["job_variables"]["image"]
-                == "{{ image_name }}"
+                configuration["deployments"][0]["work_pool"]["job_variables"]["image"]
+                == "{{ build_image.image }}"
             )
 
     def test_project_init_with_unknown_recipe(self):
         result = invoke_and_assert(
-            "project init --name test_project --recipe def-not-a-recipe",
+            "init --name test_project --recipe def-not-a-recipe",
             expected_code=1,
         )
         assert result.exit_code == 1
-        assert "prefect project recipe ls" in result.output
+        assert "prefect init" in result.output
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_opt_out_of_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "init --name test_project",
+                temp_dir=str(tempdir),
+                user_input=(readchar.key.DOWN * 10) + readchar.key.ENTER,
+            )
+            assert result.exit_code == 0
+            assert any(Path(tempdir).rglob("prefect.yaml"))
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_use_first_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "init --name test_project",
+                temp_dir=str(tempdir),
+                user_input=readchar.key.DOWN + readchar.key.ENTER,
+            )
+            assert result.exit_code == 0
+            assert any(Path(tempdir).rglob("prefect.yaml"))
 
 
 class TestProjectClone:
@@ -249,7 +288,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployments.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(
@@ -267,7 +306,7 @@ class TestProjectClone:
     ):
         subprocess_mock = MagicMock()
         monkeypatch.setattr(
-            "prefect.projects.steps.pull.subprocess",
+            "prefect.deployments.steps.pull.subprocess",
             subprocess_mock,
         )
         result = invoke_and_assert(

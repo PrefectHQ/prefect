@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import typer
 import typer.core
@@ -21,9 +21,11 @@ from prefect.cli._prompts import (
     prompt_select_from_table,
     prompt_schedule,
     prompt_select_work_pool,
+    prompt_entrypoint,
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -31,15 +33,20 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.projects import find_prefect_directory, register_flow
+from prefect.deployments import find_prefect_directory, register_flow
 from prefect.settings import PREFECT_UI_URL, PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.templating import apply_values
 
-from prefect.projects.steps.core import run_steps
+from prefect.deployments.steps.core import run_steps
 
-from prefect.projects.base import _get_git_branch, _get_git_remote_origin_url
+from prefect.deployments.base import (
+    _copy_deployments_into_prefect_file,
+    _get_git_branch,
+    _get_git_remote_origin_url,
+    _save_deployment_to_prefect_file,
+)
 
 from prefect.blocks.system import Secret
 
@@ -47,7 +54,11 @@ from prefect.utilities.slugify import slugify
 
 from prefect.client.orchestration import PrefectClient
 
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.compatibility.deprecated import (
+    generate_deprecation_message,
+)
+
+from prefect.utilities.collections import get_from_dict
 
 
 @app.command()
@@ -178,6 +189,18 @@ async def deploy(
 
     Should be run from a project root directory.
     """
+    if ci:
+        app.console.print(
+            generate_deprecation_message(
+                name="The `--ci` flag",
+                start_date="Jun 2023",
+                help=(
+                    "Please use the global `--no-prompt` flag instead: `prefect"
+                    " --no-prompt deploy`."
+                ),
+            ),
+            style="yellow",
+        )
 
     options = {
         "entrypoint": entrypoint,
@@ -190,184 +213,102 @@ async def deploy(
         "variables": variables,
         "cron": cron,
         "interval": interval,
-        "interval_anchor": interval_anchor,
+        "anchor_date": interval_anchor,
         "rrule": rrule,
         "timezone": timezone,
         "param": param,
         "params": params,
     }
-
     try:
-        with open("prefect.yaml", "r") as f:
-            project = yaml.safe_load(f)
-    except FileNotFoundError:
-        project = {}
+        deploy_configs, actions = _load_deploy_configs_and_actions(ci=ci)
+        deploy_configs = _pick_deploy_configs(deploy_configs, names, deploy_all, ci)
 
-    try:
-        with open("deployment.yaml", "r") as f:
-            base_deploy = yaml.safe_load(f)
-            if not base_deploy:
-                deployments = []
-            elif base_deploy.get("deployments"):
-                deployments = base_deploy["deployments"]
-            else:
-                deployments = [base_deploy]
-    except FileNotFoundError:
-        if PREFECT_DEBUG_MODE:
-            app.console.print(
-                (
-                    "No deployment.yaml file found, only provided CLI options will be"
-                    " used."
-                ),
-                style="yellow",
-            )
-        deployments = []
-
-    try:
-        if len(deployments) > 1:
-            if deploy_all or len(names) > 1:
-                if any(options.values()):
-                    app.console.print(
-                        (
-                            "You have passed options to the deploy command, but you are"
-                            " creating or updating multiple deployments. These options"
-                            " will be ignored."
-                        ),
-                        style="yellow",
-                    )
-                await _run_multi_deploy(
-                    base_deploys=deployments,
-                    project=project,
-                    names=names,
-                    deploy_all=deploy_all,
-                    ci=ci,
-                )
-            elif len(names) == 1:
-                deployment = next(
-                    (d for d in deployments if d.get("name") == names[0]), {}
-                )
-                if not deployment:
-                    app.console.print(
-                        (
-                            "Could not find deployment declaration with name "
-                            f"{names[0]} in deployment.yaml. Only CLI options "
-                            "will be used for this deployment."
-                        ),
-                        style="yellow",
-                    )
-                    options["name"] = names[0]
-                await _run_single_deploy(
-                    base_deploy=deployment, project=project, options=options, ci=ci
-                )
-            else:
-                if not is_interactive() or ci:
-                    exit_with_error(
-                        "Discovered multiple deployments declared in deployment.yaml,"
-                        " but no name was given. Please specify the name of at least"
-                        " one deployment to create or update."
-                    )
-                selected_deployment = prompt_select_from_table(
-                    app.console,
+        if len(deploy_configs) > 1:
+            if any(options.values()):
+                app.console.print(
                     (
-                        "Would you like to use an existing deployment configuration"
-                        " from deployment.yaml?"
+                        "You have passed options to the deploy command, but you are"
+                        " creating or updating multiple deployments. These options"
+                        " will be ignored."
                     ),
-                    [
-                        {"header": "Name", "key": "name"},
-                        {"header": "Description", "key": "description"},
-                    ],
-                    [
-                        deployment
-                        for deployment in deployments
-                        if deployment.get("name")
-                    ],
-                    opt_out_message="No, configure a new deployment",
-                    opt_out_response={},
+                    style="yellow",
                 )
-                await _run_single_deploy(
-                    base_deploy=selected_deployment,
-                    project=project,
-                    options=options,
-                    ci=ci,
-                )
-        elif len(deployments) <= 1:
-            if len(names) > 1:
-                exit_with_error(
-                    "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
-                    " name."
-                )
-            else:
-                options["name"] = names[0] if names else None
-                await _run_single_deploy(
-                    base_deploy=deployments[0] if deployments else {},
-                    project=project,
-                    options=options,
-                    ci=ci,
-                )
+            await _run_multi_deploy(
+                deploy_configs=deploy_configs,
+                actions=actions,
+                deploy_all=deploy_all,
+                ci=ci,
+            )
+        else:
+            options["names"] = names
+            await _run_single_deploy(
+                deploy_config=deploy_configs[0] if deploy_configs else {},
+                actions=actions,
+                options=options,
+                ci=ci,
+            )
     except ValueError as exc:
         exit_with_error(str(exc))
 
 
 @inject_client
 async def _run_single_deploy(
-    base_deploy: Dict,
-    project: Dict,
+    deploy_config: Dict,
+    actions: Dict,
     options: Optional[Dict] = None,
     ci: bool = False,
     client: PrefectClient = None,
 ):
-    base_deploy = deepcopy(base_deploy) if base_deploy else {}
-    project = deepcopy(project) if project else {}
+    deploy_config = deepcopy(deploy_config) if deploy_config else {}
+    actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    base_deploy = _merge_with_default_deployment(base_deploy)
+    should_prompt_for_save = is_interactive() and not ci and not bool(deploy_config)
 
-    base_deploy_schedule = base_deploy.get("schedule")
-    if base_deploy_schedule is None:
-        base_deploy_schedule = {}
+    deploy_config = _merge_with_default_deploy_config(deploy_config)
+    (
+        deploy_config,
+        variable_overrides,
+    ) = _apply_cli_options_to_deploy_config(deploy_config, options)
 
-    name = options.get("name") or base_deploy.get("name")
-    flow_name = options.get("flow_name") or base_deploy.get("flow_name")
-    entrypoint = options.get("entrypoint") or base_deploy.get("entrypoint")
-    param = options.get("param")
-    params = options.get("params")
-    variables = options.get("variables")
-    version = options.get("version")
-    tags = options.get("tags")
-    description = options.get("description")
-    work_pool_name = options.get("work_pool_name")
-    work_queue_name = options.get("work_queue_name")
-    cron = options.get("cron") or base_deploy_schedule.get("cron")
-    rrule = options.get("rrule") or base_deploy_schedule.get("rrule")
-    interval = options.get("interval") or base_deploy_schedule.get("interval")
-    interval_anchor = options.get("interval_anchor") or base_deploy_schedule.get(
-        "anchor_date"
-    )
-    timezone = options.get("timezone") or base_deploy_schedule.get("timezone")
+    build_steps = deploy_config.get("build", actions.get("build")) or []
+    push_steps = deploy_config.get("push", actions.get("push")) or []
 
-    build_steps = base_deploy.get("build", project.get("build")) or []
-    push_steps = base_deploy.get("push", project.get("push")) or []
-
-    if interval_anchor and not interval:
+    if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
+        deploy_config, "schedule.interval"
+    ):
         raise ValueError(
             "An anchor date can only be provided with an interval schedule"
         )
 
-    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+    number_of_schedules_provided = len(
+        [
+            value
+            for value in (
+                get_from_dict(deploy_config, "schedule.cron"),
+                get_from_dict(deploy_config, "schedule.rrule"),
+                get_from_dict(deploy_config, "schedule.interval"),
+            )
+            if value is not None
+        ]
+    )
+
+    if number_of_schedules_provided > 1:
         raise ValueError("Only one schedule type can be provided.")
 
-    if not flow_name and not entrypoint:
-        raise ValueError(
-            "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
-            " entrypoint:\n\n\t[yellow]prefect deploy"
-            " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
-            " name:\n\n\t[yellow]prefect project register-flow"
-            " path/to/file.py:flow_function\n\tprefect deploy --flow"
-            " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-            " name in this project's deployment.yaml file."
-        )
-    if flow_name and entrypoint:
+    if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
+        if not is_interactive() and not ci:
+            raise ValueError(
+                "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
+                " entrypoint:\n\n\t[yellow]prefect deploy"
+                " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
+                " name:\n\n\t[yellow]prefect project register-flow"
+                " path/to/file.py:flow_function\n\tprefect deploy --flow"
+                " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
+                " name in this project's prefect.yaml file."
+            )
+        deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
+    if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
         raise ValueError(
             "Received an entrypoint and a flow name for this deployment. Please provide"
             " either an entrypoint or a flow name."
@@ -375,14 +316,14 @@ async def _run_single_deploy(
 
     # flow-name and entrypoint logic
     flow = None
-    if entrypoint:
+    if deploy_config.get("entrypoint"):
         try:
-            flow = await register_flow(entrypoint)
+            flow = await register_flow(deploy_config["entrypoint"])
         except ModuleNotFoundError:
             raise ValueError(
-                f"Could not find a flow at {entrypoint}.\n\nPlease ensure your"
-                " entrypoint is in the format path/to/file.py:flow_fn_name and the"
-                " file name and flow function name are correct."
+                f"Could not find a flow at {deploy_config['entrypoint']}.\n\nPlease"
+                " ensure your entrypoint is in the format path/to/file.py:flow_fn_name"
+                " and the file name and flow function name are correct."
             )
         except FileNotFoundError:
             if PREFECT_DEBUG_MODE:
@@ -390,12 +331,15 @@ async def _run_single_deploy(
                     "Could not find .prefect directory. Flow entrypoint will not be"
                     " registered."
                 )
-        flow_name = flow.name
-    elif flow_name:
+            flow = await run_sync_in_worker_thread(
+                load_flow_from_entrypoint, deploy_config["entrypoint"]
+            )
+        deploy_config["flow_name"] = flow.name
+    elif deploy_config.get("flow_name"):
         app.console.print(
             generate_deprecation_message(
                 "The ability to deploy by flow name",
-                end_date="Jun 2023",
+                start_date="Jun 2023",
                 help=(
                     "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
                     " an entrypoint instead."
@@ -405,93 +349,47 @@ async def _run_single_deploy(
         prefect_dir = find_prefect_directory()
         if not prefect_dir:
             raise ValueError(
-                "No .prefect directory could be found - run [yellow]`prefect project"
+                "No .prefect directory could be found - run [yellow]`prefect"
                 " init`[/yellow] to create one."
             )
         if not (prefect_dir / "flows.json").exists():
             raise ValueError(
-                f"Flow {flow_name!r} cannot be found; run\n\t[yellow]prefect project"
-                " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
-                " its location."
+                f"Flow {deploy_config['flow_name']!r} cannot be found;"
+                " run\n\t[yellow]prefect project register-flow"
+                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
             )
         with open(prefect_dir / "flows.json", "r") as f:
             flows = json.load(f)
 
-        if flow_name not in flows:
+        if deploy_config["flow_name"] not in flows:
             raise ValueError(
-                f"Flow {flow_name!r} cannot be found; run\n\t[yellow]prefect project"
-                " register-flow ./path/to/file.py:flow_fn_name[/yellow]\nto register"
-                " its location."
+                f"Flow {deploy_config['flow_name']!r} cannot be found;"
+                " run\n\t[yellow]prefect project register-flow"
+                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
             )
 
         # set entrypoint from prior registration
-        entrypoint = flows[flow_name]
+        deploy_config["entrypoint"] = flows[deploy_config["flow_name"]]
 
-    base_deploy["flow_name"] = flow_name
-    base_deploy["entrypoint"] = entrypoint
-
-    if not name:
+    if not deploy_config.get("name"):
         if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
-        name = prompt("Deployment name", default="default")
+        deploy_config["name"] = prompt("Deployment name", default="default")
 
-    ## parse parameters
     # minor optimization in case we already loaded the flow
     if not flow:
         flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, base_deploy["entrypoint"]
+            load_flow_from_entrypoint, deploy_config["entrypoint"]
         )
 
-    base_deploy["parameter_openapi_schema"] = parameter_schema(flow)
+    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    if param and (params is not None):
-        exit_with_error("Can only pass one of `param` or `params` options")
-
-    parameters = dict()
-
-    if param:
-        for p in param or []:
-            k, unparsed_value = p.split("=", 1)
-            try:
-                v = json.loads(unparsed_value)
-                app.console.print(
-                    f"The parameter value {unparsed_value} is parsed as a JSON string"
-                )
-            except json.JSONDecodeError:
-                v = unparsed_value
-            parameters[k] = v
-
-    if params is not None:
-        parameters = json.loads(params)
-
-    base_deploy["parameters"].update(parameters)
-
-    # update schedule
-    schedule = _construct_schedule(
-        cron=cron,
-        timezone=timezone,
-        interval=interval,
-        rrule=rrule,
-        interval_anchor=interval_anchor,
-        ci=ci,
-    )
-
-    variable_overrides = {}
-    for variable in variables or []:
-        key, value = variable.split("=", 1)
-        variable_overrides[key] = value
-
-    if work_pool_name:
-        base_deploy["work_pool"]["name"] = work_pool_name
-    if work_queue_name:
-        base_deploy["work_pool"]["work_queue_name"] = work_queue_name
-
-    base_deploy["work_pool"]["job_variables"].update(variable_overrides)
+    deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
 
     # determine work pool
-    if base_deploy["work_pool"]["name"]:
+    if get_from_dict(deploy_config, "work_pool.name"):
         try:
-            work_pool = await client.read_work_pool(base_deploy["work_pool"]["name"])
+            work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
             # dont allow submitting to prefect-agent typed work pools
             if work_pool.type == "prefect-agent":
@@ -507,23 +405,26 @@ async def _run_single_deploy(
                     " cannot be used for project-style deployments. Let's pick"
                     " another work pool to deploy to."
                 )
-                base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+                deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
                     app.console,
                     client=client,
                 )
         except ObjectNotFound:
             raise ValueError(
-                "This deployment references a work pool that does not exist."
-                " This means no worker will be able to pick up its runs. You"
-                " can create a work pool in the Prefect UI."
+                "This deployment configuration references work pool"
+                f" {deploy_config['work_pool']['name']!r} which does not exist. This"
+                " means no worker will be able to pick up its runs. You can create a"
+                " work pool in the Prefect UI."
             )
     else:
         if not is_interactive() or ci:
             raise ValueError(
                 "A work pool is required to deploy this flow. Please specify a work"
-                " pool name via the '--pool' flag or in your deployment.yaml file."
+                " pool name via the '--pool' flag or in your prefect.yaml file."
             )
-        base_deploy["work_pool"]["name"] = await prompt_select_work_pool(
+        if not isinstance(deploy_config.get("work_pool"), dict):
+            deploy_config["work_pool"] = {}
+        deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
             console=app.console, client=client
         )
 
@@ -543,59 +444,47 @@ async def _run_single_deploy(
 
     step_outputs.update(variable_overrides)
 
-    # set other CLI flags
-    if name:
-        base_deploy["name"] = name
-    if version:
-        base_deploy["version"] = version
-    if tags:
-        base_deploy["tags"] = tags
-
-    if description:
-        base_deploy["description"] = description
-    elif not base_deploy["description"]:
-        base_deploy["description"] = flow.description
+    if not deploy_config.get("description"):
+        deploy_config["description"] = flow.description
 
     ## apply templating from build and push steps to the final deployment spec
-    _parameter_schema = base_deploy.pop("parameter_openapi_schema")
-    base_deploy = apply_values(base_deploy, step_outputs)
-    base_deploy["parameter_openapi_schema"] = _parameter_schema
-
-    # set schedule afterwards to avoid templating errors
-    base_deploy["schedule"] = schedule
+    _parameter_schema = deploy_config.pop("parameter_openapi_schema")
+    _schedule = deploy_config.pop("schedule")
+    deploy_config = apply_values(deploy_config, step_outputs)
+    deploy_config["parameter_openapi_schema"] = _parameter_schema
+    deploy_config["schedule"] = _schedule
 
     # prepare the pull step
-    pull_steps = base_deploy.get(
-        "pull", project.get("pull")
+    pull_steps = deploy_config.get(
+        "pull", actions.get("pull")
     ) or await _generate_default_pull_action(
         app.console,
-        base_deploy=base_deploy,
+        deploy_config=deploy_config,
         ci=ci,
     )
     pull_steps = apply_values(pull_steps, step_outputs)
 
-    flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
+    flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
 
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
-        name=base_deploy["name"],
-        work_queue_name=base_deploy["work_pool"]["work_queue_name"],
-        work_pool_name=base_deploy["work_pool"]["name"],
-        version=base_deploy["version"],
-        schedule=base_deploy["schedule"],
-        parameters=base_deploy["parameters"],
-        description=base_deploy["description"],
-        tags=base_deploy["tags"],
-        path=base_deploy.get("path"),
-        entrypoint=base_deploy["entrypoint"],
-        parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
+        name=deploy_config.get("name"),
+        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
+        work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
+        version=deploy_config.get("version"),
+        schedule=deploy_config.get("schedule"),
+        parameters=deploy_config.get("parameters"),
+        description=deploy_config.get("description"),
+        tags=deploy_config.get("tags", []),
+        entrypoint=deploy_config.get("entrypoint"),
+        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         pull_steps=pull_steps,
-        infra_overrides=base_deploy["work_pool"]["job_variables"],
+        infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
 
     app.console.print(
         Panel(
-            f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
+            f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
             f" successfully created with id '{deployment_id}'."
         ),
         style="green",
@@ -604,16 +493,39 @@ async def _run_single_deploy(
     if PREFECT_UI_URL:
         app.console.print(
             "\nView Deployment in UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+        )
+
+    if should_prompt_for_save and confirm(
+        (
+            "Would you like to save configuration for this deployment for faster"
+            " deployments in the future?"
+        ),
+        console=app.console,
+    ):
+        _save_deployment_to_prefect_file(
+            deploy_config,
+            build_steps=build_steps or None,
+            push_steps=push_steps or None,
+            pull_steps=pull_steps or None,
+        )
+        app.console.print(
+            (
+                "\n[green]Deployment configuration saved to prefect.yaml![/] You can"
+                " now deploy using this deployment configuration with:\n\n\t[blue]$"
+                f" prefect deploy -n {deploy_config['name']}[/]\n\nYou can also make"
+                " changes to this deployment configuration by making changes to the"
+                " prefect.yaml file."
+            ),
         )
 
     app.console.print(
         "\nTo execute flow runs from this deployment, start a worker in a"
         " separate terminal that pulls work from the"
-        f" {base_deploy['work_pool']['name']!r} work pool:"
+        f" {deploy_config['work_pool']['name']!r} work pool:"
     )
     app.console.print(
-        f"\n\t$ prefect worker start --pool {base_deploy['work_pool']['name']!r}",
+        f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
         style="blue",
     )
     app.console.print(
@@ -622,71 +534,72 @@ async def _run_single_deploy(
     app.console.print(
         (
             "\n\t$ prefect deployment run"
-            f" '{base_deploy['flow_name']}/{base_deploy['name']}'\n"
+            f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
         ),
         style="blue",
     )
 
 
 async def _run_multi_deploy(
-    base_deploys, project, names=None, deploy_all=False, ci=False
+    deploy_configs: List[Dict],
+    actions: Dict,
+    names: Optional[List[str]] = None,
+    deploy_all: bool = False,
+    ci: bool = False,
 ):
-    base_deploys = deepcopy(base_deploys) if base_deploys else []
-    project = deepcopy(project) if project else {}
+    deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
+    actions = deepcopy(actions) if actions else {}
     names = names or []
 
     if deploy_all:
-        app.console.print("Deploying all deployments for current project...")
-        for base_deploy in base_deploys:
-            if base_deploy.get("name") is None:
-                if not is_interactive() or ci:
-                    app.console.print(
-                        "Discovered unnamed deployment. Skipping...", style="yellow"
-                    )
-                    continue
-                app.console.print("Discovered unnamed deployment.", style="yellow")
-                app.console.print_json(data=base_deploy)
-                if confirm(
-                    "Would you like to give this deployment a name and deploy it?",
-                    default=True,
-                    console=app.console,
-                ):
-                    base_deploy["name"] = prompt("Deployment name", default="default")
-                else:
-                    app.console.print("Skipping unnamed deployment.", style="yellow")
-                    continue
-            app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
-            await _run_single_deploy(base_deploy, project)
+        app.console.print(
+            "Deploying all flows with an existing deployment configuration..."
+        )
     else:
-        picked_base_deploys = [
-            base_deploy for base_deploy in base_deploys if base_deploy["name"] in names
-        ]
-        if len(picked_base_deploys) != len(names):
-            missing_deployments = set(names).difference(
-                base_deploy["name"] for base_deploy in picked_base_deploys
-            )
-            app.console.print(
-                (
-                    "The following deployment(s) could not be found and will not be"
-                    f" deployed: {' ,'.join(missing_deployments)}"
-                ),
-                style="yellow",
-            )
-        app.console.print("Deploying selected deployments for current project...")
-        for base_deploy in picked_base_deploys:
-            app.console.print(Panel(f"Deploying {base_deploy['name']}", style="blue"))
-            await _run_single_deploy(base_deploy, project)
+        app.console.print("Deploying flows with selected deployment configurations...")
+    for deploy_config in deploy_configs:
+        if deploy_config.get("name") is None:
+            if not is_interactive() or ci:
+                app.console.print(
+                    "Discovered unnamed deployment. Skipping...", style="yellow"
+                )
+                continue
+            app.console.print("Discovered unnamed deployment.", style="yellow")
+            app.console.print_json(data=deploy_config)
+            if confirm(
+                "Would you like to give this deployment a name and deploy it?",
+                default=True,
+                console=app.console,
+            ):
+                deploy_config["name"] = prompt("Deployment name", default="default")
+            else:
+                app.console.print("Skipping unnamed deployment.", style="yellow")
+                continue
+        app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
+        await _run_single_deploy(deploy_config, actions, ci=ci)
 
 
 def _construct_schedule(
-    cron: Optional[str] = None,
-    timezone: Optional[str] = None,
-    interval: Optional[int] = None,
-    interval_anchor: Optional[str] = None,
-    rrule: Optional[str] = None,
+    deploy_config: Dict,
     ci: bool = False,
-):
+) -> Optional[SCHEDULE_TYPES]:
+    """
+    Constructs a schedule from a deployment configuration.
+
+    Args:
+        deploy_config: A deployment configuration
+        ci: Disable interactive prompts if True
+
+    Returns:
+        A schedule object
+    """
     schedule = None
+    cron = get_from_dict(deploy_config, "schedule.cron")
+    interval = get_from_dict(deploy_config, "schedule.interval")
+    anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
+    rrule = get_from_dict(deploy_config, "schedule.rrule")
+    timezone = get_from_dict(deploy_config, "schedule.timezone")
+
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
         schedule = CronSchedule(
@@ -695,7 +608,7 @@ def _construct_schedule(
     elif interval:
         interval_kwargs = {
             "interval": timedelta(seconds=interval),
-            "anchor_date": interval_anchor,
+            "anchor_date": anchor_date,
             "timezone": timezone,
         }
         schedule = IntervalSchedule(
@@ -724,51 +637,51 @@ def _construct_schedule(
     return schedule
 
 
-DEFAULT_DEPLOYMENT = None
-
-
-def _merge_with_default_deployment(base_deploy: Dict):
+def _merge_with_default_deploy_config(deploy_config: Dict):
     """
-    Merge a base deployment dictionary with the default deployment dictionary.
-    If a key is missing in the base deployment, it will be filled with the
-    corresponding value from the default deployment.
+    Merge a base deploy config with the default deploy config.
+    If a key is missing in the base deploy config, it will be filled with the
+    corresponding value from the default deploy config.
 
     Parameters:
-        base_deploy: The base deployment dictionary to be merged with
-        the default deployment.
+        deploy_config: The base deploy config to be merged with
+        the default deploy config.
 
     Returns:
-        The merged deployment dictionary.
+        The merged deploy config.
     """
-    base_deploy = deepcopy(base_deploy)
-    global DEFAULT_DEPLOYMENT
+    deploy_config = deepcopy(deploy_config)
+    DEFAULT_DEPLOY_CONFIG = {
+        "name": None,
+        "version": None,
+        "tags": [],
+        "description": None,
+        "schedule": {},
+        "flow_name": None,
+        "entrypoint": None,
+        "parameters": {},
+        "work_pool": {
+            "name": None,
+            "work_queue_name": None,
+            "job_variables": {},
+        },
+    }
 
-    if DEFAULT_DEPLOYMENT is None:
-        # load the default deployment file for key consistency
-        default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
-        )
-
-        # load default file
-        with open(default_file, "r") as df:
-            contents = yaml.safe_load(df)
-            DEFAULT_DEPLOYMENT = contents["deployments"][0]
-
-    # merge default and base deployment
-    # this allows for missing keys in a user's deployment file
-    for key, value in DEFAULT_DEPLOYMENT.items():
-        if key not in base_deploy:
-            base_deploy[key] = value
+    # merge default and base deploy configs
+    # this allows for missing keys in a user's deploy config
+    for key, value in DEFAULT_DEPLOY_CONFIG.items():
+        if key not in deploy_config:
+            deploy_config[key] = value
         if isinstance(value, dict):
             for k, v in value.items():
-                if k not in base_deploy[key]:
-                    base_deploy[key][k] = v
+                if k not in deploy_config[key]:
+                    deploy_config[key][k] = v
 
-    return base_deploy
+    return deploy_config
 
 
 async def _generate_default_pull_action(
-    console: Console, base_deploy: Dict, ci: bool = False
+    console: Console, deploy_config: Dict, ci: bool = False
 ):
     remote_url = _get_git_remote_origin_url()
     if (
@@ -807,7 +720,7 @@ async def _generate_default_pull_action(
             )
         token_secret_block_name = None
         if confirm("Is this a private repository?", console=console):
-            token_secret_block_name = f"deployment-{slugify(base_deploy['name'])}-{slugify(base_deploy['flow_name'])}-repo-token"
+            token_secret_block_name = f"deployment-{slugify(deploy_config['name'])}-{slugify(deploy_config['flow_name'])}-repo-token"
             create_new_block = False
             prompt_message = (
                 "Please enter a token that can be used to access your private"
@@ -852,20 +765,20 @@ async def _generate_default_pull_action(
                 ).save(name=token_secret_block_name, overwrite=True)
 
         git_clone_step = {
-            "prefect.projects.steps.git_clone_project": {
+            "prefect.deployments.steps.git_clone": {
                 "repository": remote_url,
                 "branch": branch,
             }
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.projects.steps.git_clone_project"]["token"] = (
+            git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 
         return [git_clone_step]
     else:
-        entrypoint_path, _ = base_deploy["entrypoint"].split(":")
+        entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(
             "Your Prefect workers will attempt to load your flow from:"
             f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
@@ -874,8 +787,263 @@ async def _generate_default_pull_action(
         )
         return [
             {
-                "prefect.projects.steps.set_working_directory": {
+                "prefect.deployments.steps.set_working_directory": {
                     "directory": str(Path.cwd().absolute().resolve())
                 }
             }
         ]
+
+
+def _handle_deployment_yaml_copy(prefect_yaml_contents, ci):
+    """
+    Handle the deprecation of the deployment.yaml file by copying the
+    deployment configurations into the prefect.yaml file.
+
+    Remove this after December 2023.
+
+    Args:
+        prefect_yaml_contents: The contents of the prefect.yaml file
+        ci: Disables interactive mode if True
+    """
+    if is_interactive() and not ci and prefect_yaml_contents:
+        if confirm(
+            generate_deprecation_message(
+                "Using a `deployment.yaml` file with `prefect deploy`",
+                start_date="Jun 2023",
+                help=(
+                    "Would you like to copy the contents of your `deployment.yaml`"
+                    " file into your `prefect.yaml` file now?"
+                ),
+            )
+        ):
+            try:
+                _copy_deployments_into_prefect_file()
+                app.console.print(
+                    "Successfully copied your deployment configurations into your"
+                    " prefect.yaml file! Once you've verified that all your"
+                    " deployment configurations in your prefect.yaml file are"
+                    " correct, you can delete your deployment.yaml file."
+                )
+            except Exception:
+                app.console.print(
+                    "Encountered an error while copying deployments into"
+                    " prefect.yaml: {exc}"
+                )
+    else:
+        app.console.print(
+            generate_deprecation_message(
+                "Using a `deployment.yaml` file with `prefect deploy`",
+                start_date="Jun 2023",
+                help=(
+                    "Please use the `prefect.yaml` file instead by copying the"
+                    " contents of your `deployment.yaml` file into your"
+                    " `prefect.yaml` file."
+                ),
+            ),
+            style="yellow",
+        )
+
+
+def _load_deploy_configs_and_actions(ci=False) -> Tuple[List[Dict], Dict]:
+    """
+    Load deploy configs and actions from the prefect.yaml file.
+
+    Handles the deprecation of the deployment.yaml file.
+
+    Args:
+        ci: Disables interactive mode if True
+
+    Returns:
+        Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
+    """
+    try:
+        with open("prefect.yaml", "r") as f:
+            prefect_yaml_contents = yaml.safe_load(f)
+    except FileNotFoundError:
+        prefect_yaml_contents = {}
+
+    actions = {
+        "build": prefect_yaml_contents.get("build", []),
+        "push": prefect_yaml_contents.get("push", []),
+        "pull": prefect_yaml_contents.get("pull", []),
+    }
+
+    # TODO: Remove this after December 2023
+    try:
+        with open("deployment.yaml", "r") as f:
+            deployment_yaml_contents = yaml.safe_load(f)
+            if not deployment_yaml_contents:
+                deploy_configs = [{}]
+            elif deployment_yaml_contents.get("deployments"):
+                deploy_configs = deployment_yaml_contents["deployments"]
+            else:
+                deploy_configs = [deployment_yaml_contents]
+        _handle_deployment_yaml_copy(prefect_yaml_contents, ci)
+    except FileNotFoundError:
+        deploy_configs = prefect_yaml_contents.get("deployments", [])
+
+    return deploy_configs, actions
+
+
+def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
+    """
+    Return a list of deploy configs to deploy based on the given
+    deploy configs, names, and deploy_all flag.
+
+    Args:
+        deploy_configs: A list of deploy configs
+        names: A list of names of deploy configs to deploy
+        deploy_all: Whether to use all deploy configs
+        ci: Disables interactive mode if True
+
+    Returns:
+        List[Dict]: a list of deploy configs to deploy
+    """
+    if not deploy_configs:
+        return []
+    elif deploy_all:
+        return deploy_configs
+    elif (not is_interactive() or ci) and len(deploy_configs) == 1 and len(names) <= 1:
+        # No name is needed if there is only one deployment configuration
+        # and we are not in interactive mode
+        return deploy_configs
+    elif len(names) >= 1:
+        # Return all deployment configurations with the given names
+        matched_deploy_configs = [
+            deploy_config
+            for deploy_config in deploy_configs
+            if deploy_config.get("name") in names
+        ]
+        unfound_names = set(names) - {
+            deploy_config.get("name") for deploy_config in matched_deploy_configs
+        }
+        if unfound_names:
+            app.console.print(
+                (
+                    "The following deployment(s) could not be found and will not be"
+                    f" deployed: {' ,'.join(list(unfound_names))}"
+                ),
+                style="yellow",
+            )
+        if not matched_deploy_configs:
+            app.console.print(
+                (
+                    "Could not find any deployment configurations with the given"
+                    f" name(s): {' ,'.join(names)}. Your flow will be deployed with a"
+                    " new deployment configuration."
+                ),
+                style="yellow",
+            )
+        return matched_deploy_configs
+    elif is_interactive() and not ci:
+        # Prompt the user to select one or more deployment configurations
+        selectable_deploy_configs = [
+            deploy_config
+            for deploy_config in deploy_configs
+            if deploy_config.get("name")
+        ]
+        if not selectable_deploy_configs:
+            return []
+        selected_deploy_config = prompt_select_from_table(
+            app.console,
+            "Would you like to use an existing deployment configuration?",
+            [
+                {"header": "Name", "key": "name"},
+                {"header": "Entrypoint", "key": "entrypoint"},
+                {"header": "Description", "key": "description"},
+            ],
+            selectable_deploy_configs,
+            opt_out_message="No, configure a new deployment",
+            opt_out_response=None,
+        )
+        return [selected_deploy_config] if selected_deploy_config else []
+    elif len(deploy_configs) > 1:
+        raise ValueError(
+            "Discovered one or more deployment configurations, but"
+            " no name was given. Please specify the name of at least one"
+            " deployment to create or update."
+        )
+    else:
+        return []
+
+
+def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
+    """
+    Applies CLI options to a deploy config. CLI options take
+    precedence over values in the deploy config.
+
+    Args:
+        deploy_config: A deploy config
+        cli_options: A dictionary of CLI options
+
+    Returns:
+        Dict: a deploy config with CLI options applied
+    """
+    deploy_config = deepcopy(deploy_config)
+
+    # verification
+    if cli_options.get("param") and (cli_options.get("params") is not None):
+        raise ValueError("Can only pass one of `param` or `params` options")
+
+    # If there's more than one name, we can't set the name of the deploy config.
+    # The user will be prompted if running in interactive mode.
+    if len(cli_options.get("names", [])) == 1:
+        deploy_config["name"] = cli_options["names"][0]
+
+    variable_overrides = {}
+    for cli_option, cli_value in cli_options.items():
+        if (
+            cli_option in ["description", "entrypoint", "version", "tags", "flow_name"]
+            and cli_value
+        ):
+            deploy_config[cli_option] = cli_value
+
+        elif (
+            cli_option in ["work_pool_name", "work_queue_name", "variables"]
+            and cli_value
+        ):
+            if not isinstance(deploy_config.get("work_pool"), dict):
+                deploy_config["work_pool"] = {}
+            if cli_option == "work_pool_name":
+                deploy_config["work_pool"]["name"] = cli_value
+            elif cli_option == "variables":
+                for variable in cli_value or []:
+                    key, value = variable.split("=", 1)
+                    variable_overrides[key] = value
+                if not isinstance(deploy_config["work_pool"].get("variables"), dict):
+                    deploy_config["work_pool"]["job_variables"] = {}
+                deploy_config["work_pool"]["job_variables"].update(variable_overrides)
+            else:
+                deploy_config["work_pool"][cli_option] = cli_value
+
+        elif (
+            cli_option in ["cron", "interval", "anchor_date", "rrule", "timezone"]
+            and cli_value
+        ):
+            if not isinstance(deploy_config.get("schedule"), dict):
+                deploy_config["schedule"] = {}
+            deploy_config["schedule"][cli_option] = cli_value
+
+        elif cli_option in ["param", "params"] and cli_value:
+            parameters = dict()
+            if cli_option == "param":
+                for p in cli_value or []:
+                    k, unparsed_value = p.split("=", 1)
+                    try:
+                        v = json.loads(unparsed_value)
+                        app.console.print(
+                            f"The parameter value {unparsed_value} is parsed as a JSON"
+                            " string"
+                        )
+                    except json.JSONDecodeError:
+                        v = unparsed_value
+                    parameters[k] = v
+
+            if cli_option == "params" and cli_value is not None:
+                parameters = json.loads(cli_value)
+
+            if not isinstance(deploy_config.get("parameters"), dict):
+                deploy_config["parameters"] = {}
+            deploy_config["parameters"].update(parameters)
+
+    return deploy_config, variable_overrides

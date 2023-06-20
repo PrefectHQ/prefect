@@ -117,7 +117,7 @@ nav:
         - Flow & Task Configuration: tutorial/flow-task-config.md
         - Execution: tutorial/execution.md
         - Orchestration: tutorial/orchestration.md
-        - Projects: tutorial/projects.md
+        - Deployment Management: tutorial/deployments-ux.md
         - Deployments: tutorial/deployments.md
         - Storage & Infrastructure: tutorial/storage.md
     - Concepts:
@@ -135,7 +135,7 @@ nav:
             - Profiles & Configuration: concepts/settings.md
         - Deploy:
             - Deployments: concepts/deployments.md
-            - Projects: concepts/projects.md
+            - Deployment Management: concepts/deployments-ux.md
             - Work Pools, Workers & Agents: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
@@ -185,7 +185,6 @@ nav:
             - 'prefect.artifacts': api-ref/prefect/artifacts.md
             # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
-            - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
             - 'prefect.filesystems': api-ref/prefect/filesystems.md
@@ -193,11 +192,12 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.infrastructure': api-ref/prefect/infrastructure.md
             - 'prefect.logging': api-ref/prefect/logging.md
-            - 'prefect.projects':
-                - 'prefect.projects.base': api-ref/prefect/projects/base.md
-                - 'prefect.projects.steps.core': api-ref/prefect/projects/steps/core.md
-                - 'prefect.projects.steps.pull': api-ref/prefect/projects/steps/pull.md
-                - 'prefect.projects.steps.utility': api-ref/prefect/projects/steps/utility.md
+            - 'prefect.deployments':
+                - 'prefect.deployments.deployments': api-ref/prefect/deployments/deployments.md
+                - 'prefect.deployments.base': api-ref/prefect/deployments/base.md
+                - 'prefect.deployments.steps.core': api-ref/prefect/deployments/steps/core.md
+                - 'prefect.deployments.steps.pull': api-ref/prefect/deployments/steps/pull.md
+                - 'prefect.deployments.steps.utility': api-ref/prefect/deployments/steps/utility.md
             - 'prefect.runtime':
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md

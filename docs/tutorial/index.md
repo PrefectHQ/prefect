@@ -8,6 +8,8 @@ tags:
     - tasks
     - flows
     - subflows
+search:
+  boost: 2
 ---
 # Tutorial Overview
 

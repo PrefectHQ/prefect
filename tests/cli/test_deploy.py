@@ -15,12 +15,13 @@ import prefect
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
-from prefect.projects import register_flow
-from prefect.projects.base import create_default_deployment_yaml, initialize_project
+from prefect.deployments import register_flow
+from prefect.deployments.base import create_default_prefect_yaml, initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -74,7 +75,7 @@ def project_dir_with_single_deployment_format(tmp_path):
         os.chdir(tmp_path)
         initialize_project()
 
-        with open("deployment.yaml", "r") as f:
+        with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
         contents["deployments"][0]["schedule"] = None
@@ -89,7 +90,7 @@ def project_dir_with_single_deployment_format(tmp_path):
         os.chdir(tmp_path / "three-seven")
         initialize_project()
 
-        with open("deployment.yaml", "r") as f:
+        with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
         contents["deployments"][0]["schedule"] = None
@@ -126,6 +127,17 @@ class TestProjectDeploySingleDeploymentYAML:
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar"
             ),
+            expected_code=0,
+            # check for deprecation message
+            expected_output_contains=[
+                "An important name/test-name",
+                "Using a `deployment.yaml` file with `prefect deploy`",
+                (
+                    "Please use the `prefect.yaml` file instead by copying the"
+                    " contents of your `deployment.yaml` file into your `prefect.yaml`"
+                    " file."
+                ),
+            ],
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -140,13 +152,9 @@ class TestProjectDeploySingleDeploymentYAML:
         assert deployment.infra_overrides == {"env": "prod"}
 
     async def test_project_deploy_with_no_deployment_file(
-        self, project_dir_with_single_deployment_format, prefect_client
+        self, project_dir, prefect_client
     ):
         # delete deployment.yaml
-        deployment_file = Path(
-            project_dir_with_single_deployment_format, "deployment.yaml"
-        )
-        deployment_file.unlink()
 
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -367,16 +375,13 @@ class TestProjectDeploySingleDeploymentYAML:
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
         await register_flow("flows/hello.py:my_flow")
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
+        deploy_config = {
+            "name": "test-name",
+            "flow_name": "An important name",
+            "work_pool": {"name": work_pool.name},
+        }
 
-        deploy_config["name"] = "test-name"
-        deploy_config["flow_name"] = "An important name"
-        deploy_config["work_pool"]["name"] = work_pool.name
-
-        with deployment_file.open(mode="w") as f:
+        with Path("deployment.yaml").open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
@@ -389,7 +394,7 @@ class TestProjectDeploySingleDeploymentYAML:
     async def test_project_deploy_reads_entrypoint_from_deployment_yaml(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
-        create_default_deployment_yaml(".")
+        create_default_prefect_yaml(".")
         deployment_file = Path("deployment.yaml")
         with deployment_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -411,7 +416,7 @@ class TestProjectDeploySingleDeploymentYAML:
     async def test_project_deploy_exits_with_name_and_entrypoint_passed(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
-        create_default_deployment_yaml(".")
+        create_default_prefect_yaml(".")
         deployment_file = Path("deployment.yaml")
         with deployment_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -426,16 +431,16 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command="deploy -f 'An important name' flows/hello.py:my_flow",
             expected_code=1,
-            expected_output=(
+            expected_output_contains=[
                 "Received an entrypoint and a flow name for this deployment. Please"
                 " provide either an entrypoint or a flow name."
-            ),
+            ],
         )
 
     async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
-        create_default_deployment_yaml(".")
+        create_default_prefect_yaml(".")
         deployment_file = Path("deployment.yaml")
         with deployment_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -452,6 +457,42 @@ class TestProjectDeploySingleDeploymentYAML:
             expected_code=1,
             expected_output_contains="An entrypoint or flow name must be provided.",
         )
+
+    @pytest.mark.usefixtures(
+        "project_dir_with_single_deployment_format", "interactive_console"
+    )
+    async def test_migrate_from_deployment_yaml_to_prefect_yaml(self, work_pool):
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["work_pool"]["name"] = work_pool.name
+        deploy_config["schedule"] = {"interval": 3600}
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input="y"
+            + readchar.key.ENTER
+            + readchar.key.ENTER
+            + "n"
+            + readchar.key.ENTER,
+            expected_code=0,
+        )
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "test-name"
+        assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][0]["schedule"] == {"interval": 3600}
+        assert config["deployments"][0]["work_pool"]["name"] == work_pool.name
 
 
 class TestProjectDeploy:
@@ -484,10 +525,6 @@ class TestProjectDeploy:
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client
     ):
-        # delete deployment.yaml
-        deployment_file = Path(project_dir, "deployment.yaml")
-        deployment_file.unlink()
-
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
@@ -531,7 +568,6 @@ class TestProjectDeploy:
         @pytest.fixture
         def uninitialized_project_dir(self, project_dir):
             Path(project_dir, "prefect.yaml").unlink()
-            Path(project_dir, "deployment.yaml").unlink()
             return project_dir
 
         @pytest.fixture
@@ -569,13 +605,12 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir)
                     }
                 }
             ]
 
-        @pytest.mark.usefixtures("interactive_console")
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
             work_pool,
@@ -597,7 +632,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_no_remote)
                     }
                 }
@@ -617,8 +652,9 @@ class TestProjectDeploy:
                     f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
                     " --interval 60"
                 ),
-                # User rejects pulling from the remote repo
-                user_input="n" + readchar.key.ENTER,
+                # User rejects pulling from the remote repo and rejects saving the
+                # deployment configuration
+                user_input="n" + readchar.key.ENTER + "n" + readchar.key.ENTER,
                 expected_code=0,
             )
 
@@ -627,7 +663,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.set_working_directory": {
+                    "prefect.deployments.steps.set_working_directory": {
                         "directory": str(uninitialized_project_dir_with_git_with_remote)
                     }
                 }
@@ -660,6 +696,9 @@ class TestProjectDeploy:
                     # Choose public repo
                     "n"
                     + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "Would you like your workers to pull your flow code from its remote"
@@ -672,7 +711,17 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://example.com/org/repo.git",
+                        "branch": "main",
+                    }
+                }
+            ]
+
+            prefect_file_contents = yaml.safe_load(Path("prefect.yaml").read_text())
+            assert prefect_file_contents["pull"] == [
+                {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                     }
@@ -716,6 +765,9 @@ class TestProjectDeploy:
                     # Choose public repo
                     "n"
                     + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "Would you like your workers to pull your flow code from its remote"
@@ -728,7 +780,7 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo-override.git",
                         "branch": "dev",
                     }
@@ -765,6 +817,9 @@ class TestProjectDeploy:
                     # Enter token
                     + "my-token"
                     + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "Would you like your workers to pull your flow code from its remote"
@@ -777,10 +832,10 @@ class TestProjectDeploy:
             )
             assert deployment.pull_steps == [
                 {
-                    "prefect.projects.steps.git_clone_project": {
+                    "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
-                        "token": (
+                        "access_token": (
                             "{{ prefect.blocks.secret.deployment-test-name-an-important-name-repo-token }}"
                         ),
                     }
@@ -793,47 +848,38 @@ class TestProjectDeploy:
             assert token_block.get() == "my-token"
 
     async def test_project_deploy_with_empty_dep_file(
-        self, project_dir, prefect_client
+        self, project_dir, prefect_client, work_pool
     ):
-        # delete deployment.yaml and rewrite as empty
-        deployment_file = Path(project_dir, "deployment.yaml")
-        deployment_file.unlink()
-
+        deployment_file = project_dir / "deployment.yaml"
         with deployment_file.open(mode="w") as f:
             f.write("{}")
 
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
-        result = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=["An important name/test"],
         )
-        assert result.exit_code == 0
-        assert "An important name/test" in result.output
-
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
         assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.work_pool_name == "test-work-pool"
 
-    async def test_project_deploy_templates_values(self, project_dir, prefect_client):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
-
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_values(self, work_pool, prefect_client):
         # prepare a templated deployment
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
+        contents["deployments"][0]["name"] = "test-name"
         contents["deployments"][0]["version"] = "{{ input }}"
         contents["deployments"][0]["tags"] = "{{ output2 }}"
         contents["deployments"][0]["description"] = "{{ output1 }}"
 
         # save it back
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(contents, f)
 
         # update prefect.yaml to include a new build step
@@ -852,7 +898,7 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -861,16 +907,17 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
         assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.work_pool_name == "test-work-pool"
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "1"
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_with_default_parameters(
-        self, project_dir, prefect_client, work_pool
+        self, prefect_client, work_pool
     ):
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["parameters"] = {
@@ -881,12 +928,12 @@ class TestProjectDeploy:
         deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -902,24 +949,24 @@ class TestProjectDeploy:
     async def test_project_deploy_with_default_parameters_from_cli(
         self, project_dir, prefect_client, work_pool, option
     ):
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["parameters"] = {
+        config["deployments"][0]["parameters"] = {
             "number": 1,
             "message": "hello",
         }
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
-        deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
+        config["deployments"][0]["name"] = "test-name"
+        config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
+        config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy {option}",
+            command=f"deploy -n test-name {option}",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
@@ -929,8 +976,9 @@ class TestProjectDeploy:
         )
         assert deployment.parameters == {"number": 2, "message": "hello"}
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_pull_step_safely(
-        self, project_dir, prefect_client
+        self, work_pool, prefect_client
     ):
         """
         We want step outputs to get templated, but block references to only be
@@ -938,9 +986,6 @@ class TestProjectDeploy:
         """
 
         await Secret(value="super-secret-name").save(name="test-secret")
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
 
         # update prefect.yaml to include a new build step
         prefect_file = Path("prefect.yaml")
@@ -966,7 +1011,7 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -983,68 +1028,65 @@ class TestProjectDeploy:
             }
         ]
 
-    async def test_project_deploy_reads_flow_name_from_deployment_yaml(
-        self, project_dir, prefect_client, work_pool
-    ):
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_reads_flow_name_from_prefect_yaml(self, work_pool):
         await register_flow("flows/hello.py:my_flow")
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        create_default_prefect_yaml(".")
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["flow_name"] = "An important name"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
 
-    async def test_project_deploy_reads_entrypoint_from_deployment_yaml(
-        self, project_dir, prefect_client, work_pool
-    ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_reads_entrypoint_from_prefect_yaml(self, work_pool):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=0,
             expected_output_contains="An important name/test-name",
         )
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_exits_with_name_and_entrypoint_passed(
-        self, project_dir, prefect_client, work_pool
+        self, work_pool
     ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -f 'An important name' flows/hello.py:my_flow",
+            command="deploy -f 'An important name' -n test-name flows/hello.py:my_flow",
             expected_code=1,
             expected_output=(
                 "Received an entrypoint and a flow name for this deployment. Please"
@@ -1052,23 +1094,23 @@ class TestProjectDeploy:
             ),
         )
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_exits_with_no_name_or_entrypoint_configured(
-        self, project_dir, prefect_client, work_pool
+        self, work_pool
     ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name",
             expected_code=1,
             expected_output_contains="An entrypoint or flow name must be provided.",
         )
@@ -1081,7 +1123,10 @@ class TestProjectDeploy:
                 f"deploy ./flows/hello.py:my_flow -p {work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input="test-prompt-name" + readchar.key.ENTER,
+            user_input="test-prompt-name"
+            + readchar.key.ENTER
+            + "n"
+            + readchar.key.ENTER,
             expected_output_contains=[
                 "Deployment name",
             ],
@@ -1102,7 +1147,7 @@ class TestProjectDeploy:
             expected_code=1,
             expected_output_contains=[
                 "A work pool is required to deploy this flow. Please specify a"
-                " work pool name via the '--pool' flag or in your deployment.yaml file."
+                " work pool name via the '--pool' flag or in your prefect.yaml file."
             ],
         )
 
@@ -1114,7 +1159,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
                 "Which work pool would you like to deploy this flow to?",
             ],
@@ -1138,7 +1183,7 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name}"
             ),
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "Cannot create a project-style deployment with work pool of type"
                 " 'prefect-agent'. If you wish to use an agent with your deployment,"
                 " please use the `prefect deployment build` command."
@@ -1156,7 +1201,7 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
                 (
                     "You've chosen a work pool with type 'prefect-agent' which cannot"
@@ -1191,6 +1236,9 @@ class TestProjectDeploy:
                 # Enter a name for the new work pool
                 "test-created-via-deploy"
                 + readchar.key.ENTER
+                # Decline save
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 (
@@ -1216,7 +1264,6 @@ class TestProjectDeploy:
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
         await register_flow("flows/hello.py:my_flow")
-        create_default_deployment_yaml(".")
         deployment_file = Path("deployment.yaml")
         with deployment_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -1241,7 +1288,6 @@ class TestProjectDeploy:
         self, project_dir_with_single_deployment_format, prefect_client, work_pool
     ):
         await register_flow("flows/hello.py:my_flow")
-        create_default_deployment_yaml(".")
         deployment_file = Path("deployment.yaml")
         with deployment_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -1262,11 +1308,81 @@ class TestProjectDeploy:
             ),
         )
 
+    @pytest.mark.usefixtures(
+        "project_dir_with_single_deployment_format", "interactive_console"
+    )
+    async def test_migrate_from_deployment_yaml_to_prefect_yaml(self, work_pool):
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "schedule": {
+                    "interval": 3600,
+                },
+            }
+        ]
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # accept migration
+                "y"
+                + readchar.key.ENTER
+                +
+                # choose existing deployment configuration
+                readchar.key.ENTER
+                +
+                # accept save
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully copied your deployment configurations into your"
+                " prefect.yaml file! Once you've verified that all your deployment"
+                " configurations in your prefect.yaml file are correct, you can delete"
+                " your deployment.yaml file."
+            ],
+        )
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "test-name"
+        assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][0]["schedule"] == {"interval": 3600}
+        assert config["deployments"][0]["work_pool"]["name"] == work_pool.name
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_entrypoint_does_not_fail_with_missing_prefect_folder(
+        self, work_pool
+    ):
+        Path(".prefect").rmdir()
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                "Deployment 'An important name/test-name' successfully created"
+            ],
+        )
+
 
 class TestSchedules:
-    async def test_passing_cron_schedules_to_deploy(
-        self, project_dir, work_pool, prefect_client
-    ):
+    @pytest.mark.usefixtures("project_dir")
+    async def test_passing_cron_schedules_to_deploy(self, work_pool, prefect_client):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1282,18 +1398,17 @@ class TestSchedules:
         assert deployment.schedule.cron == "0 4 * * *"
         assert deployment.schedule.timezone == "Europe/Berlin"
 
-    async def test_deployment_yaml_cron_schedule(
-        self, project_dir, work_pool, prefect_client
-    ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deployment_yaml_cron_schedule(self, work_pool, prefect_client):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         result = await run_sync_in_worker_thread(
@@ -1310,18 +1425,19 @@ class TestSchedules:
         assert deployment.schedule.cron == "0 4 * * *"
         assert deployment.schedule.timezone == "America/Chicago"
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_deployment_yaml_cron_schedule_timezone_cli(
-        self, project_dir, work_pool, prefect_client
+        self, work_pool, prefect_client
     ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         result = await run_sync_in_worker_thread(
@@ -1339,8 +1455,9 @@ class TestSchedules:
         assert deployment.schedule.cron == "0 4 * * *"
         assert deployment.schedule.timezone == "Europe/Berlin"
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_passing_interval_schedules_to_deploy(
-        self, project_dir, work_pool, prefect_client
+        self, work_pool, prefect_client
     ):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1359,19 +1476,18 @@ class TestSchedules:
         assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/New_York"
 
-    async def test_interval_schedule_deployment_yaml(
-        self, project_dir, prefect_client, work_pool
-    ):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_interval_schedule_deployment_yaml(self, prefect_client, work_pool):
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
+        deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["interval"] = 42
         deploy_config["deployments"][0]["schedule"]["anchor_date"] = "2040-02-02"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_yaml.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         result = await run_sync_in_worker_thread(
@@ -1389,7 +1505,8 @@ class TestSchedules:
         assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/Chicago"
 
-    async def test_passing_anchor_without_interval_exits(self, project_dir):
+    @pytest.mark.usefixtures("project_dir")
+    async def test_passing_anchor_without_interval_exits(self):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1401,8 +1518,9 @@ class TestSchedules:
             ),
         )
 
+    @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
-        self, project_dir, prefect_client, work_pool
+        self, prefect_client, work_pool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1422,17 +1540,17 @@ class TestSchedules:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
-    async def test_rrule_deployment_yaml(self, project_dir, work_pool, prefect_client):
-        create_default_deployment_yaml(".")
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="r") as f:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_rrule_deployment_yaml(self, work_pool, prefect_client):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
         deploy_config["deployments"][0]["schedule"][
             "rrule"
         ] = "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
 
-        with deployment_file.open(mode="w") as f:
+        with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
 
         await run_sync_in_worker_thread(
@@ -1453,6 +1571,7 @@ class TestSchedules:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
+    @pytest.mark.usefixtures("project_dir")
     @pytest.mark.parametrize(
         "schedules",
         [
@@ -1462,15 +1581,13 @@ class TestSchedules:
             ["--rrule", "rrule-str", "--cron", "cron-str", "--interval", "42"],
         ],
     )
-    async def test_providing_multiple_schedules_exits_with_error(
-        self, project_dir, schedules
-    ):
+    async def test_providing_multiple_schedules_exits_with_error(self, schedules):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name "
             + " ".join(schedules),
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains=["Only one schedule type can be provided."],
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
@@ -1499,6 +1616,9 @@ class TestSchedules:
                 +
                 # Enter valid interval
                 "42"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -1543,6 +1663,10 @@ class TestSchedules:
                 +
                 # Select default timezone
                 readchar.key.ENTER
+                +
+                # Decline save
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_contains=[
@@ -1587,6 +1711,10 @@ class TestSchedules:
                 +
                 # Select default timezone
                 readchar.key.ENTER
+                +
+                # Decline save
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
         )
@@ -1610,6 +1738,9 @@ class TestSchedules:
                 # Decline schedule creation
                 "n"
                 + readchar.key.ENTER
+                # Decline save
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
         )
@@ -1630,6 +1761,11 @@ class TestSchedules:
                 f" {work_pool.name} --ci"
             ),
             expected_code=0,
+            expected_output_contains=(
+                "The `--ci` flag has been deprecated. It will not be available after"
+                " Dec 2023. Please use the global `--no-prompt` flag instead: `prefect"
+                " --no-prompt deploy`."
+            ),
         )
 
         deployment = await prefect_client.read_deployment_by_name(
@@ -1639,28 +1775,28 @@ class TestSchedules:
 
 
 class TestMultiDeploy:
-    async def test_deploy_all(self, project_dir, prefect_client, work_pool):
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all(self, prefect_client, work_pool):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
         # Create multiple deployments
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-2",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
-
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
         # Deploy all
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1693,32 +1829,30 @@ class TestMultiDeploy:
     async def test_deploy_selected_deployments(
         self, project_dir, prefect_client, work_pool
     ):
-        create_default_deployment_yaml(".")
-        # Create three deployments
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-2",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-3",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-3",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy only two deployments by name
         await run_sync_in_worker_thread(
@@ -1770,27 +1904,26 @@ class TestMultiDeploy:
     async def test_deploy_single_with_cron_schedule(
         self, project_dir, prefect_client, work_pool
     ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
         # Create multiple deployments
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-2",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
-
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
         # Deploy a single deployment with a cron schedule
         cron_schedule = "0 * * * *"
         await run_sync_in_worker_thread(
@@ -1826,26 +1959,26 @@ class TestMultiDeploy:
     async def test_deploy_multiple_with_cli_options(
         self, project_dir, prefect_client, work_pool, deployment_selector_options
     ):
-        # Create multiple deployments
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-2",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
+        # Create multiple deployments
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy multiple deployments with CLI options
         await run_sync_in_worker_thread(
@@ -1882,26 +2015,26 @@ class TestMultiDeploy:
     async def test_deploy_with_cli_option_name(
         self, project_dir, prefect_client, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                }
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
 
-        # Deploy the deployment with an invalid name
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy --name from-cli-name",
+            command=(
+                "deploy --name from-cli-name --pool"
+                f" {work_pool.name} ./flows/hello.py:my_flow"
+            ),
             expected_code=0,
             expected_output_contains=[
                 "Deployment 'An important name/from-cli-name' successfully created"
@@ -1921,31 +2054,29 @@ class TestMultiDeploy:
         deployment.name = "from-cli-name"
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_deploy_without_name_in_deployment_yaml(
-        self, prefect_client, work_pool
-    ):
-        # Create multiple deployments with one missing a name
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    # Missing name
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-            ]
-        }
+    async def test_deploy_without_name_in_prefect_yaml(self, prefect_client, work_pool):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
+        # Create multiple deployments
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                # Missing name
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Attempt to deploy all
         await run_sync_in_worker_thread(
@@ -1961,30 +2092,31 @@ class TestMultiDeploy:
             )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_without_name_in_deployment_yaml_interactive(
+    async def test_deploy_without_name_in_prefect_yaml_interactive(
         self, prefect_client, work_pool
     ):
-        # Create multiple deployments with one missing a name
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    # Missing name
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        with open("deployment.yaml", "w") as f:
-            yaml.dump(deployments, f)
+        # Create multiple deployments
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                # Missing name
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Attempt to deploy all
         await run_sync_in_worker_thread(
@@ -2004,30 +2136,31 @@ class TestMultiDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_without_name_in_deployment_yaml_interactive_user_skips(
+    async def test_deploy_without_name_in_prefect_yaml_interactive_user_skips(
         self, prefect_client: PrefectClient, work_pool
     ):
-        # Create multiple deployments with one missing a name
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    # Missing name
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        with open("deployment.yaml", "w") as f:
-            yaml.dump(deployments, f)
+        # Create multiple deployments
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                # Missing name
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Attempt to deploy all
         await run_sync_in_worker_thread(
@@ -2044,28 +2177,28 @@ class TestMultiDeploy:
 
         assert len(await prefect_client.read_deployments()) == 1
 
-    async def test_deploy_with_name_not_in_deployment_yaml(
+    async def test_deploy_with_name_not_in_prefect_yaml(
         self, project_dir, prefect_client, work_pool
     ):
-        # Create multiple deployments with one missing a name
-        deployments = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-2",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        with open("deployment.yaml", "w") as f:
-            yaml.dump(deployments, f)
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Attempt to deploy all
         await run_sync_in_worker_thread(
@@ -2094,25 +2227,24 @@ class TestMultiDeploy:
     async def test_deploy_with_single_deployment_with_name_in_file(
         self, project_dir, prefect_client, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "name": "test-name-1",
-                    "work_pool": {"name": work_pool.name},
-                }
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        with open("deployment.yaml", "w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
 
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy",
+            command="deploy -n test-name-1",
             expected_code=0,
             expected_output_contains=[
                 "An important name/test-name-1",
@@ -2129,12 +2261,14 @@ class TestMultiDeploy:
     async def test_deploy_errors_with_empty_deployments_list_and_no_cli_options(
         self, project_dir
     ):
-        # Create a deployment
-        deployment = {"deployments": []}
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        with open("deployment.yaml", "w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = []
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
@@ -2149,19 +2283,18 @@ class TestMultiDeploy:
     async def test_deploy_single_allows_options_override(
         self, project_dir, prefect_client, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "name": "test-name-1",
-                }
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
@@ -2188,26 +2321,25 @@ class TestMultiDeploy:
     async def test_deploy_single_deployment_with_name_in_cli(
         self, project_dir, prefect_client, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "name": "test-name-1",
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "name": "test-name-2",
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
@@ -2229,25 +2361,23 @@ class TestMultiDeploy:
     async def test_deploy_exits_with_multiple_deployments_with_no_name(
         self, project_dir
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "name": "test-name-1",
-                    "entrypoint": "./flows/hello.py:my_flow",
-                },
-                {
-                    "name": "test-name-2",
-                    "entrypoint": "./flows/hello.py:my_flow",
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+            },
+        ]
 
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2255,7 +2385,7 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Discovered multiple deployments declared in deployment.yaml, but"
+                    "Discovered one or more deployment configurations, but"
                     " no name was given. Please specify the name of at least one"
                     " deployment to create or update."
                 ),
@@ -2265,24 +2395,23 @@ class TestMultiDeploy:
     async def test_deploy_with_single_deployment_with_no_name(
         self, project_dir, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "work_pool": {"name": work_pool.name},
-                },
-                {
-                    "entrypoint": "./flows/hello.py:my_flow",
-                    "work_pool": {"name": work_pool.name},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
@@ -2291,41 +2420,40 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Could not find deployment declaration with name "
-                    "test-name-1 in deployment.yaml. Only CLI options "
-                    "will be used for this deployment."
+                    "Could not find any deployment configurations with the given"
+                    " name(s): test-name-1. Your flow will be deployed with a new"
+                    " deployment configuration."
                 ),
             ],
         )
 
-    async def test_deploy_exits_with_single_deployment_and_multiple_names(
-        self, project_dir
+    async def test_deploy_warns_with_single_deployment_and_multiple_names(
+        self, project_dir, work_pool
     ):
-        # Create a deployment
-        deployment = {
-            "deployments": [
-                {
-                    "name": "test-name-1",
-                    "entrypoint": "./flows/hello.py:my_flow",
-                }
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save the deployment to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployment, f)
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name-1 -n test-name-2",
-            expected_code=1,
+            expected_code=0,
             expected_output_contains=[
                 (
-                    "Multiple deployment names were provided, but only one deployment"
-                    " was found in deployment.yaml. Please provide a single deployment"
-                    " name."
+                    "The following deployment(s) could not be found and will not be"
+                    " deployed: test-name-2"
                 ),
             ],
         )
@@ -2334,38 +2462,37 @@ class TestMultiDeploy:
     async def test_deploy_select_from_existing_deployments(
         self, work_pool, prefect_client
     ):
-        deployments = {
-            "deployments": [
-                {
-                    "name": "test-name-1",
-                    "description": "test-description-1",
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-                {
-                    "name": "test-name-2",
-                    "description": "test-description-2",
-                    "work_pool": {"name": work_pool.name},
-                    "schedule": {"interval": 3600},
-                },
-            ]
-        }
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
 
-        # Save deployments to deployment.yaml
-        deployment_file = Path("deployment.yaml")
-        with deployment_file.open(mode="w") as f:
-            yaml.dump(deployments, f)
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "description": "test-description-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+            {
+                "name": "test-name-2",
+                "description": "test-description-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+                "schedule": {"interval": 3600},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow",
+            command="deploy",
             expected_code=0,
-            user_input=readchar.key.ENTER,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
             expected_output_contains=[
-                (
-                    "Would you like to use an existing deployment configuration from"
-                    " deployment.yaml?"
-                ),
+                "Would you like to use an existing deployment configuration?",
                 "test-name-1",
                 "test-name-2",
                 "test-description-1",
@@ -2377,3 +2504,503 @@ class TestMultiDeploy:
             "An important name/test-name-1"
         )
         assert deployment.name == "test-name-1"
+
+    @pytest.mark.usefixtures(
+        "project_dir_with_single_deployment_format", "interactive_console"
+    )
+    async def test_migrate_from_deployment_yaml_to_prefect_yaml(self, work_pool):
+        deployment_file = Path("deployment.yaml")
+        with deployment_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "schedule": {
+                    "interval": 3600,
+                },
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "schedule": {
+                    "interval": 3600,
+                },
+            },
+        ]
+
+        with deployment_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name-1",
+            # accept migration
+            user_input="y" + readchar.key.ENTER,
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully copied your deployment configurations into your"
+                " prefect.yaml file! Once you've verified that all your deployment"
+                " configurations in your prefect.yaml file are correct, you can delete"
+                " your deployment.yaml file."
+            ],
+        )
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][0]["name"] == "test-name-1"
+        assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][0]["schedule"] == {"interval": 3600}
+        assert config["deployments"][0]["work_pool"]["name"] == work_pool.name
+        assert config["deployments"][1]["name"] == "test-name-2"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] == {"interval": 3600}
+        assert config["deployments"][1]["work_pool"]["name"] == work_pool.name
+
+
+@pytest.mark.usefixtures("interactive_console", "project_dir")
+class TestSaveUserInputs:
+    def test_save_user_inputs_no_existing_prefect_file(self):
+        prefect_file = Path("prefect.yaml")
+        prefect_file.unlink()
+        assert not prefect_file.exists()
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        assert prefect_file.exists()
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "default"
+        assert config["deployments"][0]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][0]["schedule"] is None
+        assert config["deployments"][0]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_existing_prefect_file(self):
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_with_interval_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["interval"] == 3600
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+        assert config["deployments"][1]["schedule"]["anchor_date"] is not None
+
+    def test_save_user_inputs_with_cron_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select cron schedule
+                readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # enter cron schedule
+                "* * * * *"
+                + readchar.key.ENTER
+                +
+                # accept default timezone
+                readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["cron"] == "* * * * *"
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+        assert config["deployments"][1]["schedule"]["day_or"]
+
+    def test_save_user_inputs_with_rrule_schedule(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select rrule schedule
+                readchar.key.DOWN
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # enter rrule schedule
+                "FREQ=MINUTELY"
+                + readchar.key.ENTER
+                +
+                # accept default timezone
+                readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
+        assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployWithoutEntrypoint:
+    async def test_deploy_without_entrypoint(self, prefect_client: PrefectClient):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Accept first flow
+                readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "test_flow",
+                "import-project/my_module/flow.py",
+                "prod_flow",
+                "import-project/my_module/flow.py",
+                "foobar",
+                "nested-project/implicit_relative.py",
+                "nested-project/explicit_relative.py",
+                "my_flow",
+                "flows/hello.py",
+                "successfully created",
+            ],
+        )
+
+    async def test_deploy_without_entrypoint_manually_enter(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Decline selecting from list
+                "n"
+                +
+                # Enter entrypoint
+                "flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "Flow entrypoint (expected format path/to/file.py:function_name)",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "flows/hello.py:my_flow"
+
+    async def test_deploy_validates_manually_entered_entrypoints(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Decline selecting from list
+                "n"
+                +
+                # Enter syntactically invalid entrypoint
+                "flows/hello.py"
+                + readchar.key.ENTER
+                +
+                # Enter entrypoint with non-existent file
+                "flows/does_not_exist.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Enter entrypoint with non-existent function
+                "flows/hello.py:does_not_exist"
+                + readchar.key.ENTER
+                +
+                # Enter valid entrypoint
+                "flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "Please enter a valid flow entrypoint.",
+                "Failed to load flow from entrypoint 'flows/does_not_exist.py:my_flow'",
+                "Failed to load flow from entrypoint 'flows/hello.py:does_not_exist'",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "flows/hello.py:my_flow"
+
+    async def test_deploy_without_entrypoint_no_flows_found(
+        self, prefect_client: PrefectClient
+    ):
+        Path("test_nested_folder").mkdir()
+        os.chdir("test_nested_folder")
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Enter valid entrypoint from sibling directory
+                "../flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Flow entrypoint (expected format path/to/file.py:function_name)",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "../flows/hello.py:my_flow"

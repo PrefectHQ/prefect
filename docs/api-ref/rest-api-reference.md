@@ -2,7 +2,7 @@
 description: Prefect REST API interactive reference.
 tags:
     - REST API
-    - Prefect Cloud
+    - Prefect server
 hide:
     - toc
 title: Prefect Server REST API reference
