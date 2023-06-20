@@ -1,5 +1,29 @@
 # Prefect Release Notes
 
+## Release 2.10.16
+
+### Enhancements
+- Added option to specify work queue priority during creation from cli — https://github.com/PrefectHQ/prefect/pull/9999
+- Added hint to "Invalid timezone" error message — https://github.com/PrefectHQ/prefect/pull/10007
+
+### Fixes
+- Fixed wrong key used in generated `git_clone` step — https://github.com/PrefectHQ/prefect/pull/9997
+
+### Deprecations
+- Deprecated `prefect deploy` `--ci` flag — https://github.com/PrefectHQ/prefect/pull/10002
+
+### Documentation
+- Updated events section for cloud docs index.md — https://github.com/PrefectHQ/prefect/pull/9904
+- Fixed typo in webhooks documentation — https://github.com/PrefectHQ/prefect/pull/10003
+
+### Integrations
+- Fixed bug in `KubernetesWorker` where flow runs crashed during submission - https://github.com/PrefectHQ/prefect-kubernetes/pull/76
+### Contributors
+- @kkdenk made their first contribution in https://github.com/PrefectHQ/prefect/pull/9904
+- @rito-sixt
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.15...2.10.16
+
 ## Release 2.10.15
 
 ## Introducing deployment configuration saving in `prefect deploy`
