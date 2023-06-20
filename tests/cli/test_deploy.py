@@ -477,7 +477,11 @@ class TestProjectDeploySingleDeploymentYAML:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            user_input="y" + readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input="y"
+            + readchar.key.ENTER
+            + readchar.key.ENTER
+            + "n"
+            + readchar.key.ENTER,
             expected_code=0,
         )
 

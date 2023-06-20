@@ -298,16 +298,16 @@ async def _run_single_deploy(
 
     if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
         if not is_interactive() and not ci:
-          raise ValueError(
-              "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
-              " entrypoint:\n\n\t[yellow]prefect deploy"
-              " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
-              " name:\n\n\t[yellow]prefect project register-flow"
-              " path/to/file.py:flow_function\n\tprefect deploy --flow"
-              " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-              " name in this project's prefect.yaml file."
-          )
-        entrypoint = await prompt_entrypoint(app.console)
+            raise ValueError(
+                "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
+                " entrypoint:\n\n\t[yellow]prefect deploy"
+                " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
+                " name:\n\n\t[yellow]prefect project register-flow"
+                " path/to/file.py:flow_function\n\tprefect deploy --flow"
+                " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
+                " name in this project's prefect.yaml file."
+            )
+        deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
     if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
         raise ValueError(
             "Received an entrypoint and a flow name for this deployment. Please provide"
