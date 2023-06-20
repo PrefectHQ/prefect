@@ -2,9 +2,9 @@
 
 ## Release 2.10.16
 
-### Run `prefect deploy` without a flow entrypoint
+### Run `prefect deploy` without a providing flow entrypoint
 
-With release we've made it easier to deploy your first flow! Previously you needed to have a flow entrypoint in order to deploy a flow. Now, you can run `prefect deploy` and then select which flow you want to deploy as part of the interactive deployment process.
+We're making it easier than ever to deploy your first flow! Previously you needed to have a flow entrypoint in order to deploy a flow. Now, you can run `prefect deploy` and then select which flow you want to deploy as part of the interactive deployment process.
 
 ![flow selector example](https://user-images.githubusercontent.com/12350579/247144440-d89916d4-cbf1-408e-9959-45df94a35f8d.png)
 
@@ -13,21 +13,21 @@ For more details on implementation, see the following pull request:
 
 ### Enhancements
 
-- Added option to specify work queue priority during creation from cli — https://github.com/PrefectHQ/prefect/pull/9999
-- Added hint to "Invalid timezone" error message — https://github.com/PrefectHQ/prefect/pull/10007
+- Add option to specify work queue priority during creation from CLI — https://github.com/PrefectHQ/prefect/pull/9999
+- Improve 'Invalid timezone' error message — https://github.com/PrefectHQ/prefect/pull/10007
 
 ### Fixes
-- Fixed wrong key used in generated `git_clone` step — https://github.com/PrefectHQ/prefect/pull/9997
+- Fix wrong key used in generated `git_clone` step — https://github.com/PrefectHQ/prefect/pull/9997
 
 ### Deprecations
-- Deprecated `prefect deploy` `--ci` flag — https://github.com/PrefectHQ/prefect/pull/10002
+- Deprecate `prefect deploy` `--ci` flag — https://github.com/PrefectHQ/prefect/pull/10002
 
 ### Documentation
-- Updated events section for cloud docs index.md — https://github.com/PrefectHQ/prefect/pull/9904
-- Fixed typo in webhooks documentation — https://github.com/PrefectHQ/prefect/pull/10003
+- Update events section in Prefect Cloud documentation — https://github.com/PrefectHQ/prefect/pull/9904
+- Fix typo in webhooks documentation — https://github.com/PrefectHQ/prefect/pull/10003
 
 ### Integrations
-- Fixed bug in `KubernetesWorker` where flow runs crashed during submission - https://github.com/PrefectHQ/prefect-kubernetes/pull/76
+- Fix bug in `KubernetesWorker` where flow runs crashed during submission - https://github.com/PrefectHQ/prefect-kubernetes/pull/76
 ### Contributors
 - @kkdenk made their first contribution in https://github.com/PrefectHQ/prefect/pull/9904
 - @rito-sixt
