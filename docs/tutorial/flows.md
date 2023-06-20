@@ -13,7 +13,7 @@ tags:
 
 [Flows](/concepts/flows/) are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- State transitions are recorded, allowing for flow execution to be observed.
+- It has a [state](/concepts/states/), which determines when it can run. Transitions between states are recorded, allowing for flow execution to be observed.
 - Input arguments types can be validated.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
