@@ -22,6 +22,7 @@ from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
@@ -1756,6 +1757,11 @@ class TestSchedules:
                 f" {work_pool.name} --ci"
             ),
             expected_code=0,
+            expected_output_contains=(
+                "The `--ci` flag has been deprecated. It will not be available after"
+                " Dec 2023. Please use the global `--no-prompt` flag instead: `prefect"
+                " --no-prompt deploy`."
+            ),
         )
 
         deployment = await prefect_client.read_deployment_by_name(
