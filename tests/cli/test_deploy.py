@@ -2416,13 +2416,14 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Could not find deployment configuration with name 'test-name-1'."
-                    " Your flow will be deployed with a new deployment configuration."
+                    "Could not find any deployment configurations with the given"
+                    " name(s): test-name-1. Your flow will be deployed with a new"
+                    " deployment configuration."
                 ),
             ],
         )
 
-    async def test_deploy_exits_with_single_deployment_and_multiple_names(
+    async def test_deploy_warns_with_single_deployment_and_multiple_names(
         self, project_dir, work_pool
     ):
         prefect_file = Path("prefect.yaml")
