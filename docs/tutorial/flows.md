@@ -42,7 +42,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-Running this flow in your terminal will result in some interesting output:
+Running this flow from your terminal will result in some interesting output:
 
 <div class="terminal">
 ```bash
@@ -56,7 +56,7 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
 ```python hl_lines="6"
 import httpx

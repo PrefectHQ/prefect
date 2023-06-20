@@ -54,7 +54,7 @@ You can configure work pools within the Prefect UI. They prioritize the flows an
 
 - Organize the flows for your worker to pick up and execute.
 - Describe the ephemeral infrastructure configuration that the worker will create for each flow run.
-- Prioritize the flows and respond to polling from its worker.
+- Prioritize the flows and respond to polling from its worker(s).
 
 ```mermaid
 graph TD;
@@ -100,7 +100,7 @@ Let’s confirm that the work pool was successfully created by running the follo
 prefect work-pool ls 
 ```
 </div>
-Finally, let’s double check that you can see this work pool in the Prefect Cloud UI . Navigate to the Work Pool tab and verify that you see `my-process-pool` listed.
+Finally, let’s double check that you can see this work pool in the Prefect Cloud UI. Navigate to the Work Pool tab and verify that you see `my-process-pool` listed.
 
 <div class="terminal">
 ```bash
@@ -116,7 +116,7 @@ When you click into the `my-process-pool` you can click into the tab for work qu
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
-Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start your worker on your laptop you will open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
+Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start a worker on your laptop, you will open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
 <div class="terminal">
 ```bash
 prefect worker start --pool my-process-pool
@@ -129,7 +129,7 @@ You will need to keep this terminal running in order to have the worker continue
 Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets build a deployment that sends work to your `my-process-pool`.
 
 ## Create a Deployment
-### From our previous steps we now have:
+### From our previous steps, we now have:
 
 1. A flow
 2. A work pool
@@ -169,7 +169,7 @@ Now that you have run the deploy command, the CLI will prompt you through differ
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple different schedules. 
 
-As you continue to use Prefect you'll likely author many different flows and want to define a variety of deployments for them. Check out the next section to learn about defining deployment objects in a `deployment.yaml` file.
+As you continue to use Prefect, you'll likely author many different flows and deployments of them. Check out the next section to learn about defining deployment objects in a `deployment.yaml` file.
 
 ## Next Steps
 
