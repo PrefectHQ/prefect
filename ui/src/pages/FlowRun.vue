@@ -56,9 +56,10 @@
     CopyableWrapper,
     isPendingStateType,
     useTabs,
-    httpStatus
+    httpStatus,
+    useFlowRun
   } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
@@ -69,8 +70,7 @@
   const flowRunId = useRouteParam('flowRunId')
 
   const api = useWorkspaceApi()
-  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
-  const flowRun = computed(() => flowRunDetailsSubscription.response)
+  const { flowRun, subscription: flowRunSubscription } = useFlowRun(flowRunId, { interval: 5000 })
   const deploymentId = computed(() => flowRun.value?.deploymentId)
   const { deployment } = useDeployment(deploymentId)
 
@@ -114,8 +114,8 @@
   usePageTitle(title)
 
   watchEffect(() => {
-    if (flowRunDetailsSubscription.error) {
-      const status = httpStatus(flowRunDetailsSubscription.error)
+    if (flowRunSubscription.error) {
+      const status = httpStatus(flowRunSubscription.error)
 
       if (status.isInRange('clientError')) {
         router.replace(routes[404]())
