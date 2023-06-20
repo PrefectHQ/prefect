@@ -52,7 +52,9 @@ from prefect.utilities.slugify import slugify
 
 from prefect.client.orchestration import PrefectClient
 
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.compatibility.deprecated import (
+    generate_deprecation_message,
+)
 
 
 @app.command()
@@ -183,6 +185,18 @@ async def deploy(
 
     Should be run from a project root directory.
     """
+    if ci:
+        app.console.print(
+            generate_deprecation_message(
+                name="The `--ci` flag",
+                start_date="Jun 2023",
+                help=(
+                    "Please use the global `--no-prompt` flag instead: `prefect"
+                    " --no-prompt deploy`."
+                ),
+            ),
+            style="yellow",
+        )
     # TODO: This function is getting out of hand. It should be refactored into smaller
     # functions.
 
