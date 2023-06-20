@@ -39,7 +39,7 @@ Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the term
 
 ### Differences between a Prefect server and Prefect Cloud
 
-The self-hosted Prefect server and Prefect Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
+The self-hosted Prefect server and Prefect Cloud share a common set of features. Prefect Cloud also includes the following features:
 
 - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
