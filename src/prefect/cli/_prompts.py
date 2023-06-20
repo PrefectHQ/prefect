@@ -2,6 +2,8 @@
 Utilities for prompting the user for input
 """
 from datetime import timedelta
+from prefect.deployments.base import _search_for_flow_functions
+from prefect.flows import load_flow_from_entrypoint
 from rich.prompt import PromptBase, InvalidResponse
 from rich.text import Text
 
@@ -100,17 +102,23 @@ def prompt_select_from_table(
         return table
 
     with Live(build_table(), auto_refresh=False, console=console) as live:
-        live.console.print(
+        instructions_message = (
             f"[bold][green]?[/] {prompt} [bright_blue][Use arrows to move; enter to"
-            " select][/]"
+            " select"
         )
+        if opt_out_message:
+            instructions_message += "; n to select none"
+        instructions_message += "]"
+        live.console.print(instructions_message)
         while selected_row is None:
             key = readchar.readkey()
 
             if key == readchar.key.UP:
                 current_idx = current_idx - 1
                 # wrap to bottom if at the top
-                if current_idx < 0:
+                if opt_out_message and current_idx < 0:
+                    current_idx = len(data)
+                elif not opt_out_message and current_idx < 0:
                     current_idx = len(data) - 1
             elif key == readchar.key.DOWN:
                 current_idx = current_idx + 1
@@ -127,6 +135,8 @@ def prompt_select_from_table(
                     return opt_out_response
                 else:
                     selected_row = data[current_idx]
+            elif key == "n" and opt_out_message:
+                return opt_out_response
 
             live.update(build_table(), refresh=True)
 
@@ -374,3 +384,60 @@ async def prompt_create_work_pool(
     )
     console.print(f"Your work pool {work_pool.name!r} has been created!", style="green")
     return work_pool
+
+
+class EntrypointPrompt(PromptBase[str]):
+    response_type = str
+    validate_error_message = "[prompt.invalid]Please enter a valid flow entrypoint."
+
+    def process_response(self, value: str) -> str:
+        try:
+            value.rsplit(":", 1)
+        except ValueError:
+            raise InvalidResponse(self.validate_error_message)
+
+        try:
+            load_flow_from_entrypoint(value)
+        except Exception:
+            raise InvalidResponse(
+                f"[prompt.invalid]Failed to load flow from entrypoint {value!r}."
+                f" {self.validate_error_message}"
+            )
+        return value
+
+
+async def prompt_entrypoint(console: Console) -> str:
+    """
+    Prompt the user for a flow entrypoint. Will search for flow functions in the
+    current working directory and nested subdirectories to prompt the user to select
+    from a list of discovered flows. If no flows are found, the user will be prompted
+    to enter a flow entrypoint manually.
+    """
+    discovered_flows = await _search_for_flow_functions()
+    if not discovered_flows:
+        return EntrypointPrompt.ask(
+            (
+                "[bold][green]?[/] Flow entrypoint (expected format"
+                " path/to/file.py:function_name)"
+            ),
+            console=console,
+        )
+    selected_flow = prompt_select_from_table(
+        console,
+        prompt="Select a flow to deploy",
+        columns=[
+            {"header": "Flow Name", "key": "flow_name"},
+            {"header": "Location", "key": "filepath"},
+        ],
+        data=discovered_flows,
+        opt_out_message="Enter a flow entrypoint manually",
+    )
+    if selected_flow is None:
+        return EntrypointPrompt.ask(
+            (
+                "[bold][green]?[/] Flow entrypoint (expected format"
+                " path/to/file.py:function_name)"
+            ),
+            console=console,
+        )
+    return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
