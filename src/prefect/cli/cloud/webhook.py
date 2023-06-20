@@ -171,7 +171,7 @@ async def update(
     Partially update an existing Cloud webhook
     """
     if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")   
+        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
 
     confirm_logged_in()
 
