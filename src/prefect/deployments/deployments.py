@@ -313,6 +313,32 @@ class Deployment(BaseModel):
         >>> deployment.apply()
 
     """
+from prefect import flow, Parameter
+
+print(f"param1 runtime value: {Parameter('param1').default}")
+print(f"param2 runtime value: {Parameter('param2').default}")
+
+
+@flow
+def dummy_flow(
+    param1: str = Parameter('param1', default="param1 default value"),
+    param2: str = Parameter('param2', default="param2 default value"),
+):
+    pass
+
+
+if __name__ == '__main__':
+    from prefect.deployments import Deployment
+
+    Deployment.build_from_flow(
+        flow=dummy_flow,
+        name="dummy",
+        apply=True,
+        parameters={
+            "param1": "param1 deployment value"
+        }
+    )
+
 
     class Config:
         json_encoders = {SecretDict: lambda v: v.dict()}
