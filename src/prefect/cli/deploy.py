@@ -188,6 +188,19 @@ async def deploy(
 
     Should be run from a project root directory.
     """
+    if ci:
+        app.console.print(
+            generate_deprecation_message(
+                name="The `--ci` flag",
+                start_date="Jun 2023",
+                help=(
+                    "Please use the global `--no-prompt` flag instead: `prefect"
+                    " --no-prompt deploy`."
+                ),
+            ),
+            style="yellow",
+        )
+
     options = {
         "entrypoint": entrypoint,
         "flow_name": flow_name,
@@ -756,7 +769,7 @@ async def _generate_default_pull_action(
         }
 
         if token_secret_block_name:
-            git_clone_step["prefect.deployments.steps.git_clone"]["token"] = (
+            git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
                 "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
             )
 
