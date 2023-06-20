@@ -75,7 +75,7 @@ Running the flow in your terminal will result in something like this:
 
 ## Caching
 
-Tasks support the ability to cache their return value. This allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
+Tasks support the ability to cache their return value. This allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
 
