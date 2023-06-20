@@ -124,7 +124,7 @@ def prompt_select_from_table(
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
                 if current_idx >= len(data):
-                    selected_row = opt_out_response
+                    return opt_out_response
                 else:
                     selected_row = data[current_idx]
 
