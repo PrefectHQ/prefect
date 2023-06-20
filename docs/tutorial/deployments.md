@@ -122,7 +122,7 @@ Workers are a lightweight polling system that kick-off flow runs submitted to th
 prefect worker start --pool my-process-pool
 ```
 </div>
-You should see the worker start. It is now polling the Prefect API to see if there are any scheduled flow runs to kick off. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
+You should see the worker start. It is now polling the Prefect API to request any scheduled flow runs for it to start. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
 
 You will need to keep this terminal running in order to have the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. For a production setting, this worker should be running as a damonized or managed process. See next steps for more information on this.
 
