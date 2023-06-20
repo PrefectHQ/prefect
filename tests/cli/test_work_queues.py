@@ -74,6 +74,30 @@ class TestCreateWorkQueue:
             in res.output
         )
 
+    def test_create_work_queue_with_priority(
+        self,
+        prefect_client,
+        work_pool,
+    ):
+        queue_name = "q-name"
+        queue_priority = 1
+        invoke_and_assert(
+            command=(
+                f"work-queue create {queue_name} -p {work_pool.name} -q"
+                f" {queue_priority}"
+            ),
+            expected_code=0,
+        )
+
+        queue = read_queue(
+            prefect_client,
+            name=queue_name,
+            pool=work_pool.name,
+        )
+        assert queue.work_pool_id == work_pool.id
+        assert queue.name == queue_name
+        assert queue.priority == queue_priority
+
     def test_create_work_queue_without_pool_uses_default_pool(self, prefect_client):
         queue_name = "q-name"
         invoke_and_assert(
