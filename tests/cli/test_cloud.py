@@ -911,7 +911,7 @@ def test_cannot_get_webhook_if_you_are_not_logged_in():
 
     with use_profile(cloud_profile):
         invoke_and_assert(
-            ["cloud", "webhook", "get", uuid.uuid4()],
+            ["cloud", "webhook", "get", str(uuid.uuid4())],
             expected_code=1,
             expected_output=(
                 f"Currently not authenticated in profile {cloud_profile!r}. "
