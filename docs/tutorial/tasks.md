@@ -12,7 +12,8 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks are atomic pieces of work that are executed independently within a flow. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe and understand. When a function becomes a task, it can be executed concurrently and its return value can be cached. makes it independent of the code around itWhile flows provide a high-level structure for executing your code, 
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks are atomic pieces of work that are executed independently within a flow. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe and understand. When a function becomes a task, it can be executed concurrently and its return value can be cached. makes it independent of the code around it While flows provide a high-level structure for executing your code, tasks help organize your code by adding an atomic component that can be orchestrated and observed within the context of a flow.
+
 
 Flows and tasks share some common features:
 
