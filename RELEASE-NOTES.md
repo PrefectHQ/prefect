@@ -2,7 +2,17 @@
 
 ## Release 2.10.16
 
+### Run `prefect deploy` without a flow entrypoint
+
+With release we've made it easier to deploy your first flow! Previously you needed to have a flow entrypoint in order to deploy a flow. Now, you can run `prefect deploy` and then select which flow you want to deploy as part of the interactive deployment process.
+
+![flow selector example](https://user-images.githubusercontent.com/12350579/247144440-d89916d4-cbf1-408e-9959-45df94a35f8d.png)
+
+For more details on implementation, see the following pull request: 
+- https://github.com/PrefectHQ/prefect/pull/10004
+
 ### Enhancements
+
 - Added option to specify work queue priority during creation from cli — https://github.com/PrefectHQ/prefect/pull/9999
 - Added hint to "Invalid timezone" error message — https://github.com/PrefectHQ/prefect/pull/10007
 
