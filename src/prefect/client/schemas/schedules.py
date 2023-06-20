@@ -104,7 +104,8 @@ class CronSchedule(PrefectBaseModel):
 
     Args:
         cron (str): a valid cron string
-        timezone (str): a valid timezone string
+        timezone (str): a valid timezone string in IANA tzdata format (for example,
+            America/New_York).
         day_or (bool, optional): Control how croniter handles `day` and `day_of_week`
             entries. Defaults to True, matching cron which connects those values using
             OR. If the switch is set to False, the values are connected using AND. This
@@ -128,7 +129,10 @@ class CronSchedule(PrefectBaseModel):
     @validator("timezone")
     def valid_timezone(cls, v):
         if v and v not in pendulum.tz.timezones:
-            raise ValueError(f'Invalid timezone: "{v}"')
+            raise ValueError(
+                f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
+                " America/New_York)"
+            )
         return v
 
     @validator("cron")
