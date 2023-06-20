@@ -4,6 +4,7 @@ Command line interface for working with webhooks
 
 import typer
 from typing import List, Dict
+from uuid import UUID
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli.cloud import cloud_app, confirm_logged_in
@@ -11,7 +12,6 @@ from prefect.client.cloud import get_cloud_client
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.text import is_valid_uuid
 from rich.table import Table
 
 webhook_app = PrefectTyper(
@@ -54,13 +54,10 @@ async def ls():
 
 
 @webhook_app.command()
-async def get(webhook_id: str):
+async def get(webhook_id: UUID):
     """
     Retrieve a webhook by ID.
     """
-    if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
-
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
@@ -109,13 +106,10 @@ async def create(
 
 
 @webhook_app.command()
-async def rotate(webhook_id: str):
+async def rotate(webhook_id: UUID):
     """
     Rotate url for an existing Cloud webhook, in case it has been compromised
     """
-    if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
-
     confirm_logged_in()
 
     confirm_rotate = typer.confirm(
@@ -133,14 +127,11 @@ async def rotate(webhook_id: str):
 
 @webhook_app.command()
 async def toggle(
-    webhook_id: str,
+    webhook_id: UUID,
 ):
     """
     Toggle the enabled status of an existing Cloud webhook
     """
-    if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
-
     confirm_logged_in()
 
     status_lookup = {True: "enabled", False: "disabled"}
@@ -158,7 +149,7 @@ async def toggle(
 
 @webhook_app.command()
 async def update(
-    webhook_id: str,
+    webhook_id: UUID,
     webhook_name: str = typer.Option(None, "--name", "-n", help="Webhook name"),
     description: str = typer.Option(
         None, "--description", "-d", help="Description of the webhook"
@@ -170,9 +161,6 @@ async def update(
     """
     Partially update an existing Cloud webhook
     """
-    if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
-
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
@@ -189,13 +177,10 @@ async def update(
 
 
 @webhook_app.command()
-async def delete(webhook_id: str):
+async def delete(webhook_id: UUID):
     """
     Delete an existing Cloud webhook
     """
-    if not is_valid_uuid(webhook_id):
-        exit_with_error(f"Provided webhook ID {webhook_id} is not a valid UUID")
-
     confirm_logged_in()
 
     confirm_delete = typer.confirm(

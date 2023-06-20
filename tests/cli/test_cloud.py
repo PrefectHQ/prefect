@@ -1355,7 +1355,7 @@ def test_delete_webhook(respx_mock):
         )
 
 
-def test_delete_webhook_with_invalid_uuid():
+def test_webhook_methods_with_invalid_uuid():
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     save_profiles(
         ProfilesCollection(
@@ -1377,8 +1377,5 @@ def test_delete_webhook_with_invalid_uuid():
         for cmd in ["delete", "toggle", "update", "rotate", "get"]:
             invoke_and_assert(
                 ["cloud", "webhook", cmd, bad_webhook_id],
-                expected_code=1,
-                expected_output_contains=(
-                    f"Provided webhook ID {bad_webhook_id} is not a valid UUID"
-                ),
+                expected_code=2,
             )
