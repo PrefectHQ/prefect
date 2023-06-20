@@ -4,7 +4,7 @@
 
 ### Run `prefect deploy` without providing a flow entrypoint
 
-We're making it easier than ever to deploy your first flow! Previously, you needed to specify a particular flow entrypoint in your `prefect deploy` command in order to deploy a specific flow. Now, you can run `prefect deploy` and then the interactive CLI will guide you through the process of selecting a flow to deploy.
+We're making it easier than ever to deploy your first flow! Previously, you needed to run `prefect deploy <entrypoint>` to deploy a specific flow. Now, you can run `prefect deploy` and then the interactive CLI will guide you through the process of selecting a flow to deploy!
 
 ![flow selector example](https://user-images.githubusercontent.com/12350579/247144440-d89916d4-cbf1-408e-9959-45df94a35f8d.png)
 
