@@ -1353,3 +1353,30 @@ def test_delete_webhook(respx_mock):
             user_input="y" + readchar.key.ENTER,
             expected_output_contains=f"Successfully deleted webhook {webhook_id}",
         )
+
+def test_delete_webhook_with_invalid_uuid():
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+    bad_webhook_id = "invalid_uuid"
+
+    with use_profile("logged-in-profile"):
+        for cmd in ["delete", "toggle", "update", "rotate", "get"]:
+            invoke_and_assert(
+                ["cloud", "webhook", cmd, bad_webhook_id],
+                expected_code=1,
+                expected_output_contains=f"Provided webhook ID {bad_webhook_id} is not a valid UUID",
+            )
+
