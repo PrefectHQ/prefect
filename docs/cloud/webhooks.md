@@ -78,7 +78,7 @@ If you are concerned that your webhook endpoint may have been compromised, use `
 generate a new, random endpoint
 
 ```bash
-prefect cloud webhook toggle <webhook-url-slug>
+prefect cloud webhook rotate <webhook-url-slug>
 ```
 
 ## Webhook endpoints
