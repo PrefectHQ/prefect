@@ -12,7 +12,7 @@ search:
 
 # Running flows with Docker
 
-In the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/tutorial/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
+In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
 In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
