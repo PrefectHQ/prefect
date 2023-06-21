@@ -112,11 +112,11 @@ Finally, let’s double check that you can see this work pool in the Prefect Clo
 └───────────────────────┴───────────────┴──────────────────────────────────────┴───────────────────┘
 ```
 </div>
-When you click into the `my-process-pool` you can click into the tab for work queues. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced feature. You can learn more about them in the [work queue documentation.](/concepts/work-pools/#work-queues) 
+When you click into the `my-process-pool`, select the "Work Queues" tab. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Work queues are an advanced feature. You can learn more about them in the [work queue documentation.](/concepts/work-pools/#work-queues) 
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
-Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start a worker on your laptop, you will open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
+Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start a worker on your laptop, open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
 <div class="terminal">
 ```bash
 prefect worker start --pool my-process-pool
@@ -124,9 +124,9 @@ prefect worker start --pool my-process-pool
 </div>
 You should see the worker start. It is now polling the Prefect API to request any scheduled flow runs for it to start. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
 
-You will need to keep this terminal running in order to have the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. For a production setting, this worker should be running as a damonized or managed process. See next steps for more information on this.
+You will need to keep this terminal session active in order for the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. In a production setting, this worker should be running as a daemonized or managed process. See next steps for more information on this.
 
-Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets build a deployment that sends work to your `my-process-pool`.
+Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets deploy your tutorial flow to `my-process-pool`.
 
 ## Create a Deployment
 ### From our previous steps, we now have:
@@ -169,7 +169,7 @@ Now that you have run the deploy command, the CLI will prompt you through differ
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple different schedules. 
 
-As you continue to use Prefect, you'll likely author many different flows and deployments of them. Check out the next section to learn about defining deployment objects in a `deployment.yaml` file.
+As you continue to use Prefect, you'll likely author many different flows and deployments of them. Check out the next section to learn about defining deployments in a `deployment.yaml` file.
 
 ## Next Steps
 
