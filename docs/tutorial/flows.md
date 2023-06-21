@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
 ## Logging
 
-Prefect enables you to log a variety of useful information in the UI about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some [logging](/concepts/logging) to our flow:
+Prefect enables you to log a variety of useful information in the UI about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing. Let's add some [logging](/concepts/logs) to our flow:
 
 ```python hl_lines="2 11-14"
 import httpx

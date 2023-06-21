@@ -530,7 +530,7 @@ triggers:
 ```
 
 
-When applied, this deployment will execute on the completion of the upstream flow specified in the `match_related` key, with the flow run passed in as a parameter. Triggers can be configured to respond to the presence or absence of arbitrary internal or external [events](cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
+When applied, this deployment will execute on the completion of the upstream flow specified in the `match_related` key, with the flow run passed in as a parameter. Triggers can be configured to respond to the presence or absence of arbitrary internal or external [events](/cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
 
 
 ### Create a flow run with Prefect UI
