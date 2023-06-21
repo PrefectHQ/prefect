@@ -22,6 +22,7 @@ from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
@@ -476,7 +477,11 @@ class TestProjectDeploySingleDeploymentYAML:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            user_input="y" + readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input="y"
+            + readchar.key.ENTER
+            + readchar.key.ENTER
+            + "n"
+            + readchar.key.ENTER,
             expected_code=0,
         )
 
@@ -830,7 +835,7 @@ class TestProjectDeploy:
                     "prefect.deployments.steps.git_clone": {
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
-                        "token": (
+                        "access_token": (
                             "{{ prefect.blocks.secret.deployment-test-name-an-important-name-repo-token }}"
                         ),
                     }
@@ -1756,6 +1761,11 @@ class TestSchedules:
                 f" {work_pool.name} --ci"
             ),
             expected_code=0,
+            expected_output_contains=(
+                "The `--ci` flag has been deprecated. It will not be available after"
+                " Dec 2023. Please use the global `--no-prompt` flag instead: `prefect"
+                " --no-prompt deploy`."
+            ),
         )
 
         deployment = await prefect_client.read_deployment_by_name(
@@ -2410,13 +2420,14 @@ class TestMultiDeploy:
             expected_code=1,
             expected_output_contains=[
                 (
-                    "Could not find deployment configuration with name 'test-name-1'."
-                    " Your flow will be deployed with a new deployment configuration."
+                    "Could not find any deployment configurations with the given"
+                    " name(s): test-name-1. Your flow will be deployed with a new"
+                    " deployment configuration."
                 ),
             ],
         )
 
-    async def test_deploy_exits_with_single_deployment_and_multiple_names(
+    async def test_deploy_warns_with_single_deployment_and_multiple_names(
         self, project_dir, work_pool
     ):
         prefect_file = Path("prefect.yaml")
@@ -2817,3 +2828,179 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
         assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployWithoutEntrypoint:
+    async def test_deploy_without_entrypoint(self, prefect_client: PrefectClient):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Accept first flow
+                readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "test_flow",
+                "import-project/my_module/flow.py",
+                "prod_flow",
+                "import-project/my_module/flow.py",
+                "foobar",
+                "nested-project/implicit_relative.py",
+                "nested-project/explicit_relative.py",
+                "my_flow",
+                "flows/hello.py",
+                "successfully created",
+            ],
+        )
+
+    async def test_deploy_without_entrypoint_manually_enter(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Decline selecting from list
+                "n"
+                +
+                # Enter entrypoint
+                "flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "Flow entrypoint (expected format path/to/file.py:function_name)",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "flows/hello.py:my_flow"
+
+    async def test_deploy_validates_manually_entered_entrypoints(
+        self, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Decline selecting from list
+                "n"
+                +
+                # Enter syntactically invalid entrypoint
+                "flows/hello.py"
+                + readchar.key.ENTER
+                +
+                # Enter entrypoint with non-existent file
+                "flows/does_not_exist.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Enter entrypoint with non-existent function
+                "flows/hello.py:does_not_exist"
+                + readchar.key.ENTER
+                +
+                # Enter valid entrypoint
+                "flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Select a flow to deploy",
+                "Please enter a valid flow entrypoint.",
+                "Failed to load flow from entrypoint 'flows/does_not_exist.py:my_flow'",
+                "Failed to load flow from entrypoint 'flows/hello.py:does_not_exist'",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "flows/hello.py:my_flow"
+
+    async def test_deploy_without_entrypoint_no_flows_found(
+        self, prefect_client: PrefectClient
+    ):
+        Path("test_nested_folder").mkdir()
+        os.chdir("test_nested_folder")
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            user_input=(
+                # Enter valid entrypoint from sibling directory
+                "../flows/hello.py:my_flow"
+                + readchar.key.ENTER
+                +
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept first work pool
+                readchar.key.ENTER
+                +
+                # decline save user inputs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Flow entrypoint (expected format path/to/file.py:function_name)",
+                "Deployment 'An important name/default' successfully created",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="An important name/default"
+        )
+        assert deployment.entrypoint == "../flows/hello.py:my_flow"
