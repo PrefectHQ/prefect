@@ -64,6 +64,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1217,7 +1218,6 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        follow_redirects=True,
     )
 
 
@@ -1232,7 +1232,6 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        follow_redirects=True,
     )
 
 
@@ -1245,7 +1244,6 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
         transport=ANY,
         base_url=ANY,
         timeout=ANY,
-        follow_redirects=True,
     )
 
 
@@ -1881,8 +1879,6 @@ async def test_server_error_does_not_raise_on_client():
 
 async def test_prefect_client_follow_redirects():
     app = create_app(ephemeral=True)
-    async with PrefectClient(api=app) as client:
-        assert client._client.follow_redirects is True
 
     httpx_settings = {"follow_redirects": True}
     async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
@@ -1890,4 +1886,13 @@ async def test_prefect_client_follow_redirects():
 
     httpx_settings = {"follow_redirects": False}
     async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
+        assert client._client.follow_redirects is False
+
+    # follow redirects by default
+    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+        async with PrefectClient(api=app) as client:
+            assert client._client.follow_redirects is True
+
+    # do not follow redirects by default during unit tests
+    async with PrefectClient(api=app) as client:
         assert client._client.follow_redirects is False
