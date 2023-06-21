@@ -2,7 +2,7 @@ from prefect.client.cloud import get_cloud_client
 from prefect.settings import PREFECT_UNIT_TEST_MODE, temporary_settings
 
 
-async def test_cloud_client_follow_redirects(monkeypatch):
+async def test_cloud_client_follow_redirects():
     httpx_settings = {"follow_redirects": True}
     async with get_cloud_client(httpx_settings=httpx_settings) as client:
         assert client._client.follow_redirects is True
