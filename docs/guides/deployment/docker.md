@@ -66,7 +66,6 @@ In the **Env (Optional)** box, enter the following to specify that the `s3fs` pa
   "EXTRA_PIP_PACKAGES": "s3fs"
 }
 ```
-If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/tutorial/storage/#prerequisites) for details.
 
 ![Configuring a new Docker Container infrastructure block in the Prefect UI](/img/guides/docker-tutorial-block.png)
 
@@ -81,10 +80,8 @@ The `prefect deployment build` command also supports specifying a built-in infra
 
 ## Build a deployment with Docker infrastructure
 
-To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
+To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/).
 
-- Use the storage block created in the [Storage and Infrastructure](/tutorial/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
-- Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--infra-block docker-container/log-tutorial`.
 
 <div class="terminal">
 ```bash
