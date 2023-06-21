@@ -506,6 +506,12 @@ PREFECT_TEST_MODE = Setting(
 behavior to facilitate testing. Defaults to `False`.
 """
 
+PREFECT_UNIT_TEST_MODE = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, code is executing in a unit test context. Defaults to `False`."""
+
 PREFECT_TEST_SETTING = Setting(
     Any,
     default=None,
