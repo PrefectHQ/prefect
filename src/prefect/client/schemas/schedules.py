@@ -143,7 +143,7 @@ class CronSchedule(PrefectBaseModel):
             raise ValueError(f'Invalid cron string: "{v}"')
         elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
             raise ValueError(
-                f'Random and Hashed expressions are unsupported, recieved: "{v}"'
+                f'Random and Hashed expressions are unsupported, received: "{v}"'
             )
         return v
 
