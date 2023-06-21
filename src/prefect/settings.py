@@ -510,7 +510,10 @@ PREFECT_UNIT_TEST_MODE = Setting(
     bool,
     default=False,
 )
-"""If `True`, code is executing in a unit test context. Defaults to `False`."""
+"""
+This variable only exists to facilitate unit testing. If `True`,
+code is executing in a unit test context. Defaults to `False`.
+"""
 
 PREFECT_TEST_SETTING = Setting(
     Any,
