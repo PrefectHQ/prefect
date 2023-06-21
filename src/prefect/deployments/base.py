@@ -2,7 +2,7 @@
 Core primitives for managing Prefect projects.  Projects provide a minimally opinionated
 build system for managing flows and deployments.
 
-To get started, follow along with [the project tutorial](/tutorials/projects/).
+To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
 from copy import deepcopy
 import ast
