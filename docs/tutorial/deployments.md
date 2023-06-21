@@ -116,7 +116,7 @@ When you click into the `my-process-pool` you can click into the tab for work qu
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
-Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start a worker on your laptop, you will open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
+Workers are a lightweight polling system that kick-off flow runs submitted to them by their work pool. To start a worker on your laptop, open a new terminal and confirm that your virtual environment is activated. Run the following command in this new terminal to start the worker:
 <div class="terminal">
 ```bash
 prefect worker start --pool my-process-pool
