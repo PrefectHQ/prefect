@@ -126,7 +126,7 @@ You should see the worker start. It is now polling the Prefect API to request an
 
 You will need to keep this terminal running in order to have the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. For a production setting, this worker should be running as a damonized or managed process. See next steps for more information on this.
 
-Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets build a deployment that sends work to your `my-process-pool`.
+Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets deploy your tutorial flow to `my-process-pool`.
 
 ## Create a Deployment
 ### From our previous steps, we now have:
