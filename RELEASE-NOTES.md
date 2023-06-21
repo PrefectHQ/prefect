@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.10.16
+
+### Run `prefect deploy` without providing a flow entrypoint
+
+We're making it easier than ever to deploy your first flow! Previously, you needed to run `prefect deploy <entrypoint>` to deploy a specific flow. Now, you can simply run `prefect deploy` and the interactive CLI will guide you through the process of selecting a flow to deploy!
+
+![flow selector example](https://user-images.githubusercontent.com/12350579/247144440-d89916d4-cbf1-408e-9959-45df94a35f8d.png)
+
+For more details on implementation, see the following pull request: 
+- https://github.com/PrefectHQ/prefect/pull/10004
+
+### Enhancements
+- Add option to specify work queue priority during creation from CLI — https://github.com/PrefectHQ/prefect/pull/9999
+- Improve 'Invalid timezone' error message — https://github.com/PrefectHQ/prefect/pull/10007
+
+### Fixes
+- Fix wrong key used in generated `git_clone` step — https://github.com/PrefectHQ/prefect/pull/9997
+
+### Deprecations
+- Deprecate `prefect deploy` `--ci` flag — https://github.com/PrefectHQ/prefect/pull/10002
+
+### Documentation
+- Resolve missing image in Prefect Cloud event documentation — https://github.com/PrefectHQ/prefect/pull/9904
+- Fix typo in webhooks documentation — https://github.com/PrefectHQ/prefect/pull/10003
+
+### Integrations
+- Fix bug in `KubernetesWorker` where flow runs crashed during submission - https://github.com/PrefectHQ/prefect-kubernetes/pull/76
+
+### Contributors
+- @kkdenk made their first contribution in https://github.com/PrefectHQ/prefect/pull/9904
+- @rito-sixt
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.15...2.10.16
+
 ## Release 2.10.15
 
 ## Introducing deployment configuration saving in `prefect deploy`
