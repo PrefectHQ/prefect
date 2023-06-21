@@ -14,7 +14,7 @@ search:
 ---
 # Deploying Flows
 
-## Why Deploy
+## Why Deploy?
 
 One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules). You want your flows running on production infrastructure in a consistent and predictable way. Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering flow runs. In order to schedule flow runs or trigger them based on [events](/cloud/events/) you’ll need to [deploy](/concepts/deployments/) them.
 
@@ -24,7 +24,7 @@ A deployed flow gets the following additional cababilities:
 - remote execution of flows triggered from the UI
 - flow triggered by automations or events
 
-## What is a Deployment
+## What is a Deployment?
 
 Deploying your flows is, in essence, the act of informing Prefect of:
 
@@ -43,7 +43,8 @@ Attributes of a deployment include (but are not limited to):
 
 Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. This means setting up a work pool and a worker to enable **your flows** to run on **your infrastructure**.
 
-## Why Workpools and Workers
+## Why Workpools and Workers?
+
 Running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect work pools and workers allow you to run flows in the environments best suited to their execution.
 
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on.
@@ -81,6 +82,7 @@ graph TD;
 Now that we’ve reviewed the concepts of a Work Pool and Worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect Orchestration API.
 
 ## Setting up the Worker and Work Pool
+
 For this tutorial you will create a *process type* work pool via the CLI. 
 
 The process work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure from which the worker is started.
@@ -129,6 +131,7 @@ You will need to keep this terminal session active in order for the worker conti
 Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets deploy your tutorial flow to `my-process-pool`.
 
 ## Create a Deployment
+
 ### From our previous steps, we now have:
 
 1. A flow
