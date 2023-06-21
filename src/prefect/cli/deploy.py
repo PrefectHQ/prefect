@@ -439,11 +439,8 @@ async def _run_single_deploy(
             )
             if build_docker_image_step != []:
                 deploy_config["build"] = build_docker_image_step
-                build_step_id = build_docker_image_step[0][
-                    "prefect_docker.deployments.steps.build_docker_image"
-                ]["id"]
                 push_docker_image_step = await prompt_push_custom_docker_image(
-                    app.console, deploy_config, build_step_id
+                    app.console, deploy_config
                 )
                 if push_docker_image_step != []:
                     deploy_config["build"][0][

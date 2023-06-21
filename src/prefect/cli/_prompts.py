@@ -355,14 +355,15 @@ async def prompt_build_custom_docker_image(
     console: Console,
 ):
     if not confirm(
-        "Would you like to build a custom Docker image for this deployment?"
+        "Would you like to build a custom Docker image for this deployment?",
+        console=console,
+        default=False,
     ):
         return []
 
     build_step = {
         "requires": "prefect-docker",
         "id": "build-image",
-        "push": False,
     }
 
     if os.path.exists("Dockerfile"):
@@ -401,17 +402,18 @@ async def prompt_build_custom_docker_image(
 async def prompt_push_custom_docker_image(
     console: Console,
     deployment_config: dict,
-    build_step_id: str,
 ):
     if not confirm(
-        "Would you like to push this image to a remote registry?", console=console
+        "Would you like to push this image to a remote registry?",
+        console=console,
+        default=False,
     ):
         return []
 
     push_step = {
         "requires": "prefect-docker",
-        "image_name": f"{{{{ {build_step_id}.image_name }}}}",
-        "tag": f"{{{{ {build_step_id}.tag }}}}",
+        "image_name": "{{ build-id.image_name }}",
+        "tag": "{{ build-id.tag }}",
     }
 
     docker_credentials = {}
