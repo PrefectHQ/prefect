@@ -124,7 +124,7 @@ prefect worker start --pool my-process-pool
 </div>
 You should see the worker start. It is now polling the Prefect API to request any scheduled flow runs for it to start. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a healthy status indicator in the default work queue under the work queue tab.
 
-You will need to keep this terminal running in order to have the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. For a production setting, this worker should be running as a damonized or managed process. See next steps for more information on this.
+You will need to keep this terminal session active in order for the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. In a production setting, this worker should be running as a daemonized or managed process. See next steps for more information on this.
 
 Now that we’ve set up your work pool and worker, they are ready to kick off deployed flow runs. Lets deploy your tutorial flow to `my-process-pool`.
 
