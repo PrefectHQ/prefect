@@ -145,4 +145,4 @@ if __name__ == "__main__":
 
 ## [Next: Tasks](/tutorial/tasks/)
 
-As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section you'll supercharge our flow by using tasks to break down the workflow's complexity and make it more performant.
+As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. In the next section, you'll supercharge our flow by using tasks to break down the workflow's complexity and make it more performant.
