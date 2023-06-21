@@ -274,7 +274,7 @@ to = "/api-ref/prefect/deployments/deployments/"
 
 [[redirects]]
 from = "/tutorial/deployments-ux"
-to = "tutorial/deployments"
+to = "/tutorial/deployments"
 [[redirects]]
 from = "/ui/blocks/"
 to = "/concepts/blocks/"
