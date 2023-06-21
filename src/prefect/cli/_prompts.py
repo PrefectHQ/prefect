@@ -2,6 +2,9 @@
 Utilities for prompting the user for input
 """
 from datetime import timedelta
+from getpass import GetPassWarning
+import os
+import shutil
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
 from rich.prompt import PromptBase, InvalidResponse
@@ -30,6 +33,10 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.collections import get_collections_metadata_client
 
 from prefect.client.schemas.actions import WorkPoolCreate
+
+from prefect.utilities.slugify import slugify
+
+from prefect_docker import DockerRegistryCredentials
 
 
 def prompt(message, **kwargs):
@@ -342,6 +349,119 @@ async def prompt_select_work_pool(
             work_pool_options,
         )
         return selected_work_pool_row["name"]
+
+
+async def prompt_build_custom_docker_image(
+    console: Console,
+):
+    if not confirm(
+        "Would you like to build a custom Docker image for this deployment?"
+    ):
+        return []
+
+    build_step = {
+        "requires": "prefect-docker",
+        "id": "build-image",
+        "push": False,
+    }
+
+    if os.path.exists("Dockerfile"):
+        if confirm(
+            "Would you like to use the Dockerfile in the current directory?",
+            console=console,
+            default=True,
+        ):
+            build_step["dockerfile"] = "Dockerfile"
+        else:
+            if confirm(
+                "A Dockerfile exists but you chose not to use it. Would you like to"
+                " rename it?"
+            ):
+                new_dockerfile_name = prompt(
+                    "New Dockerfile name", default="Dockerfile.backup"
+                )
+                shutil.move("Dockerfile", new_dockerfile_name)
+                build_step["dockerfile"] = "auto"
+            else:
+                # this will otherwise raise when build steps are run as the auto-build feature
+                # executed in the build_docker_image step will create a temporary Dockerfile
+                raise ValueError(
+                    "A Dockerfile already exists. Please remove or rename the existing"
+                    " one."
+                )
+    else:
+        build_step["dockerfile"] = "auto"
+
+    build_step["image_name"] = prompt("Image name", default="default")
+    build_step["tag"] = prompt("Image tag", default="latest")
+
+    return [{"prefect_docker.deployments.steps.build_docker_image": build_step}]
+
+
+async def prompt_push_custom_docker_image(
+    console: Console,
+    deployment_config: dict,
+    build_step_id: str,
+):
+    if not confirm(
+        "Would you like to push this image to a remote registry?", console=console
+    ):
+        return []
+
+    push_step = {
+        "requires": "prefect-docker",
+        "image_name": f"{{{{ {build_step_id}.image_name }}}}",
+        "tag": f"{{{{ {build_step_id}.tag }}}}",
+    }
+
+    docker_credentials = {}
+    docker_credentials["registry_url"] = prompt("Registry URL", default="default")
+
+    if confirm("Is this a private registry?", console=console):
+        docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
+        create_new_block = False
+        try:
+            await DockerRegistryCredentials.load(docker_registry_creds_name)
+            if not confirm(
+                (
+                    "Would you like to use the existing Docker registry credentials"
+                    f" block {docker_registry_creds_name}?"
+                ),
+                console=console,
+                default=True,
+            ):
+                create_new_block = True
+        except ValueError:
+            create_new_block = True
+
+        if create_new_block:
+            docker_credentials["username"] = prompt(
+                "Docker registry username", console=console, default="default"
+            )
+            try:
+                docker_credentials["password"] = prompt(
+                    "Docker registry password",
+                    console=console,
+                    default="default",
+                    password=True,
+                )
+            except GetPassWarning:
+                docker_credentials["password"] = prompt(
+                    "Docker registry password",
+                    console=console,
+                    default="default",
+                )
+            await DockerRegistryCredentials(
+                username=docker_credentials["username"],
+                password=docker_credentials["password"],
+                registry_url=docker_credentials["registry_url"],
+            ).save(name=docker_registry_creds_name, overwrite=True)
+
+        push_step["credentials"] = (
+            "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+        )
+
+    return [{"prefect_docker.deployments.steps.push_docker_image": push_step}]
 
 
 @inject_client
