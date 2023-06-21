@@ -1595,7 +1595,7 @@ def my_flow(name: str, date: datetime):
 my_flow()
 ```
 
-See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
+See [the docs](https://docs.prefect.io/tutorials/tasks/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
 
 ### Enhancements
 - Update the deployment page to show the runs tab before the description — https://github.com/PrefectHQ/prefect/pull/8398
