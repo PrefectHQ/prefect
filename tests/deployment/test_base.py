@@ -255,3 +255,7 @@ class TestDiscoverFlows:
                 ),
             },
         ]
+
+    async def test_find_all_flows_works_on_large_directory_structures(self):
+        flows = await _search_for_flow_functions(str(prefect.__development_base_path__))
+        assert len(flows) > 500
