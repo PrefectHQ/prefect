@@ -6,6 +6,7 @@ from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
 from rich.prompt import PromptBase, InvalidResponse
 from rich.text import Text
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -413,7 +414,17 @@ async def prompt_entrypoint(console: Console) -> str:
     from a list of discovered flows. If no flows are found, the user will be prompted
     to enter a flow entrypoint manually.
     """
-    discovered_flows = await _search_for_flow_functions()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        task_id = progress.add_task(
+            description="Scanning for flows...",
+            total=1,
+        )
+        discovered_flows = await _search_for_flow_functions()
+        progress.update(task_id, completed=1)
     if not discovered_flows:
         return EntrypointPrompt.ask(
             (
