@@ -16,7 +16,11 @@ from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.deployments import register_flow
-from prefect.deployments.base import create_default_prefect_yaml, initialize_project
+from prefect.deployments.base import (
+    _save_deployment_to_prefect_file,
+    create_default_prefect_yaml,
+    initialize_project,
+)
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
@@ -2828,6 +2832,51 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
         assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+
+    def test_save_deployment_with_existing_deployment(self):
+        # Set up initial 'prefect.yaml' file with a deployment
+        initial_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+
+        _save_deployment_to_prefect_file(initial_deployment)
+
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+
+        assert config["deployments"][1]["name"] == initial_deployment["name"]
+
+        # Overwrite the existing deployment
+        new_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "new_pool"},
+            "parameter_openapi_schema": None,
+        }
+
+        _save_deployment_to_prefect_file(new_deployment)
+
+        # Check that the new deployment has overwritten the old one
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == new_deployment["name"]
+        assert config["deployments"][1]["entrypoint"] == new_deployment["entrypoint"]
+        assert (
+            config["deployments"][1]["work_pool"]["name"]
+            == new_deployment["work_pool"]["name"]
+        )
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
