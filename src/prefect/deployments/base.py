@@ -457,15 +457,20 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     decorator_module = "prefect"
     decorated_functions = []
     async with OPEN_FILE_SEMAPHORE:
-        async with await anyio.open_file(filename) as f:
-            try:
-                tree = ast.parse(await f.read())
-            except SyntaxError:
-                if PREFECT_DEBUG_MODE:
-                    get_logger().debug(
-                        f"Could not parse {filename} as a Python file. Skipping."
-                    )
-                return decorated_functions
+        try:
+            async with await anyio.open_file(filename) as f:
+                try:
+                    tree = ast.parse(await f.read())
+                except SyntaxError:
+                    if PREFECT_DEBUG_MODE:
+                        get_logger().debug(
+                            f"Could not parse {filename} as a Python file. Skipping."
+                        )
+                    return decorated_functions
+        except Exception as exc:
+            if PREFECT_DEBUG_MODE:
+                get_logger().debug(f"Could not open {filename}: {exc}. Skipping.")
+            return decorated_functions
 
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
