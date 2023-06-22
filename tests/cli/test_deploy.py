@@ -2881,6 +2881,196 @@ class TestSaveUserInputs:
             == new_deployment["work_pool"]["name"]
         )
 
+    def test_save_user_inputs_overwrite_confirmed(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Configure new deployment
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+                +
+                # accept overwriting existing deployment that is found
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Found existing deployment configuration",
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"]["interval"] == 3600
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_overwrite_rejected_saving_cancelled(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # configure new deployment
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+                +
+                # reject overwriting existing deployment that is found
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Found existing deployment configuration",
+                "Cancelled saving deployment configuration",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployWithoutEntrypoint:

@@ -518,8 +518,8 @@ async def _run_single_deploy(
             ),
         ):
             app.console.print(
-                f"[red]Saving deployment configuration '{deploy_config.get('name')}' to"
-                " the prefect.yaml file cancelled.[/red]"
+                "[red]Cancelled saving deployment configuration"
+                f" '{deploy_config.get('name')}' to the prefect.yaml file.[/red]"
             )
         else:
             _save_deployment_to_prefect_file(
