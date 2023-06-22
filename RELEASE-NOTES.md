@@ -8,10 +8,12 @@ Unleash the full potential of Prefect with the [newly improved tutorial](https:/
 
 ### Enhancements
 - Update Prefect client to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
-- Add `CustomWebhookNotificationBlock` for general purpose notification — https://github.com/PrefectHQ/prefect/pull/9547
+- Always show checkboxes rather than animating them on hover — https://github.com/PrefectHQ/prefect-ui-library/pull/1490
+- New `CustomWebhookNotificationBlock` for triggering custom webhooks in response to flow run state changes — https://github.com/PrefectHQ/prefect/pull/9547
 
 ### Fixes
 - Limit the number of files concurrently opened by `prefect deploy` when searching for flows — https://github.com/PrefectHQ/prefect/pull/10014
+- Fix `TypeError: crypto.randomUUID is not a function` that caused pages to break — https://github.com/PrefectHQ/prefect-ui-library/pull/1501
 
 ### Documentation
 - Fix broken link to `prefect-docker` documentation on the deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
