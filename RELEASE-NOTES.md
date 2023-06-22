@@ -1,5 +1,27 @@
 # Prefect Release Notes
 
+## Release 2.10.17
+
+### Enhancements
+- Update PrefectClient to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
+- Add the CustomWebhookNotificationBlock for general purpose notification — https://github.com/PrefectHQ/prefect/pull/9547
+
+### Fixes
+- Resolve bug that could throw an OSError if too many files were being scanned for flows — https://github.com/PrefectHQ/prefect/pull/10014
+
+### Documentation
+- Fix broken link in deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
+- Document --work-queue / -q arguments to `worker start` command — https://github.com/PrefectHQ/prefect/pull/10027
+- Add a link to join Club 42 to the Community page — https://github.com/PrefectHQ/prefect/pull/9927
+- Update the tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
+
+## New Contributors
+* @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
+* @AutumnSun1996 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9547
+* @dianaclarke made their first contribution in https://github.com/PrefectHQ/prefect/pull/9988
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.16...2.10.17
+
 ## Release 2.10.16
 
 ### Run `prefect deploy` without providing a flow entrypoint
