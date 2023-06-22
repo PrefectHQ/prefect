@@ -4,11 +4,11 @@
 
 ### Improved Prefect Tutorial
 
-Unleash the full potential of Prefect with the [newly improved tutorial](https://docs.prefect.io/2.10.17/tutorial/). Elevate your learning experience and embark on a transformative journey that equips you with the skills to orchestrate and observe all of your workflows.
+Prefect's documentation has a [new and improved tutorial](https://docs.prefect.io/2.10.17/tutorial/). The tutorial focuses on the key elements and features of Prefect. You can find content related to more advanced features or less common use cases in the [Guides](https://docs.prefect.io/2.10.17/guides/) section
 
 ### Enhancements
 - Update Prefect client to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
-- Always show checkboxes rather than animating them on hover — https://github.com/PrefectHQ/prefect-ui-library/pull/1490
+- Always show checkboxes on list items, rather than animating them on hover — https://github.com/PrefectHQ/prefect-ui-library/pull/1490
 - New `CustomWebhookNotificationBlock` for triggering custom webhooks in response to flow run state changes — https://github.com/PrefectHQ/prefect/pull/9547
 
 ### Fixes
