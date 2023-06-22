@@ -2,6 +2,10 @@
 
 ## Release 2.10.17
 
+### Improved Prefect Tutorial
+
+Unleash the full potential of Prefect with the [newly improved tutorial](https://docs.prefect.io/2.10.17/tutorial/). Elevate your learning experience and embark on a transformative journey that equips you with the skills to orchestrate and observe all of your workflows.
+
 ### Enhancements
 - Update PrefectClient to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
 - Add `CustomWebhookNotificationBlock` for general purpose notification — https://github.com/PrefectHQ/prefect/pull/9547
