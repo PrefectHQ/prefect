@@ -6,6 +6,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import pendulum
+from prefect.cli.deploy import (
+    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
+)
 import pytest
 import readchar
 from typer import Exit
@@ -3053,3 +3056,86 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "../flows/hello.py:my_flow"
+
+
+class TestCheckForMatchingDeployment:
+    def test_matching_deployment_in_prefect_file_returns_true(self):
+        prefect_file = Path("prefect.yaml")
+        prefect_file.unlink()
+        assert not prefect_file.exists()
+
+        deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+        _save_deployment_to_prefect_file(deployment)
+
+        assert prefect_file.exists()
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+
+        assert config["deployments"][0]["name"] == deployment["name"]
+        assert config["deployments"][0]["entrypoint"] == deployment["entrypoint"]
+
+        new_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                new_deployment
+            )
+        )
+        assert matching_deployment_exists is True
+
+    def test_no_matching_deployment_in_prefect_file_returns_false(self):
+        prefect_file = Path("prefect.yaml")
+        prefect_file.unlink()
+        assert not prefect_file.exists()
+
+        deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+        _save_deployment_to_prefect_file(deployment)
+
+        assert prefect_file.exists()
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+
+        assert config["deployments"][0]["name"] == deployment["name"]
+        assert config["deployments"][0]["entrypoint"] == deployment["entrypoint"]
+
+        deployment_with_same_entrypoint_but_different_name = {
+            "name": "new_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists_1 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_entrypoint_but_different_name
+            )
+        )
+        assert not matching_deployment_exists_1
+
+        deployment_with_same_name_but_different_entrpoint = {
+            "name": "new_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists_2 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_name_but_different_entrpoint
+            )
+        )
+        assert not matching_deployment_exists_2

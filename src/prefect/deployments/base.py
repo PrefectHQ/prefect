@@ -446,12 +446,6 @@ def _save_deployment_to_prefect_file(
                     existing_deployment.get("entrypoint")
                     == deployment.get("entrypoint")
                 ):
-                    get_logger().info(
-                        "Found existing deployment configuration with name:"
-                        f" '{deployment.get('name')}' and entrypoint:"
-                        f" '{deployment.get('entrypoint')}' in the prefect.yaml file."
-                        " Overwriting..."
-                    )
                     deployments[i] = deployment
                     break
             else:
