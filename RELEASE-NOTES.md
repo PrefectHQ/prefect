@@ -4,7 +4,7 @@
 
 ### Improved Prefect Tutorial
 
-Prefect's documentation has a [new and improved tutorial](https://docs.prefect.io/2.10.17/tutorial/). The tutorial focuses on the key elements and features of Prefect. You can find content related to more advanced features or less common use cases in the [Guides](https://docs.prefect.io/2.10.17/guides/) section
+Prefect's documentation has an [improved tutorial](https://docs.prefect.io/2.10.17/tutorial/), redesigned to include Prefect's recent enhancements. With the introduction of work pools and the interactive deployment CLI, the new tutorial reflects the elevated experience that these new features offer, alongside the key elements and features of Prefect. You can find content related to more advanced features or less common use cases in the [Guides](https://docs.prefect.io/2.10.17/guides/) section.
 
 ### Enhancements
 - Update Prefect client to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
