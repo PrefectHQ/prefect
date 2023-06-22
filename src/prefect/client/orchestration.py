@@ -99,6 +99,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.collections import AutoEnum
 
@@ -278,6 +279,8 @@ class PrefectClient:
             ),
         )
 
+        if not PREFECT_UNIT_TEST_MODE:
+            httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxClient(**httpx_settings)
         self._loop = None
 
