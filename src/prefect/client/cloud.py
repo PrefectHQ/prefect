@@ -11,7 +11,11 @@ import prefect.settings
 from prefect.client.base import PrefectHttpxClient
 from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
-from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_UNIT_TEST_MODE,
+)
 
 
 def get_cloud_client(
@@ -57,6 +61,8 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
+        if not PREFECT_UNIT_TEST_MODE.value():
+            httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxClient(**httpx_settings)
 
     async def api_healthcheck(self):
