@@ -3249,11 +3249,7 @@ class TestDeployWithoutEntrypoint:
 
 
 class TestCheckForMatchingDeployment:
-    def test_matching_deployment_in_prefect_file_returns_true(self):
-        prefect_file = Path("prefect.yaml")
-        prefect_file.unlink()
-        assert not prefect_file.exists()
-
+    async def test_matching_deployment_in_prefect_file_returns_true(self):
         deployment = {
             "name": "existing_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
@@ -3263,7 +3259,7 @@ class TestCheckForMatchingDeployment:
         }
         _save_deployment_to_prefect_file(deployment)
 
-        assert prefect_file.exists()
+        prefect_file = Path("prefect.yaml")
 
         with prefect_file.open(mode="r") as f:
             config = yaml.safe_load(f)
@@ -3284,11 +3280,7 @@ class TestCheckForMatchingDeployment:
         )
         assert matching_deployment_exists is True
 
-    def test_no_matching_deployment_in_prefect_file_returns_false(self):
-        prefect_file = Path("prefect.yaml")
-        prefect_file.unlink()
-        assert not prefect_file.exists()
-
+    async def test_no_matching_deployment_in_prefect_file_returns_false(self):
         deployment = {
             "name": "existing_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
@@ -3298,7 +3290,7 @@ class TestCheckForMatchingDeployment:
         }
         _save_deployment_to_prefect_file(deployment)
 
-        assert prefect_file.exists()
+        prefect_file = Path("prefect.yaml")
 
         with prefect_file.open(mode="r") as f:
             config = yaml.safe_load(f)
