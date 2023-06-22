@@ -36,7 +36,7 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 2. Create a GitHub repository for your tutorial, let's call it `prefect-tutorial`.
 
-3. This tutorial requires a Prefect Server instance, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or a alternatively self-host a [Prefect Server](/host/).
+3. This tutorial requires a Prefect Server instance, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
 
 ## What is Prefect?
 
