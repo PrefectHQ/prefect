@@ -35,6 +35,14 @@ Cloud-only feature. You authenticate API calls using the standard
 [authentication methods you use with Prefect
 Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
 
+### Via Prefect Cloud
+
+Webhooks can be created and managed from the Prefect Cloud UI.
+
+![Managing a webhook in the Prefect Cloud UI.](/img/ui/webhook.png)
+
+
+
 ### Via the Prefect CLI
 
 Webhooks can be managed and interacted with via the `prefect cloud webhook` command group.
