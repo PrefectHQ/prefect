@@ -3311,13 +3311,13 @@ class TestCheckForMatchingDeployment:
         )
         assert not matching_deployment_exists_1
 
-        deployment_with_same_name_but_different_entrpoint = {
+        deployment_with_same_name_but_different_entrypoint = {
             "name": "new_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
         }
         matching_deployment_exists_2 = (
             _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                deployment_with_same_name_but_different_entrpoint
+                deployment_with_same_name_but_different_entrypoint
             )
         )
         assert not matching_deployment_exists_2
