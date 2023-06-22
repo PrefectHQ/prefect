@@ -4,16 +4,16 @@
 
 ### Enhancements
 - Update PrefectClient to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
-- Add the CustomWebhookNotificationBlock for general purpose notification — https://github.com/PrefectHQ/prefect/pull/9547
+- Add `CustomWebhookNotificationBlock` for general purpose notification — https://github.com/PrefectHQ/prefect/pull/9547
 
 ### Fixes
-- Resolve bug that could throw an OSError if too many files were being scanned for flows — https://github.com/PrefectHQ/prefect/pull/10014
+- Limit the number of files concurrently opened by `prefect deploy` when searching for flows — https://github.com/PrefectHQ/prefect/pull/10014
 
 ### Documentation
-- Fix broken link in deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
-- Document --work-queue / -q arguments to `worker start` command — https://github.com/PrefectHQ/prefect/pull/10027
-- Add a link to join Club 42 to the Community page — https://github.com/PrefectHQ/prefect/pull/9927
-- Update the tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
+- Fix broken link to `prefect-docker` documentation on the deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
+- Document `--work-queue / -q` arguments to `worker start` command — https://github.com/PrefectHQ/prefect/pull/10027
+- Add link to join Club 42 to Community page — https://github.com/PrefectHQ/prefect/pull/9927
+- Improve Prefect tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
 
 ## New Contributors
 * @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
