@@ -302,6 +302,7 @@ class Call(Generic[T]):
     def timedout(self) -> bool:
         """
         Check if the call timed out.
+        aadfa
         """
         return self.future.timedout()
 
