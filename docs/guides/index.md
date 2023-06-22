@@ -10,6 +10,7 @@ search:
 ---
 
 - Learn how Prefect makes [testing your workflows a breeze](/guides/testing/).
+- Explore different dataflow design patterns to help [efficently use Prefect for your usecases](/guides/deployment-patterns)
 - See how to [parallelize your code with Dask and Ray](/guides/dask-ray-task-runners/).
 - Learn how to use [Docker with your Deployments](/guides/deployment/docker/).
 - See how to [deploy your workflows with Docker Container Instances](/guides/deployment/aci/).
