@@ -134,6 +134,14 @@ class TestApplyValues:
             "age": 30,
         }
 
+    def test_apply_values_string_with_missing_value_not_removed(self):
+        template = {"name": "Bob {{last_name}}", "age": "{{age}}"}
+        values = {"age": 30}
+        assert apply_values(template, values, remove_notset=False) == {
+            "name": "Bob {{last_name}}",
+            "age": 30,
+        }
+
     def test_apply_values_nested_with_NotSet_value_not_removed(self):
         template = [{"top_key": {"name": NotSet, "age": "{{age}}"}}]
         values = {"age": 30}

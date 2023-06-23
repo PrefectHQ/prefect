@@ -462,7 +462,7 @@ async def _run_single_deploy(
         deploy_config=deploy_config,
         ci=ci,
     )
-    pull_steps = apply_values(pull_steps, step_outputs)
+    pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
 
