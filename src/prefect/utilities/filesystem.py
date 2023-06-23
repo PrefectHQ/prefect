@@ -10,10 +10,9 @@ from typing import Union
 
 import fsspec
 import pathspec
+import prefect
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
-
-import prefect
 
 
 def create_default_ignore_file(path: str) -> bool:
