@@ -2,17 +2,18 @@
 Utilities for working with file systems
 """
 import os
-import resource
 import pathlib
+import platform
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
 from typing import Union
 
 import fsspec
 import pathspec
-import prefect
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
+
+import prefect
 
 
 def create_default_ignore_file(path: str) -> bool:
@@ -123,5 +124,12 @@ def relative_path_to_current_platform(path_str: str) -> Path:
 
 
 def get_open_file_limit():
-    soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+    """Get the open file count limit"""
+    if platform.system() != 'Windows':
+        import resource
+        soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+    else:
+        import win32file
+        soft_limit = win32file._getmaxstdio()
     return soft_limit
+        

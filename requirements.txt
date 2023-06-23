@@ -27,6 +27,7 @@ pendulum >= 2.1.2
 pydantic >= 1.10.0
 python-slugify >= 5.0
 pytz >= 2021.1
+pywin32; sys_platform == 'darwin'
 pyyaml >= 5.4.1
 readchar >= 4.0.0
 rich >= 11.0
