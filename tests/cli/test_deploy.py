@@ -977,7 +977,9 @@ class TestProjectDeploy:
         assert deployment.parameters == {"number": 2, "message": "hello"}
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_templates_pull_step_safely(self, prefect_client):
+    async def test_project_deploy_templates_pull_step_safely(
+        self, prefect_client, work_pool
+    ):
         """
         We want step outputs to get templated, but block references to only be
         retrieved at runtime.
@@ -987,9 +989,6 @@ class TestProjectDeploy:
         """
 
         await Secret(value="super-secret-name").save(name="test-secret")
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
 
         # update prefect.yaml to include a new build step
         prefect_file = Path("prefect.yaml")
@@ -1022,7 +1021,7 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
