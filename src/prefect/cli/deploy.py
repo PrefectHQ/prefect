@@ -503,21 +503,41 @@ async def _run_single_deploy(
         ),
         console=app.console,
     ):
-        _save_deployment_to_prefect_file(
-            deploy_config,
-            build_steps=build_steps or None,
-            push_steps=push_steps or None,
-            pull_steps=pull_steps or None,
+        matching_deployment_exists = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deploy_config=deploy_config
+            )
         )
-        app.console.print(
+        if matching_deployment_exists and not confirm(
             (
-                "\n[green]Deployment configuration saved to prefect.yaml![/] You can"
-                " now deploy using this deployment configuration with:\n\n\t[blue]$"
-                f" prefect deploy -n {deploy_config['name']}[/]\n\nYou can also make"
-                " changes to this deployment configuration by making changes to the"
-                " prefect.yaml file."
+                "Found existing deployment configuration with name:"
+                f" [yellow]{deploy_config.get('name')}[/yellow] and entrypoint:"
+                f" [yellow]{deploy_config.get('entrypoint')}[/yellow] in the"
+                " [yellow]prefect.yaml[/yellow] file. Would you like to overwrite that"
+                " entry?"
             ),
-        )
+        ):
+            app.console.print(
+                "[red]Cancelled saving deployment configuration"
+                f" '{deploy_config.get('name')}' to the prefect.yaml file.[/red]"
+            )
+        else:
+            _save_deployment_to_prefect_file(
+                deploy_config,
+                build_steps=build_steps or None,
+                push_steps=push_steps or None,
+                pull_steps=pull_steps or None,
+            )
+            app.console.print(
+                (
+                    "\n[green]Deployment configuration saved to prefect.yaml![/] You"
+                    " can now deploy using this deployment configuration"
+                    " with:\n\n\t[blue]$ prefect deploy -n"
+                    f" {deploy_config['name']}[/]\n\nYou can also make changes to this"
+                    " deployment configuration by making changes to the prefect.yaml"
+                    " file."
+                ),
+            )
 
     app.console.print(
         "\nTo execute flow runs from this deployment, start a worker in a"
@@ -1047,3 +1067,23 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
             deploy_config["parameters"].update(parameters)
 
     return deploy_config, variable_overrides
+
+
+def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+    deploy_config,
+) -> bool:
+    prefect_file = Path("prefect.yaml")
+    if prefect_file.exists():
+        with prefect_file.open(mode="r") as f:
+            parsed_prefect_file_contents = yaml.safe_load(f)
+            deployments = parsed_prefect_file_contents.get("deployments")
+            if deployments is not None:
+                for _, existing_deployment in enumerate(deployments):
+                    if existing_deployment.get("name") == deploy_config.get(
+                        "name"
+                    ) and (
+                        existing_deployment.get("entrypoint")
+                        == deploy_config.get("entrypoint")
+                    ):
+                        return True
+    return False
