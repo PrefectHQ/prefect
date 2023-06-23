@@ -6,6 +6,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import pendulum
+from prefect.cli.deploy import (
+    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
+)
 import pytest
 import readchar
 from typer import Exit
@@ -16,7 +19,11 @@ from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.deployments import register_flow
-from prefect.deployments.base import create_default_prefect_yaml, initialize_project
+from prefect.deployments.base import (
+    _save_deployment_to_prefect_file,
+    create_default_prefect_yaml,
+    initialize_project,
+)
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
@@ -2829,6 +2836,241 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
 
+    def test_save_deployment_with_existing_deployment(self):
+        # Set up initial 'prefect.yaml' file with a deployment
+        initial_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+
+        _save_deployment_to_prefect_file(initial_deployment)
+
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+
+        assert config["deployments"][1]["name"] == initial_deployment["name"]
+
+        # Overwrite the existing deployment
+        new_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "new_pool"},
+            "parameter_openapi_schema": None,
+        }
+
+        _save_deployment_to_prefect_file(new_deployment)
+
+        # Check that the new deployment has overwritten the old one
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == new_deployment["name"]
+        assert config["deployments"][1]["entrypoint"] == new_deployment["entrypoint"]
+        assert (
+            config["deployments"][1]["work_pool"]["name"]
+            == new_deployment["work_pool"]["name"]
+        )
+
+    def test_save_user_inputs_overwrite_confirmed(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # Configure new deployment
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+                +
+                # accept overwriting existing deployment that is found
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Found existing deployment configuration",
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"]["interval"] == 3600
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+    def test_save_user_inputs_overwrite_rejected_saving_cancelled(self):
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # accept default deployment name
+                readchar.key.ENTER
+                +
+                # decline schedule
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # configure new deployment
+                "n"
+                + readchar.key.ENTER
+                +
+                # accept schedule
+                readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+                +
+                # reject overwriting existing deployment that is found
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Found existing deployment configuration",
+                "Cancelled saving deployment configuration",
+            ],
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "default"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["schedule"] is None
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployWithoutEntrypoint:
@@ -3004,3 +3246,78 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "../flows/hello.py:my_flow"
+
+
+class TestCheckForMatchingDeployment:
+    async def test_matching_deployment_in_prefect_file_returns_true(self):
+        deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+        _save_deployment_to_prefect_file(deployment)
+
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+
+        assert config["deployments"][0]["name"] == deployment["name"]
+        assert config["deployments"][0]["entrypoint"] == deployment["entrypoint"]
+
+        new_deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                new_deployment
+            )
+        )
+        assert matching_deployment_exists is True
+
+    async def test_no_matching_deployment_in_prefect_file_returns_false(self):
+        deployment = {
+            "name": "existing_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "existing_pool"},
+            "parameter_openapi_schema": None,
+        }
+        _save_deployment_to_prefect_file(deployment)
+
+        prefect_file = Path("prefect.yaml")
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+
+        assert config["deployments"][0]["name"] == deployment["name"]
+        assert config["deployments"][0]["entrypoint"] == deployment["entrypoint"]
+
+        deployment_with_same_entrypoint_but_different_name = {
+            "name": "new_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists_1 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_entrypoint_but_different_name
+            )
+        )
+        assert not matching_deployment_exists_1
+
+        deployment_with_same_name_but_different_entrypoint = {
+            "name": "new_deployment",
+            "entrypoint": "flows/existing_flow.py:my_flow",
+        }
+        matching_deployment_exists_2 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_name_but_different_entrypoint
+            )
+        )
+        assert not matching_deployment_exists_2
