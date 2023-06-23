@@ -168,6 +168,9 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        block_on_call: An optional boolean that disable the blocking behaviour when a task 
+            decorated function is called. If `False` the flowrun's task runner is used. If `True`
+            the call will block. Defaults to `True`. 
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -204,6 +207,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        block_on_call: bool=True
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -304,6 +308,8 @@ class Task(Generic[P, R]):
         self.on_completion = on_completion
         self.on_failure = on_failure
 
+        self.block_on_call = block_on_call
+
     def with_options(
         self,
         *,
@@ -333,6 +339,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        block_on_call: Optional[bool] = NotSet
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -367,7 +374,8 @@ class Task(Generic[P, R]):
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
-
+            block_on_call: A new option for blocking behavour when calling a task decorated function. 
+            
         Returns:
             A new `Task` instance.
 
@@ -454,6 +462,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            block_on_call=block_on_call if block_on_call is not NotSet else self.block_on_call
         )
 
     @overload
@@ -499,14 +508,20 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-
         return_type = "state" if return_state else "result"
+
+        if not self.block_on_call:
+            return self.submit(
+                *args,
+                wait_for=wait_for,
+                **kwargs
+            )
 
         return enter_task_run_engine(
             self,
             parameters=parameters,
             wait_for=wait_for,
-            task_runner=SequentialTaskRunner(),
+            task_runner=SequentialTaskRunner(), 
             return_type=return_type,
             mapped=False,
         )
@@ -557,7 +572,8 @@ class Task(Generic[P, R]):
             parameters=parameters,
             wait_for=wait_for,
             return_type="state",
-            task_runner=SequentialTaskRunner(),
+            task_runner=SequentialTaskRunner()
+            if self.block_on_call else None,
             mapped=False,
         )
 
@@ -945,6 +961,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    block_on_call: bool=True
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1000,7 +1017,10 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
-
+        block_on_call: An optional boolean that disable the blocking behaviour when a task 
+            decorated function is called. If `False` the flowrun's task runner is used. If `True`
+            the call will block. Defaults to `True`. 
+            
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
 
@@ -1074,6 +1094,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                block_on_call=block_on_call
             ),
         )
     else:
@@ -1101,5 +1122,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                block_on_call=block_on_call
             ),
         )
