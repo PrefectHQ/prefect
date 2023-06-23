@@ -977,15 +977,19 @@ class TestProjectDeploy:
         assert deployment.parameters == {"number": 2, "message": "hello"}
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_templates_pull_step_safely(
-        self, work_pool, prefect_client
-    ):
+    async def test_project_deploy_templates_pull_step_safely(self, prefect_client):
         """
         We want step outputs to get templated, but block references to only be
-        retrieved at runtime
+        retrieved at runtime.
+
+        Unresolved placeholders should be left as-is, and not be resolved
+        to allow templating between steps in the pull action.
         """
 
         await Secret(value="super-secret-name").save(name="test-secret")
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
 
         # update prefect.yaml to include a new build step
         prefect_file = Path("prefect.yaml")
@@ -999,10 +1003,17 @@ class TestProjectDeploy:
 
         prefect_config["pull"] = [
             {
-                "prefect.testing.utilities.a_test_step": {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
                     "input": "{{ output1 }}",
                     "secret-input": "{{ prefect.blocks.secret.test-secret }}",
-                }
+                },
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                },
             },
         ]
         # save it back
@@ -1011,7 +1022,7 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -1021,11 +1032,18 @@ class TestProjectDeploy:
         )
         assert deployment.pull_steps == [
             {
-                "prefect.testing.utilities.a_test_step": {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
                     "input": 1,
                     "secret-input": "{{ prefect.blocks.secret.test-secret }}",
                 }
-            }
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                }
+            },
         ]
 
     @pytest.mark.usefixtures("project_dir")
