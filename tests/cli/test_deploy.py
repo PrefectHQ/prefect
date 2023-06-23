@@ -1,9 +1,12 @@
+import datetime
 import os
 import shutil
 import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
+from unittest import mock
+from uuid import uuid4
 
 import pendulum
 from prefect.cli.deploy import (
@@ -15,8 +18,13 @@ from typer import Exit
 import yaml
 
 import prefect
+from prefect.cli.deploy import (
+    _initialize_deployment_triggers,
+    _create_deployment_triggers,
+)
 from prefect.blocks.system import Secret
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.events.schemas import Posture
 from prefect.exceptions import ObjectNotFound
 from prefect.deployments import register_flow
 from prefect.deployments.base import (
@@ -3338,3 +3346,99 @@ class TestCheckForMatchingDeployment:
             )
         )
         assert not matching_deployment_exists_2
+
+
+class TestDeploymentTriggerSyncing:
+    async def test_initialize_named_deployment_triggers(self):
+        trigger_spec = {
+            "name": "Trigger McTriggerson",
+            "enabled": True,
+            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+            "expect": ["prefect.flow-run.Completed"],
+            "match_related": {
+                "prefect.resource.name": "seed",
+                "prefect.resource.role": "flow",
+            },
+        }
+
+        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+        assert triggers == [
+            {
+                "name": "Trigger McTriggerson",
+                "description": "",
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+                "after": set(),
+                "expect": {"prefect.flow-run.Completed"},
+                "for_each": set(),
+                "posture": Posture.Reactive,
+                "threshold": 1,
+                "within": datetime.timedelta(0),
+                "parameters": None,
+            }
+        ]
+
+    async def test_initialize_deployment_triggers_implicit_name(self):
+        trigger_spec = {
+            "enabled": True,
+            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+            "expect": ["prefect.flow-run.Completed"],
+            "match_related": {
+                "prefect.resource.name": "seed",
+                "prefect.resource.role": "flow",
+            },
+        }
+
+        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+        assert triggers[0].name == "my_deployment__automation_1"
+
+    async def test_create_deployment_triggers(self):
+        client = mock.AsyncMock()
+        client.server_type = ServerType.CLOUD
+
+        trigger_spec = {
+            "enabled": True,
+            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+            "expect": ["prefect.flow-run.Completed"],
+            "match_related": {
+                "prefect.resource.name": "seed",
+                "prefect.resource.role": "flow",
+            },
+        }
+
+        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+        deployment_id = uuid4()
+
+        await _create_deployment_triggers(client, deployment_id, triggers)
+
+        assert triggers[0]._deployment_id == deployment_id
+        client.delete_resource_owned_automations.assert_called_once_with(
+            f"prefect.deployment.{deployment_id}"
+        )
+        client.create_automation.assert_called_once_with(triggers[0].as_automation())
+
+    async def test_create_deployment_triggers_not_cloud_noop(self):
+        client = mock.AsyncMock()
+        client.server_type = ServerType.SERVER
+
+        trigger_spec = {
+            "enabled": True,
+            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+            "expect": ["prefect.flow-run.Completed"],
+            "match_related": {
+                "prefect.resource.name": "seed",
+                "prefect.resource.role": "flow",
+            },
+        }
+
+        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+        deployment_id = uuid4()
+
+        await _create_deployment_triggers(client, deployment_id, triggers)
+
+        client.delete_resource_owned_automations.assert_not_called()
+        client.create_automation.assert_not_called()
