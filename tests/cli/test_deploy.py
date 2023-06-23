@@ -1219,9 +1219,7 @@ class TestProjectDeploy:
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_no_available_work_pool_interactive(
-        self, prefect_client, default_agent_pool
-    ):
+    async def test_deploy_with_no_available_work_pool_interactive(self, prefect_client):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
