@@ -54,7 +54,7 @@
 
 <script lang="ts" setup>
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRuns } from '@prefecthq/prefect-ui-library'
   import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -86,8 +86,7 @@
   const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const flowRunsSubscription = useSubscription(api.flowRuns.getFlowRuns, [filter], subscriptionOptions)
-  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
+  const { flowRuns, subscription: flowRunsSubscription } = useFlowRuns(filter)
   const selectedFlowRuns = ref([])
 
   function clear(): void {
