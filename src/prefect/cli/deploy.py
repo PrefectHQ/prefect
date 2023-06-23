@@ -430,10 +430,17 @@ async def _run_single_deploy(
             console=app.console, client=client
         )
 
-    if is_interactive() and not deploy_config.get("build"):
-        # currently, will only hit if you use an existing deployment configuration
-        # a new one won't have the deploy_config with an image, just a default
-        if get_from_dict(deploy_config, "work_pool.job_variables.image"):
+    docker_build_step_exists = any(
+        "prefect.deployments.steps.build_docker_image" in action
+        for action in deploy_config.get("build", actions.get("build")) or []
+    )
+
+    if is_interactive() and not docker_build_step_exists:
+        work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+        docker_based_infrastructure = "image" in work_pool.base_job_template.get(
+            "variables", {}
+        ).get("properties", {})
+        if docker_based_infrastructure:
             build_docker_image_step = await prompt_build_custom_docker_image(
                 app.console
             )
@@ -448,8 +455,8 @@ async def _run_single_deploy(
                     ]["push"] = True
                     deploy_config.setdefault("push", []).append(push_docker_image_step)
 
-        build_steps = deploy_config.get("build", actions.get("build")) or []
-        push_steps = deploy_config.get("push", actions.get("push")) or []
+            build_steps = deploy_config.get("build", actions.get("build")) or []
+            push_steps = deploy_config.get("push", actions.get("push")) or []
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
