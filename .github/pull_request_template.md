@@ -5,6 +5,7 @@ Thanks for opening a pull request to Prefect! We've got a few requests to help u
 - Provide a short overview of the change and the value it adds.
 - Share an example to help us understand the change in user experience.
 - Confirm that you've done common tasks so we can give a timely review.
+- Review our contribution guidelines: https://docs.prefect.io/latest/contributing/overview/
 
 Happy engineering!
 -->
@@ -27,3 +28,7 @@ If changing documentation, a link to a preview of the page is great.
 - [ ] This pull request includes tests or only affects documentation.
 - [ ] This pull request includes a label categorizing the change e.g. `fix`, `feature`, `enhancement`, `docs`.
   <!-- If you do not have permission to add a label, a maintainer will add one for you -->
+
+For documentation changes:
+
+- [ ] This pull request includes redirect settings in `netlify.toml` for files that are removed or renamed
