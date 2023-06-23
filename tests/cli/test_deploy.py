@@ -985,11 +985,14 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_pull_step_safely(
-        self, work_pool, prefect_client
+        self, prefect_client, work_pool
     ):
         """
         We want step outputs to get templated, but block references to only be
-        retrieved at runtime
+        retrieved at runtime.
+
+        Unresolved placeholders should be left as-is, and not be resolved
+        to allow templating between steps in the pull action.
         """
 
         await Secret(value="super-secret-name").save(name="test-secret")
@@ -1006,10 +1009,17 @@ class TestProjectDeploy:
 
         prefect_config["pull"] = [
             {
-                "prefect.testing.utilities.a_test_step": {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
                     "input": "{{ output1 }}",
                     "secret-input": "{{ prefect.blocks.secret.test-secret }}",
-                }
+                },
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                },
             },
         ]
         # save it back
@@ -1028,11 +1038,18 @@ class TestProjectDeploy:
         )
         assert deployment.pull_steps == [
             {
-                "prefect.testing.utilities.a_test_step": {
+                "prefect.testing.utilities.b_test_step": {
+                    "id": "b-test-step",
                     "input": 1,
                     "secret-input": "{{ prefect.blocks.secret.test-secret }}",
                 }
-            }
+            },
+            {
+                "prefect.testing.utilities.b_test_step": {
+                    "input": "foo-{{ b-test-step.output1 }}",
+                    "secret-input": "{{ b-test-step.output1 }}",
+                }
+            },
         ]
 
     @pytest.mark.usefixtures("project_dir")
