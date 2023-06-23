@@ -441,7 +441,15 @@ def _save_deployment_to_prefect_file(
         if deployments is None:
             parsed_prefect_file_contents["deployments"] = [deployment]
         else:
-            deployments.append(deployment)
+            for i, existing_deployment in enumerate(deployments):
+                if existing_deployment.get("name") == deployment.get("name") and (
+                    existing_deployment.get("entrypoint")
+                    == deployment.get("entrypoint")
+                ):
+                    deployments[i] = deployment
+                    break
+            else:
+                deployments.append(deployment)
 
         with prefect_file.open(mode="w") as f:
             ryaml.dump(parsed_prefect_file_contents, f)
