@@ -69,7 +69,7 @@ some_function()
 
 Prefect Cloud offers [programmable webhooks](/cloud/webhooks/) to recieve HTTP requests from other systems and translate them into events within your workspace.  Webhooks can emit [pre-defined static events](/cloud/webhooks/#static-webhook-events), dynamic events that [use portions of the incoming HTTP request](/cloud/webhooks/#dynamic-webhook-events), or events derived from [CloudEvents](http://localhost:8000/cloud/webhooks/#accepting-cloudevents).
 
-Events emitted from any source will appear in the [event feed](/ui/events/) where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
+Events emitted from any source will appear in the [event feed](/ui/events/), where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
 
 
 ## Resources
