@@ -169,7 +169,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+The Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will already have SQLite installed, since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
