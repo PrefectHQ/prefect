@@ -5,7 +5,6 @@ import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
-from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -35,6 +34,7 @@ from prefect.deployments.base import (
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -3397,7 +3397,7 @@ class TestDeploymentTriggerSyncing:
         assert triggers[0].name == "my_deployment__automation_1"
 
     async def test_create_deployment_triggers(self):
-        client = mock.AsyncMock()
+        client = AsyncMock()
         client.server_type = ServerType.CLOUD
 
         trigger_spec = {
@@ -3422,7 +3422,7 @@ class TestDeploymentTriggerSyncing:
         client.create_automation.assert_called_once_with(triggers[0].as_automation())
 
     async def test_create_deployment_triggers_not_cloud_noop(self):
-        client = mock.AsyncMock()
+        client = AsyncMock()
         client.server_type = ServerType.SERVER
 
         trigger_spec = {
@@ -3442,3 +3442,43 @@ class TestDeploymentTriggerSyncing:
 
         client.delete_resource_owned_automations.assert_not_called()
         client.create_automation.assert_not_called()
+
+    async def test_deploy_command_warns_triggers_not_created_not_cloud(
+        self, project_dir, prefect_client, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "triggers": [
+                    {
+                        "enabled": True,
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "expect": ["prefect.flow-run.Completed"],
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name-1",
+            expected_code=0,
+            expected_output_contains=[
+                "Deployment triggers are only supported on Prefect Cloud"
+            ],
+        )
