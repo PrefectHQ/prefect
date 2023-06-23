@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import ANY
 
 import anyio
+import httpx
 import pytest
 
 import prefect
@@ -15,9 +16,82 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import MagicMock
+from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
+from prefect.settings import PREFECT_API_URL
+
+from prefect.client.schemas.actions import WorkPoolCreate
+import readchar
+import respx
+
+from typer import Exit
+
+from prefect.workers.base import BaseJobConfiguration, BaseWorker
+
+
+class MockKubernetesWorker(BaseWorker):
+    type = "kubernetes"
+    job_configuration = BaseJobConfiguration
+
+    async def run(self):
+        pass
+
+    async def kill_infrastructure(self, *args, **kwargs):
+        pass
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.worker.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture
+async def kubernetes_work_pool(prefect_client: PrefectClient):
+    work_pool = await prefect_client.create_work_pool(
+        work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+    )
+
+    with respx.mock(
+        assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+    ) as respx_mock:
+        respx_mock.route(path__startswith="/work_pools/").pass_through()
+        respx_mock.route(path__startswith="/flow_runs/").pass_through()
+        respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect": {
+                        "prefect-agent": {
+                            "type": "prefect-agent",
+                            "default_base_job_configuration": {},
+                        }
+                    },
+                    "prefect-kubernetes": {
+                        "kubernetes": {
+                            "type": "kubernetes",
+                            "default_base_job_configuration": {},
+                        }
+                    },
+                },
+            )
+        )
+
+        yield work_pool
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -260,6 +334,139 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
     workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+class TestAutoInstall:
+    async def test_auto_install_option(self, kubernetes_work_pool, monkeypatch):
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+                "-i",
+            ],
+            expected_output_contains=[
+                "Installing prefect-kubernetes...",
+                "Worker 'test-worker' started!",
+                "Worker 'test-worker' stopped!",
+            ],
+        )
+
+        run_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
+            stream_output=True,
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_auto_install_prompt(self, kubernetes_work_pool, monkeypatch):
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+            ],
+            user_input=readchar.key.ENTER,
+            expected_output_contains=[
+                (
+                    "Could not find a kubernetes worker in the current"
+                    " environment. Install it now?"
+                ),
+                "Installing prefect-kubernetes...",
+                "Worker 'test-worker' started!",
+                "Worker 'test-worker' stopped!",
+            ],
+        )
+
+        run_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
+            stream_output=True,
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_auto_install_prompt_decline(self, monkeypatch, prefect_client):
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        kubernetes_work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+            ],
+            expected_code=1,
+            user_input="n" + readchar.key.ENTER,
+            expected_output_contains=[
+                "Unable to start worker. Please ensure you have the necessary"
+                " dependencies installed to run your desired worker type."
+            ],
+        )
+
+        run_process_mock.assert_not_called()
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_auto_install_prompt_option_overrides_prompt(
+        self, kubernetes_work_pool, monkeypatch
+    ):
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+                "-i",
+            ],
+            expected_output_contains=[
+                "Installing prefect-kubernetes...",
+                "Worker 'test-worker' started!",
+                "Worker 'test-worker' stopped!",
+            ],
+        )
+
+        run_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
+            stream_output=True,
+        )
 
 
 POLL_INTERVAL = 0.5

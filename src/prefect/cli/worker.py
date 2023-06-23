@@ -46,7 +46,11 @@ async def start(
         ),
     ),
     work_pool_name: str = typer.Option(
-        ..., "-p", "--pool", help="The work pool the started worker should poll."
+        ...,
+        "-p",
+        "--pool",
+        help="The work pool the started worker should poll.",
+        prompt=True,
     ),
     work_queues: List[str] = typer.Option(
         None,
@@ -98,8 +102,8 @@ async def start(
     worker_cls = await _get_worker_class(worker_type, work_pool_name, auto_install)
     if worker_cls is None:
         exit_with_error(
-            f"Unable to start {worker_type!r} worker. "
-            "Please ensure that you have installed this worker type on this machine."
+            "Unable to start worker. Please ensure you have the necessary dependencies"
+            " installed to run your desired worker type."
         )
 
     worker_process_id = os.getpid()
@@ -216,7 +220,7 @@ async def _install_and_load_package(
             is_interactive()
             and confirm(
                 (
-                    "Could not find {worker_type} worker type in the current"
+                    f"Could not find a {worker_type} worker in the current"
                     " environment. Install it now?"
                 ),
                 default=True,
