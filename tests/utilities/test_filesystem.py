@@ -3,7 +3,11 @@ from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
-from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
+from prefect.utilities.filesystem import (
+    filter_files,
+    relative_path_to_current_platform,
+    get_open_file_limit,
+)
 
 
 class TestFilterFiles:
@@ -149,3 +153,14 @@ class TestPlatformSpecificRelpath:
 
         assert isinstance(new_path, WindowsPath)
         assert str(new_path) == expected
+
+
+def test_get_open_file_limit():
+    """
+    Test that we can get the open file limit. Although this is a simple test, it
+    ensures that the function works as expected on both Windows and Unix.
+    """
+
+    limit = get_open_file_limit()
+    assert type(limit) == int
+    assert limit > 0
