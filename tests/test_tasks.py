@@ -3404,7 +3404,7 @@ def create_async_hook(mock_obj):
 
 
 class TestTaskHooksOnCompletion:
-    def test_on_completion_hooks_is_iterable(self):
+    def test_noniterable_hook_raises(self):
         def completion_hook():
             pass
 
@@ -3417,16 +3417,14 @@ class TestTaskHooksOnCompletion:
             def flow1():
                 pass
 
-        @flow(on_completion=[])
-        def flow2():
-            pass
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
 
-        assert flow2.on_completion == []
+            @flow(on_completion=[])
+            def flow2():
+                pass
 
-    def test_on_completion_hooks_contains_callables(self):
-        def completion_hook():
-            pass
-
+    def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError, match="Expected callables in 'on_completion'; got str instead."
         ):
@@ -3434,6 +3432,10 @@ class TestTaskHooksOnCompletion:
             @flow(on_completion=["test"])
             def flow1():
                 pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def completion_hook():
+            pass
 
         with pytest.raises(
             TypeError, match="Expected callables in 'on_completion'; got str instead."
@@ -3539,7 +3541,7 @@ class TestTaskHooksOnCompletion:
 
 
 class TestTaskHooksOnFailure:
-    def test_on_failure_hooks_is_iterable(self):
+    def test_noniterable_hook_raises(self):
         def failure_hook():
             pass
 
@@ -3551,16 +3553,14 @@ class TestTaskHooksOnFailure:
             def flow1():
                 pass
 
-        @flow(on_failure=[])
-        def flow2():
-            pass
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
 
-        assert flow2.on_failure == []
+            @flow(on_failure=[])
+            def flow2():
+                pass
 
-    def test_on_failure_hooks_contains_callables(self):
-        def failure_hook():
-            pass
-
+    def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError, match="Expected callables in 'on_failure'; got str instead."
         ):
@@ -3568,6 +3568,10 @@ class TestTaskHooksOnFailure:
             @flow(on_failure=["test"])
             def flow1():
                 pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def failure_hook():
+            pass
 
         with pytest.raises(
             TypeError, match="Expected callables in 'on_failure'; got str instead."
