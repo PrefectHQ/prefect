@@ -224,6 +224,8 @@ class Task(Generic[P, R]):
                             f"Expected callables in '{hook_name}'; got"
                             f" {type(hook).__name__} instead."
                         )
+                if len(hooks) == 0:
+                    raise ValueError(f"Empty list passed for '{hook_name}'")
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
