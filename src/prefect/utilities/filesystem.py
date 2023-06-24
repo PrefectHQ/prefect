@@ -2,7 +2,6 @@
 Utilities for working with file systems
 """
 import os
-import resource
 import pathlib
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
@@ -122,6 +121,15 @@ def relative_path_to_current_platform(path_str: str) -> Path:
     return Path(PureWindowsPath(path_str).as_posix())
 
 
-def get_open_file_limit():
-    soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
-    return soft_limit
+def get_open_file_limit() -> int:
+    """Get the maximum number of open files allowed for the current process"""
+
+    if os.name == "nt":
+        import ctypes
+
+        return ctypes.cdll.ucrtbase._getmaxstdio()
+    else:
+        import resource
+
+        soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+        return soft_limit
