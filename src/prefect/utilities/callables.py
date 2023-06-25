@@ -92,7 +92,7 @@ def explode_variadic_parameter(
         return parameters
 
     new_parameters = parameters.copy()
-    for key, value in new_parameters.pop(variadic_key).items():
+    for key, value in new_parameters.pop(variadic_key, {}).items():
         new_parameters[key] = value
 
     return new_parameters
