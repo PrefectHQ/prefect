@@ -11,7 +11,7 @@ def _path_set(*args: str):
     Takes one or more paths and converts them to a set of paths in the
     current platform's format.
     """
-    return {str(Path(p)) for p in args}
+    return {str(relative_path_to_current_platform(p)) for p in args}
 
 
 class TestFilterFiles:
@@ -124,7 +124,7 @@ class TestFilterFiles:
         filtered = filter_files(
             tmpdir, ignore_patterns=["venv/**"], include_dirs=include_dirs
         )
-        assert str(Path("utilities/venv")) in filtered
+        assert str(relative_path_to_current_platform("utilities/venv")) in filtered
         expected = {"venv"} if include_dirs else set()
         assert {f for f in filtered if f.startswith("venv")} == expected
 
