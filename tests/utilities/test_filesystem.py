@@ -135,7 +135,7 @@ class TestFilterFiles:
         )
         assert "__init__.py" in filtered
         expected = (
-            {str(Path("utilities/__pycache__")), str(Path("venv/__pycache__"))}
+            _path_set("utilities/__pycache__", "venv/__pycache__")
             if include_dirs
             else set()
         )
