@@ -1,9 +1,18 @@
 import sys
+from os.path import normpath
 from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
+
+
+def _path_set(*args: str):
+    """
+    Takes one or more paths and converts them to a set of paths in the
+    current platform's format.
+    """
+    return {str(Path(p)) for p in args}
 
 
 class TestFilterFiles:
@@ -49,30 +58,41 @@ class TestFilterFiles:
 
     async def test_simple_filetype_filter(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py"])
-        assert "README.md" in filtered
-        assert "venv" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+
+        should_be_included = _path_set(
+            "README.md", "venv", "venv/config.json", "utilities/README.md"
+        )
+
+        assert should_be_included.issubset(filtered)
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_simple_filetype_filter_with_ignore_dirs(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py"], include_dirs=False)
-        assert "README.md" in filtered
-        assert "venv" not in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+
+        should_be_included = _path_set(
+            "README.md", "venv/config.json", "utilities/README.md"
+        )
+
+        should_be_excluded = _path_set(
+            "venv", "utilities", "venv/__pycache__", "utilities/__pycache__"
+        )
+
+        assert should_be_included.issubset(filtered)
+        assert should_be_excluded.isdisjoint(filtered)
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_simple_filetype_filter_with_override(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py", "!*__init__.py"])
-        assert "README.md" in filtered
-        assert "venv" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
-        assert {f for f in filtered if f.endswith(".py")} == {
+
+        should_be_included = _path_set(
+            "README.md", "venv", "venv/config.json", "utilities/README.md"
+        )
+
+        assert should_be_included.issubset(filtered)
+        assert {f for f in filtered if f.endswith(".py")} == _path_set(
             "__init__.py",
             "utilities/__init__.py",
-        }
+        )
 
     async def test_comments_and_empty_lines_are_ignored(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py", "", "#!*__init__.py"])
@@ -81,16 +101,22 @@ class TestFilterFiles:
 
     async def test_override_order_matters(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["!*__init__.py", "*.py"])
-        assert "README.md" in filtered
-        assert "venv/config.json" in filtered
-        assert "utilities/README.md" in filtered
+
+        should_be_included = _path_set(
+            "README.md", "venv/config.json", "utilities/README.md"
+        )
+
+        assert should_be_included.issubset(filtered)
         assert {f for f in filtered if f.endswith(".py")} == set()
 
     async def test_partial_directory_filter(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["utilities/*.md"])
-        assert "README.md" in filtered
-        assert "utilities" in filtered
-        assert "utilities/__init__.py" in filtered
+
+        should_be_included = _path_set(
+            "README.md", "utilities", "utilities/__init__.py"
+        )
+
+        assert should_be_included.issubset(filtered)
         assert "utilities/README.md" not in filtered
 
     @pytest.mark.parametrize("include_dirs", [True, False])
@@ -99,7 +125,7 @@ class TestFilterFiles:
         filtered = filter_files(
             tmpdir, ignore_patterns=["venv/**"], include_dirs=include_dirs
         )
-        assert "utilities/venv" in filtered
+        assert str(Path("utilities/venv")) in filtered
         expected = {"venv"} if include_dirs else set()
         assert {f for f in filtered if f.startswith("venv")} == expected
 
@@ -110,7 +136,9 @@ class TestFilterFiles:
         )
         assert "__init__.py" in filtered
         expected = (
-            {"utilities/__pycache__", "venv/__pycache__"} if include_dirs else set()
+            {str(Path("utilities/__pycache__")), str(Path("venv/__pycache__"))}
+            if include_dirs
+            else set()
         )
         assert {f for f in filtered if "pycache" in f} == expected
 
