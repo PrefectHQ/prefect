@@ -1,5 +1,4 @@
 import sys
-from os.path import normpath
 from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
