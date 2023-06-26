@@ -1238,7 +1238,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     task run inputs it finds in the data structure. It produces a set of all inputs
     found.
 
-    Example:
+    Examples:
         >>> task_inputs = {
         >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
