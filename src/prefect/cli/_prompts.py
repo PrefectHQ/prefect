@@ -412,7 +412,7 @@ async def prompt_push_custom_docker_image(
     push_step = {
         "requires": "prefect-docker",
         "image_name": "{{ build-image.image_name }}",
-        "tag": "{{ build-id.tag }}",
+        "tag": "{{ build-image.tag }}",
     }
 
     docker_credentials = {}
