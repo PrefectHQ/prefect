@@ -904,6 +904,24 @@ async def test_job_configuration_from_template_overrides_with_block():
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
     }
 
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template,
+        values={
+            "var1": "woof!",
+            "arbitrary_block": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}",
+        },
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "labels": {},
+        "name": None,
+        "var1": "woof!",
+        # block_type_slug is added by Block.dict()
+        "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
+    }
+
 
 @pytest.mark.usefixtures("variables")
 async def test_job_configuration_from_template_overrides_with_remote_variables():
