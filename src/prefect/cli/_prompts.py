@@ -443,7 +443,6 @@ async def prompt_push_custom_docker_image(
                 docker_credentials["password"] = prompt(
                     "Docker registry password",
                     console=console,
-                    default="default",
                     password=True,
                 )
             except GetPassWarning:
