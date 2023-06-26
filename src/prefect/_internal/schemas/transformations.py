@@ -33,7 +33,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
     Use this decorator and the corresponding `FieldFrom` to compose response and
     action schemas from other classes.
 
-    Example:
+    Examples:
 
         >>> from pydantic import BaseModel
         >>> from prefect.server.utilities.schemas import copy_model_fields, FieldFrom

@@ -1945,7 +1945,7 @@ def temporary_settings(
 
     See `Settings.copy_with_update` for details on different argument behavior.
 
-    Example:
+    Examples:
         >>> from prefect.settings import PREFECT_API_URL
         >>>
         >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):

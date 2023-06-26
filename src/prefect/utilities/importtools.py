@@ -45,7 +45,7 @@ def from_qualified_name(name: str) -> Any:
     Returns:
         the imported object
 
-    Example:
+    Examples:
         >>> obj = from_qualified_name("random.randint")
         >>> import random
         >>> obj == random.randint
