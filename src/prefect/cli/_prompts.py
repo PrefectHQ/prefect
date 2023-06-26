@@ -416,7 +416,7 @@ async def prompt_push_custom_docker_image(
     }
 
     docker_credentials = {}
-    docker_credentials["registry_url"] = prompt("Registry URL", default="default")
+    docker_credentials["registry_url"] = prompt("Registry URL")
 
     if confirm("Is this a private registry?", console=console):
         docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
