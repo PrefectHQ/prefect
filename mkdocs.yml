@@ -77,6 +77,8 @@ theme:
             icon: material/weather-night
             name: Switch to light mode
 plugins:
+    my_search:
+      TODO
     mike:
         canonical_version: latest
         version_selector: true
@@ -96,7 +98,6 @@ plugins:
                     heading_level: 1
                     filters: ["!^_"]
     render_swagger: {}
-    search: {}
     gen-files:
         scripts:
             - docs/integrations/generate_catalog.py
