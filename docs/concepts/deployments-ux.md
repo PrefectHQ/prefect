@@ -250,7 +250,7 @@ pull:
         stream_output: False
 ```
 
-Below is an example that retrieves an access token from a 3rd party keyvault and uses it for a private clone step:
+Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
 
 ```yaml
 pull:
