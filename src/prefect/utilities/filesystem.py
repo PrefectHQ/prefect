@@ -124,12 +124,18 @@ def relative_path_to_current_platform(path_str: str) -> Path:
 def get_open_file_limit() -> int:
     """Get the maximum number of open files allowed for the current process"""
 
-    if os.name == "nt":
-        import ctypes
+    try:
+        if os.name == "nt":
+            import ctypes
 
-        return ctypes.cdll.ucrtbase._getmaxstdio()
-    else:
-        import resource
+            return ctypes.cdll.ucrtbase._getmaxstdio()
+        else:
+            import resource
 
-        soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
-        return soft_limit
+            soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+            return soft_limit
+    except Exception:
+        # Catch all exceptions, as ctypes can raise several errors
+        # depending on what went wrong. Return a safe default if we
+        # can't get the limit from the OS.
+        return 200

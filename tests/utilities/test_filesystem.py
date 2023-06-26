@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path, PosixPath, WindowsPath
 
@@ -170,3 +171,41 @@ def test_get_open_file_limit():
 
     # It shouldn't be possible to have a negative open file limit.
     assert limit >= 0
+
+
+@pytest.mark.skipif(os.name == "nt", reason="This is a Unix-specific test")
+def test_get_open_file_limit_exception_unix(monkeypatch):
+    import resource
+
+    def mock_getrlimit(*args, **kwargs):
+        raise OSError
+
+    monkeypatch.setattr(resource, "getrlimit", mock_getrlimit)
+
+    assert get_open_file_limit() == 200
+
+
+@pytest.mark.skipif(os.name != "nt", reason="This is a Windows-specific test")
+def test_get_open_file_limit_exception_windows(monkeypatch):
+    import ctypes
+
+    # General error when calling _getmaxstdio
+    def mock_getmaxstdio_error(*args, **kwargs):
+        raise OSError
+
+    # Either ucrtbase or _getmaxstdio is missing
+    def mock_getmaxstdio_missing(*args, **kwargs):
+        raise AttributeError
+
+    # Invalid argument(s) passed to _getmaxstdio
+    def mock_getmaxstdio_invalid_args(*args, **kwargs):
+        raise ValueError
+
+    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_error)
+    assert get_open_file_limit() == 200
+
+    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_missing)
+    assert get_open_file_limit() == 200
+
+    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_invalid_args)
+    assert get_open_file_limit() == 200
