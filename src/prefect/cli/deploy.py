@@ -447,7 +447,7 @@ async def _run_single_deploy(
         ).get("properties", {})
         if docker_based_infrastructure:
             build_docker_image_step = await prompt_build_custom_docker_image(
-                app.console
+                app.console, deploy_config
             )
             if build_docker_image_step != []:
                 deploy_config.setdefault("build", []).append(build_docker_image_step)

@@ -352,6 +352,7 @@ async def prompt_select_work_pool(
 
 async def prompt_build_custom_docker_image(
     console: Console,
+    deployment_config: dict,
 ):
     if not confirm(
         "Would you like to build a custom Docker image for this deployment?",
@@ -392,8 +393,17 @@ async def prompt_build_custom_docker_image(
     else:
         build_step["dockerfile"] = "auto"
 
-    build_step["image_name"] = prompt("Image name", default="default")
+    build_step["repository_name"] = prompt(
+        "Repository name", default="prefecthq/prefect"
+    )
+    build_step["image_name"] = prompt("Image name", default=deployment_config["name"])
     build_step["tag"] = prompt("Image tag", default="latest")
+
+    console.print(
+        "Image"
+        f" [bold]{build_step['repository_name']}/{build_step['image_name']}:{build_step['tag']}[/bold]"
+        " will be built."
+    )
 
     return [{"prefect_docker.deployments.steps.build_docker_image": build_step}]
 
