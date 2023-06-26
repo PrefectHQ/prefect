@@ -7,6 +7,7 @@ import os
 import shutil
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
+from prefect.infrastructure.container import DockerRegistry
 from rich.prompt import PromptBase, InvalidResponse
 from rich.text import Text
 
@@ -35,8 +36,6 @@ from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate
 
 from prefect.utilities.slugify import slugify
-
-from prefect_docker import DockerRegistryCredentials
 
 
 def prompt(message, **kwargs):
@@ -423,7 +422,7 @@ async def prompt_push_custom_docker_image(
         docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
         create_new_block = False
         try:
-            await DockerRegistryCredentials.load(docker_registry_creds_name)
+            await DockerRegistry.load(docker_registry_creds_name)
             if not confirm(
                 (
                     "Would you like to use the existing Docker registry credentials"
@@ -453,7 +452,7 @@ async def prompt_push_custom_docker_image(
                     console=console,
                     default="default",
                 )
-            await DockerRegistryCredentials(
+            await DockerRegistry(
                 username=docker_credentials["username"],
                 password=docker_credentials["password"],
                 registry_url=docker_credentials["registry_url"],

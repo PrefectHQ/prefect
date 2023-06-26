@@ -430,8 +430,13 @@ async def _run_single_deploy(
             console=app.console, client=client
         )
 
+    docker_build_steps = [
+        "prefect_docker.deployments.steps.build_docker_image",
+        "prefect_docker.projects.steps.build_docker_image",
+    ]
+
     docker_build_step_exists = any(
-        "prefect.deployments.steps.build_docker_image" in action
+        any(step in action for step in docker_build_steps)
         for action in deploy_config.get("build", actions.get("build")) or []
     )
 
