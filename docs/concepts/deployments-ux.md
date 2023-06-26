@@ -264,7 +264,7 @@ pull:
     access_token: "{{ get-access-token.stdout }}"
 ```
 
-An additional way to run custom steps that are not defined is provided below. `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval. 
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
 
 ```yaml
 - retrieve_secrets.main:
