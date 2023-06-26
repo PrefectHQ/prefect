@@ -173,7 +173,7 @@ def test_get_open_file_limit():
     assert limit >= 0
 
     # The open file limit should not equal the default value of 200
-    # returned if an error occurs. 
+    # returned if an error occurs.
     assert limit != 200
 
 
@@ -211,5 +211,7 @@ def test_get_open_file_limit_exception_windows(monkeypatch):
     monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_missing)
     assert get_open_file_limit() == 200
 
-    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_invalid_args)
+    monkeypatch.setattr(
+        ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_invalid_args
+    )
     assert get_open_file_limit() == 200
