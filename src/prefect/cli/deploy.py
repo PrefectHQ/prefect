@@ -4,7 +4,8 @@ import json
 from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
 import typer
 import typer.core
@@ -31,6 +32,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.deployments import find_prefect_directory, register_flow
@@ -52,7 +54,7 @@ from prefect.blocks.system import Secret
 
 from prefect.utilities.slugify import slugify
 
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, ServerType
 
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
@@ -371,7 +373,8 @@ async def _run_single_deploy(
         # set entrypoint from prior registration
         deploy_config["entrypoint"] = flows[deploy_config["flow_name"]]
 
-    if not deploy_config.get("name"):
+    deployment_name = deploy_config.get("name")
+    if not deployment_name:
         if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
@@ -428,6 +431,22 @@ async def _run_single_deploy(
             console=app.console, client=client
         )
 
+    triggers: List[DeploymentTrigger] = []
+    trigger_specs = deploy_config.get("triggers")
+    if trigger_specs:
+        triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
+        if client.server_type != ServerType.CLOUD:
+            app.console.print(
+                Panel(
+                    (
+                        "Deployment triggers are only supported on "
+                        "Prefect Cloud. Any triggers defined for the deployment will "
+                        "not be created."
+                    ),
+                ),
+                style="yellow",
+            )
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
@@ -481,6 +500,8 @@ async def _run_single_deploy(
         pull_steps=pull_steps,
         infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
+
+    await _create_deployment_triggers(client, deployment_id, triggers)
 
     app.console.print(
         Panel(
@@ -1087,3 +1108,32 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
                     ):
                         return True
     return False
+
+
+def _initialize_deployment_triggers(
+    deployment_name: str, triggers_spec: List[Dict[str, Any]]
+) -> List[DeploymentTrigger]:
+    triggers = []
+    for i, spec in enumerate(triggers_spec, start=1):
+        spec.setdefault("name", f"{deployment_name}__automation_{i}")
+        triggers.append(DeploymentTrigger(**spec))
+
+    return triggers
+
+
+async def _create_deployment_triggers(
+    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTrigger]
+):
+    if client.server_type == ServerType.CLOUD:
+        # The triggers defined in the deployment spec are, essentially,
+        # anonymous and attempting truly sync them with cloud is not
+        # feasible. Instead, we remove all automations that are owned
+        # by the deployment, meaning that they were created via this
+        # mechanism below, and then recreate them.
+        await client.delete_resource_owned_automations(
+            f"prefect.deployment.{deployment_id}"
+        )
+
+        for trigger in triggers:
+            trigger.set_deployment_id(deployment_id)
+            await client.create_automation(trigger.as_automation())
