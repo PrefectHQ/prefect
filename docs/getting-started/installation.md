@@ -15,7 +15,7 @@ search:
 
 # Installation
 
-Prefect requires Python 3.7 or later. 
+Prefect requires Python 3.8 or newer.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
@@ -179,7 +179,6 @@ $ sqlite3 --version
 ```
 </div>
 
-Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 
 <div class="terminal">
