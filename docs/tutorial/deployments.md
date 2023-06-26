@@ -60,7 +60,7 @@ You can configure work pools within the Prefect UI. They prioritize the flows an
 ```mermaid
 graph TD
 
-    subgraph your_infra["-- Your Execution Environment --"]
+    subgraph your_infra["Your Execution Environment"]
         worker["Worker"]
 				subgraph flow_run_infra[Flow Run Infra]
 					flow_run(("Flow Run"))
@@ -69,7 +69,7 @@ graph TD
     end
 
     subgraph api["Prefect API"]
-				deployment --> |assigned to| work_pool
+				Deployment --> |assigned to| work_pool
         work_pool(["Work Pool"])
     end
 
