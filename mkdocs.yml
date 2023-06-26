@@ -170,6 +170,8 @@ nav:
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
         - State Change Hooks: guides/state-change-hooks.md
+        - Customize Prefect:
+            - Custom Block Types: guides/custom-block-types.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md

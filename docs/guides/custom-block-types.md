@@ -1,0 +1,32 @@
+## Why Blocks
+
+Today there are many low-code data integration tools - “connectors” to popular applications. These tools are great for setting up connections to common systems, but they’re not code-first, or even code-second. It can be complex to do anything custom with these tools.
+
+Prefect’s [Blocks](/concepts/blocks/) offer the advantages of low-code connectors with a first class experience in code. As a result, Blocks are connectors for code that go beyond source and destination.
+
+**Low-code connectors often come in two kinds - sources and destinations.** That’s great for straightforward ELT pipelines, but modern dataflows don’t just extract and load data. They write intermediate outputs, call out to web services, transform data, train models, set up job-specific infrastructure, and much more.
+
+Prefect ships with dozens of different block types available off the shelf, but its straightforward to create your own custom block types that meet the unique needs of your project by simply inheriting from the base block class.
+
+After all, under the hood, blocks are simply python classes.
+
+## Why Create Custom Block Types
+
+With custom blocks, as your data platform evolves, your building blocks don’t have to be replaced. Instead, they can gain new capabilities.
+
+
+
+### 1. Inherit from Block Class
+
+```python
+from prefect.blocks.core import Block
+
+class MyCustomBlock(Block):
+
+    """
+    This is what my block does!
+    """
+```
+
+!!! Tip "Inline documentation is key!" 
+    Doc strings will be added directly to the UI.
