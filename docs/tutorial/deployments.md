@@ -58,8 +58,9 @@ You can configure work pools within the Prefect UI. They prioritize the flows an
 - Prioritize the flows and respond to polling from its worker(s).
 
 ```mermaid
-graph TD;
-    subgraph your_infra["-- Your Execution Environment --"]
+graph TD
+
+    subgraph your_infra["Your Execution Environment"]
         worker["Worker"]
 				subgraph flow_run_infra[Flow Run Infra]
 					flow_run(("Flow Run"))
@@ -68,7 +69,7 @@ graph TD;
     end
 
     subgraph api["Prefect API"]
-				deployment --> |assigned to| work_pool
+				Deployment --> |assigned to| work_pool
         work_pool(["Work Pool"])
     end
 
@@ -141,7 +142,7 @@ Now that we’ve set up your work pool and worker, they are ready to kick off de
 
 Now it’s time to put it all together.
 
-!!! warning Push Your Flow Code!
+!!! warning "Push Your Flow Code!"
     Ensure that you have pushed any recent changes in your flow script to your GitHub repo.
 
 In your terminal (not the terminal in which the worker is running), let’s run the following command to begin deploying your flow. Ensure that the current directory represents the root of your github repo.
@@ -178,9 +179,10 @@ As you continue to use Prefect, you'll likely author many different flows and de
 
 - Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
-- [Our Concepts](/concepts/) contain deep dives into Prefect components.
+- [Concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step by step recipes for common Prefect operations including:
     - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
     - [Deploying flows in Docker](/guides/deployment/docker/)
     - [Writing tests](/guides/testing)
+      
 And more!
