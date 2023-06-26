@@ -5,9 +5,11 @@ from datetime import timedelta
 from getpass import GetPassWarning
 import os
 import shutil
+import sys
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
+from prefect.utilities.processutils import run_process
 from rich.prompt import PromptBase, InvalidResponse
 from rich.text import Text
 
@@ -362,7 +364,7 @@ async def prompt_build_custom_docker_image(
         return []
 
     build_step = {
-        "requires": "prefect-docker",
+        "requires": "prefect-docker>=0.3.1",
         "id": "build-image",
     }
 
@@ -393,19 +395,18 @@ async def prompt_build_custom_docker_image(
     else:
         build_step["dockerfile"] = "auto"
 
-    build_step["repository_name"] = prompt(
-        "Repository name", default="prefecthq/prefect"
-    )
-    build_step["image_name"] = prompt("Image name", default=deployment_config["name"])
+    repo_name = prompt("Repository name", default="prefecthq/prefect").rstrip("/")
+    image_name = prompt("Image name", default=deployment_config["name"])
+    build_step["image_name"] = f"{repo_name}/{image_name}"
     build_step["tag"] = prompt("Image tag", default="latest")
 
     console.print(
         "Image"
-        f" [bold]{build_step['repository_name']}/{build_step['image_name']}:{build_step['tag']}[/bold]"
+        f" [bold][yellow]{build_step['image_name']}:{build_step['tag']}[/yellow][/bold]"
         " will be built."
     )
 
-    return [{"prefect_docker.deployments.steps.build_docker_image": build_step}]
+    return {"prefect_docker.deployments.steps.build_docker_image": build_step}
 
 
 async def prompt_push_custom_docker_image(
@@ -420,7 +421,7 @@ async def prompt_push_custom_docker_image(
         return []
 
     push_step = {
-        "requires": "prefect-docker",
+        "requires": "prefect-docker>=0.3.1",
         "image_name": "{{ build-image.image_name }}",
         "tag": "{{ build-image.tag }}",
     }
@@ -429,10 +430,31 @@ async def prompt_push_custom_docker_image(
     docker_credentials["registry_url"] = prompt("Registry URL")
 
     if confirm("Is this a private registry?", console=console):
+        if confirm(
+            "Would you like use prefect-docker to manage Docker registry credentials?",
+            console=console,
+            default=False,
+        ):
+            console.print("Installing prefect-docker...")
+            await run_process(
+                [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                stream_output=True,
+            )
+            import prefect_docker
+
+            credentials_block = prefect_docker.DockerRegistryCredentials
+            push_step["credentials"] = (
+                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            )
+        else:
+            credentials_block = DockerRegistry
+            push_step["credentials"] = (
+                "{{ prefect.docker-registry.docker_registry_creds_name }}"
+            )
         docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
         create_new_block = False
         try:
-            await DockerRegistry.load(docker_registry_creds_name)
+            await credentials_block.load(docker_registry_creds_name)
             if not confirm(
                 (
                     "Would you like to use the existing Docker registry credentials"
@@ -460,17 +482,14 @@ async def prompt_push_custom_docker_image(
                     "Docker registry password",
                     console=console,
                 )
-            await DockerRegistry(
+
+            await credentials_block(
                 username=docker_credentials["username"],
                 password=docker_credentials["password"],
                 registry_url=docker_credentials["registry_url"],
             ).save(name=docker_registry_creds_name, overwrite=True)
 
-        push_step["credentials"] = (
-            "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-        )
-
-    return [{"prefect_docker.deployments.steps.push_docker_image": push_step}]
+    return {"prefect_docker.deployments.steps.push_docker_image": push_step}
 
 
 @inject_client
