@@ -172,6 +172,10 @@ def test_get_open_file_limit():
     # It shouldn't be possible to have a negative open file limit.
     assert limit >= 0
 
+    # The open file limit should not equal the default value of 200
+    # returned if an error occurs. 
+    assert limit != 200
+
 
 @pytest.mark.skipif(os.name == "nt", reason="This is a Unix-specific test")
 def test_get_open_file_limit_exception_unix(monkeypatch):
