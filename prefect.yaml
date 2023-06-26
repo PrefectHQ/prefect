@@ -1,0 +1,24 @@
+# Welcome to your prefect.yaml file! You can you this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: prefect
+prefect-version: 2.10.17+15.g6a6041d51.dirty
+
+# build section allows you to manage and build docker images
+build:
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push:
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: existing_deployment
+  entrypoint: flows/existing_flow.py:my_flow
+  schedule:
+  work_pool:
+    name: existing_pool
