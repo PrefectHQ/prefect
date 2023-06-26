@@ -26,13 +26,7 @@ A deployed flow gets the following additional cababilities:
 
 ## What is a Deployment?
 
-Deploying your flows is, in essence, the act of informing Prefect of:
-
-1. Where to run your flows
-2. How to run your flows
-3. When to run your flows
-
-This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which contains the crucial metadata needed for orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
+Deploying a flow is the act of specifying where, when, and how it will run. This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which contains the crucial metadata needed for orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to):
 
