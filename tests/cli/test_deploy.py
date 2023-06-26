@@ -5,7 +5,8 @@ import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
-from uuid import uuid4
+from unittest import mock
+from uuid import UUID, uuid4
 
 import pendulum
 from prefect.cli.deploy import (
@@ -3442,6 +3443,60 @@ class TestDeploymentTriggerSyncing:
 
         client.delete_resource_owned_automations.assert_not_called()
         client.create_automation.assert_not_called()
+
+    async def test_triggers_creation_orchestrated(
+        self, project_dir, prefect_client, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "triggers": [
+                    {
+                        "enabled": True,
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "expect": ["prefect.flow-run.Completed"],
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        expected_triggers = _initialize_deployment_triggers(
+            "test-name-1", contents["deployments"][0]["triggers"]
+        )
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        with mock.patch(
+            "prefect.cli.deploy._create_deployment_triggers",
+            AsyncMock(),
+        ) as create_triggers:
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy ./flows/hello.py:my_flow -n test-name-1",
+                expected_code=0,
+            )
+
+            assert create_triggers.call_count == 1
+
+            client, deployment_id, triggers = create_triggers.call_args[0]
+            assert isinstance(client, PrefectClient)
+            assert isinstance(deployment_id, UUID)
+
+            expected_triggers[0].set_deployment_id(deployment_id)
+
+            assert triggers == expected_triggers
 
     async def test_deploy_command_warns_triggers_not_created_not_cloud(
         self, project_dir, prefect_client, work_pool
