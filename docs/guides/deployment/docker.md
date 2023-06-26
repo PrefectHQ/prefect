@@ -6,11 +6,13 @@ tags:
     - orchestration
     - infrastructure
     - deployments
+search:
+  boost: 2
 ---
 
 # Running flows with Docker
 
-In the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/tutorial/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
+In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
 In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
@@ -25,7 +27,6 @@ In this guide we'll:
 To run a deployed flow in a Docker container, you'll need the following:
 
 - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
-- We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorial/storage/) tutorial.
 - You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
@@ -56,8 +57,6 @@ First, give the block a **Block Name**. We used "log-tutorial".
 
 Second, we need to make sure the container includes any additional files, libraries, or configuration to run `log_flow.py`. By default, Prefect uses a preconfigured container that includes installations of Python and Prefect.
 
-In the [Storage and Infrastructure](/tutorial/storage/) tutorial, recall that we needed to `pip install s3fs` the library for an S3 storage block. You'll need to include the same command in the configuration of the Docker Container infrastructure block. When the agent spins up a container for a flow run, it will know to install the `s3fs` package before starting the flow run.
-
 As a convenience, Prefect base images check the [`EXTRA_PIP_PACKAGES` environment variable](/concepts/infrastructure/#installing-extra-dependencies-at-runtime) to install dependencies at runtime. If defined, `pip install ${EXTRA_PIP_PACKAGES}` is executed before the flow run starts.
 
 In the **Env (Optional)** box, enter the following to specify that the `s3fs` package should be installed. Note that we use JSON formatting to specify the environment variable (key) and packages to install (value).
@@ -67,7 +66,6 @@ In the **Env (Optional)** box, enter the following to specify that the `s3fs` pa
   "EXTRA_PIP_PACKAGES": "s3fs"
 }
 ```
-If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/tutorial/storage/#prerequisites) for details.
 
 ![Configuring a new Docker Container infrastructure block in the Prefect UI](/img/guides/docker-tutorial-block.png)
 
@@ -82,10 +80,8 @@ The `prefect deployment build` command also supports specifying a built-in infra
 
 ## Build a deployment with Docker infrastructure
 
-To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
+To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorial/deployments/).
 
-- Use the storage block created in the [Storage and Infrastructure](/tutorial/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
-- Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--infra-block docker-container/log-tutorial`.
 
 <div class="terminal">
 ```bash

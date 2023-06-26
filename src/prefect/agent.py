@@ -506,7 +506,9 @@ class PrefectAgent:
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_failed_state(flow_run, exc)
+                await self._propose_crashed_state(
+                    flow_run, "Flow run could not be submitted to infrastructure"
+                )
             else:
                 self.logger.exception(
                     f"An error occured while monitoring flow run '{flow_run.id}'. "

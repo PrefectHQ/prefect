@@ -4,6 +4,8 @@ tags:
     - state change
     - hooks
     - triggers
+search:
+  boost: 2
 ---
 
 # State Change Hooks

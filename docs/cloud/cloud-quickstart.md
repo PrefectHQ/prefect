@@ -8,6 +8,8 @@ tags:
     - workspaces
     - tutorial
     - getting started
+search:
+  boost: 2
 ---
 
 # Prefect Cloud Quickstart <span class="badge cloud"></span>
@@ -106,7 +108,7 @@ If you choose to log in via the browser, Prefect opens a new tab in your default
 
 ## Run a flow with Prefect Cloud
 
-Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like [running local flows](/tutorial/first-steps/). However, because you logged into Prefect Cloud locally, your local flow runs show up in Prefect Cloud!
+Okay, you're all set to run a flow locally, orchestrated with Prefect Cloud. Notice that everything works just like [running local flows](/tutorial/flows/). However, because you logged into Prefect Cloud, your local flow runs show up in Prefect Cloud!
 
 In your local environment, where you configured the previous steps, create a file named `quickstart_flow.py` with the following contents:
 
@@ -147,7 +149,7 @@ Congratulations! You successfully ran a local flow and, because you're logged in
 
 ## Next steps
 
-If you're new to Prefect, learn more about writing and running flows in the [Prefect Flows First Steps](/tutorial/first-steps/) tutorial. If you're already familiar with Prefect flows and want to try creating deployments and kicking off flow runs with Prefect Cloud, check out the [Deployments](/tutorial/deployments/) and [Storage and Infrastructure](/tutorial/storage/) tutorials.
+If you're new to Prefect, learn more about writing and running flows in the [Prefect Flows First Steps](/tutorial/flows/) tutorial. If you're already familiar with Prefect flows and want to try creating deployments and kicking off flow runs with Prefect Cloud, check out the [Deployments](/tutorial/deployments/) tutorial.
 
 Want to learn more about the features available in Prefect Cloud? Start with the [Prefect Cloud Overview](/ui/cloud/).
 

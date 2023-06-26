@@ -6,6 +6,8 @@ tags:
     - environment variables
     - profiles
 title: Profiles and Configuration
+search:
+  boost: 2
 ---
 
 # Profiles & Configuration
@@ -24,7 +26,7 @@ This section describes some commonly configured settings for Prefect installatio
 
 ### PREFECT_API_URL
 
-The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or Prefect server instance.
+The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or a Prefect server instance.
 
 For example, using a local Prefect server instance.
 ```bash

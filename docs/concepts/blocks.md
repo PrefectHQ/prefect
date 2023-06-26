@@ -7,6 +7,8 @@ tags:
   - configuration
   - infrastructure
   - deployments
+search:
+  boost: 2
 ---
 
 # Blocks

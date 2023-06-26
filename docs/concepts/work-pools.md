@@ -10,6 +10,8 @@ tags:
     - schedules
     - concurrency limits
     - priority
+search:
+  boost: 2
 ---
 
 # Work Pools, Workers & Agents
@@ -55,8 +57,8 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
-!!! tip "`PREFECT_API_URL` setting for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents"
+    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
 
     If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
@@ -198,7 +200,7 @@ We see these configuration options available in the Prefect UI:
 
 For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
 
-You can override each of these attributes on a per-deployment basis. When deploying a project, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
+You can override each of these attributes on a per-deployment basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
 If we wanted to turn off streaming output for a specific deployment, we could add the following to our `deployment.yaml`:
 
@@ -368,6 +370,7 @@ Configuration parameters you can specify when starting a worker include:
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--name`, `-n`                                    | The name to give to the started worker. If not provided, a unique name will be generated.                                                   |
 | `--pool`, `-p`                                    | The work pool the started worker should poll.                                                                                               |
+| `--work-queue`, `-q`                              | One or more work queue names for the worker to pull from. If not provided, the worker will pull from all work queues in the work pool.      |
 | `--type`, `-t`                                    | The type of worker to start. If not provided, the worker type will be inferred from the work pool.                                          |
 | <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_WORKER_PREFETCH_SECONDS`. |
 | `--run-once`                                      | Only run worker polling once. By default, the worker runs forever.                                                                          |
@@ -377,6 +380,9 @@ You must start a worker within an environment that can access or create the infr
 
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment (virtual environment, Docker container, etc.) where you intend to run the worker or execute a flow run.
+
+!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers"
+    `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
 
 ### Starting a Worker
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.

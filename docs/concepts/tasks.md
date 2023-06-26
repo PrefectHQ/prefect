@@ -16,6 +16,8 @@ tags:
     - concurrency
     - concurrency limits
     - task concurrency
+search:
+  boost: 2
 ---
 
 # Tasks
@@ -653,7 +655,7 @@ To update your tag concurrency limits programmatically, use [`PrefectClient.orch
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```python
-from prefect.client import get_client
+from prefect import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag

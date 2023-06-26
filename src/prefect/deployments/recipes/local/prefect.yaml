@@ -1,0 +1,23 @@
+name: null
+prefect-version: null
+description: "Store code on a local filesystem"
+
+build: null
+push: null
+pull: 
+  - prefect.deployments.steps.set_working_directory:
+      directory: "{{ directory }}"
+
+deployments:
+  - name: null
+    version: null
+    tags: []
+    description: null
+    schedule: {}
+    flow_name: null
+    entrypoint: null
+    parameters: {}
+    work_pool:
+      name: null
+      work_queue_name: null
+      job_variables: {}

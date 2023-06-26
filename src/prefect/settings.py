@@ -481,6 +481,15 @@ PREFECT_CLI_COLORS = Setting(
 output will not include colors codes. Defaults to `True`.
 """
 
+PREFECT_CLI_PROMPT = Setting(
+    Optional[bool],
+    default=None,
+)
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive 
+prompts will be used. If `None`, the value will be dynamically determined based on
+the presence of an interactive-enabled terminal.
+"""
+
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
@@ -494,7 +503,16 @@ PREFECT_TEST_MODE = Setting(
     default=False,
 )
 """If `True`, places the API in test mode. This may modify
-behavior to faciliate testing. Defaults to `False`.
+behavior to facilitate testing. Defaults to `False`.
+"""
+
+PREFECT_UNIT_TEST_MODE = Setting(
+    bool,
+    default=False,
+)
+"""
+This variable only exists to facilitate unit testing. If `True`,
+code is executing in a unit test context. Defaults to `False`.
 """
 
 PREFECT_TEST_SETTING = Setting(
@@ -503,7 +521,7 @@ PREFECT_TEST_SETTING = Setting(
     value_callback=only_return_value_in_test_mode,
 )
 """
-This variable only exists to faciliate testing of settings.
+This variable only exists to facilitate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
@@ -855,7 +873,7 @@ PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
 In Prefect 2.6.0, the `State.result()` method was updated to be async
-to faciliate automatic retrieval of results from storage which means when 
+to facilitate automatic retrieval of results from storage which means when
 writing async code you must `await` the call. For backwards compatibility, 
 the result is not retrieved by default for async users. You may opt into this
 per call by passing  `fetch=True` or toggle this setting to change the behavior

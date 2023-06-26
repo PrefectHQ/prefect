@@ -7,6 +7,8 @@ tags:
     - events
     - triggers
     - Prefect Cloud
+search:
+  boost: 2
 ---
 
 # Automations <span class="badge cloud"></span>
@@ -51,7 +53,10 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Flow run state change
     -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work queue health
-- [Custom event](#automations-api) triggers
+- Custom event triggers
+
+!!! note "Automations API"
+    The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
@@ -84,13 +89,27 @@ For example, if you would only like a trigger to execute an action if it receive
   ],
   "after": [],
   "expect": [
-    "prefect.flow-run.Completed"
+    "prefect.flow-run.Failed"
   ],
   "posture": "Reactive",
   "threshold": 2,
   "within": 10
 }
 ```
+
+!!! note "Matching on multiple resources"
+    Each key in `match` and `match_related` can accept a list of multiple values that are `OR`'d together. For example, to match on multiple deployments:
+
+    ```json
+    "match_related": {
+      "prefect.resource.id": [
+        "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761",
+        "prefect.deployment.c33b8eaa-1ba7-43c4-ac43-7904a9550611"
+      ],
+      "prefect.resource.role": "deployment"
+    },
+    ```
+
 
 Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
 
@@ -115,31 +134,16 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
 }
 ```
 
-Or, if you wanted your trigger to fire if your log write events passed a threshold of 100 within 10 seconds, you could paste in the following trigger configuration:
-
-```json
-{
-  "match": {
-    "prefect.resource.id": "prefect.flow-run.*"
-  },
-  "after": [],
-  "expect": [
-    "prefect.log.write"
-  ],
-  "posture": "Reactive",
-  "threshold": 100,
-  "within": 10
-}
-```
-
 ### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
 
 - Cancel a flow run
-- Pause or resume a deployment schedule
+- Pause a flow run
 - Run a deployment
+- Pause or resume a deployment schedule
 - Pause or resume a work queue
+- Pause or resume an automation
 - Send a [notification](#automation-notifications)
 - Call a webhook
 
@@ -164,6 +168,25 @@ Prefect tries to infer the relevant event whenever possible, but sometimes one d
 Specify a name and, optionally, a description for the automation.
 
 ![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
+
+
+## Create an automation via deployment triggers
+
+To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+To 
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: my.external.resource
+    expect:
+      - external.resource.pinged
+    parameters:
+      param_1: "{{ event }}"
+```
+
+When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
 
 ## Automation notifications
 
@@ -221,7 +244,7 @@ Flow run {{ flow_run.name }} for flow {{ flow.name }}
 entered state {{ flow_run.state.name }}
 with message {{ flow_run.state.message }}
 
-Flow tags: {{ flow.tags }}
+Flow tags: {{ flow_run.tags }}
 Deployment name: {{ deployment.name }}
 Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}
@@ -257,7 +280,3 @@ Related Resources:
 ```
 
 Note that this example also illustrates the ability to use Jinja features such as iterator and for loop [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when templating notifications.
-
-## Automations API 
-
-The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).

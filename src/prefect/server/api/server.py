@@ -83,9 +83,12 @@ API_ROUTERS = (
     api.collections.router,
     api.variables.router,
     api.ui.flow_runs.router,
+    api.ui.task_runs.router,
     api.admin.router,
     api.root.router,
 )
+
+SQLITE_LOCKED_MSG = "database is locked"
 
 
 class SPAStaticFiles(StaticFiles):
@@ -157,7 +160,7 @@ def is_client_retryable_exception(exc: Exception):
         if getattr(exc.orig, "sqlite_errorname", None) in {
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
-        }:
+        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", []):
             return True
         else:
             # Avoid falling through to the generic `DBAPIError` case below
@@ -499,7 +502,7 @@ def create_app(
 
     async def stop_services():
         """Ensure services are stopped before the Prefect REST API shuts down."""
-        if app.state.services:
+        if hasattr(app.state, "services") and app.state.services:
             await asyncio.gather(*[service.stop() for service in app.state.services])
             try:
                 await asyncio.gather(

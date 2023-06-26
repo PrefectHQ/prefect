@@ -125,9 +125,13 @@ def apply_values(
         else:
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
-                    template = template.replace(
-                        full_match, str(get_from_dict(values, name, ""))
-                    )
+                    value = get_from_dict(values, name, NotSet)
+                    if value is NotSet and not remove_notset:
+                        continue
+                    elif value is NotSet:
+                        template = template.replace(full_match, "")
+                    else:
+                        template = template.replace(full_match, str(value))
             return template
     elif isinstance(template, dict):
         updated_template = {}
