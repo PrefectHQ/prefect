@@ -437,7 +437,7 @@ async def prompt_push_custom_docker_image(
 
         if create_new_block:
             docker_credentials["username"] = prompt(
-                "Docker registry username", console=console, default="default"
+                "Docker registry username", console=console
             )
             try:
                 docker_credentials["password"] = prompt(
