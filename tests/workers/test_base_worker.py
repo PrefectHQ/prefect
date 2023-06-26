@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Dict, Optional
 from unittest.mock import MagicMock, call
 
 import anyio
@@ -62,6 +62,16 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+@pytest.fixture
+async def variables(prefect_client: PrefectClient):
+    await prefect_client._client.post(
+        "/variables/", json={"name": "test_variable_1", "value": "test_value_1"}
+    )
+    await prefect_client._client.post(
+        "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
+    )
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
@@ -892,6 +902,74 @@ async def test_job_configuration_from_template_overrides_with_block():
         "var1": "woof!",
         # block_type_slug is added by Block.dict()
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
+    }
+
+
+@pytest.mark.usefixtures("variables")
+async def test_job_configuration_from_template_overrides_with_remote_variables():
+    template = {
+        "job_configuration": {
+            "var1": "{{ var1 }}",
+            "env": "{{ env }}",
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                },
+                "env": {
+                    "type": "object",
+                },
+            }
+        },
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+        env: Dict[str, str]
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template,
+        values={
+            "var1": "{{  prefect.variables.test_variable_1 }}",
+            "env": {"MY_ENV_VAR": "{{  prefect.variables.test_variable_2 }}"},
+        },
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {"MY_ENV_VAR": "test_value_2"},
+        "labels": {},
+        "name": None,
+        "var1": "test_value_1",
+    }
+
+
+@pytest.mark.usefixtures("variables")
+async def test_job_configuration_from_template_overrides_with_remote_variables_hardcodes():
+    template = {
+        "job_configuration": {
+            "var1": "{{ prefect.variables.test_variable_1 }}",
+            "env": {"MY_ENV_VAR": "{{ prefect.variables.test_variable_2 }}"},
+        },
+        "variables": {"properties": {}},
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+        env: Dict[str, str]
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template,
+        values={},
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {"MY_ENV_VAR": "test_value_2"},
+        "labels": {},
+        "name": None,
+        "var1": "test_value_1",
     }
 
 
