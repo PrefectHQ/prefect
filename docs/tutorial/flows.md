@@ -56,7 +56,7 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
 ```python hl_lines="6"
 import httpx
@@ -119,7 +119,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
 ```python hl_lines="7"
 import httpx
 from prefect import flow, get_run_logger
