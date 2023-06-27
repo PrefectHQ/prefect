@@ -41,7 +41,11 @@ from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settin
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
-from prefect.utilities.templating import apply_values, resolve_block_document_references
+from prefect.utilities.templating import (
+    apply_values,
+    resolve_block_document_references,
+    resolve_variables,
+)
 from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
@@ -117,11 +121,14 @@ class BaseJobConfiguration(BaseModel):
             variables_schema.get("properties", {})
         )
         variables.update(values)
-        variables = await resolve_block_document_references(
-            template=variables, client=client
-        )
 
         populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = await resolve_block_document_references(
+            template=populated_configuration, client=client
+        )
+        populated_configuration = await resolve_variables(
+            template=populated_configuration, client=client
+        )
         return cls(**populated_configuration)
 
     @classmethod
