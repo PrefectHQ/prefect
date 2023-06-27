@@ -16,7 +16,8 @@ A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorat
 
 
 Flows and tasks share some common features:
-* Both are defined easily using their respective decorator, which accepts settings for that flow / task (see all [task settings](/concepts/tasks/#task-arguments) / [flow settings](/concepts/flow/#flow-settings).
+
+* Both are defined easily using their respective decorator, which accepts settings for that flow / task (see all [task settings](/concepts/tasks/#task-arguments) / [flow settings](/concepts/flows/#flow-settings)).
 * Each can be given a `name`, `description` and `tags` for organization and bookkeeping.
 * Both provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
 
