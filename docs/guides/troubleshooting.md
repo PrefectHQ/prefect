@@ -38,6 +38,7 @@ Different components may use different versions of Prefect:
 In many cases, there will be an informative stack trace in Prefect's [logs](/concepts/logs/). **Read it carefully**, locate the source of the error, and try to identify the cause.
 
 There are two types of logs:
+
 * **Flow and task logs** are always scoped to a flow. They are sent to Prefect and are viewable in the UI.
 * **Agent and worker logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the agent or worker is running.
 
