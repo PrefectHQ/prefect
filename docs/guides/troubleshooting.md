@@ -1,12 +1,12 @@
 ---
-description: Learn the basics of debugging Prefect.
+description: Learn the basics of troubleshooting Prefect.
 tags:
-    - debugging
+    - troubleshooting
     - guides
     - how to
 ---
 
-# Debugging
+# Troubleshooting
 
 Don't Panic! If you experience an error with Prefect, there are many paths to understanding and resolving it. The first troubleshooting step is confirming that you are running the latest version of Prefect. If you are not, be sure to [upgrade](#upgrade) to the latest version, since the issue may have already been fixed. Beyond that, there are several categories of errors:
 
