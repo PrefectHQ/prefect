@@ -3002,3 +3002,137 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "../flows/hello.py:my_flow"
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployDockerBuildSteps:
+    async def test_docker_build_step_exists_does_not_prompt_build_custom_docker_image(
+        self,
+        work_pool,
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        prefect_config["build"] = [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "requires": "prefect-docker",
+                    "image_name": "local/repo",
+                    "tag": "dev",
+                    "id": "build-image",
+                    "dockerfile": "auto",
+                }
+            }
+        ]
+
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600 -p"
+                f" {work_pool.name}"
+            ),
+            # expected_output_does_not_contain=["Would you like to build a custom Docker image"],
+        )
+        assert result.exit_code == 0
+        # assert "An important name/test" in result.output
+
+        # deployment = await prefect_client.read_deployment_by_name(
+        #     "An important name/test-name"
+        # )
+        # assert deployment.name == "test-name"
+        # assert deployment.work_pool_name == "test-work-pool"
+        # assert deployment.version == "foo"
+        # assert deployment.tags == ["b", "2", "3"]
+        # assert deployment.description == "1"
+
+    async def test_other_build_step_exists_prompts_build_custom_docker_image(self):
+        pass
+
+    async def test_no_build_step_exists_prompts_build_custom_docker_image(self):
+        pass
+
+    async def test_no_prefect_file_exists_prompts_build_custom_docker_image(self):
+        pass
+
+    async def test_prompt_build_custom_docker_image_rejected(self):
+        # when build steps called, it doesn't have a step called build_custom_docker_image
+        # doesn't call prompt_push_custom_docker_image
+        pass
+
+    async def test_prompt_build_custom_docker_image_accepted_prompts_push_custom_docker_image(
+        self,
+    ):
+        # when build steps called, it has a step called build_custom_docker_image
+        # calls prompt_push_custom_docker_image
+        pass
+
+    async def test_use_existing_dockerfile_uses_dockerfile_at_runtime(self):
+        # when build steps called, it uses existing dockerfile
+        # assert that build_step looks as expected
+
+        pass
+
+    async def test_do_not_use_existing_dockerfile_uses_auto_build_dockerfile(self):
+        # when build steps called, it uses existing dockerfile
+        # assert that build_step looks as expected
+
+        pass
+
+    async def test_do_not_use_existing_dockerfile_without_renaming_existing_dockerfile_raises(
+        self,
+    ):
+        pass
+
+    async def test_no_existing_dockerfile_uses_auto_build_dockerfile(self):
+        # when build steps called, it uses existing dockerfile
+
+        # assert that build_step looks as expected
+        pass
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployDockerPushSteps:
+    async def test_prompt_push_custom_docker_image_rejected(self):
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it doesn't have a step called push_custom_docker_image
+        pass
+
+    async def test_prompt_push_custom_docker_image_accepted(self):
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it has a step called push_custom_docker_image
+        pass
+
+    async def test_prompt_push_docker_image_public_repo(self):
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it has a step called push_custom_docker_image
+        pass
+
+    async def test_prompt_push_docker_image_private_repo_creds_block_exists_using_existing(
+        self,
+    ):
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it has a step called push_custom_docker_image
+        # block with the expected name exists and is used and not empty
+        pass
+
+    async def test_prompt_push_docker_image_private_repo_creds_block_exists_use_new(
+        self,
+    ):
+        # get values of created block
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it has a step called push_custom_docker_image
+
+        # ensure values of new block are used and saved
+        pass
+
+    async def test_prompt_push_docker_image_private_repo_creds_block_not_exists(self):
+        # assert block doesn't exists
+        # when build steps called, it has a step called build_custom_docker_image
+        # when push steps called, it has a step called push_custom_docker_image
+        # assert block does exist
+        pass
