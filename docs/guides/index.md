@@ -11,6 +11,7 @@ search:
 
 - Learn how Prefect makes [testing your workflows a breeze](/guides/testing/).
 - See how to [parallelize your code with Dask and Ray](/guides/dask-ray-task-runners/).
+- Learn the basics of [troubleshooting Prefect](/guides/troubleshooting/).
 - Learn how to use [Docker with your Deployments](/guides/deployment/docker/).
 - See how to [deploy your workflows with Docker Container Instances](/guides/deployment/aci/).
 - Check out many common workflows with [Prefect Recipes](../recipes/recipes/).
