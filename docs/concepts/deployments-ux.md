@@ -250,6 +250,31 @@ pull:
         stream_output: False
 ```
 
+Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
+
+```yaml
+pull:
+- prefect.deployments.steps.run_shell_script:
+    id: get-access-token
+    script: az keyvault secret show --name <secret name> --vault-name <secret vault> --query "value" --output tsv
+    stream_output: false
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: "{{ get-access-token.stdout }}"
+```
+
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
+
+```yaml
+- retrieve_secrets.main:
+    id: get-access-token
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: '{{ get-access-token.access_token }}'
+```
+
 ### Templating Options
 
 Values that you place within your `prefect.yaml` file can reference dynamic values in two different ways:
