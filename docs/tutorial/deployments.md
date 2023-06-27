@@ -115,7 +115,7 @@ When you click into the `my-process-pool`, select the "Work Queues" tab. You sho
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
-Workers are a lightweight polling process that kick-off scheduled flow runs on a certain type of infrastructure (like Process). To start a worker on your laptop, open a new terminal and confirm that your virtual environment has `prefect` installed.
+Workers are a lightweight polling process that kick off scheduled flow runs on a certain type of infrastructure (like Process). To start a worker on your laptop, open a new terminal and confirm that your virtual environment has `prefect` installed.
 
 Run the following command in this new terminal to start the worker:
 <div class="terminal">
