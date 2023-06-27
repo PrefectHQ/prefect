@@ -149,7 +149,7 @@ def prefect_test_harness():
     """
     Temporarily run flows against a local SQLite database for testing.
 
-    Example:
+    Examples:
         >>> from prefect import flow
         >>> @flow
         >>> def my_flow():
