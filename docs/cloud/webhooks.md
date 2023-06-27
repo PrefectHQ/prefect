@@ -39,7 +39,7 @@ Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
 
 Webhooks can be created and managed from the Prefect Cloud UI.
 
-![Managing a webhook in the Prefect Cloud UI.](/img/ui/webhook.png)
+![Managing a webhook in the Prefect Cloud UI.](docs/img/ui/webhook.png)
 
 ### Via the Prefect CLI
 
