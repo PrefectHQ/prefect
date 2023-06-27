@@ -131,6 +131,10 @@ def collapse_variadic_parameters(
             "but parameters were given that are not present in the signature."
         )
 
+    if variadic_key and not missing_parameters:
+        # variadic key is present but no missing parameters, return parameters unchanged
+        return parameters
+
     new_parameters = parameters.copy()
     if variadic_key:
         new_parameters[variadic_key] = {}
