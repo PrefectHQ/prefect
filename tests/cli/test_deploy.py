@@ -863,6 +863,283 @@ class TestProjectDeploy:
             )
             assert token_block.get() == "my-token"
 
+        @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+        async def test_build_docker_image_step_auto_build_dockerfile(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_with_remote,
+        ):
+            prefect_yaml = {
+                "build": [
+                    {
+                        "prefect_docker.deployments.steps.build_docker_image": {
+                            "id": "build-image",
+                            "requires": "prefect-docker",
+                            "image_name": "repo-name/image-name",
+                            "tag": "dev",
+                            "dockerfile": "auto",
+                        }
+                    }
+                ]
+            }
+
+            with open("prefect.yaml", "w") as f:
+                yaml.dump(prefect_yaml, f)
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept saving the deployment configuration
+                    "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "prefect deployment run 'An important name/test-name'"
+                ],
+            )
+
+            prefect_file = Path("prefect.yaml")
+            assert prefect_file.exists()
+
+            with open(prefect_file, "r") as f:
+                config = yaml.safe_load(f)
+            assert config["deployments"][0]["pull"] == [
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "path": "/opt/prefect/{{ name }}"
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_build_docker_image_step_custom_dockerfile_remote_flow_code_confirm(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_with_remote,
+        ):
+            with open("Dockerfile", "w") as f:
+                f.write(
+                    "FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n"
+                    "COPY . /opt/prefect/hello-projects/\n"
+                    "WORKDIR /opt/prefect/hello-projects/\n"
+                )
+
+            prefect_yaml = {
+                "build": [
+                    {
+                        "prefect_docker.deployments.steps.build_docker_image": {
+                            "id": "build-image",
+                            "requires": "prefect-docker",
+                            "image_name": "repo-name/image-name",
+                            "tag": "dev",
+                            "dockerfile": "Dockerfile",
+                        }
+                    }
+                ]
+            }
+
+            with open("prefect.yaml", "w") as f:
+                yaml.dump(prefect_yaml, f)
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    "y"
+                    + readchar.key.ENTER
+                    +
+                    # Accept discovered URL
+                    readchar.key.ENTER
+                    +
+                    # Accept discovered branch
+                    readchar.key.ENTER
+                    +
+                    # Choose public repo
+                    "n"
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    (
+                        "Would you like to pull your flow code from its remote"
+                        " repository when running"
+                    ),
+                    "Is this a private repository?",
+                    "prefect deployment run 'An important name/test-name'",
+                ],
+            )
+
+            prefect_file = Path("prefect.yaml")
+            assert prefect_file.exists()
+
+            with open(prefect_file, "r") as f:
+                config = yaml.safe_load(f)
+            assert config["deployments"][0]["pull"] == [
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://example.com/org/repo.git",
+                        "branch": "main",
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_build_docker_image_step_custom_dockerfile_remote_flow_code_reject(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_with_remote,
+        ):
+            with open("Dockerfile", "w") as f:
+                f.write(
+                    "FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n"
+                    "COPY . /opt/prefect/hello-projects/\n"
+                    "WORKDIR /opt/prefect/hello-projects/\n"
+                )
+
+            prefect_yaml = {
+                "build": [
+                    {
+                        "prefect_docker.deployments.steps.build_docker_image": {
+                            "id": "build-image",
+                            "requires": "prefect-docker",
+                            "image_name": "repo-name/image-name",
+                            "tag": "dev",
+                            "dockerfile": "Dockerfile",
+                        }
+                    }
+                ]
+            }
+
+            with open("prefect.yaml", "w") as f:
+                yaml.dump(prefect_yaml, f)
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # Accept copied flow code into Dockerfile
+                    "y"
+                    + readchar.key.ENTER
+                    +
+                    # Provide path to flow code
+                    "/opt/prefect/hello-projects/"
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    (
+                        "Would you like to pull your flow code from its remote"
+                        " repository when running"
+                    ),
+                    "Do you copy your flow code in your Dockerfile?",
+                    "What is the path to your flow code in your Dockerfile?",
+                    "prefect deployment run 'An important name/test-name'",
+                ],
+            )
+
+            prefect_file = Path("prefect.yaml")
+            assert prefect_file.exists()
+
+            with open(prefect_file, "r") as f:
+                config = yaml.safe_load(f)
+            assert config["deployments"][0]["pull"] == [
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "path": "/opt/prefect/hello-projects/"
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_build_docker_image_step_custom_dockerfile_reject_copy_confirm(
+            self,
+            work_pool,
+            prefect_client,
+            uninitialized_project_dir_with_git_with_remote,
+        ):
+            with open("Dockerfile", "w") as f:
+                f.write("FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n")
+
+            prefect_yaml = {
+                "build": [
+                    {
+                        "prefect_docker.deployments.steps.build_docker_image": {
+                            "id": "build-image",
+                            "requires": "prefect-docker",
+                            "image_name": "repo-name/image-name",
+                            "tag": "dev",
+                            "dockerfile": "Dockerfile",
+                        }
+                    }
+                ]
+            }
+
+            with open("prefect.yaml", "w") as f:
+                yaml.dump(prefect_yaml, f)
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=1,
+                user_input=(
+                    # Accept pulling from remote git origin
+                    "n"
+                    + readchar.key.ENTER
+                    +
+                    # Accept copied flow code into Dockerfile
+                    "n"
+                ),
+                expected_output_contains=[
+                    (
+                        "Would you like to pull your flow code from its remote"
+                        " repository when running"
+                    ),
+                    "Do you copy your flow code in your Dockerfile?",
+                    (
+                        "Your flow code must be copied into your Docker image"
+                        " in order to run your deployment."
+                    ),
+                ],
+            )
+
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
     ):
