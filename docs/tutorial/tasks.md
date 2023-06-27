@@ -16,9 +16,8 @@ A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorat
 
 
 Flows and tasks share some common features:
-
+* Both are defined easily using their respective decorator, which accepts settings for that flow / task.
 * Both have metadata attributes such as name, description, and tags.
-* Both support type-checked parameters, allowing you to define the expected data types of inputs and outputs.
 * Both provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
 
 Network calls (such as our GET requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
