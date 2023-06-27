@@ -8,7 +8,7 @@ tags:
 
 # Debugging
 
-Don't Panic! If you experience errors, there are many paths to understanding and fixing them. In general, you should [upgrade](#upgrade) to the latest version, since the issue may already be fixed. Beyond that, there are a few different categories of errors:
+Don't Panic! If you experience an error with Prefect, there are many paths to understanding and resolving it. The first troubleshooting step is confirming that you are running the latest version of Prefect. If you are not, be sure to [upgrade](#upgrade) to the latest version, since the issue may have already been fixed. Beyond that, there are several categories of errors:
 
 * The issue may be in your flow code, in which case you should carefully read the [logs](#logs).
 * The issue could be with how you are authenticated, and whether or not you are connected to [Cloud](#cloud).
@@ -27,19 +27,19 @@ Different components may use different versions of Prefect:
 
 * **Cloud** will generally always be the newest version. Cloud is continuously deployed by the Prefect team. When using a self-hosted server, you can control this version.
 * **Agents and workers** typically don't change versions frequently, and are usually whatever the latest version was at the time of creation. Agents and workers provision infrastructure for flow runs, so upgrading them may help with infrastructure problems.
-* **Flows** could use a different version than the agent or worker that created them, especially when running in different environments. Suppose your agent and flow both use the latest official Docker image, but your agent was created a month ago. Your agent will almost certainly be on an older version than your flow.
+* **Flows** could use a different version than the agent or worker that created them, especially when running in different environments. Suppose your agent and flow both use the latest official Docker image, but your agent was created a month ago. Your agent will often be on an older version than your flow.
 
 !!! note "Integration Versions"
-    Keep in mind that [integrations](/integrations/) are versioned and released independently of the core Prefect library and should therefore be upgraded similarly.
+    Keep in mind that [integrations](/integrations/) are versioned and released independently of the core Prefect library. They should be upgraded simultaneously with the core library, using the same method.
 
 
 ## Logs
 
-In many cases there will be an informative stack trace in Prefect's [logs](/concepts/logs/). **Read it carefully**, locate the source of the error, and try to identify the cause.
+In many cases, there will be an informative stack trace in Prefect's [logs](/concepts/logs/). **Read it carefully**, locate the source of the error, and try to identify the cause.
 
 There are two types of logs:
 * **Flow and task logs** are always scoped to a flow. They are sent to Prefect and are viewable in the UI.
-* **Agent and worker logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the agent or worker lives.
+* **Agent and worker logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the agent or worker is running.
 
 If your flow and task logs are empty, there may have been an infrastructure issue that prevented your flow from starting. Check your agent logs for more details.
 
@@ -58,7 +58,7 @@ The `DEBUG` logging level produces a high volume of logs so consider setting it 
 
 ## Cloud
 
-When using Prefect Cloud there are the additional concerns of authentication and authorization. The Prefect API authenticates users and service accounts - collectively known as actors - with API keys. Missing, incorrect, or expired API keys will result in a 401 response with detail `Invalid authentication credentials`. Use the following command to check your authentication, replacing `$PREFECT_API_KEY` with your API key:
+When using Prefect Cloud, there are the additional concerns of authentication and authorization. The Prefect API authenticates users and service accounts - collectively known as actors - with API keys. Missing, incorrect, or expired API keys will result in a 401 response with detail `Invalid authentication credentials`. Use the following command to check your authentication, replacing `$PREFECT_API_KEY` with your API key:
 
 ```bash
 curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/api/me/"
