@@ -4,7 +4,7 @@ anyio >= 3.4.0
 apprise >= 1.1.0
 asgi-lifespan >= 1.0
 asyncpg >= 0.23
-backports.zoneinfo;python_version<"3.9"
+backports.zoneinfo; python_version < '3.9'
 click >= 8.0, < 8.2
 cloudpickle >= 2.0
 coolname >= 1.0.4
