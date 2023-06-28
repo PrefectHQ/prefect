@@ -459,6 +459,15 @@ async def _run_single_deploy(
                     actions["build"].append(build_docker_image_step)
                 else:
                     actions["build"] = [build_docker_image_step]
+
+                work_pool_job_variables_image_not_found = not get_from_dict(
+                    deploy_config, "work_pool.job_variables.image"
+                )
+                if work_pool_job_variables_image_not_found:
+                    deploy_config["work_pool"]["job_variables"][
+                        "image"
+                    ] = "{{ build-image.image }}"
+
                 push_docker_image_step = await prompt_push_custom_docker_image(
                     app.console, deploy_config
                 )
