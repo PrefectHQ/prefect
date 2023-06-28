@@ -76,7 +76,7 @@ async def deploy(
         None,
         "--flow",
         "-f",
-        help="The name of a registered flow to create a deployment for.",
+        help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
@@ -301,13 +301,10 @@ async def _run_single_deploy(
     if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
         if not is_interactive() and not ci:
             raise ValueError(
-                "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
-                " entrypoint:\n\n\t[yellow]prefect deploy"
-                " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
-                " name:\n\n\t[yellow]prefect project register-flow"
-                " path/to/file.py:flow_function\n\tprefect deploy --flow"
-                " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-                " name in this project's prefect.yaml file."
+                "An entrypoint must be provided:\n\n"
+                " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
+                " You can also provide an entrypoint in a prefect.yaml"
+                " file located in the current working directory."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
     if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
