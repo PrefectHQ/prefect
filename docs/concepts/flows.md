@@ -676,7 +676,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## Pause a flow run
 
-Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as via the Prefect server or Prefect Cloud UI.
+Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect server or Prefect Cloud UI.
 
 Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
 

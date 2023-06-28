@@ -1,5 +1,67 @@
 # Prefect Release Notes
 
+## Release 2.10.17
+
+### Improved Prefect Tutorial
+
+Prefect's documentation has an [improved tutorial](https://docs.prefect.io/2.10.17/tutorial/), redesigned to include Prefect's recent enhancements. With the introduction of work pools and the interactive deployment CLI, the new tutorial reflects the elevated experience that these new features offer, alongside the key elements and features of Prefect. You can find content related to more advanced features or less common use cases in the [Guides](https://docs.prefect.io/2.10.17/guides/) section.
+
+### Enhancements
+- Update Prefect client to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
+- Always show checkboxes on list items, rather than animating them on hover — https://github.com/PrefectHQ/prefect-ui-library/pull/1490
+- New `CustomWebhookNotificationBlock` for triggering custom webhooks in response to flow run state changes — https://github.com/PrefectHQ/prefect/pull/9547
+
+### Fixes
+- Limit the number of files concurrently opened by `prefect deploy` when searching for flows — https://github.com/PrefectHQ/prefect/pull/10014
+- Fix `TypeError: crypto.randomUUID is not a function` that caused pages to break — https://github.com/PrefectHQ/prefect-ui-library/pull/1501
+
+### Documentation
+- Fix broken link to `prefect-docker` documentation on the deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
+- Document `--work-queue / -q` arguments to `worker start` command — https://github.com/PrefectHQ/prefect/pull/10027
+- Add link to join Club 42 to Community page — https://github.com/PrefectHQ/prefect/pull/9927
+- Improve Prefect tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
+
+## New Contributors
+* @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
+* @AutumnSun1996 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9547
+* @dianaclarke made their first contribution in https://github.com/PrefectHQ/prefect/pull/9988
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.16...2.10.17
+
+## Release 2.10.16
+
+### Run `prefect deploy` without providing a flow entrypoint
+
+We're making it easier than ever to deploy your first flow! Previously, you needed to run `prefect deploy <entrypoint>` to deploy a specific flow. Now, you can simply run `prefect deploy` and the interactive CLI will guide you through the process of selecting a flow to deploy!
+
+![flow selector example](https://user-images.githubusercontent.com/12350579/247144440-d89916d4-cbf1-408e-9959-45df94a35f8d.png)
+
+For more details on implementation, see the following pull request: 
+- https://github.com/PrefectHQ/prefect/pull/10004
+
+### Enhancements
+- Add option to specify work queue priority during creation from CLI — https://github.com/PrefectHQ/prefect/pull/9999
+- Improve 'Invalid timezone' error message — https://github.com/PrefectHQ/prefect/pull/10007
+
+### Fixes
+- Fix wrong key used in generated `git_clone` step — https://github.com/PrefectHQ/prefect/pull/9997
+
+### Deprecations
+- Deprecate `prefect deploy` `--ci` flag — https://github.com/PrefectHQ/prefect/pull/10002
+
+### Documentation
+- Resolve missing image in Prefect Cloud event documentation — https://github.com/PrefectHQ/prefect/pull/9904
+- Fix typo in webhooks documentation — https://github.com/PrefectHQ/prefect/pull/10003
+
+### Integrations
+- Fix bug in `KubernetesWorker` where flow runs crashed during submission - https://github.com/PrefectHQ/prefect-kubernetes/pull/76
+
+### Contributors
+- @kkdenk made their first contribution in https://github.com/PrefectHQ/prefect/pull/9904
+- @rito-sixt
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.15...2.10.16
+
 ## Release 2.10.15
 
 ## Introducing deployment configuration saving in `prefect deploy`
@@ -1561,7 +1623,7 @@ def my_flow(name: str, date: datetime):
 my_flow()
 ```
 
-See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
+See [the docs](https://docs.prefect.io/tutorials/tasks/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
 
 ### Enhancements
 - Update the deployment page to show the runs tab before the description — https://github.com/PrefectHQ/prefect/pull/8398

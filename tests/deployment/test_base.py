@@ -13,7 +13,11 @@ from prefect.deployments.base import (
     find_prefect_directory,
     initialize_project,
     register_flow,
+    _search_for_flow_functions,
+    _find_flow_functions_in_file,
 )
+
+from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -213,3 +217,55 @@ class TestRegisterFlow:
             force=True,
         )
         assert f.name == "test"
+
+
+class TestDiscoverFlows:
+    async def test_find_all_flows_in_dir_tree(self, project_dir):
+        flows = await _search_for_flow_functions(str(project_dir))
+        assert len(flows) == 5
+        assert sorted(flows, key=lambda f: f["function_name"]) == [
+            {
+                "flow_name": "foobar",
+                "function_name": "foobar",
+                "filepath": str(
+                    project_dir / "nested-project" / "implicit_relative.py"
+                ),
+            },
+            {
+                "flow_name": "foobar",
+                "function_name": "foobar",
+                "filepath": str(
+                    project_dir / "nested-project" / "explicit_relative.py"
+                ),
+            },
+            {
+                "flow_name": "my_flow",
+                "function_name": "my_flow",
+                "filepath": str(project_dir / "flows" / "hello.py"),
+            },
+            {
+                "flow_name": "prod_flow",
+                "function_name": "prod_flow",
+                "filepath": str(
+                    project_dir / "import-project" / "my_module" / "flow.py"
+                ),
+            },
+            {
+                "flow_name": "test_flow",
+                "function_name": "test_flow",
+                "filepath": str(
+                    project_dir / "import-project" / "my_module" / "flow.py"
+                ),
+            },
+        ]
+
+    async def test_find_all_flows_works_on_large_directory_structures(self):
+        flows = await _search_for_flow_functions(str(prefect.__development_base_path__))
+        assert len(flows) > 500
+
+    async def test_find_flow_functions_in_file_returns_empty_list_on_file_error(
+        self, caplog
+    ):
+        with temporary_settings({PREFECT_DEBUG_MODE: True}):
+            assert await _find_flow_functions_in_file("foo.py") == []
+            assert "Could not open foo.py" in caplog.text
