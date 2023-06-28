@@ -452,7 +452,7 @@ async def _run_single_deploy(
             build_docker_image_step = await prompt_build_custom_docker_image(
                 app.console, deploy_config
             )
-            if build_docker_image_step != []:
+            if build_docker_image_step is not None:
                 if actions.get("build"):
                     actions["build"].append(build_docker_image_step)
                 else:
@@ -460,10 +460,11 @@ async def _run_single_deploy(
                 push_docker_image_step = await prompt_push_custom_docker_image(
                     app.console, deploy_config
                 )
-                if push_docker_image_step != []:
-                    actions["push"].append(push_docker_image_step)
-                else:
-                    actions["push"] = [push_docker_image_step]
+                if push_docker_image_step is not None:
+                    if actions.get("push"):
+                        actions["push"].append(push_docker_image_step)
+                    else:
+                        actions["push"] = [push_docker_image_step]
 
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []

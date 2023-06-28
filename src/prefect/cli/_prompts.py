@@ -362,7 +362,7 @@ async def prompt_build_custom_docker_image(
         console=console,
         default=False,
     ):
-        return []
+        return
 
     build_step = {
         "requires": "prefect-docker>=0.3.1",
@@ -419,7 +419,7 @@ async def prompt_push_custom_docker_image(
         console=console,
         default=False,
     ):
-        return []
+        return
 
     push_step = {
         "requires": "prefect-docker>=0.3.1",

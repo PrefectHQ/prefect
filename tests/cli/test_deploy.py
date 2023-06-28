@@ -3979,6 +3979,15 @@ class TestDeployDockerBuildSteps:
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
+        prefect_file = Path("prefect.yaml")
+
+        with open(prefect_file, "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert not config["deployments"][1].get("build")
+
     async def test_no_build_step_exists_prompts_build_custom_docker_image(
         self, docker_work_pool
     ):
@@ -4003,6 +4012,15 @@ class TestDeployDockerBuildSteps:
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
+
+        prefect_file = Path("prefect.yaml")
+
+        with open(prefect_file, "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert not config["deployments"][1].get("build")
 
     async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_accepted(
         self, docker_work_pool
@@ -4188,8 +4206,6 @@ class TestDeployDockerBuildSteps:
     async def test_prompt_build_custom_docker_image_accepted_no_existing_dockerfile_uses_auto_build(
         self, docker_work_pool, monkeypatch
     ):
-        # Dockerfile value is set to auto
-        # ensure console print "will be built" is correct
         mock_step = mock.MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_object", lambda x: mock_step
@@ -4245,3 +4261,66 @@ class TestDeployDockerBuildSteps:
                 }
             }
         ]
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployDockerPushSteps:
+    async def test_prompt_push_custom_docker_image_rejected(
+        self, docker_work_pool, monkeypatch
+    ):
+        mock_step = mock.MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", lambda x: mock_step
+        )
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Default repo name
+                + readchar.key.ENTER
+                # Default image_name
+                + readchar.key.ENTER
+                # Default tag
+                + readchar.key.ENTER
+                # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert config["deployments"][1]["build"] == [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "id": "build-image",
+                    "requires": "prefect-docker>=0.3.1",
+                    "dockerfile": "auto",
+                    "image_name": "prefecthq/prefect/test-name",
+                    "tag": "latest",
+                }
+            }
+        ]
+        assert not config["deployments"][1].get("push")
