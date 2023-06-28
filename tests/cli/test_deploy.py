@@ -1088,7 +1088,10 @@ class TestProjectDeploy:
                         "Would you like to pull your flow code from its remote"
                         " repository when running"
                     ),
-                    "Do you copy your flow code in your Dockerfile?",
+                    (
+                        "Does your Dockerfile have a line that copies the current"
+                        " working directory into your image?"
+                    ),
                     "What is the path to your flow code in your Dockerfile?",
                     "prefect deployment run 'An important name/test-name'",
                 ],
@@ -1171,10 +1174,13 @@ class TestProjectDeploy:
                         "Would you like to pull your flow code from its remote"
                         " repository when running"
                     ),
-                    "Do you copy your flow code in your Dockerfile?",
+                    (
+                        "Does your Dockerfile have a line that copies the current"
+                        " working directory"
+                    ),
                     (
                         "Your flow code must be copied into your Docker image"
-                        " in order to run your deployment."
+                        " to run your deployment."
                     ),
                 ],
             )
