@@ -427,10 +427,13 @@ async def prompt_push_custom_docker_image(
         "tag": "{{ build-image.tag }}",
     }
 
-    docker_credentials = {}
-    docker_credentials["registry_url"] = prompt("Registry URL")
+    registry_url = prompt("Registry URL")
+    push_step["registry_url"] = registry_url
 
     if confirm("Is this a private registry?", console=console):
+        docker_credentials = {}
+        docker_credentials["registry_url"] = registry_url
+
         if confirm(
             "Would you like use prefect-docker to manage Docker registry credentials?",
             console=console,
@@ -484,11 +487,12 @@ async def prompt_push_custom_docker_image(
                     console=console,
                 )
 
-            await credentials_block(
+            new_creds_block = credentials_block(
                 username=docker_credentials["username"],
                 password=docker_credentials["password"],
                 registry_url=docker_credentials["registry_url"],
-            ).save(name=docker_registry_creds_name, overwrite=True)
+            )
+            await new_creds_block.save(name=docker_registry_creds_name, overwrite=True)
 
     return {"prefect_docker.deployments.steps.push_docker_image": push_step}
 
