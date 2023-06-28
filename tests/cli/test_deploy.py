@@ -928,11 +928,7 @@ class TestProjectDeploy:
             uninitialized_project_dir_with_git_with_remote,
         ):
             with open("Dockerfile", "w") as f:
-                f.write(
-                    "FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n"
-                    "COPY . /opt/prefect/hello-projects/\n"
-                    "WORKDIR /opt/prefect/hello-projects/\n"
-                )
+                f.write("FROM python:3.8-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1011,11 +1007,7 @@ class TestProjectDeploy:
             uninitialized_project_dir_with_git_with_remote,
         ):
             with open("Dockerfile", "w") as f:
-                f.write(
-                    "FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n"
-                    "COPY . /opt/prefect/hello-projects/\n"
-                    "WORKDIR /opt/prefect/hello-projects/\n"
-                )
+                f.write("FROM python:3.8-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1092,8 +1084,7 @@ class TestProjectDeploy:
             uninitialized_project_dir_with_git_with_remote,
         ):
             with open("Dockerfile", "w") as f:
-                f.write("FROM prefecthq/prefect-dev:sha-0eb1602-python3.9\n")
-
+                f.write("FROM python:3.8-slim\n")
             prefect_yaml = {
                 "build": [
                     {

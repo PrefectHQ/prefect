@@ -482,7 +482,6 @@ async def _run_single_deploy(
         actions=actions,
         ci=ci,
     )
-
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
@@ -825,42 +824,53 @@ async def _generate_pull_action_for_build_docker_image(
     return [{"prefect.deployments.steps.set_working_directory": pull_step}]
 
 
-async def _generate_default_pull_action(
-    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
-):
-    remote_url = _get_git_remote_origin_url()
+async def _check_for_build_docker_image_step(
+    build_action: List[Dict],
+) -> Optional[Dict[str, Any]]:
+    if not build_action:
+        return None
 
     build_docker_image_steps = [
         "prefect_docker.projects.steps.build_docker_image",  # legacy
         "prefect_docker.deployments.steps.build_docker_image",
     ]
     for build_docker_image_step in build_docker_image_steps:
-        for action in actions["build"]:
+        for action in build_action:
             if action.get(build_docker_image_step):
-                dockerfile = action.get(build_docker_image_step).get("dockerfile")
-                if dockerfile == "auto":
-                    return await _generate_pull_action_for_build_docker_image(
-                        console, deploy_config
+                return action.get(build_docker_image_step)
+
+    return None
+
+
+async def _generate_default_pull_action(
+    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
+):
+    remote_url = _get_git_remote_origin_url()
+    build_docker_image_step = await _check_for_build_docker_image_step(actions["build"])
+
+    if build_docker_image_step:
+        dockerfile = build_docker_image_step.get("dockerfile")
+        if dockerfile == "auto":
+            return await _generate_pull_action_for_build_docker_image(
+                console, deploy_config
+            )
+        else:
+            if is_interactive():
+                if remote_url and confirm(
+                    "Would you like to pull your flow code from its remote"
+                    " repository when running your deployment?"
+                ):
+                    return await _generate_git_clone_pull_step(
+                        console, deploy_config, remote_url
                     )
-                else:
-                    if is_interactive():
-                        if remote_url and confirm(
-                            "Would you like to pull your flow code from its remote"
-                            " repository when running your deployment?"
-                        ):
-                            return await _generate_git_clone_pull_step(
-                                console, deploy_config, remote_url
-                            )
-                        if not confirm(
-                            "Do you copy your flow code in your Dockerfile?"
-                        ):
-                            exit_with_error(
-                                "Your flow code must be copied into your Docker image"
-                                " in order to run your deployment."
-                            )
-                        return await _generate_pull_action_for_build_docker_image(
-                            console, deploy_config, auto=False
-                        )
+                if not confirm("Do you copy your flow code in your Dockerfile?"):
+                    exit_with_error(
+                        "Your flow code must be copied into your Docker image"
+                        " in order to run your deployment."
+                    )
+                return await _generate_pull_action_for_build_docker_image(
+                    console, deploy_config, auto=False
+                )
 
     if (
         is_interactive()
