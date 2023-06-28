@@ -4522,8 +4522,8 @@ class TestDeployDockerPushSteps:
             }
         ]
 
-        with pytest.raises(ModuleNotFoundError):
-            pass
+        with pytest.raises(ImportError):
+            import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_new_core_creds(
         self, docker_work_pool, monkeypatch, mock_prompt
@@ -4633,8 +4633,8 @@ class TestDeployDockerPushSteps:
         assert new_block.password.get_secret_value() == "456"
         assert new_block.registry_url == "https://private.docker.com"
 
-        with pytest.raises(ModuleNotFoundError):
-            pass
+        with pytest.raises(ImportError):
+            import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_reject_use_existing_core_creds(
         self, docker_work_pool, monkeypatch, mock_prompt
@@ -4754,8 +4754,8 @@ class TestDeployDockerPushSteps:
         assert new_block.password.get_secret_value() == "456"
         assert new_block.registry_url == "https://private2.docker.com"
 
-        with pytest.raises(ModuleNotFoundError):
-            pass
+        with pytest.raises(ImportError):
+            import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_existing_prefect_docker_creds(
         self, docker_work_pool, monkeypatch
