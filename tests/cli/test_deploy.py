@@ -869,15 +869,27 @@ class TestProjectDeploy:
             work_pool,
             prefect_client,
             uninitialized_project_dir_with_git_with_remote,
+            monkeypatch,
         ):
+            mock_result = {
+                "image_id": "fake_image_id",
+                "tag": "fake_tag",
+                "image_name": "fake_image_name",
+                "image": "fake_image",
+            }
+
+            mock_build_docker_image = AsyncMock(return_value=mock_result)
+            monkeypatch.setattr(
+                "prefect_docker.deployments.steps.build_docker_image",
+                mock_build_docker_image,
+            )
+
             prefect_yaml = {
                 "build": [
                     {
                         "prefect_docker.deployments.steps.build_docker_image": {
-                            "id": "build-image",
                             "requires": "prefect-docker",
                             "image_name": "repo-name/image-name",
-                            "tag": "dev",
                             "dockerfile": "auto",
                         }
                     }
