@@ -507,3 +507,70 @@ class TestGetCallParameters:
 
         with pytest.raises(ParameterBindError):
             callables.get_call_parameters(dog, call_args=(), call_kwargs={"x": "y"})
+
+
+class TestExplodeVariadicParameter:
+    def test_no_error_if_no_variadic_parameter(self):
+        def foo(a, b):
+            pass
+
+        parameters = {"a": 1, "b": 2}
+        new_params = callables.explode_variadic_parameter(foo, parameters)
+
+        assert parameters == new_params
+
+    def test_no_error_if_variadic_parameter_and_kwargs_provided(self):
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+        new_params = callables.explode_variadic_parameter(foo, parameters)
+
+        assert new_params == {"a": 1, "b": 2, "c": 3, "d": 4}
+
+    def test_no_error_if_variadic_parameter_and_no_kwargs_provided(self):
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2}
+        new_params = callables.explode_variadic_parameter(foo, parameters)
+
+        assert new_params == parameters
+
+
+class TestCollapseVariadicParameter:
+    def test_no_error_if_no_variadic_parameter(self):
+        def foo(a, b):
+            pass
+
+        parameters = {"a": 1, "b": 2}
+        new_params = callables.collapse_variadic_parameters(foo, parameters)
+
+        assert new_params == parameters
+
+    def test_no_error_if_variadic_parameter_and_kwargs_provided(self):
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "c": 3, "d": 4}
+        new_params = callables.collapse_variadic_parameters(foo, parameters)
+
+        assert new_params == {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+
+    def test_params_unchanged_if_variadic_parameter_and_no_kwargs_provided(self):
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2}
+        new_params = callables.collapse_variadic_parameters(foo, parameters)
+
+        assert new_params == parameters
+
+    def test_value_error_raised_if_extra_args_but_no_variadic_parameter(self):
+        def foo(a, b):
+            pass
+
+        parameters = {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+
+        with pytest.raises(ValueError):
+            callables.collapse_variadic_parameters(foo, parameters)
