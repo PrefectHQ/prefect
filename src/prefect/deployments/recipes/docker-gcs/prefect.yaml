@@ -10,13 +10,16 @@ required_inputs:
 build:
   - prefect_docker.deployments.steps.build_docker_image:
       id: "build_image"
-      requires: "prefect-docker>=0.3.0"
+      requires: "prefect-docker>=0.3.1"
       image_name: "{{ image_name }}"
       tag: "{{ tag }}"
       dockerfile: "{{ dockerfile }}"
-      push: true
 
 push: 
+  - prefect_docker.deployments.steps.push_docker_image:
+      requires: "prefect-docker>=0.3.1"
+      image_name: "{{ build_image.image_name }}"
+      tag: "{{ build_image.tag }}"
   - prefect_gcp.deployments.steps.push_to_gcs:
       id: "push_code"
       requires: "prefect-gcp>=0.4.3"

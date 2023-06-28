@@ -64,6 +64,8 @@ from prefect._internal.compatibility.deprecated import (
 
 from prefect.utilities.collections import get_from_dict
 
+from prefect.utilities.annotations import NotSet
+
 
 @app.command()
 async def deploy(
@@ -673,7 +675,7 @@ def _construct_schedule(
     Returns:
         A schedule object
     """
-    schedule = None
+    schedule = deploy_config.get("schedule", NotSet)
     cron = get_from_dict(deploy_config, "schedule.cron")
     interval = get_from_dict(deploy_config, "schedule.interval")
     anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
@@ -702,7 +704,7 @@ def _construct_schedule(
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-    else:
+    elif schedule is NotSet:
         if (
             not ci
             and is_interactive()
@@ -713,6 +715,10 @@ def _construct_schedule(
             )
         ):
             schedule = prompt_schedule(app.console)
+        else:
+            schedule = None
+    else:
+        schedule = None
 
     return schedule
 
@@ -736,7 +742,6 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
         "version": None,
         "tags": [],
         "description": None,
-        "schedule": {},
         "flow_name": None,
         "entrypoint": None,
         "parameters": {},

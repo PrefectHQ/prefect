@@ -1774,6 +1774,40 @@ class TestProjectDeploy:
             ],
         )
 
+    @pytest.mark.parametrize("schedule_value", [None, {}])
+    @pytest.mark.usefixtures("project_dir", "interactive_console")
+    async def test_deploy_does_not_prompt_when_empty_schedule_prefect_yaml(
+        self, schedule_value, work_pool, prefect_client
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "schedule": schedule_value,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedule is None
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
@@ -3223,6 +3257,75 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
         assert config["deployments"][1]["schedule"]["rrule"] == "FREQ=MINUTELY"
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
+
+    async def test_save_user_inputs_with_actions(self):
+        new_deployment_to_save = {
+            "name": "new_deployment",
+            "entrypoint": "flows/new_flow.py:my_flow",
+            "schedule": None,
+            "work_pool": {"name": "new_pool"},
+            "parameter_openapi_schema": None,
+        }
+
+        build_steps = [
+            {
+                "prefect.steps.set_working_directory": {
+                    "path": "/path/to/working/directory"
+                }
+            },
+        ]
+
+        push_steps = [
+            {
+                "prefect_aws.deployments.steps.push_to_s3": {
+                    "requires": "prefect-aws>=0.3.0",
+                    "bucket": "my-bucket",
+                    "folder": "project-name",
+                    "credentials": None,
+                }
+            },
+        ]
+
+        pull_steps = [
+            {
+                "prefect_aws.deployments.steps.pull_from_s3": {
+                    "requires": "prefect-aws>=0.3.0",
+                    "bucket": "my-bucket",
+                    "folder": "{{ push-code.folder }}",
+                    "credentials": None,
+                }
+            },
+        ]
+
+        _save_deployment_to_prefect_file(
+            new_deployment_to_save,
+            build_steps=build_steps,
+            push_steps=push_steps,
+            pull_steps=pull_steps,
+        )
+
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == new_deployment_to_save["name"]
+        assert (
+            config["deployments"][1]["entrypoint"]
+            == new_deployment_to_save["entrypoint"]
+        )
+        assert (
+            config["deployments"][1]["work_pool"]["name"]
+            == new_deployment_to_save["work_pool"]["name"]
+        )
+        assert (
+            config["deployments"][1]["schedule"] == new_deployment_to_save["schedule"]
+        )
+        assert config["deployments"][1]["build"] == build_steps
+        assert config["deployments"][1]["push"] == push_steps
+        assert config["deployments"][1]["pull"] == pull_steps
 
     def test_save_deployment_with_existing_deployment(self):
         # Set up initial 'prefect.yaml' file with a deployment
