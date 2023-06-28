@@ -900,10 +900,14 @@ async def _generate_default_pull_action(
                     return await _generate_git_clone_pull_step(
                         console, deploy_config, remote_url
                     )
-                if not confirm("Do you copy your flow code in your Dockerfile?"):
+                if not confirm(
+                    "Does your Dockerfile have a line that copies the current working"
+                    " directory into your image?"
+                ):
                     exit_with_error(
-                        "Your flow code must be copied into your Docker image"
-                        " in order to run your deployment."
+                        "Your flow code must be copied into your Docker image to run"
+                        " your deployment.\nTo do so, you can copy this line into your"
+                        " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
                     )
                 return await _generate_pull_step_for_build_docker_image(
                     console, deploy_config, auto=False
