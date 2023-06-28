@@ -868,20 +868,11 @@ class TestProjectDeploy:
             self,
             work_pool,
             prefect_client,
-            uninitialized_project_dir_with_git_with_remote,
             monkeypatch,
         ):
-            mock_result = {
-                "image_id": "fake_image_id",
-                "tag": "fake_tag",
-                "image_name": "fake_image_name",
-                "image": "fake_image",
-            }
-
-            mock_build_docker_image = AsyncMock(return_value=mock_result)
+            mock_step = mock.MagicMock()
             monkeypatch.setattr(
-                "prefect_docker.deployments.steps.build_docker_image",
-                mock_build_docker_image,
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
             )
 
             prefect_yaml = {
@@ -890,6 +881,7 @@ class TestProjectDeploy:
                         "prefect_docker.deployments.steps.build_docker_image": {
                             "requires": "prefect-docker",
                             "image_name": "repo-name/image-name",
+                            "tag": "dev",
                             "dockerfile": "auto",
                         }
                     }
@@ -930,6 +922,15 @@ class TestProjectDeploy:
                 }
             ]
 
+            mock_step.assert_called_once_with(
+                image_name="repo-name/image-name",
+                tag="dev",
+                dockerfile="auto",
+            )
+            # check to make sure prefect-docker is not installed
+            with pytest.raises(ImportError):
+                pass
+
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
         )
@@ -937,8 +938,13 @@ class TestProjectDeploy:
             self,
             work_pool,
             prefect_client,
-            uninitialized_project_dir_with_git_with_remote,
+            monkeypatch,
         ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
 
@@ -1009,6 +1015,16 @@ class TestProjectDeploy:
                 }
             ]
 
+            mock_step.assert_called_once_with(
+                image_name="repo-name/image-name",
+                tag="dev",
+                dockerfile="Dockerfile",
+            )
+
+            # check to make sure prefect-docker is not installed
+            with pytest.raises(ImportError):
+                pass
+
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
         )
@@ -1016,8 +1032,13 @@ class TestProjectDeploy:
             self,
             work_pool,
             prefect_client,
-            uninitialized_project_dir_with_git_with_remote,
+            monkeypatch,
         ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
 
@@ -1086,6 +1107,16 @@ class TestProjectDeploy:
                 }
             ]
 
+            mock_step.assert_called_once_with(
+                image_name="repo-name/image-name",
+                tag="dev",
+                dockerfile="Dockerfile",
+            )
+
+            # check to make sure prefect-docker is not installed
+            with pytest.raises(ImportError):
+                pass
+
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
         )
@@ -1093,8 +1124,13 @@ class TestProjectDeploy:
             self,
             work_pool,
             prefect_client,
-            uninitialized_project_dir_with_git_with_remote,
+            monkeypatch,
         ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
             with open("Dockerfile", "w") as f:
                 f.write("FROM python:3.8-slim\n")
             prefect_yaml = {
@@ -1142,6 +1178,10 @@ class TestProjectDeploy:
                     ),
                 ],
             )
+
+            # check to make sure prefect-docker is not installed
+            with pytest.raises(ImportError):
+                pass
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
