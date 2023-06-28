@@ -70,7 +70,7 @@ $ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
     You can save the API server address in a [Prefect profile](/concepts/settings/). Whenever that profile is active, the API endpoint will be be at that address.
 
-    See [Profiles & Connfiguration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
+    See [Profiles & Configuration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
 
 ## Prefect Database
 
