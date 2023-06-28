@@ -80,7 +80,7 @@ Now that we’ve reviewed the concepts of a Work Pool and Worker, let’s create
 
 For this tutorial you will create a **Process** type work pool via the CLI. 
 
-The **Process** work pool type specifies that all work sent to this work pool will run as a subprocess inside the same infrastructure that worker is running.
+The **Process** work pool type specifies that all work sent to this work pool will run as a subprocess on the same infrastructure that worker is running on.
 
 !!! tip "Other work pool types"
     There are work pool types for all major managed code execution platforms, such as Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
