@@ -967,7 +967,7 @@ class TestProjectDeploy:
             )
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
-                pass
+                import prefect_docker  # noqa
 
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
@@ -1061,7 +1061,7 @@ class TestProjectDeploy:
 
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
-                pass
+                import prefect_docker  # noqa
 
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
@@ -1128,7 +1128,7 @@ class TestProjectDeploy:
                     ),
                     (
                         "Does your Dockerfile have a line that copies the current"
-                        " working directory into your image?"
+                        " working directory"
                     ),
                     "What is the path to your flow code in your Dockerfile?",
                     "prefect deployment run 'An important name/test-name'",
@@ -1156,7 +1156,7 @@ class TestProjectDeploy:
 
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
-                pass
+                import prefect_docker  # noqa
 
         @pytest.mark.usefixtures(
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
@@ -1225,7 +1225,7 @@ class TestProjectDeploy:
 
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
-                pass
+                import prefect_docker  # noqa
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
