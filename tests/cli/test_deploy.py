@@ -1047,7 +1047,7 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Reject pulling from remote git origin
                     "n"
                     + readchar.key.ENTER
                     +
@@ -1123,11 +1123,11 @@ class TestProjectDeploy:
                 ),
                 expected_code=1,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Reject pulling from remote git origin
                     "n"
                     + readchar.key.ENTER
                     +
-                    # Accept copied flow code into Dockerfile
+                    # Reject copied flow code into Dockerfile
                     "n"
                 ),
                 expected_output_contains=[
