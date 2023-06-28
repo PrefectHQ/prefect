@@ -125,6 +125,28 @@ async def default_agent_pool(prefect_client):
     )
 
 
+@pytest.fixture
+async def docker_work_pool(prefect_client: PrefectClient):
+    return await prefect_client.create_work_pool(
+        work_pool=WorkPoolCreate(
+            name="test-docker-work-pool",
+            type="docker",
+            base_job_template={
+                "job_configuration": {"image": "{{ image}}"},
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "image": {
+                            "title": "Image",
+                            "type": "string",
+                        },
+                    },
+                },
+            },
+        )
+    )
+
+
 class TestProjectDeploySingleDeploymentYAML:
     """
     Tests for projects where deployment.yaml contains only one deployment
@@ -3861,3 +3883,365 @@ class TestDeploymentTriggerSyncing:
                 "Deployment triggers are only supported on Prefect Cloud"
             ],
         )
+
+
+@pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
+class TestDeployDockerBuildSteps:
+    async def test_docker_build_step_exists_does_not_prompt_build_custom_docker_image(
+        self,
+        docker_work_pool,
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        with open("Dockerfile", "w") as f:
+            f.write("FROM python:3.8-slim\n")
+
+        prefect_config["build"] = [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "requires": "prefect-docker",
+                    "image_name": "local/repo",
+                    "tag": "dev",
+                    "id": "build-image",
+                    "dockerfile": "Dockerfile",
+                }
+            }
+        ]
+
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600 -p"
+                f" {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept save configuration
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_does_not_contain=[
+                "Would you like to build a custom Docker image"
+            ],
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+    async def test_other_build_step_exists_prompts_build_custom_docker_image(
+        self,
+        docker_work_pool,
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        prefect_config["build"] = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "id": "get-commit-hash",
+                    "script": "git rev-parse --short HEAD",
+                    "stream_output": False,
+                }
+            }
+        ]
+
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Reject build custom docker image
+                "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Would you like to save configuration for this deployment",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+    async def test_no_build_step_exists_prompts_build_custom_docker_image(
+        self, docker_work_pool
+    ):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Reject build custom docker image
+                "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Would you like to save configuration for this deployment",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+    async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_accepted(
+        self, docker_work_pool
+    ):
+        with open("Dockerfile", "w") as f:
+            f.write("FROM python:3.8-slim\n")
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Accept use existing dockerfile
+                + "y"
+                + readchar.key.ENTER
+                +
+                # Default repo name
+                readchar.key.ENTER
+                +
+                # Default image_name
+                readchar.key.ENTER
+                +
+                # Default tag
+                readchar.key.ENTER
+                +
+                # Reject push to registry
+                "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Would you like to use the Dockerfile in the current directory?",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert config["deployments"][1]["build"] == [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "id": "build-image",
+                    "requires": "prefect-docker>=0.3.1",
+                    "dockerfile": "Dockerfile",
+                    "image_name": "prefecthq/prefect/test-name",
+                    "tag": "latest",
+                }
+            }
+        ]
+
+    async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_rejected_rename_accepted(
+        self, docker_work_pool, monkeypatch
+    ):
+        mock_step = mock.MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", lambda x: mock_step
+        )
+
+        with open("Dockerfile", "w") as f:
+            f.write("FROM python:3.8-slim\n")
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Reject use existing dockerfile
+                + "n"
+                + readchar.key.ENTER
+                # Accept rename dockerfile
+                + "y"
+                + readchar.key.ENTER
+                +
+                # Enter new dockerfile name
+                "Dockerfile.backup"
+                + readchar.key.ENTER
+                +
+                # Default repo name
+                readchar.key.ENTER
+                +
+                # Default image_name
+                readchar.key.ENTER
+                +
+                # Default tag
+                readchar.key.ENTER
+                +
+                # Reject push to registry
+                "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Would you like to use the Dockerfile in the current directory?",
+                "A Dockerfile exists but you chose not to use it.",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert config["deployments"][1]["build"] == [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "id": "build-image",
+                    "requires": "prefect-docker>=0.3.1",
+                    "dockerfile": "auto",
+                    "image_name": "prefecthq/prefect/test-name",
+                    "tag": "latest",
+                }
+            }
+        ]
+
+    async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_rejected_rename_rejected(
+        self, docker_work_pool
+    ):
+        with open("Dockerfile", "w") as f:
+            f.write("FROM python:3.8-slim\n")
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Reject use existing dockerfile
+                + "n"
+                + readchar.key.ENTER
+                # Accept rename dockerfile
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Would you like to use the Dockerfile in the current directory?",
+                "A Dockerfile exists but you chose not to use it.",
+                (
+                    "A Dockerfile already exists. Please remove or rename the existing"
+                    " one."
+                ),
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 1
+
+    async def test_prompt_build_custom_docker_image_accepted_no_existing_dockerfile_uses_auto_build(
+        self, docker_work_pool, monkeypatch
+    ):
+        # Dockerfile value is set to auto
+        # ensure console print "will be built" is correct
+        mock_step = mock.MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", lambda x: mock_step
+        )
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Default repo name
+                + readchar.key.ENTER
+                # Default image_name
+                + readchar.key.ENTER
+                # Default tag
+                + readchar.key.ENTER
+                # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "test-name"
+        assert config["deployments"][1]["build"] == [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "id": "build-image",
+                    "requires": "prefect-docker>=0.3.1",
+                    "dockerfile": "auto",
+                    "image_name": "prefecthq/prefect/test-name",
+                    "tag": "latest",
+                }
+            }
+        ]
