@@ -12,14 +12,14 @@ tags:
 
 # REST API
 
-The Prefect REST API is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
+The Prefect REST API is used for communicating data from clients to a Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
 
 Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
 - Prefect Cloud:
     - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
     - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
-- Locally hosted open-source Prefect server:
+- A Locally hosted open-source Prefect server:
     - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
     - [Prefect REST API documentation](/api-ref/rest-api-reference/)
 
@@ -32,7 +32,7 @@ You have many options to interact with the Prefect REST API:
 - Use an HTTP library in your language of choice
 - Use [curl](https://curl.se/) from the command line 
 
-### PrefectClient with Prefect server
+### PrefectClient with a Prefect server
 This example uses `PrefectClient` with a locally hosted Prefect server:
 
 ```python
@@ -208,7 +208,7 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 The Prefect REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing REST APIs.
 
-To generate Prefect server's complete OpenAPI document, run the following commands in an interactive Python session:
+To generate the Prefect server's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
 from prefect.server.api.server import create_app

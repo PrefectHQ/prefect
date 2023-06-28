@@ -8,6 +8,7 @@ from copy import deepcopy
 import ast
 import asyncio
 import json
+import math
 import os
 import subprocess
 import sys
@@ -21,7 +22,7 @@ from ruamel.yaml import YAML
 import anyio
 from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.filesystem import create_default_ignore_file
+from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.logging import get_logger
@@ -431,33 +432,52 @@ def _save_deployment_to_prefect_file(
             deployment["build"] = build_steps
 
         if push_steps != parsed_prefect_file_contents.get("push"):
-            deployment["push"] = build_steps
+            deployment["push"] = push_steps
 
         if pull_steps != parsed_prefect_file_contents.get("pull"):
-            deployment["pull"] = build_steps
+            deployment["pull"] = pull_steps
 
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
             parsed_prefect_file_contents["deployments"] = [deployment]
         else:
-            deployments.append(deployment)
+            for i, existing_deployment in enumerate(deployments):
+                if existing_deployment.get("name") == deployment.get("name") and (
+                    existing_deployment.get("entrypoint")
+                    == deployment.get("entrypoint")
+                ):
+                    deployments[i] = deployment
+                    break
+            else:
+                deployments.append(deployment)
 
         with prefect_file.open(mode="w") as f:
             ryaml.dump(parsed_prefect_file_contents, f)
+
+
+# Only allow half of the open file limit to be open at once to allow for other
+# actors to open files.
+OPEN_FILE_SEMAPHORE = asyncio.Semaphore(math.floor(get_open_file_limit() * 0.5))
 
 
 async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
     decorator_name = "flow"
     decorator_module = "prefect"
     decorated_functions = []
-    async with await anyio.open_file(filename) as f:
+    async with OPEN_FILE_SEMAPHORE:
         try:
-            tree = ast.parse(await f.read())
-        except SyntaxError:
+            async with await anyio.open_file(filename) as f:
+                try:
+                    tree = ast.parse(await f.read())
+                except SyntaxError:
+                    if PREFECT_DEBUG_MODE:
+                        get_logger().debug(
+                            f"Could not parse {filename} as a Python file. Skipping."
+                        )
+                    return decorated_functions
+        except Exception as exc:
             if PREFECT_DEBUG_MODE:
-                get_logger().debug(
-                    f"Could not parse {filename} as a Python file. Skipping."
-                )
+                get_logger().debug(f"Could not open {filename}: {exc}. Skipping.")
             return decorated_functions
 
     for node in ast.walk(tree):
@@ -476,6 +496,7 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
                 # handles @prefect.flow
                 is_module_attribute_match = (
                     isinstance(decorator, ast.Attribute)
+                    and isinstance(decorator.value, ast.Name)
                     and decorator.value.id == decorator_module
                     and decorator.attr == decorator_name
                 )

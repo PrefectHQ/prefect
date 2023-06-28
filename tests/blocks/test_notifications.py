@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import cloudpickle
 import pytest
+import respx
 
 import prefect
 from prefect.blocks.notifications import (
@@ -13,6 +14,7 @@ from prefect.blocks.notifications import (
     PagerDutyWebHook,
     PREFECT_NOTIFY_TYPE_DEFAULT,
     TwilioSMS,
+    CustomWebhookNotificationBlock,
 )
 from prefect.testing.utilities import AsyncMock
 
@@ -367,3 +369,196 @@ class TestTwilioSMS:
             )
 
             assert "Dropped invalid phone # (0000000) specified." in caplog.text
+
+
+class TestCustomWebhook:
+    async def test_notify_async(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            await custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert (
+                last_req.content
+                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_notify_sync(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert (
+                last_req.content
+                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_user_agent_override(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                headers={"user-agent": "CustomUA"},
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "CustomUA"
+            assert (
+                last_req.content
+                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_timeout_override(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+                timeout=30,
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert (
+                last_req.content
+                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
+            }
+
+    def test_request_cookie(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                cookies={"key": "{{cookie}}"},
+                secrets={"token": "someSecretToken", "cookie": "secretCookieValue"},
+                timeout=30,
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["cookie"] == "key=secretCookieValue"
+            assert (
+                last_req.content
+                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
+            }
+
+    def test_subst_nested_list(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={
+                    "data": {"sub1": [{"in-list": "{{body}}", "name": "{{name}}"}]}
+                },
+                secrets={"token": "someSecretToken"},
+            )
+            custom_block.notify("test", "subject")
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert (
+                last_req.content
+                == b'{"data": {"sub1": [{"in-list": "test", "name": "test name"}]}}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_subst_none(self):
+        with respx.mock as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )
+            # subject=None
+            custom_block.notify("test", None)
+
+            last_req = xmock.calls.last.request
+            assert last_req.headers["user-agent"] == "Prefect Notifications"
+            assert (
+                last_req.content
+                == b'{"msg": "null\\ntest", "token": "someSecretToken"}'
+            )
+            assert last_req.extensions == {
+                "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
+            }
+
+    def test_is_picklable(self):
+        reload_modules()
+        block = CustomWebhookNotificationBlock(
+            name="test name",
+            url="https://example.com/",
+            json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+            secrets={"token": "someSecretToken"},
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, CustomWebhookNotificationBlock)
+
+    def test_invalid_key_raises_validation_error(self):
+        with pytest.raises(KeyError):
+            CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token2": "someSecretToken"},
+            )
+
+    def test_provide_both_data_and_json_raises_validation_error(self):
+        with pytest.raises(ValueError):
+            CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                form_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
+                secrets={"token": "someSecretToken"},
+            )

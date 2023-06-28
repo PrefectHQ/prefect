@@ -37,9 +37,9 @@ Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
 
-### Differences between Prefect Server and Cloud
+### Differences between a Prefect server and Prefect Cloud
 
-The self-hosted Prefect server and Prefect Cloud share a base of features. Prefect Cloud also includes the following features that you can read about in the [Cloud](/cloud/) section of the docs. 
+The self-hosted Prefect server and Prefect Cloud share a common set of features. Prefect Cloud also includes the following features:
 
 - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
@@ -52,6 +52,7 @@ The self-hosted Prefect server and Prefect Cloud share a base of features. Prefe
 - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
 - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
 
+You can read more about Prefect Cloud in the [Cloud](/cloud/) section. 
 
 ### Configuring a Prefect Server
 

@@ -1,5 +1,33 @@
 # Prefect Release Notes
 
+## Release 2.10.17
+
+### Improved Prefect Tutorial
+
+Prefect's documentation has an [improved tutorial](https://docs.prefect.io/2.10.17/tutorial/), redesigned to include Prefect's recent enhancements. With the introduction of work pools and the interactive deployment CLI, the new tutorial reflects the elevated experience that these new features offer, alongside the key elements and features of Prefect. You can find content related to more advanced features or less common use cases in the [Guides](https://docs.prefect.io/2.10.17/guides/) section.
+
+### Enhancements
+- Update Prefect client to follow redirects by default — https://github.com/PrefectHQ/prefect/pull/9988
+- Always show checkboxes on list items, rather than animating them on hover — https://github.com/PrefectHQ/prefect-ui-library/pull/1490
+- New `CustomWebhookNotificationBlock` for triggering custom webhooks in response to flow run state changes — https://github.com/PrefectHQ/prefect/pull/9547
+
+### Fixes
+- Limit the number of files concurrently opened by `prefect deploy` when searching for flows — https://github.com/PrefectHQ/prefect/pull/10014
+- Fix `TypeError: crypto.randomUUID is not a function` that caused pages to break — https://github.com/PrefectHQ/prefect-ui-library/pull/1501
+
+### Documentation
+- Fix broken link to `prefect-docker` documentation on the deployments UX page — https://github.com/PrefectHQ/prefect/pull/10013
+- Document `--work-queue / -q` arguments to `worker start` command — https://github.com/PrefectHQ/prefect/pull/10027
+- Add link to join Club 42 to Community page — https://github.com/PrefectHQ/prefect/pull/9927
+- Improve Prefect tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
+
+## New Contributors
+* @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
+* @AutumnSun1996 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9547
+* @dianaclarke made their first contribution in https://github.com/PrefectHQ/prefect/pull/9988
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.16...2.10.17
+
 ## Release 2.10.16
 
 ### Run `prefect deploy` without providing a flow entrypoint
