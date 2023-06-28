@@ -808,7 +808,7 @@ async def _generate_git_clone_pull_step(
     return [git_clone_step]
 
 
-async def _generate_pull_action_for_build_docker_image(
+async def _generate_pull_step_for_build_docker_image(
     console: Console, deploy_config: Dict, auto: bool = True
 ):
     pull_step = {}
@@ -851,7 +851,7 @@ async def _generate_default_pull_action(
     if build_docker_image_step:
         dockerfile = build_docker_image_step.get("dockerfile")
         if dockerfile == "auto":
-            return await _generate_pull_action_for_build_docker_image(
+            return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
         else:
@@ -868,7 +868,7 @@ async def _generate_default_pull_action(
                         "Your flow code must be copied into your Docker image"
                         " in order to run your deployment."
                     )
-                return await _generate_pull_action_for_build_docker_image(
+                return await _generate_pull_step_for_build_docker_image(
                     console, deploy_config, auto=False
                 )
 
