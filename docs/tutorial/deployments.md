@@ -39,11 +39,13 @@ Before you build your first deployment, its helpful to understand how Prefect co
 
 ## Why Work Pools and Workers?
 
-Running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect work pools and workers allow you to run flows in the environment best suited to their execution.
+Running Prefect flows locally is great for testing and development purposes. But for production settings, Prefect work pools and workers allow you to run flows in the environments best suited to their execution.
 
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on.
 
 Work pools prioritize flow runs and respond to polling from the worker. Workers are light-weight processes that run in the environment where flow runs are executed.
+
+You can create and configure work pools within the Prefect UI.
 
 **Work Pools:**
 
@@ -123,7 +125,7 @@ Run the following command in this new terminal to start the worker:
 prefect worker start --pool my-process-pool
 ```
 </div>
-You should see the worker start - it's now polling the Prefect API to find any scheduled flow runs it should pick up and then submit for execution. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a `Healthy` status indicator in the default work queue under the work queue tab.
+You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a `Healthy` status indicator in the default work queue under the work queue tab.
 
 You would need to keep this terminal session active in order for the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should be running as a daemonized or managed process. See next steps for more information on this.
 
