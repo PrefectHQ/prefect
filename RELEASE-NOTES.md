@@ -23,6 +23,7 @@ See the following pull request for implementation details:
 - Add support for deployment triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10049
 - Add `prefect.yaml` `pull` step generation based on `build_docker_image` `build` step  — https://github.com/PrefectHQ/prefect/pull/10090
 - Webhook creation UI (cloud only)
+- Add `--install-policy` option to `prefect worker start` - https://github.com/PrefectHQ/prefect/pull/10040
 
 ### Fixes
 - Fix pull step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
