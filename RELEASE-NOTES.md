@@ -28,7 +28,7 @@ See the following pull request for implementation details:
 
 ### Fixes
 - Fix deployment `pull` step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
-- Fix windows file limit check — https://github.com/PrefectHQ/prefect/pull/10059
+- Fix `prefect server start` and `prefect agent start` on Windows — https://github.com/PrefectHQ/prefect/pull/10059
 - Add ability to use Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
 - Add default option to `new_parameters.pop` in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
 - Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
