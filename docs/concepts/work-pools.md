@@ -435,10 +435,10 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 
 | Install Policy | Description |
 | --- | --- |
-| `always` | Always install the required package. |
+| `always` | Always install the required package. Will update the required package to the most recent version if already installed. |
 | <span class="no-wrap">`if-not-present`<span> | Install the required package if it is not already installed. |
 | `never` | Never install the required package. |
-| `prompt` | Prompt the user to choose whether to install the required package. |
+| `prompt` | Prompt the user to choose whether to install the required package. This is the default install policy. If `prefect worker start` is run non-interactively, the `prompt` install policy will behave the same as `never`. |
 
 ### Additional Resources
 - [How to run a Prefect 2 worker as a systemd service on Linux](https://discourse.prefect.io/t/how-to-run-a-prefect-2-worker-as-a-systemd-service-on-linux/1450)

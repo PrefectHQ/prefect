@@ -497,7 +497,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
+            [sys.executable, "-m", "pip", "install", "prefect-kubernetes", "--upgrade"],
             stream_output=True,
         )
 

@@ -209,11 +209,14 @@ def _load_worker_class(worker_type: str) -> Optional[Type[BaseWorker]]:
         return None
 
 
-async def _install_package(package: str) -> Optional[Type[BaseWorker]]:
+async def _install_package(
+    package: str, upgrade: bool = False
+) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
-    await run_process(
-        [sys.executable, "-m", "pip", "install", package], stream_output=True
-    )
+    command = [sys.executable, "-m", "pip", "install", package]
+    if upgrade:
+        command.append("--upgrade")
+    await run_process(command, stream_output=True)
 
 
 async def _find_package_for_worker_type(worker_type: str) -> Optional[str]:
@@ -244,7 +247,7 @@ async def _get_worker_class(
     if install_policy == InstallPolicy.ALWAYS:
         package = await _find_package_for_worker_type(worker_type)
         if package:
-            await _install_package(package)
+            await _install_package(package, upgrade=True)
             worker_cls = _load_worker_class(worker_type)
 
     worker_cls = _load_worker_class(worker_type)
