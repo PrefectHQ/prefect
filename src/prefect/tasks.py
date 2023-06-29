@@ -210,6 +210,8 @@ class Task(Generic[P, R]):
         hook_names = ["on_completion", "on_failure"]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
+                if not hooks:
+                    raise ValueError(f"Empty list passed for '{hook_name}'")
                 try:
                     hooks = list(hooks)
                 except TypeError:
@@ -224,8 +226,6 @@ class Task(Generic[P, R]):
                             f"Expected callables in '{hook_name}'; got"
                             f" {type(hook).__name__} instead."
                         )
-                if len(hooks) == 0:
-                    raise ValueError(f"Empty list passed for '{hook_name}'")
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
