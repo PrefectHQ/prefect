@@ -439,12 +439,15 @@ async def prompt_push_custom_docker_image(
             console=console,
             default=False,
         ):
-            console.print("Installing prefect-docker...")
-            await run_process(
-                [sys.executable, "-m", "pip", "install", "prefect-docker"],
-                stream_output=True,
-            )
-            import prefect_docker
+            try:
+                import prefect_docker
+            except ImportError:
+                console.print("Installing prefect-docker...")
+                await run_process(
+                    [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                    stream_output=True,
+                )
+                import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
             push_step["credentials"] = (
