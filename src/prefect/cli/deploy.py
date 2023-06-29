@@ -458,20 +458,23 @@ async def _run_single_deploy(
                 app.console, deploy_config
             )
             if build_docker_image_step is not None:
-                if actions.get("build"):
-                    actions["build"].append(build_docker_image_step)
-                else:
-                    actions["build"] = [build_docker_image_step]
-
                 work_pool_job_variables_image_not_found = not get_from_dict(
                     deploy_config, "work_pool.job_variables.image"
                 )
                 if work_pool_job_variables_image_not_found:
                     update_work_pool_image = True
 
-                push_docker_image_step = await prompt_push_custom_docker_image(
-                    app.console, deploy_config
+                push_docker_image_step, updated_build_docker_image_step = (
+                    await prompt_push_custom_docker_image(
+                        app.console, deploy_config, build_docker_image_step
+                    )
                 )
+
+                if actions.get("build"):
+                    actions["build"].append(updated_build_docker_image_step)
+                else:
+                    actions["build"] = [updated_build_docker_image_step]
+
                 if push_docker_image_step is not None:
                     if actions.get("push"):
                         actions["push"].append(push_docker_image_step)

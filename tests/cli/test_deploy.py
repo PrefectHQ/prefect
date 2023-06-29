@@ -4635,7 +4635,7 @@ class TestDeployDockerPushSteps:
                     "id": "build-image",
                     "requires": "prefect-docker>=0.3.1",
                     "dockerfile": "auto",
-                    "image_name": "prefecthq/prefect/test-name",
+                    "image_name": "https://hub.docker.com/prefecthq/prefect/test-name",
                     "tag": "latest",
                 }
             }
@@ -4647,7 +4647,6 @@ class TestDeployDockerPushSteps:
                     "requires": "prefect-docker>=0.3.1",
                     "image_name": "{{ build-image.image_name }}",
                     "tag": "{{ build-image.tag }}",
-                    "registry_url": "https://hub.docker.com",
                 }
             }
         ]
@@ -4730,7 +4729,9 @@ class TestDeployDockerPushSteps:
                     "id": "build-image",
                     "requires": "prefect-docker>=0.3.1",
                     "dockerfile": "auto",
-                    "image_name": "prefecthq/prefect/test-name",
+                    "image_name": (
+                        "https://private.docker.com/prefecthq/prefect/test-name"
+                    ),
                     "tag": "latest",
                 }
             }
@@ -4742,7 +4743,6 @@ class TestDeployDockerPushSteps:
                     "requires": "prefect-docker>=0.3.1",
                     "image_name": "{{ build-image.image_name }}",
                     "tag": "{{ build-image.tag }}",
-                    "registry_url": "https://private.docker.com",
                     "credentials": (
                         "{{ prefect.docker-registry.docker_registry_creds_name }}"
                     ),
@@ -4831,7 +4831,9 @@ class TestDeployDockerPushSteps:
                     "id": "build-image",
                     "requires": "prefect-docker>=0.3.1",
                     "dockerfile": "auto",
-                    "image_name": "prefecthq/prefect/test-name",
+                    "image_name": (
+                        "https://private.docker.com/prefecthq/prefect/test-name"
+                    ),
                     "tag": "latest",
                 }
             }
@@ -4843,7 +4845,6 @@ class TestDeployDockerPushSteps:
                     "requires": "prefect-docker>=0.3.1",
                     "image_name": "{{ build-image.image_name }}",
                     "tag": "{{ build-image.tag }}",
-                    "registry_url": "https://private.docker.com",
                     "credentials": (
                         "{{ prefect.docker-registry.docker_registry_creds_name }}"
                     ),
@@ -4948,7 +4949,9 @@ class TestDeployDockerPushSteps:
                     "id": "build-image",
                     "requires": "prefect-docker>=0.3.1",
                     "dockerfile": "auto",
-                    "image_name": "prefecthq/prefect/test-name",
+                    "image_name": (
+                        "https://private2.docker.com/prefecthq/prefect/test-name"
+                    ),
                     "tag": "latest",
                 }
             }
@@ -4960,7 +4963,6 @@ class TestDeployDockerPushSteps:
                     "requires": "prefect-docker>=0.3.1",
                     "image_name": "{{ build-image.image_name }}",
                     "tag": "{{ build-image.tag }}",
-                    "registry_url": "https://private2.docker.com",
                     "credentials": (
                         "{{ prefect.docker-registry.docker_registry_creds_name }}"
                     ),

@@ -413,13 +413,14 @@ async def prompt_build_custom_docker_image(
 async def prompt_push_custom_docker_image(
     console: Console,
     deployment_config: dict,
+    build_docker_image_step: dict,
 ):
     if not confirm(
         "Would you like to push this image to a remote registry?",
         console=console,
         default=False,
     ):
-        return
+        return None, build_docker_image_step
 
     push_step = {
         "requires": "prefect-docker>=0.3.1",
@@ -427,8 +428,15 @@ async def prompt_push_custom_docker_image(
         "tag": "{{ build-image.tag }}",
     }
 
-    registry_url = prompt("Registry URL", default="docker.io")
-    push_step["registry_url"] = registry_url
+    registry_url = prompt("Registry URL", default="docker.io").rstrip("/")
+
+    repo_and_image_name = build_docker_image_step[
+        "prefect_docker.deployments.steps.build_docker_image"
+    ]["image_name"]
+    full_image_name = f"{registry_url}/{repo_and_image_name}"
+    build_docker_image_step["prefect_docker.deployments.steps.build_docker_image"][
+        "image_name"
+    ] = full_image_name
 
     if confirm("Is this a private registry?", console=console):
         docker_credentials = {}
@@ -497,7 +505,9 @@ async def prompt_push_custom_docker_image(
             )
             await new_creds_block.save(name=docker_registry_creds_name, overwrite=True)
 
-    return {"prefect_docker.deployments.steps.push_docker_image": push_step}
+    return {
+        "prefect_docker.deployments.steps.push_docker_image": push_step
+    }, build_docker_image_step
 
 
 @inject_client
