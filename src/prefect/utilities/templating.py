@@ -191,7 +191,9 @@ async def resolve_block_document_references(
             return block_document.data
         updated_template = {}
         for key, value in template.items():
-            updated_value = await resolve_block_document_references(value)
+            updated_value = await resolve_block_document_references(
+                value, client=client
+            )
             updated_template[key] = updated_value
         return updated_template
     elif isinstance(template, list):
