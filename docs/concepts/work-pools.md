@@ -375,6 +375,8 @@ Configuration parameters you can specify when starting a worker include:
 | <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_WORKER_PREFETCH_SECONDS`. |
 | `--run-once`                                      | Only run worker polling once. By default, the worker runs forever.                                                                          |
 | `--limit`, `-l`                                   | The maximum number of flow runs to start simultaneously.                                                                                    |
+| `--with-healthcheck`                                   | Start a healthcheck server for the worker.                                                                                    |
+| `--install-policy`                                   | Install policy to use workers from Prefect integration packages.                                                                                    |
 
 You must start a worker within an environment that can access or create the infrastructure needed to execute flow runs. The worker will deploy flow runs to the infrastructure corresponding to the worker type. For example, if you start a worker with type `kubernetes`, the worker will deploy flow runs to a Kubernetes cluster.
 
@@ -426,6 +428,17 @@ If this value is _more_ than the amount of time it takes for the infrastructure 
 ### Polling for work
 Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.
+
+### Install Policy
+
+The Prefect CLI can install the required package for Prefect-maintained worker types automatically. You can configure this behavior with the `--install-policy` option. The following are valid install policies
+
+| Install Policy | Description |
+| --- | --- |
+| `always` | Always install the required package. |
+| <span class="no-wrap">`if-not-present`<span> | Install the required package if it is not already installed. |
+| `never` | Never install the required package. |
+| `prompt` | Prompt the user to choose whether to install the required package. |
 
 ### Additional Resources
 - [How to run a Prefect 2 worker as a systemd service on Linux](https://discourse.prefect.io/t/how-to-run-a-prefect-2-worker-as-a-systemd-service-on-linux/1450)
