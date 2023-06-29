@@ -519,9 +519,7 @@ async def _run_single_deploy(
                 "Warning: no build-image step found in the deployment build steps."
                 " The work pool image will not be updated."
             )
-        deploy_config["work_pool"]["job_variables"]["image"] = step_outputs[
-            "build-image"
-        ]["image"]
+        deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
 
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
