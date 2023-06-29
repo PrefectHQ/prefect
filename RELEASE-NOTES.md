@@ -31,7 +31,7 @@ See the following pull request for implementation details:
 - Fix `prefect server start` and `prefect agent start` on Windows — https://github.com/PrefectHQ/prefect/pull/10059
 - Add ability to use Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
 - Add default option to `new_parameters.pop` in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
-- Update `prefect deploy` to skip schedule prompts if `schedule` key present in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
+- Skip schedule prompts in `prefect deploy` if schedule is set or null in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
 - Fix saving of `pull` and `push` step deployment configuration — https://github.com/PrefectHQ/prefect/pull/10087
 - Fix issue hosting and running the UI in unsecured contexts - https://github.com/PrefectHQ/prefect-design/pull/829
 
