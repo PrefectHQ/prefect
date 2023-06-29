@@ -445,6 +445,8 @@ async def _run_single_deploy(
         for action in deploy_config.get("build", actions.get("build")) or []
     )
 
+    update_work_pool_image = False
+
     if is_interactive() and not docker_build_step_exists:
         work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
         docker_based_infrastructure = "image" in work_pool.base_job_template.get(
@@ -464,9 +466,7 @@ async def _run_single_deploy(
                     deploy_config, "work_pool.job_variables.image"
                 )
                 if work_pool_job_variables_image_not_found:
-                    deploy_config["work_pool"]["job_variables"][
-                        "image"
-                    ] = "{{ build-image.image }}"
+                    update_work_pool_image = True
 
                 push_docker_image_step = await prompt_push_custom_docker_image(
                     app.console, deploy_config
@@ -511,6 +511,16 @@ async def _run_single_deploy(
         )
 
     step_outputs.update(variable_overrides)
+
+    if update_work_pool_image:
+        if "build-image" not in step_outputs:
+            app.console.print(
+                "Warning: no build-image step found in the deployment build steps."
+                " The work pool image will not be updated."
+            )
+        deploy_config["work_pool"]["job_variables"]["image"] = step_outputs[
+            "build-image"
+        ]["image"]
 
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description

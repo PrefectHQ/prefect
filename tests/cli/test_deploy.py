@@ -4381,6 +4381,150 @@ class TestDeployDockerBuildSteps:
             }
         ]
 
+    async def test_no_existing_work_pool_image_gets_updated_after_adding_build_docker_image_step(
+        self, docker_work_pool, monkeypatch
+    ):
+        prefect_file = Path("prefect.yaml")
+        if prefect_file.exists():
+            prefect_file.unlink()
+        assert not prefect_file.exists()
+        mock_build_docker_image = mock.MagicMock()
+        mock_build_docker_image.return_value = {
+            "build-image": {"image": "{{ build-image.image }}"}
+        }
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object",
+            lambda x: mock_build_docker_image,
+        )
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Default repo name
+                + readchar.key.ENTER
+                # Default image_name
+                + readchar.key.ENTER
+                # Default tag
+                + readchar.key.ENTER
+                # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "test-name"
+        assert config["deployments"][0]["work_pool"]["name"] == docker_work_pool.name
+        assert (
+            config["deployments"][0]["work_pool"]["job_variables"]["image"]
+            == "{{ build-image.image }}"
+        )
+        assert config["build"] == [
+            {
+                "prefect_docker.deployments.steps.build_docker_image": {
+                    "id": "build-image",
+                    "requires": "prefect-docker>=0.3.1",
+                    "dockerfile": "auto",
+                    "image_name": "prefecthq/prefect/test-name",
+                    "tag": "latest",
+                }
+            }
+        ]
+
+    async def test_work_pool_image_already_exists_not_updated_after_adding_build_docker_image_step(
+        self, docker_work_pool, monkeypatch
+    ):
+        prefect_file = Path("prefect.yaml")
+        with open("prefect.yaml", "w") as f:
+            contents = {
+                "work_pool": {
+                    "name": docker_work_pool.name,
+                    "job_variables": {"image": "original-image"},
+                }
+            }
+            yaml.dump(contents, f)
+        assert prefect_file.exists()
+
+        mock_build_docker_image = mock.MagicMock()
+        mock_build_docker_image.return_value = {
+            "build-image": {"image": "{{ build-image.image }}"}
+        }
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object",
+            lambda x: mock_build_docker_image,
+        )
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {docker_work_pool.name}"
+            ),
+            user_input=(
+                # Accept build custom docker image
+                "y"
+                + readchar.key.ENTER
+                # Default repo name
+                + readchar.key.ENTER
+                # Default image_name
+                + readchar.key.ENTER
+                # Default tag
+                + readchar.key.ENTER
+                # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Accept save configuration
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to build a custom Docker image",
+                "Image prefecthq/prefect/test-name:latest will be built",
+                "Would you like to push this image to a remote registry?",
+                "Would you like to save configuration for this deployment",
+            ],
+            expected_output_does_not_contain=["Is this a private registry?"],
+        )
+
+        assert result.exit_code == 0
+
+        with open("prefect.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "test-name"
+        assert config["deployments"][0]["work_pool"]["name"] == docker_work_pool.name
+        assert (
+            config["deployments"][0]["work_pool"]["job_variables"]["image"]
+            == "{{ build-image.image }}"
+        )
+        assert config["work_pool"] == {
+            "name": docker_work_pool.name,
+            "job_variables": {"image": "original-image"},
+        }
+
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerPushSteps:
