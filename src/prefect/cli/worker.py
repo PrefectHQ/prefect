@@ -1,5 +1,6 @@
 from functools import partial
 from typing import List, Optional, Type
+from enum import Enum
 
 import os
 import sys
@@ -32,6 +33,13 @@ worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
 )
 app.add_typer(worker_app)
+
+
+class InstallPolicy(str, Enum):
+    ALWAYS = "always"
+    IF_NOT_PRESENT = "if-not-present"
+    NEVER = "never"
+    PROMPT = "prompt"
 
 
 @worker_app.command()
@@ -86,20 +94,17 @@ async def start(
     with_healthcheck: bool = typer.Option(
         False, help="Start a healthcheck server for the worker."
     ),
-    auto_install: bool = typer.Option(
-        False,
-        "-i",
-        "--auto-install",
-        help=(
-            "Automatically install the necessary worker type if it is not available in"
-            " the current environment."
-        ),
+    install_policy: InstallPolicy = typer.Option(
+        InstallPolicy.PROMPT.value,
+        "--install-policy",
+        help="Install policy to use workers from Prefect integration packages.",
+        case_sensitive=False,
     ),
 ):
     """
     Start a worker process to poll a work pool for flow runs.
     """
-    worker_cls = await _get_worker_class(worker_type, work_pool_name, auto_install)
+    worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
     if worker_cls is None:
         exit_with_error(
             "Unable to start worker. Please ensure you have the necessary dependencies"
@@ -204,9 +209,17 @@ def _load_worker_class(worker_type: str) -> Optional[Type[BaseWorker]]:
         return None
 
 
-async def _install_and_load_package(
-    worker_type: str, worker_metadata: dict, auto_install: bool = False
-) -> Optional[Type[BaseWorker]]:
+async def _install_package(package: str) -> Optional[Type[BaseWorker]]:
+    app.console.print(f"Installing {package}...")
+    await run_process(
+        [sys.executable, "-m", "pip", "install", package], stream_output=True
+    )
+
+
+async def _find_package_for_worker_type(worker_type: str) -> Optional[str]:
+    async with get_collections_metadata_client() as client:
+        worker_metadata = await client.read_worker_metadata()
+
     worker_types_with_packages = {
         worker_type: package_name
         for package_name, worker_dict in worker_metadata.items()
@@ -214,44 +227,51 @@ async def _install_and_load_package(
         if worker_type != "prefect-agent"
     }
 
-    if worker_type in worker_types_with_packages and (
-        auto_install
-        or (
-            is_interactive()
-            and confirm(
-                (
-                    f"Could not find a {worker_type} worker in the current"
-                    " environment. Install it now?"
-                ),
-                default=True,
-            )
-        )
-    ):
-        package = worker_types_with_packages[worker_type]
-        app.console.print(f"Installing {package}...")
-        await run_process(
-            [sys.executable, "-m", "pip", "install", package], stream_output=True
-        )
-        return _load_worker_class(worker_type)
+    return worker_types_with_packages[worker_type]
 
 
 async def _get_worker_class(
     worker_type: Optional[str] = None,
     work_pool_name: Optional[str] = None,
-    auto_install: bool = False,
+    install_policy: InstallPolicy = InstallPolicy.PROMPT,
 ) -> Optional[Type[BaseWorker]]:
     if worker_type is None and work_pool_name is None:
         raise ValueError("Must provide either worker_type or work_pool_name.")
 
     if worker_type is None:
         worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
+
+    if install_policy == InstallPolicy.ALWAYS:
+        package = await _find_package_for_worker_type(worker_type)
+        if package:
+            await _install_package(package)
+            worker_cls = _load_worker_class(worker_type)
+
     worker_cls = _load_worker_class(worker_type)
 
     if worker_cls is None:
-        async with get_collections_metadata_client() as client:
-            worker_metadata = await client.read_worker_metadata()
-        worker_cls = await _install_and_load_package(
-            worker_type, worker_metadata, auto_install
-        )
+        package = await _find_package_for_worker_type(worker_type)
+        # Check if the package exists
+        if package:
+            # Prompt to install if the package is not present
+            if install_policy == InstallPolicy.IF_NOT_PRESENT:
+                should_install = True
+
+            # Confirm with the user for installation in an interactive session
+            elif install_policy == InstallPolicy.PROMPT and is_interactive():
+                message = (
+                    f"Could not find a {worker_type} worker in the current"
+                    " environment. Install it now?"
+                )
+                should_install = confirm(message, default=True)
+
+            # If none of the conditions met, don't install the package
+            else:
+                should_install = False
+
+            # If should_install is True, install the package
+            if should_install:
+                await _install_package(package)
+                worker_cls = _load_worker_class(worker_type)
 
     return worker_cls

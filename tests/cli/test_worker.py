@@ -337,8 +337,10 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-class TestAutoInstall:
-    async def test_auto_install_option(self, kubernetes_work_pool, monkeypatch):
+class TestInstallPolicyOption:
+    async def test_install_policy_if_not_present(
+        self, kubernetes_work_pool, monkeypatch
+    ):
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
@@ -354,7 +356,7 @@ class TestAutoInstall:
                 kubernetes_work_pool.name,
                 "-n",
                 "test-worker",
-                "-i",
+                "--install-policy=if-not-present",
             ],
             expected_output_contains=[
                 "Installing prefect-kubernetes...",
@@ -369,7 +371,7 @@ class TestAutoInstall:
         )
 
     @pytest.mark.usefixtures("interactive_console")
-    async def test_auto_install_prompt(self, kubernetes_work_pool, monkeypatch):
+    async def test_install_policy_prompt(self, kubernetes_work_pool, monkeypatch):
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
@@ -404,7 +406,7 @@ class TestAutoInstall:
         )
 
     @pytest.mark.usefixtures("interactive_console")
-    async def test_auto_install_prompt_decline(self, monkeypatch, prefect_client):
+    async def test_install_policy_prompt_decline(self, monkeypatch, prefect_client):
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
@@ -436,7 +438,7 @@ class TestAutoInstall:
         run_process_mock.assert_not_called()
 
     @pytest.mark.usefixtures("interactive_console")
-    async def test_auto_install_prompt_option_overrides_prompt(
+    async def test_install_policy_if_not_present_overrides_prompt(
         self, kubernetes_work_pool, monkeypatch
     ):
         run_process_mock = AsyncMock()
@@ -454,7 +456,7 @@ class TestAutoInstall:
                 kubernetes_work_pool.name,
                 "-n",
                 "test-worker",
-                "-i",
+                "--install-policy=if-not-present",
             ],
             expected_output_contains=[
                 "Installing prefect-kubernetes...",
@@ -467,6 +469,69 @@ class TestAutoInstall:
             [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
             stream_output=True,
         )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_install_policy_always(self, kubernetes_work_pool, monkeypatch):
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.return_value = MockKubernetesWorker
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+                "--install-policy=always",
+            ],
+            expected_output_contains=[
+                "Installing prefect-kubernetes...",
+                "Worker 'test-worker' started!",
+                "Worker 'test-worker' stopped!",
+            ],
+        )
+
+        run_process_mock.assert_called_once_with(
+            [sys.executable, "-m", "pip", "install", "prefect-kubernetes"],
+            stream_output=True,
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    async def test_install_policy_never(self, monkeypatch, prefect_client):
+        kubernetes_work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+        )
+
+        run_process_mock = AsyncMock()
+        lookup_type_mock = MagicMock()
+        lookup_type_mock.side_effect = KeyError
+        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "worker",
+                "start",
+                "--run-once",
+                "-p",
+                kubernetes_work_pool.name,
+                "-n",
+                "test-worker",
+                "--install-policy=never",
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "Unable to start worker. Please ensure you have the necessary"
+                " dependencies installed to run your desired worker type."
+            ],
+        )
+
+        run_process_mock.assert_not_called()
 
 
 POLL_INTERVAL = 0.5
