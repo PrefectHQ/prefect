@@ -90,7 +90,9 @@ worker:
     workPool: <target work pool name>
 ```
 
-These settings will ensure that the worker connects to the proper account, workspace, and work pool.
+These settings will ensure that the worker connects to the proper account, workspace, and work pool. 
+
+View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here.
 
 ## Step 5: Install Prefect Worker Using Helm
 
