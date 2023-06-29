@@ -2,8 +2,11 @@
 
 ## Release 2.10.18
 
-### Event driven deployments with triggers
-Deployments in Prefect Cloud now have an optional triggers field, which describes what events (or lack thereof) should trigger a flow run. You can add triggers to deployments in your .yaml files or in the UI from your deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
+### Event-driven deployments with triggers
+You can now add event-based triggers to your deployments in Prefect Cloud, allowing you to add triggers into your `prefect.yaml` file or from the Prefect UI deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10049
+- https://github.com/PrefectHQ/prefect/pull/10097
 
 ### Docker image support during flow deployment
 We have introduced enhanced support for Docker-based infrastructures when deploying flows through the interactive `prefect deploy` experience. Users can now easily custom-build or auto-build Docker images and push them to remote registries if they so choose.
@@ -20,38 +23,32 @@ See the following pull request for implementation details:
 
 ### Enhancements
 - Allow saving of updated deployment configurations — https://github.com/PrefectHQ/prefect/pull/10018
-- Add support for deployment triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10049
-- Add `prefect.yaml` `pull` step generation based on `build_docker_image` `build` step  — https://github.com/PrefectHQ/prefect/pull/10090
 - Webhook creation UI (cloud only)
 - Add `--install-policy` option to `prefect worker start` - https://github.com/PrefectHQ/prefect/pull/10040
 
 ### Fixes
-- Fix pull step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
+- Fix deployment `pull` step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
 - Fix windows file limit check — https://github.com/PrefectHQ/prefect/pull/10059
-- Allows use of Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
-- Add default option to new_parameters.pop in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
+- Add ability to use Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
+- Add default option to `new_parameters.pop` in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
 - Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
 - Update `prefect deploy` to skip schedule prompts if `schedule` key present in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
 - Fix saving of `pull` and `push` step deployment configuration — https://github.com/PrefectHQ/prefect/pull/10087
+- Fix issue hosting and running the UI in unsecured contexts - https://github.com/PrefectHQ/prefect-design/pull/829
 
 ### Documentation
 - Adjust docs to reflect Prefect requires Python 3.8 — https://github.com/PrefectHQ/prefect/pull/9853
-- Add custom pull step examples with variables — https://github.com/PrefectHQ/prefect/pull/10073
+- Add custom `pull` step examples to deployment management docs — https://github.com/PrefectHQ/prefect/pull/10073
 - Add troubleshooting guide to docs — https://github.com/PrefectHQ/prefect/pull/10079
-- Add example for finding Prefect Cloud Account ID and Workspace ID — https://github.com/PrefectHQ/prefect/pull/10103
-- Add links to Webhooks documentation from Events documentation — https://github.com/PrefectHQ/prefect/pull/10045
-- Simply deployment description — https://github.com/PrefectHQ/prefect/pull/10050
-- Add trigger to deployment fields — https://github.com/PrefectHQ/prefect/pull/10097
+- Add information on finding Prefect Cloud account id and workspace id — https://github.com/PrefectHQ/prefect/pull/10103
+- Reference webhooks documentation from events documentation — https://github.com/PrefectHQ/prefect/pull/10045
+- Simplify deployment description in docs — https://github.com/PrefectHQ/prefect/pull/10050
 
 ### Contributors
-- @masonmenges made their first contribution in https://github.com/PrefectHQ/prefect/pull/9977
 - @garylavayou made their first contribution in https://github.com/PrefectHQ/prefect/pull/10060
 - @themattmorris made their first contribution in https://github.com/PrefectHQ/prefect/pull/10056
-- @aimeemcmanus made their first contribution in https://github.com/PrefectHQ/prefect/pull/10076
 - @NodeJSmith
-- @garylavayou
 - @rpeden
-- @themattmorris
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.17...2.10.18
 
