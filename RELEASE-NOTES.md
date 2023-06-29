@@ -2,12 +2,6 @@
 
 ## Release 2.10.18
 
-### Event-driven deployments with triggers
-You can now add event-based triggers to your deployments in Prefect Cloud, allowing you to add triggers into your `prefect.yaml` file or from the Prefect UI deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
-See the following pull request for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/10049
-- https://github.com/PrefectHQ/prefect/pull/10097
-
 ### Docker image support during flow deployment
 We have introduced enhanced support for Docker-based infrastructures when deploying flows through the interactive `prefect deploy` experience. Users can now easily custom-build or auto-build Docker images and push them to remote registries if they so choose.
 
@@ -21,17 +15,22 @@ See the following pull request for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/10022
 - https://github.com/PrefectHQ/prefect/pull/10090
 
+### Event-driven deployments with triggers
+You can now add event-based triggers to your deployments in Prefect Cloud, allowing you to add triggers into your `prefect.yaml` file or from the Prefect UI deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10049
+- https://github.com/PrefectHQ/prefect/pull/10097
+
 ### Enhancements
 - Allow saving of updated deployment configurations — https://github.com/PrefectHQ/prefect/pull/10018
-- Webhook creation UI (cloud only)
 - Add `--install-policy` option to `prefect worker start` - https://github.com/PrefectHQ/prefect/pull/10040
+- Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
 
 ### Fixes
 - Fix deployment `pull` step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
 - Fix `prefect server start` and `prefect agent start` on Windows — https://github.com/PrefectHQ/prefect/pull/10059
 - Add ability to use Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
 - Add default option to `new_parameters.pop` in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
-- Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
 - Update `prefect deploy` to skip schedule prompts if `schedule` key present in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
 - Fix saving of `pull` and `push` step deployment configuration — https://github.com/PrefectHQ/prefect/pull/10087
 - Fix issue hosting and running the UI in unsecured contexts - https://github.com/PrefectHQ/prefect-design/pull/829
