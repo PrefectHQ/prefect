@@ -396,7 +396,7 @@ async def prompt_build_custom_docker_image(
     else:
         build_step["dockerfile"] = "auto"
 
-    repo_name = prompt("Repository name", default="prefecthq/prefect").rstrip("/")
+    repo_name = prompt("Repository name (e.g. your Docker Hub username)").rstrip("/")
     image_name = prompt("Image name", default=deployment_config["name"])
     build_step["image_name"] = f"{repo_name}/{image_name}"
     build_step["tag"] = prompt("Image tag", default="latest")
