@@ -817,12 +817,13 @@ async def _generate_pull_step_for_build_docker_image(
     console: Console, deploy_config: Dict, auto: bool = True
 ):
     pull_step = {}
+    dir_name = os.path.basename(os.getcwd())
     if auto:
-        pull_step["path"] = "/opt/prefect/{{ name }}"
+        pull_step["directory"] = f"/opt/prefect/{dir_name}"
     else:
-        pull_step["path"] = prompt(
+        pull_step["directory"] = prompt(
             "What is the path to your flow code in your Dockerfile?",
-            default="/opt/prefect/{{ name }}",
+            default=f"/opt/prefect/{dir_name}",
             console=console,
         )
 
