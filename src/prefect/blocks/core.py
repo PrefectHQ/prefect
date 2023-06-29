@@ -796,7 +796,7 @@ class Block(BaseModel, ABC):
 
             loaded_block = Block.load("custom/my-custom-message")
             ```
-            
+
             Migrate a block document to a new schema:
             ```python
             # original class
