@@ -3,6 +3,7 @@ from getpass import GetPassWarning
 import json
 from copy import deepcopy
 from datetime import timedelta
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
@@ -874,12 +875,13 @@ async def _generate_pull_step_for_build_docker_image(
     console: Console, deploy_config: Dict, auto: bool = True
 ):
     pull_step = {}
+    dir_name = os.path.basename(os.getcwd())
     if auto:
-        pull_step["path"] = "/opt/prefect/{{ name }}"
+        pull_step["directory"] = f"/opt/prefect/{dir_name}"
     else:
-        pull_step["path"] = prompt(
+        pull_step["directory"] = prompt(
             "What is the path to your flow code in your Dockerfile?",
-            default="/opt/prefect/{{ name }}",
+            default=f"/opt/prefect/{dir_name}",
             console=console,
         )
 
@@ -908,8 +910,9 @@ async def _generate_default_pull_action(
     console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
     remote_url = _get_git_remote_origin_url()
-    build_docker_image_step = await _check_for_build_docker_image_step(actions["build"])
-
+    build_docker_image_step = await _check_for_build_docker_image_step(
+        deploy_config.get("build") or actions["build"]
+    )
     if build_docker_image_step:
         dockerfile = build_docker_image_step.get("dockerfile")
         if dockerfile == "auto":
