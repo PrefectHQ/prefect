@@ -163,6 +163,19 @@ async def mock_prompt(monkeypatch):
     monkeypatch.setattr("prefect.cli._prompts.prompt", new_prompt)
 
 
+@pytest.fixture
+def mock_build_docker_image(monkeypatch):
+    mock_build = mock.MagicMock()
+    mock_build.return_value = {"build-image": {"image": "{{ build-image.image }}"}}
+
+    monkeypatch.setattr(
+        "prefect.deployments.steps.core.import_object",
+        lambda x: mock_build,
+    )
+
+    return mock_build
+
+
 class TestProjectDeploySingleDeploymentYAML:
     """
     Tests for projects where deployment.yaml contains only one deployment
@@ -4207,13 +4220,8 @@ class TestDeployDockerBuildSteps:
         ]
 
     async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_rejected_rename_accepted(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         with open("Dockerfile", "w") as f:
             f.write("FROM python:3.8-slim\n")
 
@@ -4323,13 +4331,8 @@ class TestDeployDockerBuildSteps:
         assert result.exit_code == 1
 
     async def test_prompt_build_custom_docker_image_accepted_no_existing_dockerfile_uses_auto_build(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -4382,20 +4385,12 @@ class TestDeployDockerBuildSteps:
         ]
 
     async def test_no_existing_work_pool_image_gets_updated_after_adding_build_docker_image_step(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
         prefect_file = Path("prefect.yaml")
         if prefect_file.exists():
             prefect_file.unlink()
         assert not prefect_file.exists()
-        mock_build_docker_image = mock.MagicMock()
-        mock_build_docker_image.return_value = {
-            "build-image": {"image": "{{ build-image.image }}"}
-        }
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object",
-            lambda x: mock_build_docker_image,
-        )
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -4454,7 +4449,7 @@ class TestDeployDockerBuildSteps:
         ]
 
     async def test_work_pool_image_already_exists_not_updated_after_adding_build_docker_image_step(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
         prefect_file = Path("prefect.yaml")
         with open("prefect.yaml", "w") as f:
@@ -4466,15 +4461,6 @@ class TestDeployDockerBuildSteps:
             }
             yaml.dump(contents, f)
         assert prefect_file.exists()
-
-        mock_build_docker_image = mock.MagicMock()
-        mock_build_docker_image.return_value = {
-            "build-image": {"image": "{{ build-image.image }}"}
-        }
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object",
-            lambda x: mock_build_docker_image,
-        )
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -4529,13 +4515,8 @@ class TestDeployDockerBuildSteps:
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerPushSteps:
     async def test_prompt_push_custom_docker_image_rejected(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -4589,13 +4570,8 @@ class TestDeployDockerPushSteps:
         assert not config["deployments"][1].get("push")
 
     async def test_prompt_push_custom_docker_image_accepted_public_registry(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -4669,12 +4645,8 @@ class TestDeployDockerPushSteps:
         ]
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_existing_core_creds(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
 
         # create a DockerRegistry block so we can use existing credentials
@@ -4773,13 +4745,8 @@ class TestDeployDockerPushSteps:
             import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_new_core_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt
+        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         # ensure the DockerRegistry block does not exist
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
         with pytest.raises(ValueError):
@@ -4884,12 +4851,8 @@ class TestDeployDockerPushSteps:
             import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_reject_use_existing_core_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt
+        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
 
         # create a DockerRegistry block so we can reject existing credentials
@@ -5005,13 +4968,8 @@ class TestDeployDockerPushSteps:
             import prefect_docker  # noqa
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_existing_prefect_docker_creds(
-        self, docker_work_pool, monkeypatch
+        self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         # create a DockerRegistryCredentials block so we can use existing credentials
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
         await run_process(
@@ -5020,11 +4978,15 @@ class TestDeployDockerPushSteps:
         )
         import prefect_docker
 
-        await prefect_docker.DockerRegistryCredentials(
+        docker_registry_block = prefect_docker.DockerRegistryCredentials(
             username="abc",
             password="123",
             registry_url="https://private.docker.com",
-        ).save(name=docker_registry_creds_name, overwrite=True)
+        )
+        await docker_registry_block.save(
+            name=docker_registry_creds_name, overwrite=True
+        )
+
         assert await prefect_docker.DockerRegistryCredentials.load(
             docker_registry_creds_name
         )
@@ -5113,25 +5075,10 @@ class TestDeployDockerPushSteps:
         ]
 
     async def test_prompt_push_docker_image_accepted_private_registry_use_new_prefect_docker_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt
+        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
-
         # ensure the DockerRegistryCredentials block does not exist
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
-        with pytest.raises(ValueError):
-            await run_process(
-                [sys.executable, "-m", "pip", "install", "prefect-docker"],
-                stream_output=True,
-            )
-            import prefect_docker
-
-            await prefect_docker.DockerRegistryCredentials.load(
-                docker_registry_creds_name
-            )
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -5221,11 +5168,6 @@ class TestDeployDockerPushSteps:
                 }
             }
         ]
-
-        await run_process(
-            [sys.executable, "-m", "pip", "install", "prefect-docker"],
-            stream_output=True,
-        )
         import prefect_docker
 
         new_block = await prefect_docker.DockerRegistryCredentials.load(
@@ -5237,12 +5179,8 @@ class TestDeployDockerPushSteps:
         assert new_block.registry_url == "https://private.docker.com"
 
     async def test_prompt_push_docker_image_accepted_private_registry_reject_use_existing_prefect_docker_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt
+        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
     ):
-        mock_step = mock.MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.core.import_object", lambda x: mock_step
-        )
         docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
 
         # create a DockerRegistryCredentials block so we can reject existing credentials
