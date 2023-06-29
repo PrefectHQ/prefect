@@ -4024,6 +4024,7 @@ class TestDeployDockerBuildSteps:
     async def test_docker_build_step_exists_does_not_prompt_build_custom_docker_image(
         self,
         docker_work_pool,
+        mock_build_docker_image,
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -4157,7 +4158,7 @@ class TestDeployDockerBuildSteps:
         assert not config["deployments"][1].get("build")
 
     async def test_prompt_build_custom_docker_image_accepted_use_existing_dockerfile_accepted(
-        self, docker_work_pool
+        self, docker_work_pool, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
             f.write("FROM python:3.8-slim\n")
