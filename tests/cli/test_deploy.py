@@ -914,10 +914,12 @@ class TestProjectDeploy:
 
             with open(prefect_file, "r") as f:
                 config = yaml.safe_load(f)
+            dir_name = os.path.basename(os.getcwd())
+
             assert config["deployments"][0]["pull"] == [
                 {
                     "prefect.deployments.steps.set_working_directory": {
-                        "path": "/opt/prefect/{{ name }}"
+                        "directory": f"/opt/prefect/{dir_name}"
                     }
                 }
             ]
@@ -1102,10 +1104,11 @@ class TestProjectDeploy:
 
             with open(prefect_file, "r") as f:
                 config = yaml.safe_load(f)
+
             assert config["deployments"][0]["pull"] == [
                 {
                     "prefect.deployments.steps.set_working_directory": {
-                        "path": "/opt/prefect/hello-projects/"
+                        "directory": "/opt/prefect/hello-projects/"
                     }
                 }
             ]
@@ -3234,7 +3237,7 @@ class TestSaveUserInputs:
         build_steps = [
             {
                 "prefect.steps.set_working_directory": {
-                    "path": "/path/to/working/directory"
+                    "directory": "/path/to/working/directory"
                 }
             },
         ]
