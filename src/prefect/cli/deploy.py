@@ -853,8 +853,9 @@ async def _generate_default_pull_action(
     console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
     remote_url = _get_git_remote_origin_url()
-    build_docker_image_step = await _check_for_build_docker_image_step(deploy_config.get("build") or actions["build"])
-
+    build_docker_image_step = await _check_for_build_docker_image_step(
+        deploy_config.get("build") or actions["build"]
+    )
     if build_docker_image_step:
         dockerfile = build_docker_image_step.get("dockerfile")
         if dockerfile == "auto":
