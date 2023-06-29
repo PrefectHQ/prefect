@@ -3,21 +3,22 @@
 ## Release 2.10.18
 
 ### Docker image support during flow deployment
-We have introduced enhanced support for Docker-based infrastructures when deploying flows through the interactive `prefect deploy` experience. Users can now easily custom-build or auto-build Docker images and push them to remote registries if they so choose.
+We enhanced support for Docker-based infrastructures when deploying flows through the interactive `prefect deploy` experience. Users can now easily custom-build or auto-build Docker images and push them to remote registries if they so choose.
 
-The CLI automatically detects if a work pool supports Docker images (e.g., docker, ecs, cloud-run) during `prefect deploy`, guiding the user through the experience of building and pushing a Docker image.
+The CLI automatically detects if a work pool supports Docker images (e.g., docker, ecs, cloud-run) during `prefect deploy` and will now guide the user through the experience of building and pushing a Docker image if support is detected.
 
-This enhancement to managing deployments will greatly simplify the process of creating the necessary `build` and `push` steps for deployments.
+This enhancement to managing deployments will greatly simplify the process of creating `build` and `push` steps for deployments.
 
 Not only that, we will also create a `pull` step for you when you choose to build a Docker image through `prefect deploy`. Whether you have your own Dockerfile or you want to use the auto-build feature in `build_docker_image`, we will create a `pull` step for you to help you set the correct path to your flow code.
 
-See the following pull request for implementation details:
+See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/10022
 - https://github.com/PrefectHQ/prefect/pull/10090
 
 ### Event-driven deployments with triggers
-You can now add event-based triggers to your deployments in Prefect Cloud, allowing you to add triggers into your `prefect.yaml` file or from the Prefect UI deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
-See the following pull request for implementation details:
+You can now easily incorporate event-based triggers into your Prefect Cloud deployments - simply add triggers to your `prefect.yaml` file or directly from the Prefect UI deployment page. Deployment triggers utilize automations - any automation that runs flows from a given deployment will be reflected on that deployment page.
+
+See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/10049
 - https://github.com/PrefectHQ/prefect/pull/10097
 
