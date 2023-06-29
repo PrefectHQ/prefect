@@ -178,6 +178,26 @@ print(json_block.value["the-answer"]) #42
 !!! tip "Sharing Blocks"
     Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
 
+### Deleting blocks
+
+You can delete a block by using the `.delete()` method on the block:
+
+```python
+from prefect.blocks.core import Block
+Block.delete("json/life-the-universe-everything")
+```
+
+You can also use the CLI to delete specific blocks with a given slug or id:
+
+```bash
+prefect block delete json/life-the-universe-everything
+```
+
+```bash
+prefect block delete --id <my-id>
+```
+
+
 ## Creating new block types
 
 To create a custom block type, define a class that subclasses `Block`. The `Block` base class builds off of Pydantic's `BaseModel`, so custom blocks can be [declared in same manner as a Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
