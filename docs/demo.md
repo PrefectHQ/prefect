@@ -26,3 +26,9 @@ So simple, anyone can use it.
 
 
 So tricky, anyone can have their permissions messed up.
+
+=== "Azure"
+    Azure part 2
+
+=== "GCP"
+    GCP part 2
