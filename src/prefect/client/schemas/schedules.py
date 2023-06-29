@@ -3,7 +3,7 @@ Schedule schemas
 """
 
 import datetime
-from typing import Optional, Union
+from typing import Optional, Union, List, Generator, Tuple, Any
 
 import dateutil
 import dateutil.rrule
@@ -18,6 +18,22 @@ from prefect._internal.schemas.fields import DateTimeTZ
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
 MAX_RRULE_LENGTH = 6500
+
+
+def _prepare_scheduling_start_and_end(
+    start: Any, end: Any, timezone: str
+) -> Tuple[pendulum.datetime, Optional[pendulum.datetime]]:
+    """Uniformly prepares the start and end dates for any Schedule's get_dates call,
+    coercing the arguments into timezone-aware pendulum datetimes."""
+    timezone = timezone or "UTC"
+
+    if start is not None:
+        start = pendulum.instance(start).in_tz(timezone)
+
+    if end is not None:
+        end = pendulum.instance(end).in_tz(timezone)
+
+    return start, end
 
 
 class IntervalSchedule(PrefectBaseModel):
@@ -146,6 +162,107 @@ class CronSchedule(PrefectBaseModel):
                 f'Random and Hashed expressions are unsupported, received: "{v}"'
             )
         return v
+
+    async def get_dates(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> List[pendulum.DateTime]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[pendulum.DateTime]: A list of dates
+        """
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
+
+    def _get_dates_generator(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> Generator[pendulum.DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to the current date. If a timezone-naive
+                datetime is provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): No returned date will exceed this date.
+                If a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[pendulum.DateTime]: a list of dates
+        """
+        if start is None:
+            start = pendulum.now("UTC")
+
+        start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to
+            # MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
+        elif self.timezone:
+            start = start.in_tz(self.timezone)
+
+        # subtract one second from the start date, so that croniter returns it
+        # as an event (if it meets the cron criteria)
+        start = start.subtract(seconds=1)
+
+        # croniter's DST logic interferes with all other datetime libraries except pytz
+        start_localized = pytz.timezone(start.tz.name).localize(
+            datetime.datetime(
+                year=start.year,
+                month=start.month,
+                day=start.day,
+                hour=start.hour,
+                minute=start.minute,
+                second=start.second,
+                microsecond=start.microsecond,
+            )
+        )
+
+        # Respect microseconds by rounding up
+        if start_localized.microsecond > 0:
+            start_localized += datetime.timedelta(seconds=1)
+
+        cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
+        dates = set()
+        counter = 0
+
+        while True:
+            next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+            # ensure no duplicates; weird things can happen with DST
+            if next_date not in dates:
+                dates.add(next_date)
+                yield next_date
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
+            counter += 1
 
 
 DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
