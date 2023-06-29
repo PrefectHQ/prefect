@@ -1,5 +1,57 @@
 # Prefect Release Notes
 
+## Release 2.10.18
+
+### Docker image support during flow deployment
+We enhanced support for Docker-based infrastructures when deploying flows through the interactive `prefect deploy` experience. Users can now easily custom-build or auto-build Docker images and push them to remote registries if they so choose.
+
+The CLI automatically detects if a work pool supports Docker images (e.g., docker, ecs, cloud-run) during `prefect deploy` and will now guide the user through the experience of building and pushing a Docker image if support is detected.
+
+This enhancement to managing deployments will greatly simplify the process of creating `build` and `push` steps for deployments.
+
+Not only that, we will also create a `pull` step for you when you choose to build a Docker image through `prefect deploy`. Whether you have your own Dockerfile or you want to use the auto-build feature in `build_docker_image`, we will create a `pull` step for you to help you set the correct path to your flow code.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10022
+- https://github.com/PrefectHQ/prefect/pull/10090
+
+### Event-driven deployments with triggers
+You can now easily incorporate event-based triggers into your Prefect Cloud deployments - simply add triggers to your `prefect.yaml` file or directly from the Prefect UI deployment page. Deployment triggers utilize automations - any automation that runs flows from a given deployment will be reflected on that deployment page.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10049
+- https://github.com/PrefectHQ/prefect/pull/10097
+
+### Enhancements
+- Allow saving of updated deployment configurations — https://github.com/PrefectHQ/prefect/pull/10018
+- Add `--install-policy` option to `prefect worker start` - https://github.com/PrefectHQ/prefect/pull/10040
+- Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
+
+### Fixes
+- Fix deployment `pull` step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
+- Fix `prefect server start` and `prefect agent start` on Windows — https://github.com/PrefectHQ/prefect/pull/10059
+- Add ability to use Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
+- Add default option to `new_parameters.pop` in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
+- Skip schedule prompts in `prefect deploy` if schedule is set or null in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
+- Fix saving of `pull` and `push` step deployment configuration — https://github.com/PrefectHQ/prefect/pull/10087
+- Fix issue hosting and running the UI in unsecured contexts - https://github.com/PrefectHQ/prefect-design/pull/829
+
+### Documentation
+- Adjust docs to reflect Prefect requires Python 3.8 — https://github.com/PrefectHQ/prefect/pull/9853
+- Add custom `pull` step examples to deployment management docs — https://github.com/PrefectHQ/prefect/pull/10073
+- Add troubleshooting guide to docs — https://github.com/PrefectHQ/prefect/pull/10079
+- Add information on finding Prefect Cloud account id and workspace id — https://github.com/PrefectHQ/prefect/pull/10103
+- Reference webhooks documentation from events documentation — https://github.com/PrefectHQ/prefect/pull/10045
+- Simplify deployment description in docs — https://github.com/PrefectHQ/prefect/pull/10050
+
+### Contributors
+- @garylavayou made their first contribution in https://github.com/PrefectHQ/prefect/pull/10060
+- @themattmorris made their first contribution in https://github.com/PrefectHQ/prefect/pull/10056
+- @NodeJSmith
+- @rpeden
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.17...2.10.18
+
 ## Release 2.10.17
 
 ### Improved Prefect Tutorial
@@ -21,7 +73,7 @@ Prefect's documentation has an [improved tutorial](https://docs.prefect.io/2.10.
 - Add link to join Club 42 to Community page — https://github.com/PrefectHQ/prefect/pull/9927
 - Improve Prefect tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
 
-## New Contributors
+### Contributors
 * @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
 * @AutumnSun1996 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9547
 * @dianaclarke made their first contribution in https://github.com/PrefectHQ/prefect/pull/9988

@@ -432,10 +432,10 @@ def _save_deployment_to_prefect_file(
             deployment["build"] = build_steps
 
         if push_steps != parsed_prefect_file_contents.get("push"):
-            deployment["push"] = build_steps
+            deployment["push"] = push_steps
 
         if pull_steps != parsed_prefect_file_contents.get("pull"):
-            deployment["pull"] = build_steps
+            deployment["pull"] = pull_steps
 
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
