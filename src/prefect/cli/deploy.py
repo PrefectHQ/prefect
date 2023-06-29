@@ -3,6 +3,7 @@ from getpass import GetPassWarning
 import json
 from copy import deepcopy
 from datetime import timedelta
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
@@ -481,6 +482,7 @@ async def _run_single_deploy(
     ) or await _generate_default_pull_action(
         app.console,
         deploy_config=deploy_config,
+        actions=actions,
         ci=ci,
     )
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
@@ -726,10 +728,162 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
     return deploy_config
 
 
+async def _generate_git_clone_pull_step(
+    console: Console,
+    deploy_config: Dict,
+    remote_url: str,
+):
+    branch = _get_git_branch() or "main"
+
+    if not confirm(
+        f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
+        default=True,
+        console=console,
+    ):
+        remote_url = prompt(
+            "Please enter the URL to pull your flow code from", console=console
+        )
+    if not confirm(
+        f"Is [green]{branch}[/] the correct branch to pull your flow code from?",
+        default=True,
+        console=console,
+    ):
+        branch = prompt(
+            "Please enter the branch to pull your flow code from",
+            default="main",
+            console=console,
+        )
+    token_secret_block_name = None
+    if confirm("Is this a private repository?", console=console):
+        token_secret_block_name = f"deployment-{slugify(deploy_config['name'])}-{slugify(deploy_config['flow_name'])}-repo-token"
+        create_new_block = False
+        prompt_message = (
+            "Please enter a token that can be used to access your private"
+            " repository. This token will be saved as a secret via the Prefect API"
+        )
+
+        try:
+            await Secret.load(token_secret_block_name)
+            if not confirm(
+                (
+                    "We found an existing token saved for this deployment. Would"
+                    " you like use the existing token?"
+                ),
+                default=True,
+                console=console,
+            ):
+                prompt_message = (
+                    "Please enter a token that can be used to access your private"
+                    " repository (this will overwrite the existing token saved via"
+                    " the Prefect API)."
+                )
+
+                create_new_block = True
+        except ValueError:
+            create_new_block = True
+
+        if create_new_block:
+            try:
+                repo_token = prompt(
+                    prompt_message,
+                    console=console,
+                    password=True,
+                )
+            except GetPassWarning:
+                # Handling for when password masking is not supported
+                repo_token = prompt(
+                    prompt_message,
+                    console=console,
+                )
+            await Secret(
+                value=repo_token,
+            ).save(name=token_secret_block_name, overwrite=True)
+
+    git_clone_step = {
+        "prefect.deployments.steps.git_clone": {
+            "repository": remote_url,
+            "branch": branch,
+        }
+    }
+
+    if token_secret_block_name:
+        git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
+            "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
+        )
+
+    return [git_clone_step]
+
+
+async def _generate_pull_step_for_build_docker_image(
+    console: Console, deploy_config: Dict, auto: bool = True
+):
+    pull_step = {}
+    dir_name = os.path.basename(os.getcwd())
+    if auto:
+        pull_step["directory"] = f"/opt/prefect/{dir_name}"
+    else:
+        pull_step["directory"] = prompt(
+            "What is the path to your flow code in your Dockerfile?",
+            default=f"/opt/prefect/{dir_name}",
+            console=console,
+        )
+
+    return [{"prefect.deployments.steps.set_working_directory": pull_step}]
+
+
+async def _check_for_build_docker_image_step(
+    build_action: List[Dict],
+) -> Optional[Dict[str, Any]]:
+    if not build_action:
+        return None
+
+    build_docker_image_steps = [
+        "prefect_docker.projects.steps.build_docker_image",  # legacy
+        "prefect_docker.deployments.steps.build_docker_image",
+    ]
+    for build_docker_image_step in build_docker_image_steps:
+        for action in build_action:
+            if action.get(build_docker_image_step):
+                return action.get(build_docker_image_step)
+
+    return None
+
+
 async def _generate_default_pull_action(
-    console: Console, deploy_config: Dict, ci: bool = False
+    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
     remote_url = _get_git_remote_origin_url()
+    build_docker_image_step = await _check_for_build_docker_image_step(
+        deploy_config.get("build") or actions["build"]
+    )
+    if build_docker_image_step:
+        dockerfile = build_docker_image_step.get("dockerfile")
+        if dockerfile == "auto":
+            return await _generate_pull_step_for_build_docker_image(
+                console, deploy_config
+            )
+        else:
+            if is_interactive():
+                if remote_url and confirm(
+                    "Would you like to pull your flow code from its remote"
+                    " repository when running your deployment?"
+                ):
+                    return await _generate_git_clone_pull_step(
+                        console, deploy_config, remote_url
+                    )
+                if not confirm(
+                    "Does your Dockerfile have a line that copies the current working"
+                    " directory into your image?"
+                ):
+                    exit_with_error(
+                        "Your flow code must be copied into your Docker image to run"
+                        " your deployment.\nTo do so, you can copy this line into your"
+                        " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
+                    )
+                return await _generate_pull_step_for_build_docker_image(
+                    console, deploy_config, auto=False
+                )
+
     if (
         is_interactive()
         and not ci
@@ -744,85 +898,8 @@ async def _generate_default_pull_action(
             console=console,
         )
     ):
-        branch = _get_git_branch() or "main"
+        return await _generate_git_clone_pull_step(console, deploy_config, remote_url)
 
-        if not confirm(
-            f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
-            default=True,
-            console=console,
-        ):
-            remote_url = prompt(
-                "Please enter the URL to pull your flow code from", console=console
-            )
-        if not confirm(
-            f"Is [green]{branch}[/] the correct branch to pull your flow code from?",
-            default=True,
-            console=console,
-        ):
-            branch = prompt(
-                "Please enter the branch to pull your flow code from",
-                default="main",
-                console=console,
-            )
-        token_secret_block_name = None
-        if confirm("Is this a private repository?", console=console):
-            token_secret_block_name = f"deployment-{slugify(deploy_config['name'])}-{slugify(deploy_config['flow_name'])}-repo-token"
-            create_new_block = False
-            prompt_message = (
-                "Please enter a token that can be used to access your private"
-                " repository. This token will be saved as a secret via the Prefect API"
-            )
-
-            try:
-                await Secret.load(token_secret_block_name)
-                if not confirm(
-                    (
-                        "We found an existing token saved for this deployment. Would"
-                        " you like use the existing token?"
-                    ),
-                    default=True,
-                    console=console,
-                ):
-                    prompt_message = (
-                        "Please enter a token that can be used to access your private"
-                        " repository (this will overwrite the existing token saved via"
-                        " the Prefect API)."
-                    )
-
-                    create_new_block = True
-            except ValueError:
-                create_new_block = True
-
-            if create_new_block:
-                try:
-                    repo_token = prompt(
-                        prompt_message,
-                        console=console,
-                        password=True,
-                    )
-                except GetPassWarning:
-                    # Handling for when password masking is not supported
-                    repo_token = prompt(
-                        prompt_message,
-                        console=console,
-                    )
-                await Secret(
-                    value=repo_token,
-                ).save(name=token_secret_block_name, overwrite=True)
-
-        git_clone_step = {
-            "prefect.deployments.steps.git_clone": {
-                "repository": remote_url,
-                "branch": branch,
-            }
-        }
-
-        if token_secret_block_name:
-            git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
-                "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
-            )
-
-        return [git_clone_step]
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(
