@@ -24,6 +24,8 @@ from prefect.cli._prompts import (
     prompt_schedule,
     prompt_select_work_pool,
     prompt_entrypoint,
+    prompt_build_custom_docker_image,
+    prompt_push_custom_docker_image,
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.schedules import (
@@ -434,6 +436,54 @@ async def _run_single_deploy(
             console=app.console, client=client
         )
 
+    docker_build_steps = [
+        "prefect_docker.deployments.steps.build_docker_image",
+        "prefect_docker.projects.steps.build_docker_image",
+    ]
+
+    docker_build_step_exists = any(
+        any(step in action for step in docker_build_steps)
+        for action in deploy_config.get("build", actions.get("build")) or []
+    )
+
+    update_work_pool_image = False
+
+    if is_interactive() and not docker_build_step_exists:
+        work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+        docker_based_infrastructure = "image" in work_pool.base_job_template.get(
+            "variables", {}
+        ).get("properties", {})
+        if docker_based_infrastructure:
+            build_docker_image_step = await prompt_build_custom_docker_image(
+                app.console, deploy_config
+            )
+            if build_docker_image_step is not None:
+                work_pool_job_variables_image_not_found = not get_from_dict(
+                    deploy_config, "work_pool.job_variables.image"
+                )
+                if work_pool_job_variables_image_not_found:
+                    update_work_pool_image = True
+
+                push_docker_image_step, updated_build_docker_image_step = (
+                    await prompt_push_custom_docker_image(
+                        app.console, deploy_config, build_docker_image_step
+                    )
+                )
+
+                if actions.get("build"):
+                    actions["build"].append(updated_build_docker_image_step)
+                else:
+                    actions["build"] = [updated_build_docker_image_step]
+
+                if push_docker_image_step is not None:
+                    if actions.get("push"):
+                        actions["push"].append(push_docker_image_step)
+                    else:
+                        actions["push"] = [push_docker_image_step]
+
+            build_steps = deploy_config.get("build", actions.get("build")) or []
+            push_steps = deploy_config.get("push", actions.get("push")) or []
+
     triggers: List[DeploymentTrigger] = []
     trigger_specs = deploy_config.get("triggers")
     if trigger_specs:
@@ -466,9 +516,19 @@ async def _run_single_deploy(
 
     step_outputs.update(variable_overrides)
 
+    if update_work_pool_image:
+        if "build-image" not in step_outputs:
+            app.console.print(
+                "Warning: no build-image step found in the deployment build steps."
+                " The work pool image will not be updated."
+            )
+        deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
+
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
 
+    # save deploy_config before templating
+    deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = deploy_config.pop("parameter_openapi_schema")
     _schedule = deploy_config.pop("schedule")
@@ -530,25 +590,27 @@ async def _run_single_deploy(
     ):
         matching_deployment_exists = (
             _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                deploy_config=deploy_config
+                deploy_config=deploy_config_before_templating
             )
         )
         if matching_deployment_exists and not confirm(
             (
                 "Found existing deployment configuration with name:"
-                f" [yellow]{deploy_config.get('name')}[/yellow] and entrypoint:"
-                f" [yellow]{deploy_config.get('entrypoint')}[/yellow] in the"
-                " [yellow]prefect.yaml[/yellow] file. Would you like to overwrite that"
-                " entry?"
+                f" [yellow]{deploy_config_before_templating.get('name')}[/yellow] and"
+                " entrypoint:"
+                f" [yellow]{deploy_config_before_templating.get('entrypoint')}[/yellow]"
+                " in the [yellow]prefect.yaml[/yellow] file. Would you like to"
+                " overwrite that entry?"
             ),
         ):
             app.console.print(
                 "[red]Cancelled saving deployment configuration"
-                f" '{deploy_config.get('name')}' to the prefect.yaml file.[/red]"
+                f" '{deploy_config_before_templating.get('name')}' to the prefect.yaml"
+                " file.[/red]"
             )
         else:
             _save_deployment_to_prefect_file(
-                deploy_config,
+                deploy_config_before_templating,
                 build_steps=build_steps or None,
                 push_steps=push_steps or None,
                 pull_steps=pull_steps or None,
