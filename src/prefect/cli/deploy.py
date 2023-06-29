@@ -527,6 +527,8 @@ async def _run_single_deploy(
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
 
+    # save deploy_config before templating
+    deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = deploy_config.pop("parameter_openapi_schema")
     _schedule = deploy_config.pop("schedule")
@@ -588,25 +590,27 @@ async def _run_single_deploy(
     ):
         matching_deployment_exists = (
             _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                deploy_config=deploy_config
+                deploy_config=deploy_config_before_templating
             )
         )
         if matching_deployment_exists and not confirm(
             (
                 "Found existing deployment configuration with name:"
-                f" [yellow]{deploy_config.get('name')}[/yellow] and entrypoint:"
-                f" [yellow]{deploy_config.get('entrypoint')}[/yellow] in the"
-                " [yellow]prefect.yaml[/yellow] file. Would you like to overwrite that"
-                " entry?"
+                f" [yellow]{deploy_config_before_templating.get('name')}[/yellow] and"
+                " entrypoint:"
+                f" [yellow]{deploy_config_before_templating.get('entrypoint')}[/yellow]"
+                " in the [yellow]prefect.yaml[/yellow] file. Would you like to"
+                " overwrite that entry?"
             ),
         ):
             app.console.print(
                 "[red]Cancelled saving deployment configuration"
-                f" '{deploy_config.get('name')}' to the prefect.yaml file.[/red]"
+                f" '{deploy_config_before_templating.get('name')}' to the prefect.yaml"
+                " file.[/red]"
             )
         else:
             _save_deployment_to_prefect_file(
-                deploy_config,
+                deploy_config_before_templating,
                 build_steps=build_steps or None,
                 push_steps=push_steps or None,
                 pull_steps=pull_steps or None,
