@@ -3,12 +3,13 @@
 ## Release 2.10.18
 
 ### Event driven deployments with triggers
-Will to add content here
+Deployments in Prefect Cloud now have an optional triggers field, which describes what events (or lack thereof) should trigger a flow run. You can add triggers to deployments in your .yaml files or in the UI from your deployment page. Deployment triggers use automations under the hood, and any automations that trigger a deployment will be linked to from the deployments page. 
 
 ### Enhancements
 - Allow saving of updated deployment configurations — https://github.com/PrefectHQ/prefect/pull/10018
 - Add support for deployment triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10049
 - Add `prefect.yaml` `pull` step generation based on `build_docker_image` `build` step  — https://github.com/PrefectHQ/prefect/pull/10090
+- Webhook creation UI (cloud only)
 
 ### Fixes
 - Fix pull step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
