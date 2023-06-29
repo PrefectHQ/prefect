@@ -1,5 +1,45 @@
 # Prefect Release Notes
 
+## Release 2.10.18
+
+### Event driven deployments with triggers
+Will to add content here
+
+### Enhancements
+- Allow saving of updated deployment configurations — https://github.com/PrefectHQ/prefect/pull/10018
+- Add support for deployment triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10049
+- Add `prefect.yaml` `pull` step generation based on `build_docker_image` `build` step  — https://github.com/PrefectHQ/prefect/pull/10090
+
+### Fixes
+- Fix pull step saving by preserving placeholders with missing values — https://github.com/PrefectHQ/prefect/pull/10053
+- Fix windows file limit check — https://github.com/PrefectHQ/prefect/pull/10059
+- Allows use of Prefect variables in `job_variables` section of deploy config in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10078
+- Add default option to new_parameters.pop in `explode_variadic_parameter` used to handle `**kwargs` in task mapping — https://github.com/PrefectHQ/prefect/pull/10067
+- Update Docker-based `prefect init` recipes to use `push_docker_image` step — https://github.com/PrefectHQ/prefect/pull/10092
+- Update `prefect deploy` to skip schedule prompts if `schedule` key present in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10074
+- Fix saving of `pull` and `push` step deployment configuration — https://github.com/PrefectHQ/prefect/pull/10087
+
+### Documentation
+- Adjust docs to reflect Prefect requires Python 3.8 — https://github.com/PrefectHQ/prefect/pull/9853
+- Add custom pull step examples with variables — https://github.com/PrefectHQ/prefect/pull/10073
+- Add troubleshooting guide to docs — https://github.com/PrefectHQ/prefect/pull/10079
+- Add example for finding Prefect Cloud Account ID and Workspace ID — https://github.com/PrefectHQ/prefect/pull/10103
+- Add links to Webhooks documentation from Events documentation — https://github.com/PrefectHQ/prefect/pull/10045
+- Simply deployment description — https://github.com/PrefectHQ/prefect/pull/10050
+- Add trigger to deployment fields — https://github.com/PrefectHQ/prefect/pull/10097
+
+### Contributors
+- @masonmenges made their first contribution in https://github.com/PrefectHQ/prefect/pull/9977
+- @garylavayou made their first contribution in https://github.com/PrefectHQ/prefect/pull/10060
+- @themattmorris made their first contribution in https://github.com/PrefectHQ/prefect/pull/10056
+- @aimeemcmanus made their first contribution in https://github.com/PrefectHQ/prefect/pull/10076
+- @NodeJSmith
+- @garylavayou
+- @rpeden
+- @themattmorris
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.17...2.10.18
+
 ## Release 2.10.17
 
 ### Improved Prefect Tutorial
@@ -21,7 +61,7 @@ Prefect's documentation has an [improved tutorial](https://docs.prefect.io/2.10.
 - Add link to join Club 42 to Community page — https://github.com/PrefectHQ/prefect/pull/9927
 - Improve Prefect tutorial to be more succinct and purposeful  — https://github.com/PrefectHQ/prefect/pull/9940
 
-## New Contributors
+### Contributors
 * @eclark9270 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9927
 * @AutumnSun1996 made their first contribution in https://github.com/PrefectHQ/prefect/pull/9547
 * @dianaclarke made their first contribution in https://github.com/PrefectHQ/prefect/pull/9988
