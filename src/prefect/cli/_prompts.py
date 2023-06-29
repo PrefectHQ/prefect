@@ -427,7 +427,7 @@ async def prompt_push_custom_docker_image(
         "tag": "{{ build-image.tag }}",
     }
 
-    registry_url = prompt("Registry URL")
+    registry_url = prompt("Registry URL", default="docker.io")
     push_step["registry_url"] = registry_url
 
     if confirm("Is this a private registry?", console=console):
