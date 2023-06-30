@@ -788,12 +788,14 @@ class Block(BaseModel, ABC):
             ```
 
             Load from Block with a block document slug:
+            ```python
             class Custom(Block):
                 message: str
 
             Custom(message="Hello!").save("my-custom-message")
 
             loaded_block = Block.load("custom/my-custom-message")
+            ```
 
             Migrate a block document to a new schema:
             ```python
