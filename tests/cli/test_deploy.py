@@ -521,7 +521,7 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command="deploy",
             expected_code=1,
-            expected_output_contains="An entrypoint must be provided:"
+            expected_output_contains="An entrypoint must be provided:",
         )
 
     @pytest.mark.usefixtures(
@@ -1524,7 +1524,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy -n test-name",
             expected_code=1,
-            expected_output_contains="An entrypoint must be provided:"
+            expected_output_contains="An entrypoint must be provided:",
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
