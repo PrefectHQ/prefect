@@ -115,8 +115,8 @@ Local execution is great for development and testing, but in order to schedule f
 
 Deploying your flows is, in essence, the act of informing the Prefect API of where, how, and when to run your flows. Prefect offers CLI commands for quick deployment creation.
 
-!!! warning "Common Pitfalls"
-    - When running any `prefect deploy` or `prefect init` commands, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
+!!! warning "Common Pitfall"
+    When running any `prefect deploy` or `prefect init` commands, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
 
 When you execute the deploy command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a Work Pool, optionally configure a flow code pull step, and more!
 
@@ -127,7 +127,7 @@ The last prompt in the `prefect deploy` wizard asks if you would like to save th
 
 ### Step 6: Start a Worker and Run Deployed Flow
 
-Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker points to its assigned WorkPool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
+Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker polls its assigned WorkPool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
 
 In a new terminal run:
 ```bash
@@ -145,8 +145,8 @@ prefect deployment run 'Repo Info/<my-deployment-name>'
     
     `prefect deployment run '<flow name>/<deployment-name>`
 
-!!! Warning "Common Pitfalls"
-    - If you optionally set a git based pull step, ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
+!!! Warning "Common Pitfall"
+    If you optionally set a git based pull step, ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
 
 Congrats on your first successfully deployed FlowRun! Now you've seen how to define your flows and tasks using decorators, how to deploy a flow, and how to start a worker.
 
