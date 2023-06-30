@@ -617,3 +617,50 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
         resp = await client.request(**self._build_request_args(body, subject))
         resp.raise_for_status()
+
+
+class SendgridNotificationBlock(NotificationBlock):
+    """
+    Enables sending notifications via any sendgrid account.
+    """
+
+    _block_type_name = "Sendgrid email 1"
+    # _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
+    # _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
+
+    api_key: SecretStr = Field(
+        default=...,
+        title="API Key",
+        description="The API Key associated with your sendgrid account.",
+    )
+
+    sender_email: str = Field(
+        title="Sender email id",
+        description="The sender email id.",
+        example="test-support@gmail.com",
+    )
+
+    to_emails: List[str] = Field(
+        default=...,
+        title="Recipient emails",
+        description="Email ids of all recipients",
+        example="recipient1@gmail.com",
+    )
+
+    @sync_compatible
+    @instrument_instance_method_call()
+    async def notify(self, body: str, subject: Optional[str] = None):
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, Content
+
+        sendgrid_client = SendGridAPIClient(self.api_key.get_secret_value())
+
+        content = Content("text/plain", body)
+        message = Mail(
+            from_email=self.sender_email,
+            to_emails=list(self.to_emails),
+            subject=subject,
+            plain_text_content=content,
+        )
+
+        sendgrid_client.send(message)
