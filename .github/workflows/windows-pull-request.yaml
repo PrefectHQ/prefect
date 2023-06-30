@@ -56,10 +56,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
-        uses: docker/setup-buildx-action@v2
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
