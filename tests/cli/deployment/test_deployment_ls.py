@@ -4,11 +4,6 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-# @pytest.fixture
-# async def delete_flow(prefect_client, session, deployment):
-#     await models.flows.delete_flow(session, deployment.flow_id)
-
-
 async def test_ls_deployment_shows_all_deployments(
     prefect_client: prefect.PrefectClient, deployment
 ):
