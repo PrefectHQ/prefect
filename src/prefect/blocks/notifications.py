@@ -624,9 +624,7 @@ class SendgridNotificationBlock(NotificationBlock):
     Enables sending notifications via any sendgrid account.
     """
 
-    _block_type_name = "Sendgrid email 1"
-    # _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
-    # _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
+    _block_type_name = "Sendgrid email"
 
     api_key: SecretStr = Field(
         default=...,
