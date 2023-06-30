@@ -125,9 +125,13 @@ def apply_values(
         else:
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
-                    template = template.replace(
-                        full_match, str(get_from_dict(values, name, ""))
-                    )
+                    value = get_from_dict(values, name, NotSet)
+                    if value is NotSet and not remove_notset:
+                        continue
+                    elif value is NotSet:
+                        template = template.replace(full_match, "")
+                    else:
+                        template = template.replace(full_match, str(value))
             return template
     elif isinstance(template, dict):
         updated_template = {}
@@ -187,7 +191,9 @@ async def resolve_block_document_references(
             return block_document.data
         updated_template = {}
         for key, value in template.items():
-            updated_value = await resolve_block_document_references(value)
+            updated_value = await resolve_block_document_references(
+                value, client=client
+            )
             updated_template[key] = updated_value
         return updated_template
     elif isinstance(template, list):
