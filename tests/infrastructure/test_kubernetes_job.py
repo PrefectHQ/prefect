@@ -1072,6 +1072,8 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
 
         if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
             job = MagicMock(spec=kubernetes.client.V1Job)
+            job.status.failed = 0
+            job.spec.backoff_limit = 6
 
             # Sleep a little
             anyio.sleep(10)
