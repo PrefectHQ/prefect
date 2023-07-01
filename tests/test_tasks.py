@@ -2,6 +2,7 @@ import datetime
 import inspect
 import time
 import warnings
+import regex as re
 from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -3410,7 +3411,11 @@ class TestTaskHooksOnCompletion:
 
         with pytest.raises(
             TypeError,
-            match="Expected iterable for 'on_completion'; got function instead.",
+            match=re.escape(
+                "Expected iterable for 'on_completion'; got function instead. Please"
+                " provide a list of hooks to 'on_completion'. For"
+                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_completion=completion_hook)
@@ -3426,7 +3431,12 @@ class TestTaskHooksOnCompletion:
 
     def test_noncallable_hook_raises(self):
         with pytest.raises(
-            TypeError, match="Expected callables in 'on_completion'; got str instead."
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion'. For"
+                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_completion=["test"])
@@ -3438,7 +3448,12 @@ class TestTaskHooksOnCompletion:
             pass
 
         with pytest.raises(
-            TypeError, match="Expected callables in 'on_completion'; got str instead."
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion'. For"
+                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_completion=[completion_hook, "test"])
@@ -3546,7 +3561,12 @@ class TestTaskHooksOnFailure:
             pass
 
         with pytest.raises(
-            TypeError, match="Expected iterable for 'on_failure'; got function instead."
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_failure'; got function instead. Please"
+                " provide a list of hooks to 'on_failure'. For"
+                " example:\n@flow(on_failure=[hook1, hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_failure=failure_hook)
@@ -3562,7 +3582,12 @@ class TestTaskHooksOnFailure:
 
     def test_noncallable_hook_raises(self):
         with pytest.raises(
-            TypeError, match="Expected callables in 'on_failure'; got str instead."
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
+                " hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_failure=["test"])
@@ -3574,7 +3599,12 @@ class TestTaskHooksOnFailure:
             pass
 
         with pytest.raises(
-            TypeError, match="Expected callables in 'on_failure'; got str instead."
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
+                " hook2])\ndef flow1():\npass"
+            ),
         ):
 
             @flow(on_failure=[failure_hook, "test"])

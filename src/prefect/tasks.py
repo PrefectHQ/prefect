@@ -217,14 +217,20 @@ class Task(Generic[P, R]):
                 except TypeError:
                     raise TypeError(
                         f"Expected iterable for '{hook_name}'; got"
-                        f" {type(hooks).__name__} instead."
+                        f" {type(hooks).__name__} instead. Please provide a list of"
+                        f" hooks to '{hook_name}'. For"
+                        f" example:\n@flow({hook_name}=[hook1, hook2])\ndef"
+                        " flow1():\npass"
                     )
 
                 for hook in hooks:
                     if not callable(hook):
                         raise TypeError(
                             f"Expected callables in '{hook_name}'; got"
-                            f" {type(hook).__name__} instead."
+                            f" {type(hook).__name__} instead. Please provide a list of"
+                            f" hooks to '{hook_name}'. For"
+                            f" example:\n@flow({hook_name}=[hook1, hook2])\ndef"
+                            " flow1():\npass"
                         )
 
         if not callable(fn):
