@@ -24,7 +24,7 @@ async def test_ls_deployment_shows_all_deployments(
 async def test_ls_deployment_crashes_if_flow_not_found(
     prefect_client: prefect.PrefectClient, session, deployment, deployment_2
 ):
-    await models.flows.delete_flow(session, deployment.flow_id)
+    await models.flows.delete_flow(session, deployment_2.flow_id)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,

@@ -91,7 +91,7 @@ async def flow(session):
 @pytest.fixture
 async def flow_2(session):
     model = await models.flows.create_flow(
-        session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+        session=session, flow=schemas.actions.FlowCreate(name="another-flow")
     )
     await session.commit()
     return model
@@ -343,7 +343,8 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    work_queue_1,
+    # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
     def hello(name: str):
         pass
@@ -378,7 +379,8 @@ async def deployment_2(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    work_queue_1,
+    # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
     def hello(name: str):
         pass
