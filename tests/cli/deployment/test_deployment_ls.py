@@ -22,7 +22,7 @@ async def test_ls_deployment_shows_all_deployments(
 
 
 async def test_ls_deployment_crashes_if_flow_not_found(
-    prefect_client: prefect.PrefectClient, session, deployment
+    prefect_client: prefect.PrefectClient, session, deployment, deployment_2
 ):
     await models.flows.delete_flow(session, deployment.flow_id)
 
@@ -32,7 +32,7 @@ async def test_ls_deployment_crashes_if_flow_not_found(
             "deployment",
             "ls",
         ],
-        expected_code=0,
+        expected_code=1,
         expected_output_contains=[
             "Deployments",
         ],

@@ -89,6 +89,15 @@ async def flow(session):
 
 
 @pytest.fixture
+async def flow_2(session):
+    model = await models.flows.create_flow(
+        session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def flow_run(session, flow):
     model = await models.flow_runs.create_flow_run(
         session=session,
@@ -345,6 +354,41 @@ async def deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_2(
+    session,
+    flow_2,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="Deployment 2",
+            tags=["test"],
+            flow_id=flow_2.id,
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
