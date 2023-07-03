@@ -24,16 +24,6 @@ async def variables(prefect_client: PrefectClient):
     )
 
 
-@pytest.fixture
-def mock_subprocess(monkeypatch):
-    subprocess_mock = MagicMock()
-    monkeypatch.setattr(
-        "prefect.deployments.steps.pull.subprocess",
-        subprocess_mock,
-    )
-    return subprocess_mock
-
-
 class TestRunStep:
     async def test_run_step_runs_importable_functions(self):
         output = await run_step(
@@ -360,16 +350,17 @@ class TestGitCloneStep:
         assert "super-secret-42".upper() not in str(exc.getrepr())
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_valid_credentials_block_succeeds(
-        self, monkeypatch, mock_subprocess
-    ):
+    async def test_git_clone_with_valid_credentials_block_succeeds(self, monkeypatch):
+        mock_subprocess = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            mock_subprocess,
+        )
         blocks = {
             "github-credentials": {
                 "my-github-creds-block": MockGitHubCredentials("mock-token")
             }
         }
-
-        await MockGitHubCredentials("mock-token").save("my-github-creds-block")
 
         async def mock_read_block_document(self, name: str, block_type_slug: str):
             return blocks[block_type_slug][name]
@@ -378,6 +369,8 @@ class TestGitCloneStep:
             "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
             mock_read_block_document,
         )
+
+        await MockGitHubCredentials("mock-token").save("my-github-creds-block")
 
         output = await run_step(
             {
@@ -405,9 +398,7 @@ class TestGitCloneStep:
         )
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_invalid_credentials_block_raises(
-        self, monkeypatch, mock_subprocess
-    ):
+    async def test_git_clone_with_invalid_credentials_block_raises(self, monkeypatch):
         blocks = {
             "github-credentials": {
                 "my-github-creds-block": MockGitHubCredentials("mock-token")
@@ -435,9 +426,7 @@ class TestGitCloneStep:
             )
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_token_and_credentials_raises(
-        self, monkeypatch, mock_subprocess
-    ):
+    async def test_git_clone_with_token_and_credentials_raises(self, monkeypatch):
         blocks = {
             "github-credentials": {
                 "my-github-creds-block": MockGitHubCredentials("mock-token")
