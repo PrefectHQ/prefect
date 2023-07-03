@@ -619,7 +619,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         resp.raise_for_status()
 
 
-class SendgridNotificationBlock(AbstractAppriseNotificationBlock):
+class SendgridEmail(AbstractAppriseNotificationBlock):
     """
     Enables sending notifications via any sendgrid account.
     """

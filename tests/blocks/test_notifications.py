@@ -1,6 +1,7 @@
 from importlib import reload
 from typing import Type
 from unittest.mock import patch
+import urllib
 
 import cloudpickle
 import pytest
@@ -15,6 +16,7 @@ from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     TwilioSMS,
     CustomWebhookNotificationBlock,
+    SendgridEmail,
 )
 from prefect.testing.utilities import AsyncMock
 
@@ -561,4 +563,56 @@ class TestCustomWebhook:
                 form_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 json_data={"msg": "{{subject}}\n{{body}}", "token": "{{token}}"},
                 secrets={"token": "someSecretToken"},
+            )
+
+
+class TestSendgridEmail:
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            sg_block = SendgridEmail(
+                api_key="test-api-key",
+                sender_email="test@gmail.com",
+                to_emails=["test1@gmail.com", "test2@gmail.com"],
+            )
+            await sg_block.notify("test")
+
+            # check if the apprise object is created
+            AppriseMock.assert_called_once()
+
+            # check if the Apprise().add function is called with correct url
+            url = f"sendgrid://{sg_block.api_key.get_secret_value()}:{sg_block.sender_email}/"
+            url += "/".join(
+                [urllib.parse.quote(email, safe="") for email in sg_block.to_emails]
+            )
+
+            # some params that NotifySendGrid.py adds by default
+            params = {}
+
+            # format: default notify format
+            params.update({"format": "html"})
+
+            # overflow: default overflow mode
+            params.update({"overflow": "upstream"})
+
+            # rto: socket read timeout
+            params.update({"rto": 4.0})
+
+            # cto: socket connect timeout
+            params.update({"cto": 4.0})
+
+            # verify: ssl Certificate Authority Verification
+            verify_certificate = True
+            params.update({"verify": "yes" if verify_certificate else "no"})
+
+            url += "?"
+            url += urllib.parse.urlencode(params)
+
+            apprise_instance_mock.add.assert_called_once_with(url)
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
