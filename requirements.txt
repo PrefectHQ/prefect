@@ -37,6 +37,3 @@ typer >= 0.4.2
 typing_extensions >= 4.1.0
 uvicorn >= 0.14.0
 websockets >= 10.4
-sendgrid==6.10.0
-python-http-client==3.3.7
-starkbank-ecdsa==2.2.0
