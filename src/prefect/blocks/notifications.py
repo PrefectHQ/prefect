@@ -619,7 +619,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         resp.raise_for_status()
 
 
-class SendgridNotificationBlock(NotificationBlock):
+class SendgridNotificationBlock(AbstractAppriseNotificationBlock):
     """
     Enables sending notifications via any sendgrid account.
     """
@@ -645,20 +645,15 @@ class SendgridNotificationBlock(NotificationBlock):
         example="recipient1@gmail.com",
     )
 
-    @sync_compatible
-    @instrument_instance_method_call()
-    async def notify(self, body: str, subject: Optional[str] = None):
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail, Content
+    def block_initialization(self) -> None:
+        from apprise.plugins.NotifySendGrid import NotifySendGrid
 
-        sendgrid_client = SendGridAPIClient(self.api_key.get_secret_value())
-
-        content = Content("text/plain", body)
-        message = Mail(
-            from_email=self.sender_email,
-            to_emails=list(self.to_emails),
-            subject=subject,
-            plain_text_content=content,
+        url = SecretStr(
+            NotifySendGrid(
+                apikey=self.api_key.get_secret_value(),
+                from_email=self.sender_email,
+                targets=self.to_emails,
+            ).url()
         )
 
-        sendgrid_client.send(message)
+        self._start_apprise_client(url)
