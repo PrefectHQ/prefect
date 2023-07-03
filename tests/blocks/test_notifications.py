@@ -567,6 +567,19 @@ class TestCustomWebhook:
 
 
 class TestSendgridEmail:
+    URL_PARAMS = {
+        # default notify format
+        "format": "html",
+        # default overflow mode
+        "overflow": "upstream",
+        # socket read timeout
+        "rto": 4.0,
+        # socket connect timeout
+        "cto": 4.0,
+        # ssl certificate authority verification
+        "verify": "yes",
+    }
+
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
@@ -590,29 +603,49 @@ class TestSendgridEmail:
                 [urllib.parse.quote(email, safe="") for email in sg_block.to_emails]
             )
 
-            # some params that NotifySendGrid.py adds by default
-            params = {}
-
-            # format: default notify format
-            params.update({"format": "html"})
-
-            # overflow: default overflow mode
-            params.update({"overflow": "upstream"})
-
-            # rto: socket read timeout
-            params.update({"rto": 4.0})
-
-            # cto: socket connect timeout
-            params.update({"cto": 4.0})
-
-            # verify: ssl Certificate Authority Verification
-            verify_certificate = True
-            params.update({"verify": "yes" if verify_certificate else "no"})
-
             url += "?"
-            url += urllib.parse.urlencode(params)
+            url += urllib.parse.urlencode(TestSendgridEmail.URL_PARAMS)
 
             apprise_instance_mock.add.assert_called_once_with(url)
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            sg_block = SendgridEmail(
+                api_key="test-api-key",
+                sender_email="test@gmail.com",
+                to_emails=["test1@gmail.com", "test2@gmail.com"],
+            )
+            sg_block.notify("test")
+
+            # check if the Apprise().add function is called with correct url
+            url = f"sendgrid://{sg_block.api_key.get_secret_value()}:{sg_block.sender_email}/"
+            url += "/".join(
+                [urllib.parse.quote(email, safe="") for email in sg_block.to_emails]
+            )
+            url += "?"
+            url += urllib.parse.urlencode(TestSendgridEmail.URL_PARAMS)
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(url)
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_is_picklable(self):
+        reload_modules()
+        block = SendgridEmail(
+            api_key="test-api-key",
+            sender_email="test@gmail.com",
+            to_emails=["test1@gmail.com", "test2@gmail.com"],
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, SendgridEmail)
