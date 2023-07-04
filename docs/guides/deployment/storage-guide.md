@@ -33,7 +33,7 @@ If you would like to use a GitHub repository, you can clone the public repositor
 
 In the root of your deployment repositry run
 
- ```bash
+```bash
     prefect deploy
 ```
 
@@ -45,6 +45,7 @@ Select that you want to creata new deployment, select the flow code entrypoint, 
  If you do not have a prefect.yaml file that specifies a pull step you will see the following prompts:
 
 ```bash
+
     ? Your Prefect workers will need access to this flow's code in order to run it. 
     Would you like your workers to pull your flow code from its remote repository 
     when running this flow? [y/n] (y): 
@@ -63,11 +64,11 @@ If the repository is public, you can skip the authentication step. If the reposi
 Authentication options:
 
 === "GitHub"
-   Personal Access Tokens (PATs) - Classic and fine grained.
+    Personal Access Tokens (PATs) - Classic and fine grained.
     SSH keys.
 
 === "GitLab"
-   [GitLab docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) on PATs. 
+    [GitLab docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) on PATs. 
 
     TK link to George's guide, or George fold in here
 
@@ -93,7 +94,7 @@ TK Link to Matt's guide or Matt, fold your guide into this one.
 ## Option 3: Local storage
 This method is only suggested for testing. If you are creating a deployment, you likey want a version-controlled system accessible to other team members, and capable of running on infrastructure other than your local machine. One of the other remote flow code storage options is recommended.
 
-# Option 4: Cloud-provider storage
+## Option 4: Cloud-provider storage
 Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
 
 You can specify an S3 bucket, Azure storage blob, or GCP GCS bucket address directly in the `push` and `pull` steps of your `prefet.yaml`. 
