@@ -172,9 +172,9 @@ class Flow(Generic[P, R]):
                     raise TypeError(
                         f"Expected iterable for '{hook_name}'; got"
                         f" {type(hooks).__name__} instead. Please provide a list of"
-                        f" hooks to '{hook_name}'. For"
-                        f" example:\n@flow({hook_name}=[hook1, hook2])\ndef"
-                        " flow1():\npass"
+                        f" hooks to '{hook_name}':\n\n"
+                        f"@flow({hook_name}=[hook1, hook2])\ndef"
+                        " my_flow():\n\tpass"
                     )
 
                 for hook in hooks:
@@ -182,9 +182,9 @@ class Flow(Generic[P, R]):
                         raise TypeError(
                             f"Expected callables in '{hook_name}'; got"
                             f" {type(hook).__name__} instead. Please provide a list of"
-                            f" hooks to '{hook_name}'. For"
-                            f" example:\n@flow({hook_name}=[hook1, hook2])\ndef"
-                            " flow1():\npass"
+                            f" hooks to '{hook_name}':\n\n"
+                            f"@flow({hook_name}=[hook1, hook2])\ndef"
+                            " my_flow():\n\tpass"
                         )
 
         if not callable(fn):

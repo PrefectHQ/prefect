@@ -3413,8 +3413,8 @@ class TestTaskHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_completion'; got function instead. Please"
-                " provide a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -3434,8 +3434,8 @@ class TestTaskHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
-                " a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -3451,8 +3451,8 @@ class TestTaskHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
-                " a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -3564,8 +3564,8 @@ class TestTaskHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_failure'; got function instead. Please"
-                " provide a list of hooks to 'on_failure'. For"
-                " example:\n@flow(on_failure=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -3585,8 +3585,8 @@ class TestTaskHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_failure'; got str instead. Please provide a"
-                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -3602,8 +3602,8 @@ class TestTaskHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_failure'; got str instead. Please provide a"
-                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 

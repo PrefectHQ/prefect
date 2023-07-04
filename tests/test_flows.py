@@ -2295,8 +2295,8 @@ class TestFlowHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_completion'; got function instead. Please"
-                " provide a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2316,8 +2316,8 @@ class TestFlowHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
-                " a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2333,8 +2333,8 @@ class TestFlowHooksOnCompletion:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
-                " a list of hooks to 'on_completion'. For"
-                " example:\n@flow(on_completion=[hook1, hook2])\ndef flow1():\npass"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2428,8 +2428,8 @@ class TestFlowHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_failure'; got function instead. Please"
-                " provide a list of hooks to 'on_failure'. For"
-                " example:\n@flow(on_failure=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2449,8 +2449,8 @@ class TestFlowHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_failure'; got str instead. Please provide a"
-                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2466,8 +2466,8 @@ class TestFlowHooksOnFailure:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_failure'; got str instead. Please provide a"
-                " list of hooks to 'on_failure'. For example:\n@flow(on_failure=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2561,8 +2561,8 @@ class TestFlowHooksOnCancellation:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_cancellation'; got function instead. Please"
-                " provide a list of hooks to 'on_cancellation'. For"
-                " example:\n@flow(on_cancellation=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2582,8 +2582,8 @@ class TestFlowHooksOnCancellation:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_cancellation'; got str instead. Please"
-                " provide a list of hooks to 'on_cancellation'. For"
-                " example:\n@flow(on_cancellation=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2599,8 +2599,8 @@ class TestFlowHooksOnCancellation:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_cancellation'; got str instead. Please"
-                " provide a list of hooks to 'on_cancellation'. For"
-                " example:\n@flow(on_cancellation=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2769,8 +2769,8 @@ class TestFlowHooksOnCrashed:
             TypeError,
             match=re.escape(
                 "Expected iterable for 'on_crashed'; got function instead. Please"
-                " provide a list of hooks to 'on_crashed'. For"
-                " example:\n@flow(on_crashed=[hook1, hook2])\ndef flow1():\npass"
+                " provide a list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2790,8 +2790,8 @@ class TestFlowHooksOnCrashed:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_crashed'; got str instead. Please provide a"
-                " list of hooks to 'on_crashed'. For example:\n@flow(on_crashed=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
@@ -2807,8 +2807,8 @@ class TestFlowHooksOnCrashed:
             TypeError,
             match=re.escape(
                 "Expected callables in 'on_crashed'; got str instead. Please provide a"
-                " list of hooks to 'on_crashed'. For example:\n@flow(on_crashed=[hook1,"
-                " hook2])\ndef flow1():\npass"
+                " list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
             ),
         ):
 
