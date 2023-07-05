@@ -73,7 +73,7 @@ if __name__ == '__main__':
 ```
 
 ### Step 4: Run your Flow Locally
-Prefect Flows don't just look pythonic, they run like python functions too! 
+Prefect flows don't just look pythonic, they run like python functions too! 
 
 Call any function that you've decorated with a `@flow` decorator to see a local instance of a FlowRun.
 
