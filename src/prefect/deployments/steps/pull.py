@@ -9,8 +9,7 @@ from typing import Optional
 from prefect._internal.compatibility.deprecated import deprecated_callable
 
 from prefect.logging.loggers import get_logger
-
-from prefect.blocks.abstract import CredentialsBlock
+from prefect.blocks.core import Block
 
 deployment_logger = get_logger("deployment")
 
@@ -35,7 +34,7 @@ def git_clone(
     branch: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
-    credentials: Optional[CredentialsBlock] = None,
+    credentials: Optional[Block] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -46,7 +45,7 @@ def git_clone(
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token (str, optional): an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
-        credentials (CredentialsBlock, optional): a GitHubCredentials block can be used to specify the
+        credentials (optional): a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
         credentials to use for cloning the repository.
 
     Returns:
@@ -110,8 +109,14 @@ def git_clone(
         raise ValueError(
             "Please provide either an access token or credentials but not both."
         )
+
     if credentials:
-        access_token = credentials["token"]
+        if credentials.get("token"):
+            access_token = credentials.get("token")
+        elif credentials.get("username") and credentials.get("password"):
+            access_token = (
+                f"{credentials.get('username')}:{credentials.get('password')}"
+            )
 
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:

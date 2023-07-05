@@ -350,7 +350,7 @@ class TestGitCloneStep:
         assert "super-secret-42".upper() not in str(exc.getrepr())
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_credentials_block_succeeds(self, monkeypatch):
+    async def test_git_clone_with_valid_credentials_block_succeeds(self, monkeypatch):
         mock_subprocess = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.pull.subprocess",
@@ -398,7 +398,35 @@ class TestGitCloneStep:
         )
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_both_token_and_credentials_raises(self, monkeypatch):
+    async def test_git_clone_with_invalid_credentials_block_raises(self, monkeypatch):
+        blocks = {
+            "github-credentials": {
+                "my-github-creds-block": MockGitHubCredentials("mock-token")
+            }
+        }
+
+        async def mock_read_block_document(self, name: str, block_type_slug: str):
+            return blocks[block_type_slug][name]
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
+            mock_read_block_document,
+        )
+
+        with pytest.raises(KeyError, match="invalid-block"):
+            await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git",
+                        "credentials": (
+                            "{{ prefect.blocks.github-credentials.invalid-block }}"
+                        ),
+                    }
+                }
+            )
+
+    @pytest.mark.asyncio
+    async def test_git_clone_with_token_and_credentials_raises(self, monkeypatch):
         blocks = {
             "github-credentials": {
                 "my-github-creds-block": MockGitHubCredentials("mock-token")
