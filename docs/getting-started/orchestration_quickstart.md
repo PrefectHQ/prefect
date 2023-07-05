@@ -100,7 +100,7 @@ python my_flow.py
 </div>
 
 
-Beyond examining these logs, you have the option to explore the FlowRun via the UI to visualize its dependency diagram. You should find a link directing you to the FlowRun page conveniently positioned at the top of your flow logs.
+Beyond examining these logs, you have the option to explore the flow run via the UI to visualize its dependency diagram. You should find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
 
 Local execution is great for development and testing, but in order to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
