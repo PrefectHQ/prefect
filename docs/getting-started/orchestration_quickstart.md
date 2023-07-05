@@ -110,7 +110,7 @@ Local execution is great for development and testing, but in order to schedule f
 Deploying your flows is, in essence, the act of informing the Prefect API of where, how, and when to run your flows. Prefect offers CLI commands for quick deployment creation.
 
 !!! warning "Run `prefect deploy` commands from the **root** of your repo!"
-    When running any `prefect deploy` or `prefect init` commands, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
+    When running `prefect deploy` or `prefect init`, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
 
 When you execute the deploy command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a Work Pool, optionally configure a flow code pull step, and more!
 
