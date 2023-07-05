@@ -4,7 +4,7 @@ This guide is designed to get you to the point of successfully running a deploye
 
 ### Step 1: [Install Prefect](/getting-started/installation/)
 
-We recommend installing Prefect using a Python virtual environment manager such as conda, or virtualenv.
+We recommend installing Prefect using a Python virtual environment manager such as conda or virtualenv.
 
 ```bash 
 pip install -U prefect
