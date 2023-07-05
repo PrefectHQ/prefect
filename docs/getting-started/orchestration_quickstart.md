@@ -38,41 +38,35 @@ from prefect import flow, task
 @task(retries=3)
 def get_contributors(url):
     response = httpx.get(url)
-    if response.status_code == 200:
-        contributors = response.json()
-        return len(contributors)
-    else:
-        raise Exception('Failed to fetch contributors.')
+    response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    contributors = response.json()
+    return len(contributors)
 
 @task(retries=4)
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
-    if response.status_code == 200:
-        commit_data = response.json()
-        total_commits = sum(c['total'] for c in commit_data)
-        average_commits = total_commits / contributors
-        return average_commits
-    else:
-        raise Exception('Failed to fetch commit information.')
+    response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    commit_data = response.json()
+    total_commits = sum(c['total'] for c in commit_data)
+    average_commits = total_commits / contributors
+    return average_commits
 
 @flow(name="Repo Info", log_prints=True)
 def my_flow_function():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
-    if api_response.status_code == 200:
-        repo_info = api_response.json()
-        stars = repo_info['stargazers_count']
-        forks = repo_info['forks_count']
-        contributors_url = repo_info['contributors_url']
-        contributors = get_contributors(contributors_url) # Task Call Here
-        average_commits = calculate_average_commits(contributors) # Task Call Here
-        print(f"PrefectHQ/prefect repository statistics 🤓:")
-        print(f"Stars 🌠 : {stars}")
-        print(f"Forks 🍴 : {forks}")
-        print(f"Average commits per contributor 💌 : {average_commits:.2f}")
-    else:
-        raise Exception('Failed to fetch repository information.')
+    api_response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    repo_info = api_response.json()
+    stars = repo_info['stargazers_count']
+    forks = repo_info['forks_count']
+    contributors_url = repo_info['contributors_url']
+    contributors = get_contributors(contributors_url) # Task Call Here
+    average_commits = calculate_average_commits(contributors) # Task Call Here
+    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {stars}")
+    print(f"Forks 🍴 : {forks}")
+    print(f"Average commits per contributor 💌 : {average_commits:.2f}")
 
 if __name__ == '__main__':
     my_flow_function()
