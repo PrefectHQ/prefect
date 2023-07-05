@@ -38,31 +38,31 @@ from prefect import flow, task
 @task(retries=3)
 def get_contributors(url):
     response = httpx.get(url)
-    response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    response.raise_for_status()
     contributors = response.json()
-    return len(contributors)
+    return {"n_contributors": len(contributors)}
 
 @task(retries=4)
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
-    response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    response.raise_for_status()
     commit_data = response.json()
     total_commits = sum(c['total'] for c in commit_data)
-    average_commits = total_commits / contributors
+    average_commits = total_commits / contributors["n_contributors"]
     return average_commits
 
 @flow(name="Repo Info", log_prints=True)
 def my_flow_function():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
-    api_response.raise_for_status()  # Will raise an httpx.HTTPStatusError if the request fails
+    api_response.raise_for_status()
     repo_info = api_response.json()
     stars = repo_info['stargazers_count']
     forks = repo_info['forks_count']
     contributors_url = repo_info['contributors_url']
-    contributors = get_contributors(contributors_url) # Task Call Here
-    average_commits = calculate_average_commits(contributors) # Task Call Here
+    contributors = get_contributors(contributors_url) # TASK
+    average_commits = calculate_average_commits(contributors) # TASK
     print(f"PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {stars}")
     print(f"Forks 🍴 : {forks}")
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 ### Step 4: Run your Flow Locally
 Prefect flows don't just look pythonic, they run like python functions too! 
 
-Call any function that you've decorated with a `@flow` decorator to see a local instance of a FlowRun.
+Call any function that you've decorated with a `@flow` decorator to see a local instance of a flow run.
 
 ```bash
 python my_flow.py
@@ -102,6 +102,8 @@ python my_flow.py
 
 Beyond examining these logs, you have the option to explore the flow run via the UI to visualize its dependency diagram. You should find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
 
+![Alt text](image.png)
+
 Local execution is great for development and testing, but in order to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
 
@@ -112,10 +114,10 @@ Deploying your flows is, in essence, the act of informing the Prefect API of whe
 !!! warning "Run `prefect deploy` commands from the **root** of your repo!"
     When running `prefect deploy` or `prefect init`, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
 
-!!! tip "Commit and Push your flow code to a GitHub repo!
-    Prefect integrates well with version control platforms like GitHub and equivalent, before you deploy your flow, consider pushing your flow to a remote repo. 
-
 When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a work pool, optionally configure a flow code `pull` step, and more!
+
+!!! tip "Commit and Push your flow code to a GitHub repo!"
+    Prefect integrates well with version control platforms like GitHub and equivalent, before you deploy your flow, consider pushing your flow to a remote repo. 
 
 ```bash
 prefect deploy
@@ -134,7 +136,7 @@ prefect worker start --pool <work-pool-name>
 Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
 
 ```bash
-prefect deployment run 'Repo Info/<my-deployment-name>'
+prefect deployment run 'Repo Info/<deployment-name>'
 ```
 
 !!! reminder "Reminder: A flow name can be different from its function name!"
