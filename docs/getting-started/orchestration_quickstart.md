@@ -23,7 +23,7 @@ prefect server start
 **The fastest way to get started with Prefect is to clone a test repo in GitHub or equivalent and simply add an `@flow` decorator to any python function**.
 
 !!! Tip "Quick Tips"
-    - At a minimum you need to define at least one flow function.
+    - At a minimum, you need to define at least one flow function.
     - Your flows can be segmented by introducing task (`@task`) functions, which can be invoked from within these flows.
     - A Task represents a discrete unit of Python logic whereas Flows are more akin to parent functions accommodating a broad range of workflow logic.
     - Flows can be called inside of other flows (we call these subflows) but a task **cannot** be run inside of another task or from outside the context of a flow.
