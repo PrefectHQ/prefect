@@ -11,7 +11,7 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return 'access:work_pools'
     case 'artifacts':
       return 'access:artifacts'
-    case 'enable-workspace-dashboard':
+    case 'workspace_dashboard':
       return 'access:dashboard'
     default:
       return null

@@ -2,4 +2,4 @@ export type FlagResponse =
 | 'workers'
 | 'work_pools'
 | 'artifacts'
-| 'enable-workspace-dashboard'
+| 'workspace_dashboard'
