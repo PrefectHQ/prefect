@@ -379,9 +379,9 @@ async def prompt_build_custom_docker_image(
         else:
             if confirm(
                 "A Dockerfile exists. You chose not to use it. A temporary Dockerfile"
-                " will be created during the deployment build step. If a file named"
-                " 'Dockerfile' already exists at that time, the build step will fail."
-                " Would you like to rename the existing Dockerfile?"
+                " will be automatically built during the deployment build step. If another file"
+                " named 'Dockerfile' already exists at that time, the build step will fail."
+                " Would you like to rename your existing Dockerfile?"
             ):
                 new_dockerfile_name = prompt(
                     "New Dockerfile name", default="Dockerfile.backup"
