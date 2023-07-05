@@ -112,10 +112,10 @@ def git_clone(
 
     if credentials:
         if credentials.get("token"):
-            access_token = credentials.get("token")
+            access_token = credentials["token"]
         elif credentials.get("username") and credentials.get("password"):
             access_token = (
-                f"{credentials.get('username')}:{credentials.get('password')}"
+                f"{credentials['username']}:{credentials['password']}"
             )
 
     url_components = urllib.parse.urlparse(repository)
