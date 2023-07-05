@@ -152,5 +152,4 @@ Congrats on your first successfully deployed FlowRun! Now you've seen how to def
 - [Guides](/guides/) provide step by step recipes for common Prefect operations including:
     - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
     - [Deploying flows in Docker](/guides/deployment/docker/)
-    - [Writing tests](/guides/testing)
 And more!
