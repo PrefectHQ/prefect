@@ -25,7 +25,7 @@ prefect server start
 !!! Tip "Quick Tips"
     - At a minimum, you need to define at least one flow function.
     - Your flows can be segmented by introducing task (`@task`) functions, which can be invoked from within these flows.
-    - A Task represents a discrete unit of Python logic whereas Flows are more akin to parent functions accommodating a broad range of workflow logic.
+    - A task represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
     - Flows can be called inside of other flows (we call these subflows) but a task **cannot** be run inside of another task or from outside the context of a flow.
 
 Here is an example flow that calls 2 tasks:
