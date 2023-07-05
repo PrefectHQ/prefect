@@ -117,7 +117,7 @@ When you run the `deploy` command, Prefect will automatically detect any flows d
 ```bash
 prefect deploy
 ```
-The last prompt in the `prefect deploy` wizard asks if you would like to save the configuration for the deployment, saying yes to this will result in a prefect.yaml file populated with your first deployment. You can use this yaml file to edit and [manage all deployments](/concepts/deployments-ux/) for this repo.
+The last prompt in the `prefect deploy` wizard asks if you would like to save the configuration for the deployment. Confirming this will result in a `prefect.yaml` file populated with your first deployment. You can use this yaml file to edit and [manage all deployments](/concepts/deployments-ux/) for this repo.
 
 ### Step 6: Start a Worker and Run Deployed Flow
 
