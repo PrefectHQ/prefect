@@ -121,7 +121,7 @@ The last prompt in the `prefect deploy` wizard asks if you would like to save th
 
 ### Step 6: Start a Worker and Run Deployed Flow
 
-Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker polls its assigned WorkPool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
+Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker polls its assigned work pool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
 
 In a new terminal run:
 ```bash
