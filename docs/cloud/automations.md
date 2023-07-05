@@ -30,13 +30,9 @@ Selecting the toggle next to an automation pauses execution of the automation.
 
 The button next to the toggle provides commands to copy the automation ID, edit the automation, or delete the automation.
 
-Select the name of an automation to view **Details** about it.
+Select the name of an automation to view **Details** about it and relevant **Events**.
 
-![Viewing details of an automation in Prefect Cloud.](/img/ui/automations-detail-tab.png)
-
-The **Events** tab displays a list of triggers and actions related to the automation. You can filter the list on date or event type. Select the timestamp of an event to see further details.
-
-![Viewing events that triggered an automation in Prefect Cloud.](/img/ui/automations-event-tab.png)
+![Viewing details and events that triggered an automation in Prefect Cloud.](/img/ui/automation-detail-and-events.png)
 
 ## Create an automation
 
