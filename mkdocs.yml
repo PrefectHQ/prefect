@@ -114,7 +114,7 @@ nav:
               - Installation: getting-started/installation.md
               - Cloud Quickstart: cloud/cloud-quickstart.md
               - Orchestration Quickstart: getting-started/orchestration_quickstart.md
-        - Tutorial:
+      - Tutorial:
               - tutorial/index.md
               - Flows: tutorial/flows.md
               - Tasks: tutorial/tasks.md
