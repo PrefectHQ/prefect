@@ -142,7 +142,7 @@ prefect deployment run 'Repo Info/<my-deployment-name>'
 !!! Warning "Common Pitfall"
     If you decide to set a git-based pull step (e.g.`git_clone`), ensure that you have pushed any changes to your flow script to your GitHub repo. During your deployment run, your worker will pull the code that exists there!
 
-Congrats on your first successfully deployed FlowRun! Now you've seen how to define your flows and tasks using decorators, how to deploy a flow, and how to start a worker.
+Congrats on your first successfully deployed flow run! Now you've seen how to define your flows and tasks using decorators, how to deploy a flow, and how to start a worker.
 
 ### Next Steps
 
