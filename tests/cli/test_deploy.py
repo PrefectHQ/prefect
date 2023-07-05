@@ -4268,7 +4268,7 @@ class TestDeployDockerBuildSteps:
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
                 "Would you like to use the Dockerfile in the current directory?",
-                "A Dockerfile exists but you chose not to use it.",
+                "A Dockerfile exists. You chose not to use it.",
                 "Image prefecthq/prefect/test-name:latest will be built",
                 "Would you like to push this image to a remote registry?",
                 "Would you like to save configuration for this deployment",
