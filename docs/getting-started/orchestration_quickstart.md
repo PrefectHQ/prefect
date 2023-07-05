@@ -20,7 +20,7 @@ prefect server start
 ```
 
 ### Step 3: Author a Flow
-**The fastest way to get started with Prefect is to clone a test repo in GitHub or equivalent and simply add an `@flow` decorator to any python function**.
+**The fastest way to get started with Prefect is to simply add an `@flow` decorator to any python function**.
 
 !!! Tip "Quick Tips"
     - At a minimum you need to define at least one flow function.
@@ -111,6 +111,9 @@ Deploying your flows is, in essence, the act of informing the Prefect API of whe
 
 !!! warning "Run `prefect deploy` commands from the **root** of your repo!"
     When running any `prefect deploy` or `prefect init` commands, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
+
+!!! tip "Commit and Push your flow code to a GitHub repo!
+    Prefect integrates well with version control platforms like GitHub and equivalent, before you deploy your flow, consider pushing your flow to a remote repo. 
 
 When you execute the deploy command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a Work Pool, optionally configure a flow code pull step, and more!
 
