@@ -1,6 +1,6 @@
 # Orchestration Quickstart
 
-This guide is designed to get you to the point of successfully running a deployed Prefect flow in as few steps as possible. For a more comprehensive introduction to Prefect's core orchestration concepts, please follow our [tutorial pages](/tutorial/index/).
+This guide is designed to get you to the point of successfully running a deployed Prefect flow in as few steps as possible. For a more comprehensive introduction to Prefect's core orchestration concepts, please follow our [tutorial](/tutorial/index/).
 
 ### Step 1: [Install Prefect](/getting-started/installation/)
 
