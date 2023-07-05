@@ -14,7 +14,7 @@ pip install -U prefect
 ```bash
 prefect cloud login
 ```
-OR to use our open source offering, in a new terminal run to host the Prefect engine locally.
+If you'd instead like to use our open source offering, host the Prefect engine locally by running
 ```bash
 prefect server start
 ```
