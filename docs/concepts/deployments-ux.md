@@ -131,7 +131,7 @@ build:
     push: true
 ```
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/concepts/deployments-ux/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/guides/deployment/docker).
 
 
 !!! note Some steps require Prefect integrations
@@ -250,6 +250,31 @@ pull:
         stream_output: False
 ```
 
+Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
+
+```yaml
+pull:
+- prefect.deployments.steps.run_shell_script:
+    id: get-access-token
+    script: az keyvault secret show --name <secret name> --vault-name <secret vault> --query "value" --output tsv
+    stream_output: false
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: "{{ get-access-token.stdout }}"
+```
+
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
+
+```yaml
+- retrieve_secrets.main:
+    id: get-access-token
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: '{{ get-access-token.access_token }}'
+```
+
 ### Templating Options
 
 Values that you place within your `prefect.yaml` file can reference dynamic values in two different ways:
@@ -297,9 +322,9 @@ deployments:
 So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.build_docker_image) which produces both the `image_name` and `tag` fields.
+    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
 
-    For an example, [check out the deployments tutorial](/tutorial/deployments-ux/#dockerized-deployment).
+    For an example, [check out the deployments tutorial](/guides/deployment/docker/).
 
 
 ### Deployment Configurations
@@ -449,17 +474,18 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 
 Below are fields that can be added to each deployment declaration.
 
-| Property                                   | Description                                                                                                                                                                                                                                                                   |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                                     | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments.                                                                                                                                     |
-| `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                       |
-| `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                        |
-| <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                   |
-| `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                           |
-| `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                      |
+| Property                                   | Description                                                                                                                                                                                                                                                                              |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                     | The name to give to the created deployment. Used with the `prefect deploy` command to create or update specific deployments.                                                                                                                                                             |
+| `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
+| `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
+| <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
+| `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
+| `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                                       |
 | `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
-| `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                         |
-| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                   |
+| `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
+| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
 #### Schedule Fields
 
