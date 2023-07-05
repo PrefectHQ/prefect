@@ -125,7 +125,7 @@ Since Prefect's API does not directly execute flows, you'll need to start a work
 
 In a new terminal, run:
 ```bash
-prefect worker start --pool <name-of-your-work-pool>
+prefect worker start --pool <work-pool-name>
 ```
 
 Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
