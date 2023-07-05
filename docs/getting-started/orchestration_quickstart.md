@@ -1,10 +1,10 @@
 # Orchestration Quickstart
 
-This guide is designed to get you to the point of successfully running a deployed Prefect flow in as few steps as possible. For a more comprehensive introduction to Prefect's core orchestration concepts, please follow our [tutorial pages](/tutorial/index/).
+This guide is designed to get you to the point of successfully running a deployed Prefect flow in as few steps as possible. For a more comprehensive introduction to Prefect's core orchestration concepts, please follow our [tutorial](/tutorial/index/).
 
 ### Step 1: [Install Prefect](/getting-started/installation/)
 
-We recommend installing Prefect using a Python virtual environment manager such as conda, or virtualenv.
+We recommend installing Prefect using a Python virtual environment manager such as conda or virtualenv.
 
 ```bash 
 pip install -U prefect
@@ -14,7 +14,7 @@ pip install -U prefect
 ```bash
 prefect cloud login
 ```
-OR to use our open source offering, in a new terminal run to host the Prefect engine locally.
+If you'd instead like to use our open source offering, host the Prefect engine locally by running
 ```bash
 prefect server start
 ```
@@ -23,9 +23,9 @@ prefect server start
 **The fastest way to get started with Prefect is to simply add an `@flow` decorator to any python function**.
 
 !!! Tip "Quick Tips"
-    - At a minimum you need to define at least one flow function.
+    - At a minimum, you need to define at least one flow function.
     - Your flows can be segmented by introducing task (`@task`) functions, which can be invoked from within these flows.
-    - A Task represents a discrete unit of Python logic whereas Flows are more akin to parent functions accommodating a broad range of workflow logic.
+    - A task represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
     - Flows can be called inside of other flows (we call these subflows) but a task **cannot** be run inside of another task or from outside the context of a flow.
 
 Here is an example flow that calls 2 tasks:
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 ```
 
 ### Step 4: Run your Flow Locally
-Prefect Flows don't just look pythonic, they run like python functions too! 
+Prefect flows don't just look pythonic, they run like python functions too! 
 
 Call any function that you've decorated with a `@flow` decorator to see a local instance of a FlowRun.
 
@@ -100,7 +100,7 @@ python my_flow.py
 </div>
 
 
-Beyond examining these logs, you have the option to explore the FlowRun via the UI to visualize its dependency diagram. You should find a link directing you to the FlowRun page conveniently positioned at the top of your flow logs.
+Beyond examining these logs, you have the option to explore the flow run via the UI to visualize its dependency diagram. You should find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
 
 Local execution is great for development and testing, but in order to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
@@ -110,25 +110,25 @@ Local execution is great for development and testing, but in order to schedule f
 Deploying your flows is, in essence, the act of informing the Prefect API of where, how, and when to run your flows. Prefect offers CLI commands for quick deployment creation.
 
 !!! warning "Run `prefect deploy` commands from the **root** of your repo!"
-    When running any `prefect deploy` or `prefect init` commands, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
+    When running `prefect deploy` or `prefect init`, double check that you are at the root of your repo, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
 
 !!! tip "Commit and Push your flow code to a GitHub repo!
     Prefect integrates well with version control platforms like GitHub and equivalent, before you deploy your flow, consider pushing your flow to a remote repo. 
 
-When you execute the deploy command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a Work Pool, optionally configure a flow code pull step, and more!
+When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Simply choose the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional schedule, create a work pool, optionally configure a flow code `pull` step, and more!
 
 ```bash
 prefect deploy
 ```
-The last prompt in the `prefect deploy` wizard asks if you would like to save the configuration for the deployment, saying yes to this will result in a prefect.yaml file populated with your first deployment. You can use this yaml file to edit and [manage all deployments](/concepts/deployments-ux/) for this repo.
+The last prompt in the `prefect deploy` wizard asks if you would like to save the configuration for the deployment. Confirming this will result in a `prefect.yaml` file populated with your first deployment. You can use this yaml file to edit and [manage all deployments](/concepts/deployments-ux/) for this repo.
 
 ### Step 6: Start a Worker and Run Deployed Flow
 
-Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker polls its assigned WorkPool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
+Since Prefect's API does not directly execute flows, you'll need to start a worker to manage local flow execution. [Each worker polls its assigned work pool](https://docs.prefect.io/2.10.18/tutorial/deployments/#why-work-pools-and-workers).
 
-In a new terminal run:
+In a new terminal, run:
 ```bash
-prefect worker start --pool <name-of-your-work-pool>
+prefect worker start --pool <work-pool-name>
 ```
 
 Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
@@ -143,17 +143,16 @@ prefect deployment run 'Repo Info/<my-deployment-name>'
     `prefect deployment run '<flow name>/<deployment-name>`
 
 !!! Warning "Common Pitfall"
-    If you optionally set a git based pull step, ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
+    If you decide to set a git-based pull step (e.g.`git_clone`), ensure that you have pushed any changes to your flow script to your GitHub repo. During your deployment run, your worker will pull the code that exists there!
 
-Congrats on your first successfully deployed FlowRun! Now you've seen how to define your flows and tasks using decorators, how to deploy a flow, and how to start a worker.
+Congrats on your first successfully deployed flow run! Now you've seen how to define your flows and tasks using decorators, how to deploy a flow, and how to start a worker.
 
 ### Next Steps
 
 - Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
-- [Our Concepts](/concepts/) contain deep dives into Prefect components.
+- [Our concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step by step recipes for common Prefect operations including:
     - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
     - [Deploying flows in Docker](/guides/deployment/docker/)
-    - [Writing tests](/guides/testing)
 And more!
