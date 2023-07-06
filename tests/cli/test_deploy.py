@@ -4325,7 +4325,7 @@ class TestDeployDockerBuildSteps:
                 "A Dockerfile exists. You chose not to use it.",
                 (
                     "A Dockerfile already exists. Please remove or rename the existing"
-                    " deployment build step."
+                    " one."
                 ),
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
