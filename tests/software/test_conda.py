@@ -320,7 +320,7 @@ class TestCondaEnvironment:
                 channels:
                 - defaults
                 dependencies:
-                - python=10.11
+                - python=3.10.11
                 - readline
                 - sqlite=3.37.2=h707629a_0
                 - pip:
