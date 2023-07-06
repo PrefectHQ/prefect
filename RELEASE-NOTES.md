@@ -17,10 +17,10 @@
 - Update `git_clone` documentation with examples of using credentials field - https://github.com/PrefectHQ/prefect/pull/10168
 - Add documentation on deleting blocks — https://github.com/PrefectHQ/prefect/pull/10115
 - Add docs tabs linking and styling  — https://github.com/PrefectHQ/prefect/pull/10113
-- Fix block load function docstring code example — https://github.com/PrefectHQ/prefect/pull/10098
+- Fix example in `Block.load` docstring — https://github.com/PrefectHQ/prefect/pull/10098
 - Fix task tutorial documentation example — https://github.com/PrefectHQ/prefect/pull/10120
 - Clarify heading in rate limits documentation — https://github.com/PrefectHQ/prefect/pull/10148
-- Fix link in events odcumentation — https://github.com/PrefectHQ/prefect/pull/10160
+- Fix link in events documentation — https://github.com/PrefectHQ/prefect/pull/10160
 - Remove outdated disclaimer about configuring webhooks with the Prefect Cloud UI — https://github.com/PrefectHQ/prefect/pull/10167
 
 ### Integrations
