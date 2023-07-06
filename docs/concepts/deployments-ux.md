@@ -224,7 +224,7 @@ pull:
         credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
 ```
 
-Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the  'access_token` field. You can use a Secret block to do this securely:
+Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the 'access_token` field. You can use a Secret block to do this securely:
 
 ```yaml
 pull:
