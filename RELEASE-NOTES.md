@@ -21,7 +21,7 @@ For implementation details see:
 - https://github.com/PrefectHQ/prefect/pull/10157
 
 ### Fixes
-- Improve language around `prefect deploy` to not recommend deprecated `flow_name` — https://github.com/PrefectHQ/prefect/pull/10121
+- Improve language in `prefect deploy` to not recommend deprecated `-f/--flow` — https://github.com/PrefectHQ/prefect/pull/10121
 - Pin Pydantic to v1 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10144
 - Add default value of `None` for `WorkQueue.work_pool_id` — https://github.com/PrefectHQ/prefect/pull/10106
 
