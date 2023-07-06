@@ -268,7 +268,13 @@ from = "/api-ref/prefect/blocks/storage/"
 to = "/api-ref/prefect/blocks/"
 status = 301
 
+[[redirects]]
+from = "/api-ref/prefect/deployments/"
+to = "/api-ref/prefect/deployments/deployments/"
 
+[[redirects]]
+from = "/tutorial/deployments-ux/"
+to = "/tutorial/deployments/"
 [[redirects]]
 from = "/ui/blocks/"
 to = "/concepts/blocks/"
@@ -291,10 +297,14 @@ from = "/concepts/database/"
 to = "/host/"
 status = 301
 
+[[redirects]]
+from = "/ui/notifications/"
+to = "/host/#notifications"
+status = 301
 
 [[redirects]]
 from = "/concepts/notifications/"
-to = "/host/"
+to = "/host/#notifications"
 status = 301
 
 
@@ -337,6 +347,26 @@ status = 301
 [[redirects]]
 from = "/api-ref/rest-api-overview/"
 to = "/api-ref/rest-api/"
+status = 301
+
+[[redirects]]
+from = "/concepts/projects/"
+to = "/concepts/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/tutorial/projects/"
+to = "/tutorial/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
 status = 301
 
 

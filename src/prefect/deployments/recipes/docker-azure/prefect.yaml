@@ -1,0 +1,51 @@
+prefect-version: null
+name: null
+description: "Store code within an Azure Blob Storage container and build a custom docker image for runtime"
+
+required_inputs:
+  image_name: "The image name, including repository, to give the built Docker image"
+  tag: "The tag to give the built Docker image"
+  container: "The container to store and retrieve code from"
+
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      id: "build_image"
+      requires: "prefect-docker>=0.3.1"
+      image_name: "{{ image_name }}"
+      tag: "{{ tag }}"
+      dockerfile: "{{ dockerfile }}"
+
+push: 
+  - prefect_docker.deployments.steps.push_docker_image:
+      requires: "prefect-docker>=0.3.1"
+      image_name: "{{ build_image.image_name }}"
+      tag: "{{ build_image.tag }}"
+      credentials: null
+  - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+      id: "push_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ container }}"
+      folder: "{{ name }}"
+
+pull:
+  - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+      id: "pull_code"
+      requires: "prefect-azure>=0.2.8"
+      container: "{{ push_code.container }}"
+      folder: "{{ push_code.folder }}"
+
+deployments:
+  - name: null
+    version: null
+    tags: []
+    description: null
+    schedule: {}
+    flow_name: null
+    entrypoint: null
+    parameters: {}
+    work_pool:
+      name: null
+      work_queue_name: null
+      job_variables: 
+        # uses the `image` output from the `build_image` step
+        image: "{{ build_image.image }}"

@@ -15,6 +15,18 @@ from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    WorkPoolFilter,
+    WorkPoolFilterName,
+    WorkQueueFilter,
+    WorkQueueFilterName,
+)
+from prefect.client.schemas.objects import BlockDocument, FlowRun, WorkQueue
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -24,16 +36,6 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
-from prefect.server import schemas
-from prefect.server.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.server.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    FlowRunFilterState,
-    FlowRunFilterStateName,
-    FlowRunFilterStateType,
-    FlowRunFilterWorkQueueName,
-)
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
@@ -95,10 +97,8 @@ class PrefectAgent:
             if self.work_pool_name:
                 matched_queues = await self.client.read_work_queues(
                     work_pool_name=self.work_pool_name,
-                    work_queue_filter=schemas.filters.WorkQueueFilter(
-                        name=schemas.filters.WorkQueueFilterName(
-                            startswith_=self.work_queue_prefix
-                        )
+                    work_queue_filter=WorkQueueFilter(
+                        name=WorkQueueFilterName(startswith_=self.work_queue_prefix)
                     ),
                 )
             else:
@@ -257,20 +257,28 @@ class PrefectAgent:
 
         self.logger.debug("Checking for cancelled flow runs...")
 
-        work_queue_names = set()
-        async for work_queue in self.get_work_queues():
-            work_queue_names.add(work_queue.name)
+        work_queue_filter = (
+            WorkQueueFilter(name=WorkQueueFilterName(any_=list(self.work_queues)))
+            if self.work_queues
+            else None
+        )
 
+        work_pool_filter = (
+            WorkPoolFilter(name=WorkPoolFilterName(any_=[self.work_pool_name]))
+            if self.work_pool_name
+            else WorkPoolFilter(name=WorkPoolFilterName(any_=["default-agent-pool"]))
+        )
         named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
                     name=FlowRunFilterStateName(any_=["Cancelling"]),
                 ),
-                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
+            work_pool_filter=work_pool_filter,
+            work_queue_filter=work_queue_filter,
         )
 
         typed_cancelling_flow_runs = await self.client.read_flow_runs(
@@ -278,10 +286,11 @@ class PrefectAgent:
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
                 ),
-                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
+            work_pool_filter=work_pool_filter,
+            work_queue_filter=work_queue_filter,
         )
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
@@ -378,6 +387,7 @@ class PrefectAgent:
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
+
         flow = await self.client.read_flow(deployment.flow_id)
 
         # overrides only apply when configuring known infra blocks
@@ -496,7 +506,9 @@ class PrefectAgent:
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_failed_state(flow_run, exc)
+                await self._propose_crashed_state(
+                    flow_run, "Flow run could not be submitted to infrastructure"
+                )
             else:
                 self.logger.exception(
                     f"An error occured while monitoring flow run '{flow_run.id}'. "

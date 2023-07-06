@@ -217,7 +217,8 @@ class CronSchedule(PrefectBaseModel):
 
     Args:
         cron (str): a valid cron string
-        timezone (str): a valid timezone string
+        timezone (str): a valid timezone string in IANA tzdata format (for example,
+            America/New_York).
         day_or (bool, optional): Control how croniter handles `day` and `day_of_week`
             entries. Defaults to True, matching cron which connects those values using
             OR. If the switch is set to False, the values are connected using AND. This
@@ -241,7 +242,10 @@ class CronSchedule(PrefectBaseModel):
     @validator("timezone")
     def valid_timezone(cls, v):
         if v and v not in pendulum.tz.timezones:
-            raise ValueError(f'Invalid timezone: "{v}"')
+            raise ValueError(
+                f'Invalid timezone: "{v}" (specify in IANA tzdata format, for example,'
+                " America/New_York)"
+            )
         return v
 
     @validator("cron")
@@ -252,7 +256,7 @@ class CronSchedule(PrefectBaseModel):
             raise ValueError(f'Invalid cron string: "{v}"')
         elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
             raise ValueError(
-                f'Random and Hashed expressions are unsupported, recieved: "{v}"'
+                f'Random and Hashed expressions are unsupported, received: "{v}"'
             )
         return v
 
@@ -358,6 +362,9 @@ class CronSchedule(PrefectBaseModel):
             counter += 1
 
 
+DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+
+
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -454,7 +461,11 @@ class RRuleSchedule(PrefectBaseModel):
         Since rrule doesn't properly serialize/deserialize timezones, we localize dates
         here
         """
-        rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
+        rrule = dateutil.rrule.rrulestr(
+            self.rrule,
+            dtstart=DEFAULT_ANCHOR_DATE,
+            cache=True,
+        )
         timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
             kwargs = dict(dtstart=rrule._dtstart.replace(tzinfo=timezone))

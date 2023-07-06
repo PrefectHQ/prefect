@@ -9,6 +9,8 @@ tags:
   - integrations
   - integrations
   - contributing
+search:
+  boost: 2
 ---
 
 # Contribute
@@ -59,7 +61,7 @@ class Secret(Block):
         return self.value.get_secret_value()
 ```
 
-To view in the Prefect Cloud or Prefect server UI, [register the block](https://docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
+To view in Prefect Cloud or the Prefect server UI, [register the block](https://docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
 
 ## Contributing Integrations
 

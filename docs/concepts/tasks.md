@@ -16,6 +16,8 @@ tags:
     - concurrency
     - concurrency limits
     - task concurrency
+search:
+  boost: 2
 ---
 
 # Tasks
@@ -80,7 +82,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
 ## Task arguments
 
-Tasks allow a great deal of customization via arguments. Examples include retry behavior, names, tags, caching, and more. Tasks accept the following optional arguments.
+Tasks allow for customization through optional arguments:
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -89,10 +91,12 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | `tags`                | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire.                                                                      |
-| `task_run_name`       | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables; this name can also be provided via a function that returns a string.  |
 | `retries`             | An optional number of times to retry on task run failure.                                                                                                                                                               |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
-| `version`             | An optional string specifying the version of this task definition.                                                                                                                                                      |
+| `log_prints`|An optional boolean indicating whether to log print statements. |
+| `persist_result` | An optional boolean indicating whether to persist the result of the task run to storage. |
+
+See all possible parameters in the [Python SDK API docs](/api-ref/prefect/tasks/#prefect.tasks.task).
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -224,7 +228,6 @@ we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
 request.
 
 ```python hl_lines="4"
-import requests
 import httpx
 
 from prefect import flow, task
@@ -652,7 +655,7 @@ To update your tag concurrency limits programmatically, use [`PrefectClient.orch
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```python
-from prefect.client import get_client
+from prefect import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag

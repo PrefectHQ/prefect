@@ -1,6 +1,17 @@
+---
+description: Prefect artifacts are persisted outputs designed for human consumption and available in the UI.
+tags:
+  - artifacts
+  - UI
+  - Markdown
+search:
+  boost: 2
+---
 # Artifacts
 
-Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect server as well as rendered and managed in the Prefect UI, making it easy to track and monitor the objects that your flows produce and update over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
+Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI. Artifacts make it easy to track and monitor the objects that your flows produce and update over time. 
+
+Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
 
 ## Artifacts Overview
 
@@ -144,6 +155,9 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 ### Create Table Artifacts
 
 You can create a table artifact by calling `create_table_artifact()`. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+
+!!! note
+    The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
 
 ```python
 from prefect.artifacts import create_table_artifact

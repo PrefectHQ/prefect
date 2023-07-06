@@ -92,7 +92,7 @@ def explode_variadic_parameter(
         return parameters
 
     new_parameters = parameters.copy()
-    for key, value in new_parameters.pop(variadic_key).items():
+    for key, value in new_parameters.pop(variadic_key, {}).items():
         new_parameters[key] = value
 
     return new_parameters
@@ -130,6 +130,10 @@ def collapse_variadic_parameters(
             f"Signature for {fn} does not include any variadic keyword argument "
             "but parameters were given that are not present in the signature."
         )
+
+    if variadic_key and not missing_parameters:
+        # variadic key is present but no missing parameters, return parameters unchanged
+        return parameters
 
     new_parameters = parameters.copy()
     if variadic_key:

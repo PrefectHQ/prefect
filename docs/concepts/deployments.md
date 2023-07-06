@@ -7,9 +7,13 @@ tags:
     - flow runs
     - deployments
     - schedules
+    - triggers
+    - automations
     - deployments.yaml
     - infrastructure
     - storage
+search:
+  boost: 2
 ---
 
 # Deployments
@@ -78,6 +82,7 @@ When creating a deployment, a user must answer *two* basic questions:
 A deployment additionally enables you to:
 
 - Schedule flow runs.
+- Specify event triggers for flow runs.
 - Assign a work queue name to delegate deployment flow runs to work queues.
 - Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the Prefect UI.
 - Assign custom parameter values for flow runs based on the deployment.
@@ -104,9 +109,10 @@ Deployments are uniquely identified by the combination of: `flow_name/deployment
 
 ```mermaid
 graph LR
-    F("my_flow"):::yellow -.-> A("Deployment 'daily'"):::tan --> X("my_flow/daily"):::fgreen
-    F -.-> B("Deployment 'weekly'"):::gold  --> Y("my_flow/weekly"):::green
-    F -.-> C("Deployment 'ad-hoc'"):::dgold --> Z("my_flow/ad-hoc"):::dgreen
+    F("my_flow"):::yellow -.-> A("Deployment 'daily'"):::tan --> W("my_flow/daily"):::fgreen
+    F -.-> B("Deployment 'weekly'"):::gold  --> X("my_flow/weekly"):::green
+    F -.-> C("Deployment 'ad-hoc'"):::dgold --> Y("my_flow/ad-hoc"):::dgreen
+    F -.-> D("Deployment 'trigger-based'"):::dgold --> Z("my_flow/trigger-based"):::dgreen
 
     classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:white
     classDef yellow fill:gold,stroke:gold,stroke-width:4px
@@ -117,14 +123,14 @@ graph LR
     classDef dgreen fill:darkgreen,stroke:darkgreen,stroke-width:4px,color:white
 ```
 
-This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also enables you to run different versions of the same flow for testing and production purposes.
+This enables you to run a single flow with different parameters, based on multiple schedules and triggers, and in different environments. This also enables you to run different versions of the same flow for testing and production purposes.
 
 ## Deployment definition
 
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
 - Run the [`prefect deployment build` CLI command](#create-a-deployment-on-the-cli) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
-- Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
+- Define a [`Deployment`](/api-ref/prefect/deployments/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
 
@@ -427,7 +433,7 @@ deployment.load() # loads server-side settings
 
 Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
 
-View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/).
+View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/deployments/).
 
 ## Deployment API representation
 
@@ -502,6 +508,30 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 ### Create a flow run with a schedule
 
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
+
+### Create a flow run with an event trigger
+
+!!! cloud-ad "deployment triggers are only available in Prefect Cloud"
+
+Deployments can optionally take a trigger specification, which will configure an automation to run the deployment based on the presence or absence of events, and optionally pass event data into the deployment run as parameters via jinja templating.
+
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: prefect.flow-run.*
+    expect:
+      - prefect.flow-run.Completed
+    match_related:
+      prefect.resource.name: prefect.flow.etl-flow
+      prefect.resource.role: flow
+    parameters:
+      param_1: "{{ event }}"
+```
+
+
+When applied, this deployment will start a flow run upon the completion of the upstream flow specified in the `match_related` key, with the flow run passed in as a parameter. Triggers can be configured to respond to the presence or absence of arbitrary internal or external [events](/cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
+
 
 ### Create a flow run with Prefect UI
 In the Prefect UI, you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.

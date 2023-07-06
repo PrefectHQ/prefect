@@ -1,7 +1,7 @@
 import packaging.version
 import pytest
 
-from prefect.docker import format_outlier_version_name, parse_image_tag
+from prefect.utilities.dockerutils import format_outlier_version_name, parse_image_tag
 
 
 @pytest.mark.parametrize(

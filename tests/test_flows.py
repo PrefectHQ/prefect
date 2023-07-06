@@ -856,7 +856,7 @@ class TestSubflowCalls:
 
         assert recurse(5) == 5 + 4 + 3 + 2 + 1
 
-    async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
+    async def test_subflow_with_invalid_parameters_is_failed(self, prefect_client):
         @flow
         def child(x: int):
             return x
@@ -871,7 +871,7 @@ class TestSubflowCalls:
             await parent_state.result()
 
         child_state = await parent_state.result(raise_on_failure=False)
-        flow_run = await orion_client.read_flow_run(
+        flow_run = await prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
         assert flow_run.state.is_failed()
@@ -913,7 +913,7 @@ class TestSubflowCalls:
 
         assert parent("foo") == "foo"
 
-    async def test_subflow_relationship_tracking(self, orion_client):
+    async def test_subflow_relationship_tracking(self, prefect_client):
         @flow(version="inner")
         def child(x, y):
             return x + y
@@ -927,10 +927,10 @@ class TestSubflowCalls:
         child_state = await parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
 
-        child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+        child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
 
         # This task represents the child flow run in the parent
-        parent_flow_run_task = await orion_client.read_task_run(
+        parent_flow_run_task = await prefect_client.read_task_run(
             child_flow_run.parent_task_run_id
         )
 
@@ -945,7 +945,7 @@ class TestSubflowCalls:
 
         assert all(
             state.state_details.task_run_id == parent_flow_run_task.id
-            for state in await orion_client.read_flow_run_states(child_flow_run_id)
+            for state in await prefect_client.read_flow_run_states(child_flow_run_id)
         ), "All server subflow run states link to the parent task"
 
         assert (
@@ -967,7 +967,7 @@ class TestSubflowCalls:
 
 
 class TestFlowRunTags:
-    async def test_flow_run_tags_added_at_call(self, orion_client):
+    async def test_flow_run_tags_added_at_call(self, prefect_client):
         @flow
         def my_flow():
             pass
@@ -975,10 +975,10 @@ class TestFlowRunTags:
         with tags("a", "b"):
             state = my_flow._run()
 
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
 
-    async def test_flow_run_tags_added_to_subflows(self, orion_client):
+    async def test_flow_run_tags_added_to_subflows(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -991,7 +991,7 @@ class TestFlowRunTags:
         with tags("a", "b"):
             subflow_state = await my_flow._run().result()
 
-        flow_run = await orion_client.read_flow_run(
+        flow_run = await prefect_client.read_flow_run(
             subflow_state.state_details.flow_run_id
         )
         assert set(flow_run.tags) == {"a", "b", "c", "d"}
@@ -1042,13 +1042,8 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        """
-        Sync flows are cancelled when they change instructions. The flow will return
-        immediately when the timeout is reached, but the thread it executes in will
-        continue until the next instruction is reached. `time.sleep` will return then
-        the thread will be interrupted.
-        """
         if sys.version_info[1] == 11:
             pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
 
@@ -1336,7 +1331,7 @@ class TestFlowParameterTypes:
 
 
 class TestSubflowTaskInputs:
-    async def test_subflow_with_one_upstream_task_future(self, orion_client):
+    async def test_subflow_with_one_upstream_task_future(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1353,7 +1348,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1361,7 +1356,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_one_upstream_task_state(self, orion_client):
+    async def test_subflow_with_one_upstream_task_state(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1377,7 +1372,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1385,7 +1380,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_one_upstream_task_result(self, orion_client):
+    async def test_subflow_with_one_upstream_task_result(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1402,7 +1397,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1411,7 +1406,7 @@ class TestSubflowTaskInputs:
         )
 
     async def test_subflow_with_one_upstream_task_future_and_allow_failure(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def child_task():
@@ -1429,7 +1424,7 @@ class TestSubflowTaskInputs:
 
         task_state, flow_state = parent_flow().unquote()
         assert isinstance(await flow_state.result(), ValueError)
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1439,7 +1434,7 @@ class TestSubflowTaskInputs:
         )
 
     async def test_subflow_with_one_upstream_task_state_and_allow_failure(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def child_task():
@@ -1457,7 +1452,7 @@ class TestSubflowTaskInputs:
 
         task_state, flow_state = parent_flow().unquote()
         assert isinstance(await flow_state.result(), ValueError)
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1466,7 +1461,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_no_upstream_tasks(self, orion_client):
+    async def test_subflow_with_no_upstream_tasks(self, prefect_client):
         @flow
         def bar(x, y):
             return x + y
@@ -1476,7 +1471,7 @@ class TestSubflowTaskInputs:
             return bar._run(x=2, y=1)
 
         child_flow_state = foo()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             child_flow_state.state_details.task_run_id
         )
 
@@ -1488,7 +1483,7 @@ class TestSubflowTaskInputs:
 
 @pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
-    async def test_user_logs_are_sent_to_orion(self, orion_client):
+    async def test_user_logs_are_sent_to_orion(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1496,10 +1491,10 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
-    async def test_repeated_flow_calls_send_logs_to_orion(self, orion_client):
+    async def test_repeated_flow_calls_send_logs_to_orion(self, prefect_client):
         @flow
         async def my_flow(i):
             logger = get_run_logger()
@@ -1508,10 +1503,10 @@ class TestFlowRunLogs:
         await my_flow(1)
         await my_flow(2)
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
-    async def test_exception_info_is_included_in_log(self, orion_client):
+    async def test_exception_info_is_included_in_log(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1522,13 +1517,13 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "Traceback" in error_log
         assert "NameError" in error_log, "Should reference the exception type"
         assert "x + y" in error_log, "Should reference the line of code"
 
-    async def test_raised_exceptions_include_tracebacks(self, orion_client):
+    async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
         def my_flow():
             raise ValueError("Hello!")
@@ -1536,7 +1531,7 @@ class TestFlowRunLogs:
         with pytest.raises(ValueError):
             my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         error_log = [
             log.message
             for log in logs
@@ -1545,21 +1540,21 @@ class TestFlowRunLogs:
         assert "Traceback" in error_log
         assert "ValueError: Hello!" in error_log, "References the exception"
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+    async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
             logger.info(
                 "Hello world!",
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" not in {log.message for log in logs}
 
-    async def test_logs_are_given_correct_id(self, orion_client):
+    async def test_logs_are_given_correct_id(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1568,14 +1563,14 @@ class TestFlowRunLogs:
         state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert all([log.flow_run_id == flow_run_id for log in logs])
         assert all([log.task_run_id is None for log in logs])
 
 
 @pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
-    async def test_subflow_logs_are_written_correctly(self, orion_client):
+    async def test_subflow_logs_are_written_correctly(self, prefect_client):
         @flow
         def my_subflow():
             logger = get_run_logger()
@@ -1591,7 +1586,7 @@ class TestSubflowRunLogs:
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
         assert "Hello world!" in log_messages, "Parent log message is present"
@@ -1604,7 +1599,7 @@ class TestSubflowRunLogs:
             == subflow_run_id
         ), "Child log message has correct id"
 
-    async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
+    async def test_subflow_logs_are_written_correctly_with_tasks(self, prefect_client):
         @task
         def a_log_task():
             logger = get_run_logger()
@@ -1625,7 +1620,7 @@ class TestSubflowRunLogs:
         subflow_state = my_flow()
         subflow_run_id = subflow_state.state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
@@ -1735,7 +1730,7 @@ class TestFlowRetries:
         assert task_run_count == 2, "Task should be reset and run again"
 
     @pytest.mark.xfail
-    async def test_flow_retry_with_branched_tasks(self, orion_client):
+    async def test_flow_retry_with_branched_tasks(self, prefect_client):
         flow_run_count = 0
 
         @task
@@ -1763,7 +1758,7 @@ class TestFlowRetries:
 
         # The state is pulled from the API and needs to be decoded
         document = await (await my_flow().result()).result()
-        result = await orion_client.retrieve_data(document)
+        result = await prefect_client.retrieve_data(document)
 
         assert result == "bar"
         # AssertionError: assert 'foo' == 'bar'
@@ -1772,7 +1767,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -1800,7 +1795,7 @@ class TestFlowRetries:
         assert child_run_count == 2, "Child flow should be reset and run again"
 
         # Ensure that the tracking task run for the subflow is reset and tracked
-        task_runs = await orion_client.read_task_runs(
+        task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
                 id={"any_": [state.state_details.flow_run_id]}
             )
@@ -1838,7 +1833,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -1873,10 +1868,10 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
-        child_flow_run = await orion_client.read_flow_run(
+        child_flow_run = await prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
-        child_flow_runs = await orion_client.read_flow_runs(
+        child_flow_runs = await prefect_client.read_flow_runs(
             flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
@@ -2096,7 +2091,7 @@ def test_load_flow_from_entrypoint(tmp_path):
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
-    orion_client,
+    prefect_client,
 ):
     flow_code_with_call = """
     from prefect import flow, get_run_logger
@@ -2120,13 +2115,13 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
             in caplog.text
         )
 
-    flow_runs = await orion_client.read_flows()
+    flow_runs = await prefect_client.read_flows()
     assert len(flow_runs) == 0
 
     # Make sure that flow runs when called
     res = flow()
     assert res == "woof!"
-    flow_runs = await orion_client.read_flows()
+    flow_runs = await prefect_client.read_flows()
     assert len(flow_runs) == 1
 
 
@@ -2151,7 +2146,7 @@ class TestFlowRunName:
         ):
             my_flow()
 
-    async def test_sets_run_name_when_provided(self, orion_client):
+    async def test_sets_run_name_when_provided(self, prefect_client):
         @flow(flow_run_name="hi")
         def flow_with_name(foo: str = "bar", bar: int = 1):
             pass
@@ -2159,10 +2154,10 @@ class TestFlowRunName:
         state = flow_with_name(return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi"
 
-    async def test_sets_run_name_with_params_including_defaults(self, orion_client):
+    async def test_sets_run_name_with_params_including_defaults(self, prefect_client):
         @flow(flow_run_name="hi-{foo}-{bar}")
         def flow_with_name(foo: str = "one", bar: str = "1"):
             pass
@@ -2170,10 +2165,10 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi-one-two"
 
-    async def test_sets_run_name_with_function(self, orion_client):
+    async def test_sets_run_name_with_function(self, prefect_client):
         def generate_flow_run_name():
             return "hi"
 
@@ -2184,11 +2179,11 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi"
 
     async def test_sets_run_name_with_function_using_runtime_context(
-        self, orion_client
+        self, prefect_client
     ):
         def generate_flow_run_name():
             params = flow_run_ctx.parameters
@@ -2209,10 +2204,12 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi-one-two"
 
-    async def test_sets_run_name_with_function_not_returning_string(self, orion_client):
+    async def test_sets_run_name_with_function_not_returning_string(
+        self, prefect_client
+    ):
         def generate_flow_run_name():
             pass
 

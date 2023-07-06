@@ -47,8 +47,6 @@ def DEFAULT_STORAGE_KEY_FN():
 
 
 logger = get_logger("results")
-
-# from prefect.server.schemas.states import State
 R = TypeVar("R")
 
 

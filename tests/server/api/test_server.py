@@ -12,9 +12,10 @@ from prefect.server.api.server import (
     API_ROUTERS,
     SERVER_API_VERSION,
     _memoize_block_auto_registration,
-    create_orion_api,
+    create_api_app,
     create_app,
     method_paths_from_routes,
+    SQLITE_LOCKED_MSG,
 )
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -53,11 +54,14 @@ async def test_validation_error_handler_409(client):
 
 
 @pytest.mark.parametrize("ephemeral", [True, False])
-@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT"])
+@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT", None])
 async def test_sqlite_database_locked_handler(errorname, ephemeral):
     async def raise_busy_error():
-        orig = sqlite3.OperationalError("database locked")
-        setattr(orig, "sqlite_errorname", errorname)
+        if errorname is None:
+            orig = sqlite3.OperationalError(SQLITE_LOCKED_MSG)
+        else:
+            orig = sqlite3.OperationalError("db locked")
+            setattr(orig, "sqlite_errorname", errorname)
         raise sa.exc.OperationalError(
             "statement",
             {"params": 1},
@@ -66,7 +70,7 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
         )
 
     async def raise_other_error():
-        orig = sqlite3.OperationalError("database locked")
+        orig = sqlite3.OperationalError("db locked")
         setattr(orig, "sqlite_errorname", "FOO")
         raise sa.exc.OperationalError(
             "statement",
@@ -149,7 +153,7 @@ class TestCreateOrionAPI:
     }
 
     def test_includes_all_default_paths(self):
-        app = create_orion_api()
+        app = create_api_app()
 
         expected = self.BUILTIN_ROUTES.copy()
 
@@ -159,7 +163,7 @@ class TestCreateOrionAPI:
         assert method_paths_from_routes(app.router.routes) == expected
 
     def test_allows_router_omission_with_null_override(self):
-        app = create_orion_api(router_overrides={"/logs": None})
+        app = create_api_app(router_overrides={"/logs": None})
 
         routes = method_paths_from_routes(app.router.routes)
         assert all("/logs" not in route for route in routes)
@@ -173,7 +177,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="override for '/logs' is missing paths",
         ) as exc:
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
         # These are displayed in a non-deterministic order
         assert exc.match("POST /logs/filter")
@@ -186,7 +190,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="Router override for '/logs' defines a different prefix '/foo'",
         ):
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
     def test_checks_for_new_prefix_during_override(self):
         router = APIRouter(prefix="/foo")
@@ -195,7 +199,7 @@ class TestCreateOrionAPI:
             KeyError,
             match="Router override provided for prefix that does not exist: '/foo'",
         ):
-            create_orion_api(router_overrides={"/foo": router})
+            create_api_app(router_overrides={"/foo": router})
 
     def test_only_includes_missing_paths_in_override_error(self):
         router = APIRouter(prefix="/logs")
@@ -208,7 +212,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="override for '/logs' is missing paths.* {'POST /logs/filter'}",
         ):
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
     def test_override_uses_new_router(self):
         router = APIRouter(prefix="/logs")
@@ -222,7 +226,7 @@ class TestCreateOrionAPI:
         logs_filter = MagicMock()
         router.post("/filter")(logs_filter)
 
-        app = create_orion_api(router_overrides={"/logs": router})
+        app = create_api_app(router_overrides={"/logs": router})
         client = testclient.TestClient(app)
         client.post("/logs")
         logs.assert_called_once()
@@ -248,7 +252,7 @@ class TestCreateOrionAPI:
         def foobar():
             return logs_get()
 
-        app = create_orion_api(router_overrides={"/logs": router})
+        app = create_api_app(router_overrides={"/logs": router})
 
         client = testclient.TestClient(app)
         client.get("/logs/").raise_for_status()

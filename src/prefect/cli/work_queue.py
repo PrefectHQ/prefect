@@ -18,9 +18,9 @@ from prefect._internal.compatibility.experimental import (
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
+from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.server.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -85,6 +85,12 @@ async def create(
         "--pool",
         help="The name of the work pool to create the work queue in.",
     ),
+    priority: Optional[int] = typer.Option(
+        None,
+        "-q",
+        "--priority",
+        help="The associated priority for the created work queue",
+    ),
 ):
     """
     Create a work queue.
@@ -107,9 +113,7 @@ async def create(
     async with get_client() as client:
         try:
             result = await client.create_work_queue(
-                name=name,
-                tags=tags or None,
-                work_pool_name=pool,
+                name=name, tags=tags or None, work_pool_name=pool, priority=priority
             )
             if limit is not None:
                 await client.update_work_queue(

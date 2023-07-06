@@ -382,8 +382,12 @@ def default_database_connection_url(settings, value):
     new_default = home / "prefect.db"
 
     # If the old one exists and the new one does not, continue using the old one
-    if old_default.exists() and not new_default.exists():
-        return "sqlite+aiosqlite:///" + str(old_default)
+    if not new_default.exists():
+        if old_default.exists():
+            return "sqlite+aiosqlite:///" + str(old_default)
+
+        # Create the new default database with 0600 permissions if it does not exist
+        new_default.touch(mode=0o600)
 
     # Otherwise, return the new default
     return "sqlite+aiosqlite:///" + str(new_default)
@@ -477,6 +481,15 @@ PREFECT_CLI_COLORS = Setting(
 output will not include colors codes. Defaults to `True`.
 """
 
+PREFECT_CLI_PROMPT = Setting(
+    Optional[bool],
+    default=None,
+)
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive 
+prompts will be used. If `None`, the value will be dynamically determined based on
+the presence of an interactive-enabled terminal.
+"""
+
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
@@ -490,7 +503,16 @@ PREFECT_TEST_MODE = Setting(
     default=False,
 )
 """If `True`, places the API in test mode. This may modify
-behavior to faciliate testing. Defaults to `False`.
+behavior to facilitate testing. Defaults to `False`.
+"""
+
+PREFECT_UNIT_TEST_MODE = Setting(
+    bool,
+    default=False,
+)
+"""
+This variable only exists to facilitate unit testing. If `True`,
+code is executing in a unit test context. Defaults to `False`.
 """
 
 PREFECT_TEST_SETTING = Setting(
@@ -499,7 +521,7 @@ PREFECT_TEST_SETTING = Setting(
     value_callback=only_return_value_in_test_mode,
 )
 """
-This variable only exists to faciliate testing of settings.
+This variable only exists to facilitate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
@@ -536,6 +558,18 @@ If the API does not support HTTP/2, this will have no effect and connections wil
 made via HTTP/1.1.
 """
 
+
+PREFECT_CLIENT_MAX_RETRIES = Setting(int, default=5)
+"""
+The maximum number of retries to perform on failed HTTP requests.
+
+Defaults to 5.
+Set to 0 to disable retries.
+
+See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are 
+retried.
+"""
+
 PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
 """
 A value greater than or equal to zero to control the amount of jitter added to retried
@@ -544,6 +578,7 @@ client requests. Higher values introduce larger amounts of jitter.
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
 """
+
 
 PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
     str, default="", value_callback=status_codes_as_integers_in_range
@@ -838,7 +873,7 @@ PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
 In Prefect 2.6.0, the `State.result()` method was updated to be async
-to faciliate automatic retrieval of results from storage which means when 
+to facilitate automatic retrieval of results from storage which means when
 writing async code you must `await` the call. For backwards compatibility, 
 the result is not retrieved by default for async users. You may opt into this
 per call by passing  `fetch=True` or toggle this setting to change the behavior
@@ -1197,6 +1232,16 @@ Whether or not to enable experimental Prefect artifacts.
 PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect artifacts are used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to enable the experimental workspace dashboard.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
 
@@ -1900,7 +1945,7 @@ def temporary_settings(
 
     See `Settings.copy_with_update` for details on different argument behavior.
 
-    Example:
+    Examples:
         >>> from prefect.settings import PREFECT_API_URL
         >>>
         >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
@@ -2176,6 +2221,8 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
     Any existing data not present in the given `profiles` will be deleted.
     """
+    if not path.exists():
+        path.touch(mode=0o600)
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 
