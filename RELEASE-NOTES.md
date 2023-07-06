@@ -2,8 +2,14 @@
 
 ## Release 2.10.19
 
-### Enhancements
-- Add credentials block support for `git_clone` step — https://github.com/PrefectHQ/prefect/pull/10157
+### Improvements to `git_clone` deployments pull step
+
+In an effort to simplify user interactions and broaden compatibility with various repository services, 
+
+Previously, users had to apply the appropriate format for their service credentials in a `Secret` block using the `access_token` field in `git_clone`. The `git_clone` pull step now includes an additional `credentials` field, allowing users to leverage their existing `GitHubCredentials`, `GitLabCredentials`, or `BitBucketCredentials` blocks when cloning from a private repository. For examples of providing credentials, see the [updated documentation](https://docs.prefect.io/2.10.19/concepts/deployments-ux/#the-pull-action).
+
+For implementation details see:
+- https://github.com/PrefectHQ/prefect/pull/10157
 
 ### Fixes
 - Improve language around `prefect deploy` to not recommend deprecated `flow_name` — https://github.com/PrefectHQ/prefect/pull/10121
