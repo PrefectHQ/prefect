@@ -6,24 +6,24 @@
 - Add credentials block support for `git_clone` step — https://github.com/PrefectHQ/prefect/pull/10157
 
 ### Fixes
-- Improve language around `prefect deploy` to not recommend creating a deployment by flow name — https://github.com/PrefectHQ/prefect/pull/10121
-- Pin pydantic to v1 for now — https://github.com/PrefectHQ/prefect/pull/10144
+- Improve language around `prefect deploy` to not recommend deprecated `flow_name` — https://github.com/PrefectHQ/prefect/pull/10121
+- Pin Pydantic to v1 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10144
+- Add default value of `None` for `WorkQueue.work_pool_id` — https://github.com/PrefectHQ/prefect/pull/10106
 
 ### Experimental
-- Experimental Dashboard UI — https://github.com/PrefectHQ/prefect/pull/10152
+- Add experimental dashboard UI — https://github.com/PrefectHQ/prefect/pull/10152
 
 ### Documentation
-- Add deleting blocks section to docs — https://github.com/PrefectHQ/prefect/pull/10115
+- Add documentation on deleting blocks — https://github.com/PrefectHQ/prefect/pull/10115
 - Add docs tabs linking and styling  — https://github.com/PrefectHQ/prefect/pull/10113
-- Adds code block to blocks core load function doc string — https://github.com/PrefectHQ/prefect/pull/10098
+- Fix block load function docstring code example — https://github.com/PrefectHQ/prefect/pull/10098
+- Fix task tutorial documentation example — https://github.com/PrefectHQ/prefect/pull/10120
+- Clarify heading in rate limits documentation — https://github.com/PrefectHQ/prefect/pull/10148
+- Fix link in events odcumentation — https://github.com/PrefectHQ/prefect/pull/10160
+- Remove outdated disclaimer about configuring webhooks with the Prefect Cloud UI — https://github.com/PrefectHQ/prefect/pull/10167
 
-### Uncategorized
-- docs: tasks.md move retries and retry_delay_seconds to decorator — https://github.com/PrefectHQ/prefect/pull/10120
-- Update rate-limits.md — https://github.com/PrefectHQ/prefect/pull/10148
-- Add Earthdata collection — https://github.com/PrefectHQ/prefect/pull/10151
-- Correct link in events.md — https://github.com/PrefectHQ/prefect/pull/10160
-- Added default value None for "work_pool_id" — https://github.com/PrefectHQ/prefect/pull/10106
-- remove disclaimer that ui is on the roadmap — https://github.com/PrefectHQ/prefect/pull/10167
+### Collections
+- Add `prefect-earthdata` collection — https://github.com/PrefectHQ/prefect/pull/10151
 
 ## New Contributors
 - @rkscodes
