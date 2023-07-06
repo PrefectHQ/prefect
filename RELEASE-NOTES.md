@@ -23,8 +23,8 @@
 - Fix link in events odcumentation — https://github.com/PrefectHQ/prefect/pull/10160
 - Remove outdated disclaimer about configuring webhooks with the Prefect Cloud UI — https://github.com/PrefectHQ/prefect/pull/10167
 
-### Collections
-- Add `prefect-earthdata` collection — https://github.com/PrefectHQ/prefect/pull/10151
+### Integrations
+- Add `prefect-earthdata` integration — https://github.com/PrefectHQ/prefect/pull/10151
 
 ### Contributors
 - @rkscodes
