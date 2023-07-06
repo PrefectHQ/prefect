@@ -23,7 +23,7 @@ del _version, pathlib
 if sys.version_info < (3, 8):
     warnings.warn(
         (
-            "Prefect dropped support for Python 3.7 when it reached end-of-life on 27"
+            "Prefect dropped support for Python 3.7 when it reached end-of-life"
             " . To use new versions of Prefect, you will need"
             " to upgrade to Python 3.8+. See https://devguide.python.org/versions/ for "
             " more details."
