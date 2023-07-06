@@ -873,7 +873,7 @@ class WorkQueue(ORMBaseModel):
     )
     # Will be required after a future migration
     work_pool_id: Optional[UUID] = Field(
-        description="The work pool with which the queue is associated."
+        default=None, description="The work pool with which the queue is associated."
     )
     filter: Optional[QueueFilter] = Field(
         default=None,
