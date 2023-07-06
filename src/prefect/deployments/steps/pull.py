@@ -114,9 +114,7 @@ def git_clone(
         if credentials.get("token"):
             access_token = credentials["token"]
         elif credentials.get("username") and credentials.get("password"):
-            access_token = (
-                f"{credentials['username']}:{credentials['password']}"
-            )
+            access_token = f"{credentials['username']}:{credentials['password']}"
 
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
