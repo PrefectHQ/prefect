@@ -622,9 +622,23 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 class SendgridEmail(AbstractAppriseNotificationBlock):
     """
     Enables sending notifications via any sendgrid account.
+    See [Apprise Notify_sendgrid docs](https://github.com/caronc/apprise/wiki/Notify_Sendgrid)
+
+    Examples:
+        Load a saved Sendgrid and send a email message:
+        ```python
+        from prefect.blocks.notifications import SendgridEmail
+
+        sendgrid_block = MattermostWebhook.load("BLOCK_NAME")
+
+        sendgrid_block.notify("Hello from Prefect!")
     """
 
-    _block_type_name = "Sendgrid email"
+    _description = "Enables sending notifications via Sendgrid email service."
+    _block_type_name = "Sendgrid Email"
+    _block_type_slug = "sendgrid-email"
+    _logo_url = None
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SendgridEmail"
 
     api_key: SecretStr = Field(
         default=...,
@@ -641,7 +655,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     to_emails: List[str] = Field(
         default=...,
         title="Recipient emails",
-        description="Email ids of all recipients",
+        description="Email ids of all recipients.",
         example="recipient1@gmail.com",
     )
 
