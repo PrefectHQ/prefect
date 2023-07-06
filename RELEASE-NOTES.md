@@ -2,7 +2,7 @@
 
 ## Release 2.10.19
 
-### Improvements to `git_clone` deployments pull step
+### Improvements to `git_clone` deployment pull step
 
 In an effort to simplify user interactions and broaden compatibility with various repository services, 
 
