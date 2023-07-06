@@ -14,7 +14,7 @@
 - Add experimental dashboard UI — https://github.com/PrefectHQ/prefect/pull/10152
 
 ### Documentation
-- Update git_clone documentation with examples of using credentials field - https://github.com/PrefectHQ/prefect/pull/10168
+- Update `git_clone` documentation with examples of using credentials field - https://github.com/PrefectHQ/prefect/pull/10168
 - Add documentation on deleting blocks — https://github.com/PrefectHQ/prefect/pull/10115
 - Add docs tabs linking and styling  — https://github.com/PrefectHQ/prefect/pull/10113
 - Fix block load function docstring code example — https://github.com/PrefectHQ/prefect/pull/10098
