@@ -9,6 +9,7 @@ from typing import Optional
 from prefect._internal.compatibility.deprecated import deprecated_callable
 
 from prefect.logging.loggers import get_logger
+from prefect.blocks.core import Block
 
 deployment_logger = get_logger("deployment")
 
@@ -33,6 +34,7 @@ def git_clone(
     branch: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
+    credentials: Optional[Block] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -43,6 +45,8 @@ def git_clone(
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token (str, optional): an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
+        credentials (optional): a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+        credentials to use for cloning the repository.
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -64,6 +68,14 @@ def git_clone(
             - prefect.deployments.steps.git_clone:
                 repository: https://github.com/PrefectHQ/prefect.git
                 branch: my-branch
+        ```
+
+        Clone a private repository using a GitHubCredentials block:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                credentials: "{{ prefect.blocks.github-credentials.my-github-credentials-block }}"
         ```
 
         Clone a private repository using an access token:
@@ -93,6 +105,17 @@ def git_clone(
                 repository: git@github.com:org/repo.git
         ```
     """
+    if access_token and credentials:
+        raise ValueError(
+            "Please provide either an access token or credentials but not both."
+        )
+
+    if credentials:
+        if credentials.get("token"):
+            access_token = credentials["token"]
+        elif credentials.get("username") and credentials.get("password"):
+            access_token = f"{credentials['username']}:{credentials['password']}"
+
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
         updated_components = url_components._replace(
