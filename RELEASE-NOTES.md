@@ -26,7 +26,7 @@
 ### Collections
 - Add `prefect-earthdata` collection — https://github.com/PrefectHQ/prefect/pull/10151
 
-## New Contributors
+## Contributors
 - @rkscodes
 - @StefanBRas
 * @JordonMaule made their first contribution in https://github.com/PrefectHQ/prefect/pull/10120
