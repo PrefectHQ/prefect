@@ -11,7 +11,7 @@ We're excited to make the new Prefect dashboard available as an experimental fea
 
 You can enable the new dashboard by running `prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD=True` in your terminal.
 
-The [this pull request](https://github.com/PrefectHQ/prefect/pull/10152) for for implementation details.
+See [this pull request](https://github.com/PrefectHQ/prefect/pull/10152) for implementation details.
 
 ### Improvements to `git_clone` deployment pull step
 
