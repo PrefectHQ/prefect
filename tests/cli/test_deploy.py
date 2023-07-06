@@ -4324,7 +4324,7 @@ class TestDeployDockerBuildSteps:
                 "Would you like to use the Dockerfile in the current directory?",
                 "A Dockerfile exists. You chose not to use it.",
                 (
-                    "A temporary Dockerfile will be automatically built during the"
+                    "A Dockerfile already exists. Please remove or rename the existing"
                     " deployment build step."
                 ),
             ],
