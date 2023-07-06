@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.10.19
+
+### Enhancements
+- Add credentials block support for `git_clone` step — https://github.com/PrefectHQ/prefect/pull/10157
+
+### Fixes
+- Improve language around `prefect deploy` to not recommend creating a deployment by flow name — https://github.com/PrefectHQ/prefect/pull/10121
+- Pin pydantic to v1 for now — https://github.com/PrefectHQ/prefect/pull/10144
+
+### Experimental
+- Experimental Dashboard UI — https://github.com/PrefectHQ/prefect/pull/10152
+
+### Documentation
+- Add deleting blocks section to docs — https://github.com/PrefectHQ/prefect/pull/10115
+- Add docs tabs linking and styling  — https://github.com/PrefectHQ/prefect/pull/10113
+- Adds code block to blocks core load function doc string — https://github.com/PrefectHQ/prefect/pull/10098
+
+### Uncategorized
+- docs: tasks.md move retries and retry_delay_seconds to decorator — https://github.com/PrefectHQ/prefect/pull/10120
+- Update rate-limits.md — https://github.com/PrefectHQ/prefect/pull/10148
+- Add Earthdata collection — https://github.com/PrefectHQ/prefect/pull/10151
+- Correct link in events.md — https://github.com/PrefectHQ/prefect/pull/10160
+- Added default value None for "work_pool_id" — https://github.com/PrefectHQ/prefect/pull/10106
+- remove disclaimer that ui is on the roadmap — https://github.com/PrefectHQ/prefect/pull/10167
+
+## New Contributors
+- @rkscodes
+- @StefanBRas
+* @JordonMaule made their first contribution in https://github.com/PrefectHQ/prefect/pull/10120
+* @AmanSal1 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10121
+* @giorgiobasile made their first contribution in https://github.com/PrefectHQ/prefect/pull/10151
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.18...2.10.19
+
 ## Release 2.10.18
 
 ### Docker image support during flow deployment
