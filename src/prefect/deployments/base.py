@@ -326,7 +326,7 @@ async def register_flow(entrypoint: str, force: bool = False):
                 f" {flow.name!r}.\nExisting entrypoint: {flows[flow.name]}"
                 f"\nAttempted entrypoint: {entrypoint}"
             )
-        # Entrypoint for
+
     flows[flow.name] = entrypoint
 
     with flows_file.open(mode="w") as f:
