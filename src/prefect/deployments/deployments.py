@@ -262,6 +262,7 @@ class Deployment(BaseModel):
         schedule: A schedule to run this deployment on, once registered
         is_schedule_active: Whether or not the schedule is active
         work_queue_name: The work queue that will handle this deployment's runs
+        work_pool_name: The work pool for the deployment
         flow_name: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this
             deployment
