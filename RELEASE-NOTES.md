@@ -11,7 +11,7 @@ This release resolves bugs preventing UI form inputs from being rendered and par
 
 ### Prefect no longer supports Python 3.7
 
-Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Puython 3.8 or later.
+Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Python 3.8 or later.
 
 ### Enhancements
 - Add UUID validation for webhook CLI commands to raise errors earlier and more clearly — https://github.com/PrefectHQ/prefect/pull/10005
