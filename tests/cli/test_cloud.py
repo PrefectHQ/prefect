@@ -911,7 +911,7 @@ def test_cannot_get_webhook_if_you_are_not_logged_in():
 
     with use_profile(cloud_profile):
         invoke_and_assert(
-            ["cloud", "webhook", "get", "some-random-uuid"],
+            ["cloud", "webhook", "get", str(uuid.uuid4())],
             expected_code=1,
             expected_output=(
                 f"Currently not authenticated in profile {cloud_profile!r}. "
@@ -1353,3 +1353,29 @@ def test_delete_webhook(respx_mock):
             user_input="y" + readchar.key.ENTER,
             expected_output_contains=f"Successfully deleted webhook {webhook_id}",
         )
+
+
+def test_webhook_methods_with_invalid_uuid():
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+    bad_webhook_id = "invalid_uuid"
+
+    with use_profile("logged-in-profile"):
+        for cmd in ["delete", "toggle", "update", "rotate", "get"]:
+            invoke_and_assert(
+                ["cloud", "webhook", cmd, bad_webhook_id],
+                expected_code=2,
+            )

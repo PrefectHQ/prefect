@@ -4,6 +4,7 @@ Command line interface for working with webhooks
 
 import typer
 from typing import List, Dict
+from uuid import UUID
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli.cloud import cloud_app, confirm_logged_in
@@ -53,7 +54,7 @@ async def ls():
 
 
 @webhook_app.command()
-async def get(webhook_id: str):
+async def get(webhook_id: UUID):
     """
     Retrieve a webhook by ID.
     """
@@ -105,7 +106,7 @@ async def create(
 
 
 @webhook_app.command()
-async def rotate(webhook_id: str):
+async def rotate(webhook_id: UUID):
     """
     Rotate url for an existing Cloud webhook, in case it has been compromised
     """
@@ -126,7 +127,7 @@ async def rotate(webhook_id: str):
 
 @webhook_app.command()
 async def toggle(
-    webhook_id: str,
+    webhook_id: UUID,
 ):
     """
     Toggle the enabled status of an existing Cloud webhook
@@ -148,7 +149,7 @@ async def toggle(
 
 @webhook_app.command()
 async def update(
-    webhook_id: str,
+    webhook_id: UUID,
     webhook_name: str = typer.Option(None, "--name", "-n", help="Webhook name"),
     description: str = typer.Option(
         None, "--description", "-d", help="Description of the webhook"
@@ -176,7 +177,7 @@ async def update(
 
 
 @webhook_app.command()
-async def delete(webhook_id: str):
+async def delete(webhook_id: UUID):
     """
     Delete an existing Cloud webhook
     """
