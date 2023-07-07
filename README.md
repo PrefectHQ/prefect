@@ -57,7 +57,7 @@ From here, you can continue to use Prefect interactively or [deploy your flows](
 
 ## Getting Started
 
-Prefect requires Python 3.7 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
+Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
 
 ```bash
 pip install prefect
