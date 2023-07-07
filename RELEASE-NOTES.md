@@ -6,7 +6,7 @@
 
 This off-cycle release resolves bugs preventing UI form inputs from being rendered and parsed correctly, including:
 - Dates & times — https://github.com/PrefectHQ/prefect-ui-library/pull/1554
-- List value selections — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
+- List values — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
 - JSON fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1557
 
 ### Prefect no longer supports Python 3.7
