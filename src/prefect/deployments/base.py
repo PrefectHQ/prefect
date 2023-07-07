@@ -323,8 +323,10 @@ async def register_flow(entrypoint: str, force: bool = False):
         if not force:
             raise ValueError(
                 "Conflicting entry found for flow with name"
-                f" {flow.name!r}:\n{flow.name}: {flows[flow.name]}"
+                f" {flow.name!r}.\nExisting entrypoint: {flows[flow.name]}"
+                f"\nAttempted entrypoint: {entrypoint}"
             )
+        # Entrypoint for
     flows[flow.name] = entrypoint
 
     with flows_file.open(mode="w") as f:
