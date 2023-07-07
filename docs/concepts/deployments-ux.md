@@ -215,6 +215,24 @@ There are three main types of steps that typically show up in a `pull` section:
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
+Below is an example of how to use an existing `GitHubCredentials` block to clone a private GitHub repository:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
+```
+
+Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the 'access_token` field. You can use a Secret block to do this securely:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://bitbucket.org/org/repo.git
+        access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
+```
+
 #### Utility Steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
@@ -248,6 +266,31 @@ pull:
         directory: {{ clone-step.directory }}
         requirements_file: requirements.txt
         stream_output: False
+```
+
+Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
+
+```yaml
+pull:
+- prefect.deployments.steps.run_shell_script:
+    id: get-access-token
+    script: az keyvault secret show --name <secret name> --vault-name <secret vault> --query "value" --output tsv
+    stream_output: false
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: "{{ get-access-token.stdout }}"
+```
+
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
+
+```yaml
+- retrieve_secrets.main:
+    id: get-access-token
+- prefect.deployments.steps.git_clone:
+    repository: https://bitbucket.org/samples/deployments.git
+    branch: master
+    access_token: '{{ get-access-token.access_token }}'
 ```
 
 ### Templating Options
@@ -456,6 +499,7 @@ Below are fields that can be added to each deployment declaration.
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                                       |
 | `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |

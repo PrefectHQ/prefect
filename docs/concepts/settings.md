@@ -26,7 +26,7 @@ This section describes some commonly configured settings for Prefect installatio
 
 ### PREFECT_API_URL
 
-The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or Prefect server instance.
+The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or a Prefect server instance.
 
 For example, using a local Prefect server instance.
 ```bash
@@ -38,6 +38,8 @@ Using Prefect Cloud:
 ```bash
 PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 ```
+
+View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here.
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     When using [workers, agents, and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker or agent is running. 
