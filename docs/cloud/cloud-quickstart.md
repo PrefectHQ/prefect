@@ -75,7 +75,7 @@ $ pip install -U prefect
 </div>
 
 !!! note "Installation requirements"
-    Prefect requires Python 3.7 or later. If you have any questions about Prefect installations requirements or dependencies in your preferred development environment, check out the [Installation](/getting-started/installation/) documentation.
+    Prefect requires Python 3.8 or later. If you have any questions about Prefect installations requirements or dependencies in your preferred development environment, check out the [Installation](/getting-started/installation/) documentation.
 
 ## Log into Prefect Cloud from a terminal
 

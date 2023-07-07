@@ -215,6 +215,24 @@ There are three main types of steps that typically show up in a `pull` section:
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
+Below is an example of how to use an existing `GitHubCredentials` block to clone a private GitHub repository:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
+```
+
+Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the 'access_token` field. You can use a Secret block to do this securely:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://bitbucket.org/org/repo.git
+        access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
+```
+
 #### Utility Steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
