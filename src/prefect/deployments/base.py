@@ -322,12 +322,12 @@ async def register_flow(entrypoint: str, force: bool = False):
     if flow.name in flows and flows[flow.name] != entrypoint:
         if not force:
             raise ValueError(
-                f"Conflicting entry found for flow with name {flow.name!r}. You can try"
-                f" removing the existing entry for {flow.name!r} from your"
-                f' [yellow]~./prefect/flows.json[/yellow]:\n\ne.g.\n\n[yellow]{{\n\t"{flow.name}":'
-                f' "{flows[flow.name]}"\n}}[/yellow]\n\nwould'
-                " become\n\n[yellow]{\n}[/yellow]"
+                f"Conflicting entry found for flow with name {flow.name!r}.\nExisting"
+                f" entrypoint: {flows[flow.name]}\nAttempted entrypoint:"
+                f" {entrypoint}\n\nYou can try removing the existing entry for"
+                f" {flow.name!r} from your [yellow]~./prefect/flows.json[/yellow]."
             )
+
     flows[flow.name] = entrypoint
 
     with flows_file.open(mode="w") as f:
