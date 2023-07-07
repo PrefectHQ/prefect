@@ -22,7 +22,7 @@ Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this
 ### Contributors
 - @toby-coleman
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.19...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.19...2.10.20
 
 ## Release 2.10.19
 
