@@ -629,7 +629,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         ```python
         from prefect.blocks.notifications import SendgridEmail
 
-        sendgrid_block = MattermostWebhook.load("BLOCK_NAME")
+        sendgrid_block = SendgridEmail.load("BLOCK_NAME")
 
         sendgrid_block.notify("Hello from Prefect!")
     """
@@ -637,7 +637,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     _description = "Enables sending notifications via Sendgrid email service."
     _block_type_name = "Sendgrid Email"
     _block_type_slug = "sendgrid-email"
-    _logo_url = None
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/3PcxFuO9XUqs7wU9MiUBMg/af6affa646899cc1712d14b7fc4c0f1f/email__1_.png?h=250"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SendgridEmail"
 
     api_key: SecretStr = Field(
