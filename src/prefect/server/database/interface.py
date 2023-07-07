@@ -8,6 +8,7 @@ from prefect.server.database.alembic_commands import alembic_downgrade, alembic_
 from prefect.server.database.configurations import BaseDatabaseConfiguration
 from prefect.server.database.orm_models import BaseORMConfiguration
 from prefect.server.database.query_components import BaseQueryComponents
+from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -66,6 +67,18 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
+    async def is_db_connectable(self):
+        """
+        Returns boolean indicating if the database is connectable.
+        This method is used to determine if the server is ready to accept requests.
+        """
+        engine = await self.engine()
+        try:
+            async with engine.connect():
+                return True
+        except Exception:
+            return False
+
     async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
@@ -106,6 +119,10 @@ class PrefectDBInterface(metaclass=DBSingleton):
                     yield session
             else:
                 yield session
+
+    @property
+    def dialect(self) -> sa.engine.Dialect:
+        return get_dialect(self.database_config.connection_url)
 
     @property
     def Base(self):

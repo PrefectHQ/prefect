@@ -7,6 +7,8 @@ tags:
   - configuration
   - infrastructure
   - deployments
+search:
+  boost: 2
 ---
 
 # Blocks
@@ -175,6 +177,26 @@ print(json_block.value["the-answer"]) #42
 
 !!! tip "Sharing Blocks"
     Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
+
+### Deleting blocks
+
+You can delete a block by using the `.delete()` method on the block:
+
+```python
+from prefect.blocks.core import Block
+Block.delete("json/life-the-universe-everything")
+```
+
+You can also use the CLI to delete specific blocks with a given slug or id:
+
+```bash
+prefect block delete json/life-the-universe-everything
+```
+
+```bash
+prefect block delete --id <my-id>
+```
+
 
 ## Creating new block types
 

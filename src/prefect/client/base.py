@@ -18,6 +18,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    PREFECT_CLIENT_MAX_RETRIES,
 )
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
@@ -164,8 +165,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
     [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
     """
 
-    RETRY_MAX = 5
-
     async def _send_with_retry(
         self,
         request: Callable,
@@ -175,9 +174,9 @@ class PrefectHttpxClient(httpx.AsyncClient):
         """
         Send a request and retry it if it fails.
 
-        Sends the provided request and retries it up to self.RETRY_MAX times if
-        the request either raises an exception listed in `retry_exceptions` or receives
-        a response with a status code listed in `retry_codes`.
+        Sends the provided request and retries it up to PREFECT_CLIENT_MAX_RETRIES times
+        if the request either raises an exception listed in `retry_exceptions` or
+        receives a response with a status code listed in `retry_codes`.
 
         Retries will be delayed based on either the retry header (preferred) or
         exponential backoff if a retry header is not provided.
@@ -185,7 +184,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         try_count = 0
         response = None
 
-        while try_count <= self.RETRY_MAX:
+        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
             try_count += 1
             retry_seconds = None
             exc_info = None
@@ -193,7 +192,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             try:
                 response = await request()
             except retry_exceptions:  # type: ignore
-                if try_count > self.RETRY_MAX:
+                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
@@ -233,7 +232,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
                     )
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
-                f"This is attempt {try_count}/{self.RETRY_MAX + 1}.",
+                "This is attempt"
+                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)

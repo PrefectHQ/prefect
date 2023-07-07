@@ -8,31 +8,44 @@ tags:
     - tasks
     - flows
     - subflows
+    - deployments
+    - workers
+    - work pools
+search:
+  boost: 2
 ---
 # Tutorial Overview
 
-These tutorials provide examples of Prefect core concepts and step-by-step instructions on how to use them. For specific examples of how to perform more advanced tasks, check out our [guides](/guides/).
+This tutorial provides a step by step walk-through of Prefect core concepts and instructions on how to use them.
 
-If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](/tutorials/first-steps/#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
+By the end of this tutorial you will have:
 
-### Prerequisites
+1. [Created a Flow](/tutorial/flows/)
+2. [Added Tasks to It](/tutorial/tasks/)
+3. [Created a Work Pool](/tutorial/deployments/)
+4. [Deployed a Worker](/tutorial/deployments/)
+5. [Deployed the Flow](/tutorial/deployments/)
+6. [Run the Flow on the Worker](/tutorial/deployments/)
 
-Before you start, install Prefect:
+If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
-<div class="terminal">
-```bash
-pip install -U prefect
-```
-</div>
+## Prerequisites
 
-See the [install guide](/getting-started/installation/) for more detailed instructions.
+1. Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
+      1. See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-### Tutorials
-If you've never used Prefect before, let's start by exploring the core concepts:
+2. Create a GitHub repository for your tutorial, let's call it `prefect-tutorial`.
 
-1. [Flows & tasks](/tutorial/first-steps/) - the core elements of Prefect.
-2. [Configuration](/tutorial/flow-task-config/) - enhance your flows and tasks with parameters, retries, caching, and task runners.
-3. [Execution](/tutorial/execution/) - configure how your flows and tasks run.
-4. [Orchestration](/tutorial/orchestration/) - the components of Prefect that enable coordination and orchestration of your flow and task runs.
-5. [Deployments](/tutorial/deployments/) - enable remote flow run execution.
-6. [Storage & Infrastructure](/tutorial/storage/) - specify where your flow code is stored and how to configure the execution environment.
+3. This tutorial requires a Prefect Server instance, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
+
+## What is Prefect?
+
+Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines. With Prefect, you define workflows as Python code and let it handle the rest.
+
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
+
+Just bring your Python code, sprinkle in a few decorators, and go!
+
+### Reference Material
+If you've never used Prefect before, check out the [core concepts docs](/concepts/).
+Many of these concepts will be introduced in the tutorial, however, the concept docs provide a more comprehensive overview of each concept.

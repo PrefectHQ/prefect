@@ -5,9 +5,10 @@ from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock
+from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
-
+from prefect.utilities.templating import apply_values, find_placeholders
 
 PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
@@ -487,3 +488,132 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
             ).url()
         )
         self._start_apprise_client(url)
+
+
+class CustomWebhookNotificationBlock(NotificationBlock):
+    """
+    Enables sending notifications via any custom webhook.
+
+    All nested string param contains `{{key}}` will be substituted with value from context/secrets.
+
+    Context values include: `subject`, `body` and `name`.
+
+    Examples:
+        Load a saved custom webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import CustomWebhookNotificationBlock
+
+        custom_webhook_block = CustomWebhookNotificationBlock.load("BLOCK_NAME")
+
+        custom_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _block_type_name = "Custom Webhook"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
+
+    name: str = Field(title="Name", description="Name of the webhook.")
+
+    url: str = Field(
+        title="Webhook URL",
+        description="The webhook URL.",
+        example="https://hooks.slack.com/XXX",
+    )
+
+    method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
+        default="POST", description="The webhook request method. Defaults to `POST`."
+    )
+
+    params: Optional[Dict[str, str]] = Field(
+        default=None, title="Query Params", description="Custom query params."
+    )
+    json_data: Optional[dict] = Field(
+        default=None,
+        title="JSON Data",
+        description="Send json data as payload.",
+        example=(
+            '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
+            ' "{{tokenFromSecrets}}"}'
+        ),
+    )
+    form_data: Optional[Dict[str, str]] = Field(
+        default=None,
+        title="Form Data",
+        description=(
+            "Send form data as payload. Should not be used together with _JSON Data_."
+        ),
+        example=(
+            '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
+            ' "{{tokenFromSecrets}}"}'
+        ),
+    )
+
+    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers.")
+    cookies: Optional[Dict[str, str]] = Field(None, description="Custom cookies.")
+
+    timeout: float = Field(
+        default=10, description="Request timeout in seconds. Defaults to 10."
+    )
+
+    secrets: SecretDict = Field(
+        default_factory=lambda: SecretDict(dict()),
+        title="Custom Secret Values",
+        description="A dictionary of secret values to be substituted in other configs.",
+        example='{"tokenFromSecrets":"SomeSecretToken"}',
+    )
+
+    def _build_request_args(self, body: str, subject: Optional[str]):
+        """Build kwargs for httpx.AsyncClient.request"""
+        # prepare values
+        values = self.secrets.get_secret_value()
+        # use 'null' when subject is None
+        values.update(
+            {
+                "subject": "null" if subject is None else subject,
+                "body": body,
+                "name": self.name,
+            }
+        )
+        # do substution
+        return apply_values(
+            {
+                "method": self.method,
+                "url": self.url,
+                "params": self.params,
+                "data": self.form_data,
+                "json": self.json_data,
+                "headers": self.headers,
+                "cookies": self.cookies,
+                "timeout": self.timeout,
+            },
+            values,
+        )
+
+    def block_initialization(self) -> None:
+        # check form_data and json_data
+        if self.form_data is not None and self.json_data is not None:
+            raise ValueError("both `Form Data` and `JSON Data` provided")
+        allowed_keys = {"subject", "body", "name"}.union(
+            self.secrets.get_secret_value().keys()
+        )
+        # test template to raise a error early
+        for name in ["url", "params", "form_data", "json_data", "headers", "cookies"]:
+            template = getattr(self, name)
+            if template is None:
+                continue
+            # check for placeholders not in predefined keys and secrets
+            placeholders = find_placeholders(template)
+            for placeholder in placeholders:
+                if placeholder.name not in allowed_keys:
+                    raise KeyError(f"{name}/{placeholder}")
+
+    @sync_compatible
+    @instrument_instance_method_call()
+    async def notify(self, body: str, subject: Optional[str] = None):
+        import httpx
+
+        # make request with httpx
+        client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
+        resp = await client.request(**self._build_request_args(body, subject))
+        resp.raise_for_status()
