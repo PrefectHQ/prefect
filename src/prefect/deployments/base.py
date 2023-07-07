@@ -325,8 +325,8 @@ async def register_flow(entrypoint: str, force: bool = False):
                 "Conflicting entry found for flow with name"
                 f" {flow.name!r}.\nExisting entrypoint: {flows[flow.name]}"
                 f"\nAttempted entrypoint: {entrypoint}"
-                "\n\nIf you have an existing ~/.prefect/flows.json file, you can"
-                f" try removing the entry for {flow.name!r}."
+                "\n\nIf you have a ~/.prefect/flows.json file, you can"
+                f" try removing the existing entry for {flow.name!r}."
             )
     flows[flow.name] = entrypoint
 
