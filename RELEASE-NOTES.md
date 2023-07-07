@@ -4,7 +4,7 @@
 
 ### Resolving UI form input issues
 
-This off-cycle release resolves bugs preventing UI form inputs from being rendered and parsed correctly, including:
+This release resolves bugs preventing UI form inputs from being rendered and parsed correctly, including:
 - Dates & times — https://github.com/PrefectHQ/prefect-ui-library/pull/1554
 - List values — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
 - JSON fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1557
