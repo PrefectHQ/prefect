@@ -4,7 +4,10 @@
 
 ### Resolving UI form input issues
 
-This off-cycle release resolves bugs preventing UI form inputs from being rendered and parsed correctly. 
+This off-cycle release resolves bugs preventing UI form inputs from being rendered and parsed correctly, including:
+- Dates & times — https://github.com/PrefectHQ/prefect-ui-library/pull/1554
+- List value selections — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
+- JSON fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1557
 
 ### Prefect no longer supports Python 3.7
 
@@ -15,11 +18,6 @@ Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this
 - Clarify Dockerfile rename language in `prefect deploy` CLI prompt — https://github.com/PrefectHQ/prefect/pull/10124
 - Improve `prefect deploy` error message — https://github.com/PrefectHQ/prefect/pull/10175
 - Add `work_pool_name` to `Deployment` docstring — https://github.com/PrefectHQ/prefect/pull/10174
-
-### Fixes
-- Unable to select correct date/time for deployment flow run parameters — https://github.com/PrefectHQ/prefect-ui-library/pull/1554
-- List[Literal] input selection not working as expected — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
-- JSON fields incorrectly escaping values — https://github.com/PrefectHQ/prefect-ui-library/pull/1557
 
 ### Contributors
 - @toby-coleman
