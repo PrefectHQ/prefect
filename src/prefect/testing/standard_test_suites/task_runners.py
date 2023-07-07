@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import time
 from abc import ABC, abstractmethod
 from functools import partial
@@ -463,10 +462,6 @@ class TaskRunnerStandardTestSuite(ABC):
         if os.environ.get("CI"):
             # CI machines are slow
             sleep_time += 3
-
-        if sys.version_info < (3, 8):
-            # Python 3.7 is slower
-            sleep_time += 0.5
 
         return sleep_time
 
