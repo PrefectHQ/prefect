@@ -247,7 +247,11 @@ async def deploy(
                 ci=ci,
             )
         else:
-            options["names"] = names
+            # Accomodate passing in -n flow-name/deployment-name as well as -n deployment-name
+            options["names"] = [
+                name.split("/", 1)[-1] if "/" in name else name for name in names
+            ]
+
             await _run_single_deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
                 actions=actions,
@@ -1090,12 +1094,50 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         # and we are not in interactive mode
         return deploy_configs
     elif len(names) >= 1:
-        # Return all deployment configurations with the given names
-        matched_deploy_configs = [
-            deploy_config
-            for deploy_config in deploy_configs
-            if deploy_config.get("name") in names
-        ]
+        matched_deploy_configs = []
+        for name in names:
+            # If a user provides a deployment in a flow-name/deployment-name format
+            if "/" in name:
+                flow_name, deployment_name = name.split("/")
+                flow_name = flow_name.replace("-", "_")
+                for deploy_config in deploy_configs:
+                    entrypoint = deploy_config.get("entrypoint")
+                    entrypoint_flow_name = (
+                        entrypoint.split(":")[1] if entrypoint else None
+                    )
+                    if entrypoint_flow_name:
+                        if (
+                            deploy_config.get("name") == deployment_name
+                            and entrypoint_flow_name == flow_name
+                        ):
+                            matched_deploy_configs.append(deploy_config)
+            else:
+                # If provided a deployment name, find matching deployment
+                matches_for_that_name = [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == name
+                ]
+                # If more than one deployment has the same name, prompt the user to select one
+                if len(matches_for_that_name) > 1:
+                    selected_matching_deployment = prompt_select_from_table(
+                        app.console,
+                        (
+                            "Found multiple deployment configurations with the name"
+                            f" [yellow]{name}[/yellow]. Please select the one you would"
+                            " like to deploy:"
+                        ),
+                        [
+                            {"header": "Name", "key": "name"},
+                            {"header": "Entrypoint", "key": "entrypoint"},
+                            {"header": "Description", "key": "description"},
+                        ],
+                        matches_for_that_name,
+                    )
+                    matched_deploy_configs.append(selected_matching_deployment)
+                elif matches_for_that_name:
+                    matched_deploy_configs.extend(matches_for_that_name)
+
         unfound_names = set(names) - {
             deploy_config.get("name") for deploy_config in matched_deploy_configs
         }
