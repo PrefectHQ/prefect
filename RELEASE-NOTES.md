@@ -15,7 +15,7 @@ Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this
 
 ### Enhancements
 - Add UUID validation for webhook CLI commands to raise errors earlier and more clearly — https://github.com/PrefectHQ/prefect/pull/10005
-- Clarify Dockerfile rename language in `prefect deploy` CLI prompt — https://github.com/PrefectHQ/prefect/pull/10124
+- Clarify Dockerfile rename prompt in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10124
 - Improve `prefect deploy` error message — https://github.com/PrefectHQ/prefect/pull/10175
 - Add `work_pool_name` to `Deployment` docstring — https://github.com/PrefectHQ/prefect/pull/10174
 
