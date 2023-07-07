@@ -35,7 +35,6 @@ markdown_extensions:
         - pymdownx.emoji:
                   emoji_index: !!python/name:materialx.emoji.twemoji
                   emoji_generator: !!python/name:materialx.emoji.to_svg
-
 theme:
         name: material
         custom_dir: docs/overrides
@@ -297,7 +296,6 @@ nav:
                   - Style: contributing/style.md
                   - Versioning: contributing/versioning.md
                   - Troubleshooting: contributing/common-mistakes.md
-
 extra:
         version:
                 provider: mike
