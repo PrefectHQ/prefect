@@ -16,6 +16,11 @@ Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this
 - Improve `prefect deploy` error message — https://github.com/PrefectHQ/prefect/pull/10175
 - Add `work_pool_name` to `Deployment` docstring — https://github.com/PrefectHQ/prefect/pull/10174
 
+### Fixes
+- Unable to select correct date/time for deployment flow run parameters — https://github.com/PrefectHQ/prefect-ui-library/pull/1554
+- List[Literal] input selection not working as expected — https://github.com/PrefectHQ/prefect-ui-library/pull/1556
+- JSON fields incorrectly escaping values — https://github.com/PrefectHQ/prefect-ui-library/pull/1557
+
 ### Contributors
 - @toby-coleman
 
