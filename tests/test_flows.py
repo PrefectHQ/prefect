@@ -242,10 +242,10 @@ class TestFlowWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
-            on_completion=[],
-            on_failure=[],
-            on_cancellation=[],
-            on_crashed=[],
+            on_completion=None,
+            on_failure=None,
+            on_cancellation=None,
+            on_crashed=None,
         )
         def initial_flow():
             pass
