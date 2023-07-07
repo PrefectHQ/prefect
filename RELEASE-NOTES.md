@@ -1,5 +1,26 @@
 # Prefect Release Notes
 
+## Release 2.10.20
+
+### Resolving UI form input issues
+
+This off-cycle release resolves bugs preventing UI form inputs from being rendered and parsed correctly. 
+
+### Prefect no longer supports Python 3.7
+
+Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Puython 3.8 or later.
+
+### Enhancements
+- Add UUID validation for webhook, so they fail erlier and more clearly — https://github.com/PrefectHQ/prefect/pull/10005
+- Clarify Dockerfile rename language in `prefect deploy` CLI prompt — https://github.com/PrefectHQ/prefect/pull/10124
+- Improve `prefect deploy` error message — https://github.com/PrefectHQ/prefect/pull/10175
+- Add `work_pool_name` to `Deployment` docstring — https://github.com/PrefectHQ/prefect/pull/10174
+
+### Contributors
+- @toby-coleman
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.19...preview
+
 ## Release 2.10.19
 
 ### Peer into the future with the experimental dashboard
@@ -380,7 +401,6 @@ See these two pull requests for implementation details:
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.12...2.10.13
 
 ## Release 2.10.12
-
 
 ### The deployments page is back
 
