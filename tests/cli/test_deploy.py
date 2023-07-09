@@ -521,7 +521,7 @@ class TestProjectDeploySingleDeploymentYAML:
             invoke_and_assert,
             command="deploy",
             expected_code=1,
-            expected_output_contains="An entrypoint or flow name must be provided.",
+            expected_output_contains="An entrypoint must be provided:",
         )
 
     @pytest.mark.usefixtures(
@@ -1524,7 +1524,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy -n test-name",
             expected_code=1,
-            expected_output_contains="An entrypoint or flow name must be provided.",
+            expected_output_contains="An entrypoint must be provided:",
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
@@ -2720,7 +2720,7 @@ class TestMultiDeploy:
             command="deploy",
             expected_code=1,
             expected_output_contains=[
-                "An entrypoint or flow name must be provided.",
+                "An entrypoint must be provided:",
             ],
         )
 
@@ -4268,7 +4268,7 @@ class TestDeployDockerBuildSteps:
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
                 "Would you like to use the Dockerfile in the current directory?",
-                "A Dockerfile exists but you chose not to use it.",
+                "A Dockerfile exists. You chose not to use it.",
                 "Image prefecthq/prefect/test-name:latest will be built",
                 "Would you like to push this image to a remote registry?",
                 "Would you like to save configuration for this deployment",
@@ -4322,7 +4322,7 @@ class TestDeployDockerBuildSteps:
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
                 "Would you like to use the Dockerfile in the current directory?",
-                "A Dockerfile exists but you chose not to use it.",
+                "A Dockerfile exists. You chose not to use it.",
                 (
                     "A Dockerfile already exists. Please remove or rename the existing"
                     " one."
