@@ -105,6 +105,29 @@ watch:
   - mkdocs.yml
   - mkdocs.insiders.yml
   - src/prefect/
+extra:
+  version:
+    provider: mike
+analytics:
+  provider: custom
+  property: G-3M31G9B0QJ
+  amplitude_key: !ENV [AMPLITUDE_API_KEY, ""]
+  amplitude_url: !ENV [AMPLITUDE_URL, "https://api2.amplitude.com/2/httpapi"]
+  feedback:
+    title: Was this page helpful?
+    ratings:
+      - icon: material/emoticon-happy-outline
+        name: This page was helpful
+        data: 1
+        note: >-
+          Thank you for your feedback!
+      - icon: material/emoticon-sad-outline
+        name: This page could be improved
+        data: 0
+        note: >-
+          Thank you for your feedback! Feel free to
+          <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
+          target="_blank"> open an issue </a> with more detail.
 nav:
   - Getting Started:
       - index.md
@@ -294,29 +317,6 @@ nav:
       - Style: contributing/style.md
       - Versioning: contributing/versioning.md
       - Troubleshooting: contributing/common-mistakes.md
-# extra:
-#   version:
-#     provider: mike
-# analytics:
-#   provider: custom
-#   property: G-3M31G9B0QJ
-#   amplitude_key: !ENV [AMPLITUDE_API_KEY, ""]
-#   amplitude_url: !ENV [AMPLITUDE_URL, "https://api2.amplitude.com/2/httpapi"]
-#   feedback:
-#     title: Was this page helpful?
-#     ratings:
-#       - icon: material/emoticon-happy-outline
-#         name: This page was helpful
-#         data: 1
-#         note: >-
-#           Thank you for your feedback!
-#       - icon: material/emoticon-sad-outline
-#         name: This page could be improved
-#         data: 0
-#         note: >-
-#           Thank you for your feedback! Feel free to
-#           <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
-#           target="_blank"> open an issue </a> with more detail.
 # social:
 #   - icon: fontawesome/brands/slack
 #     link: https://www.prefect.io/slack/
