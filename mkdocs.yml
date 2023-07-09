@@ -105,9 +105,11 @@ watch:
   - mkdocs.yml
   - mkdocs.insiders.yml
   - src/prefect/
+
 extra:
   version:
     provider: mike
+
 analytics:
   provider: custom
   property: G-3M31G9B0QJ
