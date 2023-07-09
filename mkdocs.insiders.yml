@@ -7,5 +7,5 @@ plugins:
   social:
     cards: !ENV [DOC_PROD, True]
     cards_color:
-      fill: '#115AF4'
+      fill: "#115AF4"
   typeset:
