@@ -10,6 +10,13 @@ extra_css:
         - stylesheets/syntax_highlights.css
         - stylesheets/termynal.css
         - stylesheets/extra.css
+        - stylesheets/theme.css
+        - stylesheets/admonitions.css
+        - stylesheets/api_ref.css
+        - stylesheets/rest_ref.css
+        - stylesheets/syntax_highlights.css
+        - stylesheets/termynal.css
+        - stylesheets/extra.css
 extra_javascript:
         - js/custom.js
         - js/termynal.js
