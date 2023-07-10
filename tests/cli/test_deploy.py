@@ -4112,7 +4112,6 @@ class TestCheckForMatchingDeployment:
                 deployment_with_same_entrypoint_but_different_name
             )
         )
-
         assert not matching_deployment_exists_1
 
         deployment_with_same_name_but_different_entrypoint = {
