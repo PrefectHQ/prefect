@@ -18,7 +18,7 @@ search:
 
 ![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
 
-Work pools, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, spending on your configuration.
+Work pools, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, depending on your configuration.
 
 Each work pool has a default queue that all runs will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
 
@@ -109,7 +109,7 @@ By default, the agent begins submission of flow runs a short time (10 seconds) b
 
 ## Work pool overview
 
-Work pools organize work for execution. Work pools have types that indicate what type of infrastructure will be exeecuting the flow code, as well as the delivery method of work to that environment. Pull work pools require [agents](#agent-overview) or [workers](#worker-overview) to poll the work pool for flow runs to execute. Push work pools can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
+Work pools organize work for execution. Work pools have types that indicate what type of infrastructure will be executing the flow code, as well as the delivery method of work to that environment. Pull work pools require [agents](#agent-overview) or [workers](#worker-overview) to poll the work pool for flow runs to execute. Push work pools can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
 
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) agents through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
