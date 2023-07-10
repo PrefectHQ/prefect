@@ -3041,6 +3041,84 @@ class TestMultiDeploy:
             ],
         )
 
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_with_two_deployments_with_same_name_interactive_prompts_select(
+        self, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n 'test-name-1'",
+            user_input=(
+                # Select the second flow named my_flow2
+                readchar.key.DOWN
+                + readchar.key.ENTER
+                +
+                # Reject scheduling when flow runs
+                "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Found multiple deployment configurations with the name test-name-1",
+                "'Second important name/test-name-1' successfully created",
+            ],
+        )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_two_deployments_with_same_name_noninteractive_deploys_both(
+        self, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow2",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n 'test-name-1'",
+            expected_code=0,
+            expected_output_contains=[
+                "Deploying flows with selected deployment configurations...",
+                "'An important name/test-name-1' successfully created",
+                "'Second important name/test-name-1' successfully created",
+            ],
+        )
+
     async def test_deploy_warns_with_single_deployment_and_multiple_names(
         self, project_dir, work_pool
     ):
