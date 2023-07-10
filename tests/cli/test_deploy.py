@@ -2847,6 +2847,9 @@ class TestMultiDeploy:
                 ),
                 "An important name/test-name-1",
             ],
+            expected_output_does_not_contain=[
+                "An important name/test-name-3",
+            ],
         )
 
         # Check if the deployment was created correctly
@@ -2855,6 +2858,11 @@ class TestMultiDeploy:
         )
         assert deployment.name == "test-name-1"
         assert deployment.work_pool_name == work_pool.name
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-3"
+            )
 
     @pytest.mark.parametrize(
         "deploy_names",
@@ -2866,7 +2874,7 @@ class TestMultiDeploy:
         ],
     )
     async def test_deploy_multiple_nonexistent_deployments_raises(
-        self, deploy_names, work_pool
+        self, deploy_names, work_pool, prefect_client
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -2907,6 +2915,16 @@ class TestMultiDeploy:
                 ),
             ],
         )
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-3"
+            )
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-4"
+            )
 
     @pytest.mark.parametrize(
         "deploy_names",
@@ -3043,7 +3061,7 @@ class TestMultiDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_two_deployments_with_same_name_interactive_prompts_select(
-        self, work_pool
+        self, work_pool, prefect_client
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3084,9 +3102,21 @@ class TestMultiDeploy:
             ],
         )
 
+        # Check if the deployment was created correctly
+        deployment = await prefect_client.read_deployment_by_name(
+            "Second important name/test-name-1"
+        )
+        assert deployment.name == "test-name-1"
+        assert deployment.work_pool_name == work_pool.name
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-1"
+            )
+
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_two_deployments_with_same_name_noninteractive_deploys_both(
-        self, work_pool
+        self, work_pool, prefect_client
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3118,6 +3148,19 @@ class TestMultiDeploy:
                 "'Second important name/test-name-1' successfully created",
             ],
         )
+
+        # Check if the deployments were created correctly
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment1.name == "test-name-1"
+        assert deployment1.work_pool_name == work_pool.name
+
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "Second important name/test-name-1"
+        )
+        assert deployment2.name == "test-name-1"
+        assert deployment2.work_pool_name == work_pool.name
 
     async def test_deploy_warns_with_single_deployment_and_multiple_names(
         self, project_dir, work_pool
