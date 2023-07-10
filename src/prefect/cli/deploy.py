@@ -1095,6 +1095,7 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         return deploy_configs
     elif len(names) >= 1:
         matched_deploy_configs = []
+        deployment_names = []
         for name in names:
             # If a user provides a deployment in a flow-name/deployment-name format
             if "/" in name:
@@ -1111,6 +1112,8 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
                             and entrypoint_flow_name == flow_name
                         ):
                             matched_deploy_configs.append(deploy_config)
+                deployment_names.append(deployment_name)
+
             else:
                 # If provided a deployment name, find matching deployment
                 matches_for_that_name = [
@@ -1137,15 +1140,17 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
                     matched_deploy_configs.append(selected_matching_deployment)
                 elif matches_for_that_name:
                     matched_deploy_configs.extend(matches_for_that_name)
+                deployment_names.append(name)
 
-        unfound_names = set(names) - {
+        unfound_names = set(deployment_names) - {
             deploy_config.get("name") for deploy_config in matched_deploy_configs
         }
+
         if unfound_names:
             app.console.print(
                 (
                     "The following deployment(s) could not be found and will not be"
-                    f" deployed: {' ,'.join(list(unfound_names))}"
+                    f" deployed: {', '.join(list(sorted(unfound_names)))}"
                 ),
                 style="yellow",
             )
@@ -1153,7 +1158,7 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
             app.console.print(
                 (
                     "Could not find any deployment configurations with the given"
-                    f" name(s): {' ,'.join(names)}. Your flow will be deployed with a"
+                    f" name(s): {', '.join(names)}. Your flow will be deployed with a"
                     " new deployment configuration."
                 ),
                 style="yellow",
