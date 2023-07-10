@@ -2965,8 +2965,6 @@ class TestMultiDeploy:
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
 
-        prefect_file.unlink()
-
     async def test_deploy_exits_with_multiple_deployments_with_no_name(
         self, project_dir
     ):
@@ -3988,27 +3986,31 @@ class TestCheckForMatchingDeployment:
             "name": "new_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
         }
-        matching_deployment_exists_1 = not any(
+        matching_deployment_exists_1 = any(
             d["name"] == deployment_with_same_entrypoint_but_different_name["name"]
             and d["entrypoint"]
             == deployment_with_same_entrypoint_but_different_name["entrypoint"]
             for d in config["deployments"]
         )
 
-        assert matching_deployment_exists_1, "Found a deployment that shouldn't exist."
+        assert (
+            not matching_deployment_exists_1
+        ), "Found a deployment that shouldn't exist."
 
         deployment_with_same_name_but_different_entrypoint = {
             "name": "new_deployment",
             "entrypoint": "flows/new_flow.py:my_flow",
         }
-        matching_deployment_exists_2 = not any(
+        matching_deployment_exists_2 = any(
             d["name"] == deployment_with_same_name_but_different_entrypoint["name"]
             and d["entrypoint"]
             == deployment_with_same_name_but_different_entrypoint["entrypoint"]
             for d in config["deployments"]
         )
 
-        assert matching_deployment_exists_2, "Found a deployment that shouldn't exist."
+        assert (
+            not matching_deployment_exists_2
+        ), "Found a deployment that shouldn't exist."
 
 
 class TestDeploymentTriggerSyncing:
