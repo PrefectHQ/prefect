@@ -222,7 +222,7 @@ class TestRegisterFlow:
 class TestDiscoverFlows:
     async def test_find_all_flows_in_dir_tree(self, project_dir):
         flows = await _search_for_flow_functions(str(project_dir))
-        assert len(flows) == 5
+        assert len(flows) == 6
         assert sorted(flows, key=lambda f: f["function_name"]) == [
             {
                 "flow_name": "foobar",
