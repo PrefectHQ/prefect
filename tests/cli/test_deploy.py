@@ -4078,7 +4078,7 @@ class TestCheckForMatchingDeployment:
                 new_deployment
             )
         )
-        assert matching_deployment_exists, "No matching deployment found in the check."
+        assert matching_deployment_exists is True
 
     async def test_no_matching_deployment_in_prefect_file_returns_false(self):
         deployment = {
@@ -4101,37 +4101,31 @@ class TestCheckForMatchingDeployment:
             for d in config["deployments"]
         )
 
-        assert matching_deployment_exists, "Original deployment was not found."
+        assert matching_deployment_exists
 
         deployment_with_same_entrypoint_but_different_name = {
             "name": "new_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
         }
-        matching_deployment_exists_1 = any(
-            d["name"] == deployment_with_same_entrypoint_but_different_name["name"]
-            and d["entrypoint"]
-            == deployment_with_same_entrypoint_but_different_name["entrypoint"]
-            for d in config["deployments"]
+        matching_deployment_exists_1 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_entrypoint_but_different_name
+            )
         )
 
-        assert (
-            not matching_deployment_exists_1
-        ), "Found a deployment that shouldn't exist."
+        assert not matching_deployment_exists_1
 
         deployment_with_same_name_but_different_entrypoint = {
             "name": "new_deployment",
             "entrypoint": "flows/new_flow.py:my_flow",
         }
-        matching_deployment_exists_2 = any(
-            d["name"] == deployment_with_same_name_but_different_entrypoint["name"]
-            and d["entrypoint"]
-            == deployment_with_same_name_but_different_entrypoint["entrypoint"]
-            for d in config["deployments"]
+        matching_deployment_exists_2 = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deployment_with_same_name_but_different_entrypoint
+            )
         )
 
-        assert (
-            not matching_deployment_exists_2
-        ), "Found a deployment that shouldn't exist."
+        assert not matching_deployment_exists_2
 
 
 class TestDeploymentTriggerSyncing:
