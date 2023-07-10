@@ -1112,12 +1112,12 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
 
             else:
                 # If deployment-name format
-                matching_deployment_name = [
+                matching_deployment = [
                     deploy_config
                     for deploy_config in deploy_configs
                     if deploy_config.get("name") == name
                 ]
-                if len(matching_deployment_name) > 1:
+                if len(matching_deployment) > 1 and is_interactive() and not ci:
                     user_selected_matching_deployment = prompt_select_from_table(
                         app.console,
                         (
@@ -1130,11 +1130,11 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
                             {"header": "Entrypoint", "key": "entrypoint"},
                             {"header": "Description", "key": "description"},
                         ],
-                        matching_deployment_name,
+                        matching_deployment,
                     )
                     matched_deploy_configs.append(user_selected_matching_deployment)
-                elif matching_deployment_name:
-                    matched_deploy_configs.extend(matching_deployment_name)
+                elif matching_deployment:
+                    matched_deploy_configs.extend(matching_deployment)
                 deployment_names.append(name)
 
         unfound_names = set(deployment_names) - {
