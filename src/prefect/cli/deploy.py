@@ -247,7 +247,7 @@ async def deploy(
                 ci=ci,
             )
         else:
-            # Accomodate passing in -n flow-name/deployment-name as well as -n deployment-name
+            # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
             options["names"] = [
                 name.split("/", 1)[-1] if "/" in name else name for name in names
             ]
@@ -1097,33 +1097,28 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         matched_deploy_configs = []
         deployment_names = []
         for name in names:
-            # If a user provides a deployment in a flow-name/deployment-name format
+            # if flow-name/deployment-name format
             if "/" in name:
                 flow_name, deployment_name = name.split("/")
                 flow_name = flow_name.replace("-", "_")
-                for deploy_config in deploy_configs:
-                    entrypoint = deploy_config.get("entrypoint")
-                    entrypoint_flow_name = (
-                        entrypoint.split(":")[1] if entrypoint else None
-                    )
-                    if entrypoint_flow_name:
-                        if (
-                            deploy_config.get("name") == deployment_name
-                            and entrypoint_flow_name == flow_name
-                        ):
-                            matched_deploy_configs.append(deploy_config)
+                matched_deploy_configs += [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == deployment_name
+                    and (deploy_config.get("entrypoint") or "").split(":")[1]
+                    == flow_name
+                ]
                 deployment_names.append(deployment_name)
 
             else:
-                # If provided a deployment name, find matching deployment
-                matches_for_that_name = [
+                # If deployment-name format
+                matching_deployment_name = [
                     deploy_config
                     for deploy_config in deploy_configs
                     if deploy_config.get("name") == name
                 ]
-                # If more than one deployment has the same name, prompt the user to select one
-                if len(matches_for_that_name) > 1:
-                    selected_matching_deployment = prompt_select_from_table(
+                if len(matching_deployment_name) > 1:
+                    user_selected_matching_deployment = prompt_select_from_table(
                         app.console,
                         (
                             "Found multiple deployment configurations with the name"
@@ -1135,11 +1130,11 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
                             {"header": "Entrypoint", "key": "entrypoint"},
                             {"header": "Description", "key": "description"},
                         ],
-                        matches_for_that_name,
+                        matching_deployment_name,
                     )
-                    matched_deploy_configs.append(selected_matching_deployment)
-                elif matches_for_that_name:
-                    matched_deploy_configs.extend(matches_for_that_name)
+                    matched_deploy_configs.append(user_selected_matching_deployment)
+                elif matching_deployment_name:
+                    matched_deploy_configs.extend(matching_deployment_name)
                 deployment_names.append(name)
 
         unfound_names = set(deployment_names) - {
