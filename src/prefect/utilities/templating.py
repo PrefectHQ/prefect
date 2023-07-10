@@ -17,6 +17,7 @@ T = TypeVar("T", str, int, float, bool, dict, list, None)
 PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]$\]]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
+ENV_VAR_PLACEHOLDER_PREFIX = "$"
 
 
 class PlaceholderType(enum.Enum):
@@ -46,7 +47,7 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.BLOCK_DOCUMENT
     elif name.startswith(VARIABLE_PLACEHOLDER_PREFIX):
         return PlaceholderType.VARIABLE
-    elif name.startswith("$"):
+    elif name.startswith(ENV_VAR_PLACEHOLDER_PREFIX):
         return PlaceholderType.ENV_VAR
     else:
         return PlaceholderType.STANDARD
@@ -131,7 +132,7 @@ def apply_values(
                 if placeholder_type is PlaceholderType.STANDARD:
                     value = get_from_dict(values, name, NotSet)
                 elif placeholder_type is PlaceholderType.ENV_VAR:
-                    name = name.lstrip("$")
+                    name = name.lstrip(ENV_VAR_PLACEHOLDER_PREFIX)
                     value = os.environ.get(name, NotSet)
                 else:
                     continue
