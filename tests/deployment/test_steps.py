@@ -504,8 +504,10 @@ class TestRunShellScript:
         assert out == ""
         assert err.strip() == "Error Message"
 
-    async def test_run_shell_script_with_env(self, capsys):
-        script = "bash -c 'echo $TEST_ENV_VAR'"
+    @pytest.mark.parametrize(
+        "script", ["bash -c 'echo $TEST_ENV_VAR'", "echo $TEST_ENV_VAR"]
+    )
+    async def test_run_shell_script_with_env(self, script, capsys):
         result = await run_shell_script(
             script, env={"TEST_ENV_VAR": "Test Value"}, stream_output=True
         )

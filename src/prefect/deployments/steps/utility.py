@@ -25,6 +25,7 @@ from anyio.streams.text import TextReceiveStream
 import io
 import os
 import shlex
+import string
 import subprocess
 import sys
 from typing import Optional, Dict
@@ -136,11 +137,6 @@ async def run_shell_script(
                 script: |
                     echo "User: $USER"
                     echo "Home Directory: $HOME"
-                    echo "Host Name: $(hostname)"
-                    echo "Operating System: $(uname -s)"
-                    echo "OS Version: $(uname -v)"
-                    echo "Processor Architecture: $(uname -m)"
-                    echo "Current Working Directory: $(pwd)"
                 stream_output: true
         ```
 
@@ -168,7 +164,8 @@ async def run_shell_script(
 
     for command in commands:
         if expand_env_vars:
-            command = os.path.expandvars(command)
+            # Expand environment variables in command and provided environment
+            command = string.Template(command).safe_substitute(current_env)
         split_command = shlex.split(command)
         if not split_command:
             continue
