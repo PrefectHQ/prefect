@@ -87,6 +87,8 @@ async def run_shell_script(
         env: A dictionary of environment variables to set for the script
         stream_output: Whether to stream the output of the script to
             stdout/stderr
+        expand_env_vars: Whether to expand environment variables in the script
+            before running it
 
     Returns:
         A dictionary with the keys `stdout` and `stderr` containing the output

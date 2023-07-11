@@ -253,6 +253,18 @@ build:
         dockerfile: auto
 ```
 
+!!! warning "Provided environment variables are expanded by default"
+    For example, if the `script`provided to `run_shell_script` contains a reference to an environment variable, like
+
+    ```yaml
+    - prefect.deployments.steps.run_shell_script:
+        id: get-user
+        script: echo $USER
+        stream_output: true
+    ```
+
+    then the environment variable will be expanded before the script is executed. To avoid this behavior, set `expand_env_vars` to `false`.
+
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
 Below is an example of installing dependencies from a `requirements.txt` file after cloning:

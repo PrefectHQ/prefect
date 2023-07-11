@@ -517,8 +517,18 @@ class TestRunShellScript:
         assert out.strip() == "Test Value"
         assert err == ""
 
-    async def test_run_shell_script_expand_env(self, capsys, set_dummy_env_var):
-        result = await run_shell_script("echo $DUMMY_ENV_VAR", stream_output=True)
+    @pytest.mark.parametrize(
+        "script",
+        [
+            "echo $DUMMY_ENV_VAR",
+            "bash -c 'echo $DUMMY_ENV_VAR'",
+        ],
+    )
+    async def test_run_shell_script_expand_env(self, script, capsys, set_dummy_env_var):
+        result = await run_shell_script(
+            script,
+            stream_output=True,
+        )
 
         assert result["stdout"] == "dummy"
         assert result["stderr"] == ""
@@ -528,8 +538,8 @@ class TestRunShellScript:
     ):
         result = await run_shell_script(
             "echo $DUMMY_ENV_VAR",
-            expand_env_vars=False,
             stream_output=True,
+            expand_env_vars=False,
         )
 
         assert result["stdout"] == "$DUMMY_ENV_VAR"
