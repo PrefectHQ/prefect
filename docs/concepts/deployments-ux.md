@@ -254,7 +254,7 @@ build:
 ```
 
 !!! warning "Provided environment variables are expanded by default"
-    For example, if the `script`provided to `run_shell_script` contains a reference to an environment variable, like
+    If the `script` provided to `run_shell_script` contains a reference to an environment variable, for example:
 
     ```yaml
     - prefect.deployments.steps.run_shell_script:
