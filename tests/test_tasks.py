@@ -2,6 +2,7 @@ import datetime
 import inspect
 import time
 import warnings
+import regex as re
 from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -3407,6 +3408,61 @@ def create_async_hook(mock_obj):
 
 
 class TestTaskHooksOnCompletion:
+    def test_noniterable_hook_raises(self):
+        def completion_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_completion'; got function instead. Please"
+                " provide a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=completion_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
+
+            @flow(on_completion=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def completion_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=[completion_hook, "test"])
+            def flow2():
+                pass
+
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -3503,6 +3559,61 @@ class TestTaskHooksOnCompletion:
 
 
 class TestTaskHooksOnFailure:
+    def test_noniterable_hook_raises(self):
+        def failure_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_failure'; got function instead. Please"
+                " provide a list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=failure_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
+
+            @flow(on_failure=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def failure_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=[failure_hook, "test"])
+            def flow2():
+                pass
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
