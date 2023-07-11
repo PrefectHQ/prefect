@@ -124,7 +124,7 @@ def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
     job = MagicMock(spec=kubernetes.client.V1Job)
     job.status.completion_time = pendulum.now("utc").timestamp()
 
-    return [{"object": job_pod}, {"object": job}]
+    return [{"object": job_pod, "type": "ADDED"}, {"object": job, "type": "ADDED"}]
 
 
 def test_infrastructure_type():
@@ -152,7 +152,7 @@ def test_creates_job_by_building_a_manifest(
     k8s_job = KubernetesJob(command=["echo", "hello"])
     expected_manifest = k8s_job.build_job()
     k8s_job.run(fake_status)
-    mock_k8s_client.read_namespaced_pod_status.assert_called_once()
+    mock_k8s_client.list_namespaced_pod.assert_called_once()
 
     mock_k8s_batch_client.create_namespaced_job.assert_called_with(
         "default",
@@ -876,9 +876,9 @@ def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
         if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
             job = MagicMock(spec=kubernetes.client.V1Job)
             job.status.completion_time = None
-            yield {"object": job}
+            yield {"object": job, "type": "ADDED"}
             sleep(0.5)
-            yield {"object": job}
+            yield {"object": job, "type": "MODIFIED"}
 
     mock_watch.stream.side_effect = mock_stream
     k8s_job_args = dict(
@@ -911,7 +911,7 @@ def test_watch_deadline_is_computed_before_log_streams(
 
             # Yield the completed job
             job.status.completion_time = True
-            yield {"object": job}
+            yield {"object": job, "type": "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
         anyio.sleep(500)
@@ -966,7 +966,7 @@ def test_timeout_is_checked_during_log_streams(
             job.status.completion_time = (
                 None if mock_watch.stream.call_count < 3 else True
             )
-            yield {"object": job}
+            yield {"object": job, type: "ADDED"}
 
     def mock_log_stream(*args, **kwargs):
         for i in range(10):
@@ -1072,13 +1072,15 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
 
         if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
             job = MagicMock(spec=kubernetes.client.V1Job)
+            job.status.failed = 0
+            job.spec.backoff_limit = 6
 
             # Sleep a little
             anyio.sleep(10)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
-            yield {"object": job}
+            yield {"object": job, "type": "ADDED"}
 
     mock_watch.stream.side_effect = mock_stream
     result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=40).run(
@@ -1122,6 +1124,76 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             ),
         ]
     )
+
+
+async def test_watch_stops_after_backoff_limit_reached(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+    job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+    job_pod.status.phase = "Running"
+    mock_container_status = MagicMock(spec=kubernetes.client.V1ContainerStatus)
+    mock_container_status.state.terminated.exit_code = 137
+    job_pod.status.container_statuses = [mock_container_status]
+    mock_k8s_client.list_namespaced_pod.return_value.items = [job_pod]
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the job then return exiting the stream
+            job.status.completion_time = None
+            job.spec.backoff_limit = 6
+            for i in range(0, 8):
+                job.status.failed = i
+                yield {"object": job, "type": "ADDED"}
+
+    mock_watch.stream.side_effect = mock_stream
+
+    result = await KubernetesJob(command=["echo", "hello"]).run()
+
+    assert result.status_code == 137
+
+
+async def test_watch_handles_deleted_job(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+    mock_k8s_client.list_namespaced_pod.return_value.items = []
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the job then return exiting the stream
+            job.status.completion_time = None
+            job.spec.backoff_limit = 6
+            for i in range(0, 8):
+                job.status.failed = i
+                if i == 7:
+                    yield {"object": job, "type": "DELETED"}
+                else:
+                    yield {"object": job, "type": "ADDED"}
+
+    mock_watch.stream.side_effect = mock_stream
+
+    result = await KubernetesJob(command=["echo", "hello"]).run()
+
+    assert result.status_code == -1
 
 
 class TestCustomizingBaseJob:
