@@ -81,6 +81,38 @@ class TestFindPlaceholders:
         assert placeholder.name == "prefect.blocks.document.name"
         assert placeholder.type is PlaceholderType.BLOCK_DOCUMENT
 
+    def test_finds_env_var_placeholders(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "VALUE")
+        template = "Hello {{$MY_ENV_VAR}}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 1
+        placeholder = placeholders.pop()
+        assert placeholder.name == "MY_ENV_VAR"
+        assert placeholder.type is PlaceholderType.ENV_VAR
+
+    def test_apply_values_clears_placeholder_for_missing_env_vars(self):
+        template = "{{ $MISSING_ENV_VAR }}"
+        values = {"ANOTHER_ENV_VAR": "test_value"}
+        result = apply_values(template, values)
+        assert result == ""
+
+    def test_finds_nested_env_var_placeholders(self, monkeypatch):
+        monkeypatch.setenv("GREETING", "VALUE")
+        template = {"greeting": "Hello {{name}}!", "message": {"text": "{{$GREETING}}"}}
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"name", "$GREETING"}
+
+        types = set(p.type for p in placeholders)
+        assert types == {PlaceholderType.STANDARD, PlaceholderType.ENV_VAR}
+
+    def test_invalid_env_var_placeholder(self):
+        template = "Hello {{$}}"
+        values = {"ANOTHER_ENV_VAR": "test_value"}
+        result = apply_values(template, values)
+        assert result == "Hello "
+
 
 class TestApplyValues:
     def test_apply_values_simple_string_with_one_placeholder(self):
@@ -422,6 +454,7 @@ class TestResolveVariables:
         template = {
             "key": "{{ another_placeholder }}",
             "key2": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}",
+            "key3": "{{ $another_placeholder }}",
         }
         result = await resolve_variables(template, client=prefect_client)
         assert result == template
