@@ -1105,8 +1105,7 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
                     deploy_config
                     for deploy_config in deploy_configs
                     if deploy_config.get("name") == deployment_name
-                    and (deploy_config.get("entrypoint") or "").split(":")[1]
-                    == flow_name
+                    and deploy_config.get("entrypoint", "").split(":")[-1] == flow_name
                 ]
                 deployment_names.append(deployment_name)
 
