@@ -142,7 +142,6 @@ You can also:
 - Use the `conda` virtual environment manager, which enables configuring a compatible SQLite version.
 - [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
-- Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
 
 ## Using Self-Signed SSL Certificates
