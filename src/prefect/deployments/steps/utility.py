@@ -133,7 +133,15 @@ async def run_shell_script(
         ```yaml
         pull:
             - prefect.deployments.steps.run_shell_script:
-                script: echo "Hello $USER"
+                script: |
+                    echo "User: $USER"
+                    echo "Home Directory: $HOME"
+                    echo "Host Name: $(hostname)"
+                    echo "Operating System: $(uname -s)"
+                    echo "OS Version: $(uname -v)"
+                    echo "Processor Architecture: $(uname -m)"
+                    echo "Current Working Directory: $(pwd)"
+                stream_output: true
         ```
 
         Run a shell script in a specific directory:
