@@ -107,11 +107,23 @@ class TestFindPlaceholders:
         types = set(p.type for p in placeholders)
         assert types == {PlaceholderType.STANDARD, PlaceholderType.ENV_VAR}
 
-    def test_invalid_env_var_placeholder(self):
-        template = "Hello {{$}}"
-        values = {"ANOTHER_ENV_VAR": "test_value"}
+    @pytest.mark.parametrize(
+        "template,expected",
+        [
+            (
+                '{"greeting": "Hello {{name}}!", "message": {"text": "{{$$}}"}}',
+                '{"greeting": "Hello Dan!", "message": {"text": ""}}',
+            ),
+            (
+                '{"greeting": "Hello {{name}}!", "message": {"text": "{{$GREETING}}"}}',
+                '{"greeting": "Hello Dan!", "message": {"text": ""}}',
+            ),
+        ],
+    )
+    def test_invalid_env_var_placeholder(self, template, expected):
+        values = {"name": "Dan"}
         result = apply_values(template, values)
-        assert result == "Hello "
+        assert result == expected
 
 
 class TestApplyValues:
