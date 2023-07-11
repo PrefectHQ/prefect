@@ -87,7 +87,7 @@ class TestFindPlaceholders:
         placeholders = find_placeholders(template)
         assert len(placeholders) == 1
         placeholder = placeholders.pop()
-        assert placeholder.name == "MY_ENV_VAR"
+        assert placeholder.name == "$MY_ENV_VAR"
         assert placeholder.type is PlaceholderType.ENV_VAR
 
     def test_apply_values_clears_placeholder_for_missing_env_vars(self):
