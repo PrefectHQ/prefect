@@ -263,7 +263,7 @@ build:
         stream_output: true
     ```
 
-    then the environment variable will be expanded before the script is executed. To avoid this behavior, set `expand_env_vars` to `false`.
+    then the environment variable will be expanded before the script is executed. To avoid this behavior, set `expand_env_vars: false`.
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
