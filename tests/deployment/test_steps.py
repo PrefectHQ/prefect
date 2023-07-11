@@ -24,6 +24,13 @@ async def variables(prefect_client: PrefectClient):
     )
 
 
+@pytest.fixture(scope="session")
+def set_dummy_env_var():
+    import os
+
+    os.environ["DUMMY_ENV_VAR"] = "dummy"
+
+
 class TestRunStep:
     async def test_run_step_runs_importable_functions(self):
         output = await run_step(
@@ -509,6 +516,14 @@ class TestRunShellScript:
         out, err = capsys.readouterr()
         assert out.strip() == "Test Value"
         assert err == ""
+
+    async def test_run_shell_script_expand_env(self, capsys, set_dummy_env_var):
+        result = await run_shell_script(
+            "bash -c 'echo $DUMMY_ENV_VAR'", stream_output=True
+        )
+
+        assert result["stdout"] == "dummy"
+        assert result["stderr"] == ""
 
     async def test_run_shell_script_no_output(self, capsys):
         result = await run_shell_script("echo Hello World", stream_output=False)

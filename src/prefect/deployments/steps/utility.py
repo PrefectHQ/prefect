@@ -148,7 +148,8 @@ async def run_shell_script(
     stderr_sink = io.StringIO()
 
     for command in commands:
-        split_command = shlex.split(command)
+        expanded_command = os.path.expandvars(command)
+        split_command = shlex.split(expanded_command)
         if not split_command:
             continue
         async with open_process(
