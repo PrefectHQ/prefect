@@ -74,6 +74,7 @@ async def run_shell_script(
     directory: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
+    expand_env_vars: bool = True,
 ) -> RunShellScriptResult:
     """
     Runs one or more shell commands in a subprocess. Returns the standard
@@ -125,6 +126,14 @@ async def run_shell_script(
                     NAME: World
         ```
 
+        Run a shell script with environment variables expanded
+            from the current environment:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.run_shell_script:
+                script: echo "Hello $USER"
+        ```
+
         Run a shell script in a specific directory:
         ```yaml
         build:
@@ -148,8 +157,9 @@ async def run_shell_script(
     stderr_sink = io.StringIO()
 
     for command in commands:
-        expanded_command = os.path.expandvars(command)
-        split_command = shlex.split(expanded_command)
+        if expand_env_vars:
+            command = os.path.expandvars(command)
+        split_command = shlex.split(command)
         if not split_command:
             continue
         async with open_process(
