@@ -465,6 +465,7 @@ def test_enabled_experiments_with_opt_in():
         "workers",
         "artifacts",
         "events_client",
+        "workspace_dashboard",
     }
 
 
@@ -474,4 +475,5 @@ def test_enabled_experiments_without_opt_in():
         "workers",
         "artifacts",
         "events_client",
+        "workspace_dashboard",
     }
