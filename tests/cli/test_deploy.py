@@ -1308,6 +1308,68 @@ class TestProjectDeploy:
         assert deployment.description == "1"
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_templates_env_var_values(
+        self, prefect_client, work_pool, monkeypatch
+    ):
+        # prepare a templated deployment
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"][0]["name"] = "test-name"
+        contents["deployments"][0]["version"] = "{{ $MY_VERSION }}"
+        contents["deployments"][0]["tags"] = "{{ $MY_TAGS }}"
+        contents["deployments"][0]["description"] = "{{ $MY_DESCRIPTION }}"
+
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        # update prefect.yaml to include some new build steps
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        monkeypatch.setenv("MY_DIRECTORY", "bar")
+        monkeypatch.setenv("MY_FILE", "foo.txt")
+
+        prefect_config["build"] = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "id": "get-dir",
+                    "script": "echo '{{ $MY_DIRECTORY }}'",
+                    "stream_output": True,
+                }
+            },
+        ]
+
+        # save it back
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        monkeypatch.setenv("MY_VERSION", "foo")
+        monkeypatch.setenv("MY_TAGS", "b,2,3")
+        monkeypatch.setenv("MY_DESCRIPTION", "1")
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_output_contains=["bar"],
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-work-pool"
+        assert deployment.version == "foo"
+        assert deployment.tags == ["b", ",", "2", ",", "3"]
+        assert deployment.description == "1"
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_with_default_parameters(
         self, prefect_client, work_pool
     ):
