@@ -27,7 +27,7 @@ The service account must have two roles at a minimum, *Cloud Run Developer*, and
 
 ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
-Once your Service account is created, navigate to it's keys page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
+Once the Service account is created, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, and store it somewhere safe for use in the next section.
 
 ## Work Pool Configuration
 
