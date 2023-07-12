@@ -75,6 +75,7 @@ For implementation details, see the following pull request:
 - Fix link to API docs in automations documentation — https://github.com/PrefectHQ/prefect/pull/10208
 - Remove the duplicate listing in installation documentation — https://github.com/PrefectHQ/prefect/pull/10200
 - Fix example in proactive trigger documentation — https://github.com/PrefectHQ/prefect/pull/10203
+- Remove references to nonexistent `prefect profile get` - https://github.com/PrefectHQ/prefect/pull/10214
 
 ## Contributors
 * @rkscodes
