@@ -92,7 +92,13 @@ def prompt_select_from_table(
 
         rows = []
         for item in data:
-            rows.append(tuple(item.get(column.get("key")) for column in columns))
+            row_items = []
+            for column in columns:
+                value = item.get(column.get("key"))
+                if value and len(value) > 500:
+                    value = value[:250] + "\n..."
+                row_items.append(value)
+            rows.append(tuple(row_items))
 
         for i, row in enumerate(rows):
             if i == current_idx:
