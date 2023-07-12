@@ -47,7 +47,7 @@ Provide any other optional information and create your block.
 
 Now navigate to work pools and click create to start configuring your Cloud Run - Push work pool.
 
-Each step has several optional fields which are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, we'll need to ensure that the block we created is selected under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
+Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes. Select the block you created under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
 
 Create your pool and we are ready to deploy flows to our Cloud Run - Push work pool.
 
