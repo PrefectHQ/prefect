@@ -529,19 +529,17 @@ class TestRunShellScript:
     async def test_run_shell_script_expand_env(self, script, capsys, set_dummy_env_var):
         result = await run_shell_script(
             script,
+            expand_env_vars=True,
             stream_output=True,
         )
 
         assert result["stdout"] == "dummy"
         assert result["stderr"] == ""
 
-    async def test_run_shell_script_disallow_expand_env(
-        self, capsys, set_dummy_env_var
-    ):
+    async def test_run_shell_script_no_expand_env(self, capsys, set_dummy_env_var):
         result = await run_shell_script(
             "echo $DUMMY_ENV_VAR",
             stream_output=True,
-            expand_env_vars=False,
         )
 
         assert result["stdout"] == "$DUMMY_ENV_VAR"

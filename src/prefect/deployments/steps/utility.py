@@ -75,7 +75,7 @@ async def run_shell_script(
     directory: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
-    expand_env_vars: bool = True,
+    expand_env_vars: bool = False,
 ) -> RunShellScriptResult:
     """
     Runs one or more shell commands in a subprocess. Returns the standard
@@ -138,6 +138,7 @@ async def run_shell_script(
                     echo "User: $USER"
                     echo "Home Directory: $HOME"
                 stream_output: true
+                expand_env_vars: true
         ```
 
         Run a shell script in a specific directory:

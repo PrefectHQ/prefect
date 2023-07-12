@@ -253,7 +253,7 @@ build:
         dockerfile: auto
 ```
 
-!!! warning "Provided environment variables are expanded by default"
+!!! warning "Provided environment variables are not expanded by default"
     For example, if the `script`provided to `run_shell_script` contains a reference to an environment variable, like
 
     ```yaml
