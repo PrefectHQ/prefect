@@ -3,7 +3,7 @@
 ## Release 2.10.21
 
 ### Deploy deployments prefixed by flow name during `prefect deploy` 
-Users can now specify the deployment to be executed by prefixing the deployment name with the flow nam, providing more flexibility and control to the users.
+Users can now specify the deployment to be executed by prefixing the deployment name with the flow name, providing more flexibility and control to the users.
 
 To deploy a deployment with the name `dev` for a flow with the name `my-flow`, run the following command:
 ```bash
