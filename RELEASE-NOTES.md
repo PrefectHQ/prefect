@@ -65,6 +65,7 @@ For implementation details, see the following pull request:
 - Add `SendgridEmail` notification block — https://github.com/PrefectHQ/prefect/pull/10118
 - Raise state change hook errors during creation if not correctly formatted — https://github.com/PrefectHQ/prefect/pull/9692
 - Improve `prefect deploy` nonexistent entrypoint `ValueError` - https://github.com/PrefectHQ/prefect/pull/10210
+- Truncate row length in interactive `prefect deploy` table display - https://github.com/PrefectHQ/prefect/pull/10209
 
 ### Fixes
 - Adds handling for failed Kubernetes jobs — https://github.com/PrefectHQ/prefect/pull/10125
