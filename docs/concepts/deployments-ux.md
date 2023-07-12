@@ -404,7 +404,7 @@ $ prefect deploy --name deployment-1 --name deployment-2
 ```
 </div>
 
-To deploy multiple deployments with the same name you can prefix the flow name in front of the deployment name:
+To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
 
 <div class="terminal">
 ```bash
