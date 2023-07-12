@@ -60,7 +60,7 @@ Deployment details are described in the deployments [concept section](/concepts/
     name: my-google-cloud-run-push-pool
 ```
 
-Deploying your flow to the `my-google-cloud-run-push-pool` work pool with ensure that runs that are ready for execution will be submitted immediately, without the need for a worker to poll for them.
+Deploying your flow to the `my-google-cloud-run-push-pool` work pool will ensure that runs that are ready for execution will be submitted immediately, without the need for a worker to poll for them.
 
 ## Putting it all Together
 
