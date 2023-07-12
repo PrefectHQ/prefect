@@ -23,7 +23,7 @@ To push work to Cloud Run, a GCP service account and an API Key are required.
 
 Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, and click *continue* to configure permissions.
 
-The service account must have two roles at a minimum, Cloud Run Developer, and Service Account User.
+The service account must have two roles at a minimum, *Cloud Run Developer*, and *Service Account User*.
 
 ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
