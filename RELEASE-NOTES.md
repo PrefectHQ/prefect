@@ -3,21 +3,21 @@
 ## Release 2.10.21
 
 ### Deploy deployments prefixed by flow name during `prefect deploy` 
-Users can now specify the deployment to be executed by prefixing the deployment name with the flow name. This enhancement provides more flexibility and control to the users.
+Users can now specify the deployment to be executed by prefixing the deployment name with the flow nam, providing more flexibility and control to the users.
 
 To deploy a deployment with the name `dev` for a flow with the name `my-flow`, run the following command:
 ```bash
 prefect deploy --name my-flow/my-deployment
 ```
 
-This is useful when you have multiple deployments named `dev` for different flows.
+This is useful when users have multiple deployments named `dev` for different flows.
 
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10189
 
 ## Use environment variables in deployment steps
 
-We now support the usage of environment variables in deployment steps. This feature allows users to access environment variables during the `pull` action at runtime, or during the `build` and `push` actions when running `prefect deploy`. Particularly useful for CI/CD builds, this enhancement provides more versatility in handling different deployment scenarios. 
+Prefect now supports the usage of environment variables in deployment steps, allowing users to access environment variables during the `pull` action at runtime or during the `build` and `push` actions when running `prefect deploy`. Particularly useful for CI/CD builds, this provides more versatility in handling different deployment scenarios. 
 
 For example, you can now use the following syntax to set an image tag of a Dockerized build by loading an environment variable during the `build` action:
 
@@ -29,11 +29,20 @@ build:
     tag: '{{ $CUSTOM_TAG }}'
 ```
 
+User can also use environment variables inside of steps. 
+
+For example:
+```yaml
+- prefect.deployments.steps.run_shell_script:
+    script: echo "test-'{{ $PREFECT_API_URL }}'"
+    stream_output: true
+```
+
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10199
 
 ### Use `prefect deploy` with multiple deployments with the same name
-Now, when there are multiple deployments with the same name, the prefect deploy command allows you to choose which one to deploy in an interactive manner. 
+Now, when there are multiple deployments with the same name, the `prefect deploy` command allows users to choose which one to deploy:
 
 For example, if you have the following `prefect.yaml`:
 ```yaml
@@ -44,7 +53,6 @@ deployments:
 - name: "default"
   entrypoint: "flows/hello.py:hello_parallel"
 ```
-
 running `prefect deploy -n default` will now prompt you to choose which flow to create a deployment for:
 
 <img width="904" alt="prompt choose a deployment" src="https://github.com/PrefectHQ/prefect/assets/42048900/bff5369f-9568-41c9-a2b1-b2ecdd6cd8c8">
