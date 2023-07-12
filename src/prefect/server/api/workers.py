@@ -133,7 +133,7 @@ async def create_work_pool(
     if not work_pool.name.lower().strip("' \""):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Work pools must have non-trivial names.",
+            detail="Work pool name cannot be empty.",
         )
 
     if work_pool.name.lower().startswith("prefect"):

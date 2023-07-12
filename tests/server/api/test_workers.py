@@ -92,7 +92,7 @@ class TestCreateWorkPool:
     async def test_create_work_pool_with_empty_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "must have non-trivial name" in response.json()["detail"]
+        assert "name cannot be empty" in response.json()["detail"]
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
