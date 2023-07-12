@@ -130,6 +130,12 @@ async def create_work_pool(
     name already exists, an error will be raised.
     """
 
+    if not work_pool.name.lower().strip("' \""):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Work pools must have non-trivial names.",
+        )
+
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
