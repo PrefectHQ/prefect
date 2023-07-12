@@ -187,12 +187,6 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | rename | Change the name of a profile. |
 | use | Switch the active profile. |
 
-The default profile starts out empty:
-
-```bash
-$ prefect profile get
-[default]
-```
 
 If you configured settings for a profile, `prefect profile inspect` displays those settings:
 
@@ -294,33 +288,6 @@ $ prefect profile ls
 cloud
 test
 local
-```
-
-View the current profile:
-
-```bash
-$ prefect profile get
-[default]
-VAR=X
-```
-
-View another profile:
-
-```bash
-$ prefect profile get foo
-[foo]
-VAR=Y
-```
-
-View multiple profiles:
-
-```bash
-$ prefect profile get default foo
-[default]
-VAR=X
-
-[foo]
-VAR=Y
 ```
 
 View all settings for a profile:
