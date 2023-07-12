@@ -5,12 +5,12 @@
 ### Deploy deployments prefixed by flow name during `prefect deploy` 
 Users can now specify the deployment to be executed by prefixing the deployment name with the flow name, providing more flexibility and control to the users.
 
-To deploy a deployment with the name `dev` for a flow with the name `my-flow`, run the following command:
+To deploy a deployment with the name `my-deployment` for a flow with the name `my-flow`, run the following command:
 ```bash
 prefect deploy --name my-flow/my-deployment
 ```
 
-This is useful when users have multiple deployments named `dev` for different flows.
+This is useful when users have multiple deployments named `my-deployment` for different flows.
 
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10189
