@@ -14,7 +14,7 @@ Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type o
 In this guide we'll:
 
 - Create a push work pool that sends work to Google Cloud Run
-- Deploy a flow to that work pools
+- Deploy a flow to that work pool
 - Execute our flow without having to run a worker or agent process to poll for flow runs
 
 ## Google Cloud Run Setup
