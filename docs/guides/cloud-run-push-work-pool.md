@@ -8,8 +8,8 @@ search:
   boost: 2
 ---
 
-# Push Work Pools <span class="badge cloud"></span>
-Push work pools are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastruture without a user running a worker. Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and and AWS ECS Tasks.
+# Push Work to Google Cloud Run <span class="badge cloud"></span>
+Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without a user running a worker. Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and and AWS ECS Tasks.
 
 In this guide we'll:
 
@@ -19,11 +19,11 @@ In this guide we'll:
 
 ## Google Cloud Run Setup
 
-To get the credentials we need to push work to Cloud run, we'll need a GCP service account and an API Key.
+To get the credentials needed to push work to Cloud run, we'll need a GCP service account and an API Key.
 
 Create a service account by navigating to the service accounts page and clicking Create. Name and describe your service account, and click continue to configure permissions.
 
-Our service accounts needs to have two roles at a minimum, Cloud Run Developer, and Service Account User.
+The service account must have two roles at a minimum, Cloud Run Developer, and Service Account User.
 
 ![Configuring service account permissions in GCP](/img/guides/gcr-service-account-setup.png)
 
@@ -49,11 +49,11 @@ Now navigate to work pools and click create to start configuring your Cloud Run 
 
 Each step has several optional fields which are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, we'll need to ensure that the block we created is selected under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
 
-Create your pool and we are ready to deploy a flow to our Cloud Run - Push work pool.
+Create your pool and we are ready to deploy flows to our Cloud Run - Push work pool.
 
 ## Deployment
 
-Deployment details are comprehensively documented in the deployments [concept section](/concepts/deployments/). For our purposes, we need to ensure that the deployment is configured to send flow runs to our push work pool. For example, the deployment.yaml of a deployment that uses our newly created work pool would contain:
+Deployment details are described in the deployments [concept section](/concepts/deployments/). For our purposes, we need to ensure that the deployment is configured to send flow runs to our push work pool. For example, the `deployment.yaml` of a deployment that uses our newly created work pool would contain:
 
 ```yaml
   work_pool:
