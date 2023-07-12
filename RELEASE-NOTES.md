@@ -131,9 +131,6 @@ For implementation details see:
 - Pin Pydantic to v1 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10144
 - Add default value of `None` for `WorkQueue.work_pool_id` — https://github.com/PrefectHQ/prefect/pull/10106
 
-### Experimental
-- Add experimental dashboard UI — 
-
 ### Documentation
 - Update `git_clone` documentation with examples of using credentials field - https://github.com/PrefectHQ/prefect/pull/10168
 - Add documentation on deleting blocks — https://github.com/PrefectHQ/prefect/pull/10115
