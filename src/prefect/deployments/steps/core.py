@@ -87,10 +87,10 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
         if keyword in inputs
     }
 
-    inputs = apply_values(inputs, os.environ)
     inputs = apply_values(inputs, upstream_outputs)
     inputs = await resolve_block_document_references(inputs)
     inputs = await resolve_variables(inputs)
+    inputs = apply_values(inputs, os.environ)
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     result = await from_async.call_soon_in_new_thread(
         Call.new(step_func, **inputs)
