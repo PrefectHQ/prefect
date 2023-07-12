@@ -13,15 +13,15 @@ Push work pools are a special type of work pool that allows Prefect Cloud to sub
 
 In this guide we'll:
 
-- Create a Push Work Pool that sends work to Google Cloud Run
+- Create a push work pool that sends work to Google Cloud Run
 - Deploy a flow to that work pools
 - Execute our flow without having to run a worker or agent process to poll for flow runs
 
 ## Google Cloud Run Setup
 
-To get the credentials we need to push work to Cloud run, we'll need a service account and an API Key.
+To get the credentials we need to push work to Cloud run, we'll need a GCP service account and an API Key.
 
-Create a service account by navigating to the service accounts page and clicking Create. Name and describe your aervice account, and click continue to configure permissions.
+Create a service account by navigating to the service accounts page and clicking Create. Name and describe your service account, and click continue to configure permissions.
 
 Our service accounts needs to have two roles at a minimum, Cloud Run Developer, and Service Account User.
 
