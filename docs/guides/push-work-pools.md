@@ -53,7 +53,7 @@ Create your pool and we are ready to deploy flows to our Cloud Run - Push work p
 
 ## Deployment
 
-Deployment details are comprehensively documented in the deployments [concept section](/concepts/deployments/). For our purposes, we need to ensure that the deployment is configured to send flow runs to our push work pool. For example, the deployment.yaml of a deployment that uses our newly created work pool would contain:
+Deployment details are described in the deployments [concept section](/concepts/deployments/). For our purposes, we need to ensure that the deployment is configured to send flow runs to our push work pool. For example, the `deployment.yaml` of a deployment that uses our newly created work pool would contain:
 
 ```yaml
   work_pool:
