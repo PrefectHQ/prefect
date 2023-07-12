@@ -129,7 +129,7 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
     "prefect.work-queue.healthy"
   ],
   "posture": "Proactive",
-  "threshold": 0,
+  "threshold": 1,
   "within": 1800
 }
 ```
