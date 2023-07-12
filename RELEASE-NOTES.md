@@ -47,7 +47,7 @@ deployments:
 
 running `prefect deploy -n default` will now prompt you to choose which flow to create a deployment for:
 
-<image tbd>
+<img width="904" alt="prompt choose a deployment" src="https://github.com/PrefectHQ/prefect/assets/42048900/bff5369f-9568-41c9-a2b1-b2ecdd6cd8c8">
 
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10189
