@@ -95,7 +95,6 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
     result = await from_async.call_soon_in_new_thread(
         Call.new(step_func, **inputs)
     ).aresult()
-
     return result
 
 
