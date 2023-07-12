@@ -195,7 +195,7 @@ nav:
           - Recipes: recipes/recipes.md
           - Migration Guide: guides/migration-guide.md
           - State Change Hooks: guides/state-change-hooks.md
-          - Cloud run Push Work Pools: guides/cloud-run-push-work-pools.md
+          - Cloud Run Push Work Pools: guides/cloud-run-push-work-pools.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
