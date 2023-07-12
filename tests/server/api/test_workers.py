@@ -88,6 +88,12 @@ class TestCreateWorkPool:
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
+    async def test_create_work_pool_with_empty_name(self, client, name):
+        response = await client.post("/work_pools/", json=dict(name=name))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "must have non-trivial name" in response.json()["detail"]
+
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
         response = await client.post(
@@ -111,8 +117,7 @@ class TestCreateWorkPool:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
-            " `variables` key."
-            in response.json()["exception_detail"][0]["msg"]
+            " `variables` key." in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_create_work_pool_template_validation_missing_variables(self, client):
@@ -332,8 +337,7 @@ class TestUpdateWorkPool:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
-            " `variables` key."
-            in response.json()["exception_detail"][0]["msg"]
+            " `variables` key." in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_update_work_pool_template_validation_missing_variables(
