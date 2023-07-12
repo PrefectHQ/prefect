@@ -91,8 +91,19 @@ def prompt_select_from_table(
             table.add_column(column.get("header", ""))
 
         rows = []
+        max_length = 250
         for item in data:
-            rows.append(tuple(item.get(column.get("key")) for column in columns))
+            rows.append(
+                tuple(
+                    (
+                        value[:max_length] + "...\n"
+                        if isinstance(value := item.get(column.get("key")), str)
+                        and len(value) > max_length
+                        else value
+                    )
+                    for column in columns
+                )
+            )
 
         for i, row in enumerate(rows):
             if i == current_idx:
