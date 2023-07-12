@@ -254,16 +254,17 @@ build:
 ```
 
 !!! warning "Provided environment variables are not expanded by default"
-    For example, if the `script`provided to `run_shell_script` contains a reference to an environment variable, like
+    To expand environment variables in your shell script, set `expand_env_vars: true` in your `run_shell_script` step. For example:
 
     ```yaml
     - prefect.deployments.steps.run_shell_script:
         id: get-user
         script: echo $USER
         stream_output: true
+        expand_env_vars: true
     ```
 
-    then the environment variable will be expanded before the script is executed. To avoid this behavior, set `expand_env_vars: false`.
+    Without `expand_env_vars: true`, the above step would return a literal string `$USER` instead of the current user.
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
