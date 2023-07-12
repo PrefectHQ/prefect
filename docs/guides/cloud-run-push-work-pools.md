@@ -64,7 +64,7 @@ Deploying your flow to the `my-google-cloud-run-push-pool` work pool will ensure
 
 ## Putting it all Together
 
-With your deployment created, navigate to it's detail page and create a new flow run. You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your GCP project, created a job, ran the job, and began reporting back on the progress of it's execution.
+With your deployment created, navigate to its detail page and create a new flow run. You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your GCP project, created a job, ran the job, and began reporting on its execution.
 
 ![A flow running on a cloud run push work pool](/img/guides/push-flow-running.png)
 
