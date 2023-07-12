@@ -295,11 +295,12 @@ You can also run custom steps by packaging them. In the example below, `retrieve
 
 ### Templating Options
 
-Values that you place within your `prefect.yaml` file can reference dynamic values in two different ways:
+Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `prefect.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
 - **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
 - **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
+- **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. This is especially useful for referencing environment variables that are set at runtime.
 
 As an example, consider the following `prefect.yaml` file:
 
@@ -316,9 +317,9 @@ build:
 deployments:
   - # base metadata
     name: null
-    version: "{{ build_image.tag }}"
+    version: "{{ build-image.tag }}"
     tags:
-        - "{{ build_image.tag }}"
+        - "{{ $my_deployment_tag }}"
         - "{{ prefect.variables.some_common_tag }}"
     description: null
     schedule: null
@@ -333,7 +334,7 @@ deployments:
         name: "my-k8s-work-pool"
         work_queue_name: null
         job_variables:
-            image: "{{ build_image.image }}"
+            image: "{{ build-image.image }}"
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
