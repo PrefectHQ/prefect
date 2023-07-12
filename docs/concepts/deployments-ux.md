@@ -416,6 +416,14 @@ $ prefect deploy --name deployment-1 --name deployment-2
 ```
 </div>
 
+To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
+
+<div class="terminal">
+```bash
+$ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
+```
+</div>
+
 To deploy all deployments you can use the `--all` flag:
 
 <div class="terminal">
