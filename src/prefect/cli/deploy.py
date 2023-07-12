@@ -247,7 +247,11 @@ async def deploy(
                 ci=ci,
             )
         else:
-            options["names"] = names
+            # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
+            options["names"] = [
+                name.split("/", 1)[-1] if "/" in name else name for name in names
+            ]
+
             await _run_single_deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
                 actions=actions,
@@ -1090,20 +1094,57 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         # and we are not in interactive mode
         return deploy_configs
     elif len(names) >= 1:
-        # Return all deployment configurations with the given names
-        matched_deploy_configs = [
-            deploy_config
-            for deploy_config in deploy_configs
-            if deploy_config.get("name") in names
-        ]
-        unfound_names = set(names) - {
+        matched_deploy_configs = []
+        deployment_names = []
+        for name in names:
+            # if flow-name/deployment-name format
+            if "/" in name:
+                flow_name, deployment_name = name.split("/")
+                flow_name = flow_name.replace("-", "_")
+                matched_deploy_configs += [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == deployment_name
+                    and deploy_config.get("entrypoint", "").split(":")[-1] == flow_name
+                ]
+                deployment_names.append(deployment_name)
+
+            else:
+                # If deployment-name format
+                matching_deployment = [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == name
+                ]
+                if len(matching_deployment) > 1 and is_interactive() and not ci:
+                    user_selected_matching_deployment = prompt_select_from_table(
+                        app.console,
+                        (
+                            "Found multiple deployment configurations with the name"
+                            f" [yellow]{name}[/yellow]. Please select the one you would"
+                            " like to deploy:"
+                        ),
+                        [
+                            {"header": "Name", "key": "name"},
+                            {"header": "Entrypoint", "key": "entrypoint"},
+                            {"header": "Description", "key": "description"},
+                        ],
+                        matching_deployment,
+                    )
+                    matched_deploy_configs.append(user_selected_matching_deployment)
+                elif matching_deployment:
+                    matched_deploy_configs.extend(matching_deployment)
+                deployment_names.append(name)
+
+        unfound_names = set(deployment_names) - {
             deploy_config.get("name") for deploy_config in matched_deploy_configs
         }
+
         if unfound_names:
             app.console.print(
                 (
                     "The following deployment(s) could not be found and will not be"
-                    f" deployed: {' ,'.join(list(unfound_names))}"
+                    f" deployed: {', '.join(list(sorted(unfound_names)))}"
                 ),
                 style="yellow",
             )
@@ -1111,7 +1152,7 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
             app.console.print(
                 (
                     "Could not find any deployment configurations with the given"
-                    f" name(s): {' ,'.join(names)}. Your flow will be deployed with a"
+                    f" name(s): {', '.join(names)}. Your flow will be deployed with a"
                     " new deployment configuration."
                 ),
                 style="yellow",
