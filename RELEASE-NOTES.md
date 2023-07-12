@@ -64,7 +64,7 @@ For implementation details, see the following pull request:
 - Enable workspace dashboard by default — https://github.com/PrefectHQ/prefect/pull/10202
 - Add `SendgridEmail` notification block — https://github.com/PrefectHQ/prefect/pull/10118
 - Raise state change hook errors during creation if not correctly formatted — https://github.com/PrefectHQ/prefect/pull/9692
-- Improve `prefect deploy nonexistent-entrypoint` `ValueError` - https://github.com/PrefectHQ/prefect/pull/10210
+- Improve `prefect deploy` nonexistent entrypoint `ValueError` - https://github.com/PrefectHQ/prefect/pull/10210
 
 ### Fixes
 - Adds handling for failed Kubernetes jobs — https://github.com/PrefectHQ/prefect/pull/10125
