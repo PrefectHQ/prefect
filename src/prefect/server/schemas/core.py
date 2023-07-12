@@ -595,6 +595,7 @@ class ConcurrencyLimit(ORMBaseModel):
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
     )
+    slots: int = Field(default=0, description="The number of active slots.")
 
 
 class BlockType(ORMBaseModel):

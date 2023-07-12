@@ -3,6 +3,12 @@ Routes for interacting with concurrency limit objects.
 """
 from typing import List, Optional
 from uuid import UUID
+import sqlalchemy as sa
+import logging
+import uuid
+import redis.asyncio as redis
+import time
+
 
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
@@ -15,6 +21,8 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("/")
@@ -155,3 +163,105 @@ async def delete_concurrency_limit_by_tag(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
         )
+
+
+# Redis implementation
+# --------------------
+redis_pool = redis.ConnectionPool.from_url(
+    "redis://localhost:16379", decode_responses=True
+)
+
+
+@router.post("/increment/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def increment_active_slots_redis(
+    name: str = Path(..., description="The name of the concurrency_limit"),
+    slots: int = Body(..., description="The number of slots to increment"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context() as session:
+        model = await models.concurrency_limits.read_concurrency_limit_by_tag(
+            session=session, tag=name
+        )
+
+    timestamp = time.time()
+
+    redis_conn = redis.Redis(connection_pool=redis_pool)
+
+    while True:
+        async with redis_conn.pipeline(transaction=True) as pipe:
+            try:
+                await pipe.watch(model.tag)
+
+                count = await redis_conn.zcard(model.tag)
+
+                if count + slots <= model.concurrency_limit:
+                    pipe.multi()
+                    for _ in range(slots):
+                        slot_id = str(uuid.uuid4())
+                        await pipe.zadd(model.tag, {slot_id: timestamp})
+                    await pipe.execute()
+                    return
+                else:
+                    raise HTTPException(status_code=status.HTTP_202_ACCEPTED)
+
+            except redis.WatchError:
+                continue
+
+
+@router.post("/decrement/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def decrement_active_slots_redis(
+    name: str = Path(..., description="The name of the concurrency_limit"),
+    slots: int = Body(..., description="The number of slots to increment"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    redis_conn = redis.Redis(connection_pool=redis_pool)
+    await redis_conn.zpopmin(name, slots)
+
+
+# Database implementation
+# --------------------
+
+
+@router.post("/increment/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def increment_active_slots(
+    name: str = Path(..., description="The name of the concurrency_limit"),
+    slots: int = Body(..., description="The number of slots to increment"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context(begin_transaction=True) as session:
+        query = (
+            sa.update(db.ConcurrencyLimit)
+            .where(
+                sa.and_(
+                    db.ConcurrencyLimit.tag == name,
+                    db.ConcurrencyLimit.slots + slots
+                    <= db.ConcurrencyLimit.concurrency_limit,
+                )
+            )
+            .values(slots=db.ConcurrencyLimit.slots + slots)
+        )
+
+        result = await session.execute(query)
+        rowcount = result.rowcount
+
+        if rowcount == 0:
+            # This should probably use a 423 or similar, but locust.io tracks
+            # them as failures, so this gives a better output for the load
+            # test.
+            raise HTTPException(status_code=status.HTTP_202_ACCEPTED)
+
+
+@router.post("/decrement/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def decrement_active_slots(
+    name: str = Path(..., description="The name of the concurrency_limit"),
+    slots: int = Body(..., description="The number of slots to increment"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context(begin_transaction=True) as session:
+        query = (
+            sa.update(db.ConcurrencyLimit)
+            .where(db.ConcurrencyLimit.tag == name)
+            .values(slots=db.ConcurrencyLimit.slots - slots)
+        )
+
+        await session.execute(query)
