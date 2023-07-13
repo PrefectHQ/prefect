@@ -129,7 +129,7 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
     "prefect.work-queue.healthy"
   ],
   "posture": "Proactive",
-  "threshold": 0,
+  "threshold": 1,
   "within": 1800
 }
 ```
@@ -259,7 +259,7 @@ Name: {{ work_queue.name }}
 Last polled: {{ work_queue.last_polled }}
 ```
 
-In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
+In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations) for additional details.
 
 ```
 Automation: {{ automation.name }}
