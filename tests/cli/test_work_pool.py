@@ -94,6 +94,16 @@ class TestCreate:
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
 
+    async def test_create_work_pool_with_empty_name(
+        self, prefect_client, mock_collection_registry
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool create '' -t prefect-agent",
+            expected_code=1,
+            expected_output_contains=["name cannot be empty"],
+        )
+
     async def test_create_work_pool_name_conflict(
         self, prefect_client, mock_collection_registry
     ):
