@@ -66,6 +66,7 @@ For implementation details, see the following pull request:
 - Raise state change hook errors during creation if not correctly formatted — https://github.com/PrefectHQ/prefect/pull/9692
 - Improve `prefect deploy` nonexistent entrypoint `ValueError` - https://github.com/PrefectHQ/prefect/pull/10210
 - Truncate row length in interactive `prefect deploy` table display - https://github.com/PrefectHQ/prefect/pull/10209
+- Add `prefect.runtime.flow_run.parent_flow_run_id` and `prefect.runtime.flow_run.parent_deployment_id` - https://github.com/PrefectHQ/prefect/pull/10204
 
 ### Fixes
 - Adds handling for failed Kubernetes jobs — https://github.com/PrefectHQ/prefect/pull/10125
