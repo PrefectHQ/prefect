@@ -3,21 +3,21 @@
 ## Release 2.10.21
 
 ### Deploy deployments prefixed by flow name during `prefect deploy` 
-Users can now specify the deployment to be executed by prefixing the deployment name with the flow name, providing more flexibility and control to the users.
+You can now specify the deployment to be executed by prefixing the deployment name with the flow name.
 
-To deploy a deployment with the name `my-deployment` for a flow with the name `my-flow`, run the following command:
+For example, the following command creates a deployment with the name `my-deployment` for a flow with the name `my-flow`:
 ```bash
 prefect deploy --name my-flow/my-deployment
 ```
 
-This is useful when users have multiple deployments named `my-deployment` for different flows.
+This is especially useful when you have many flows with deployments that have the same name.
 
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10189
 
 ## Use environment variables in deployment steps
 
-Prefect now supports the usage of environment variables in deployment steps, allowing users to access environment variables during the `pull` action at runtime or during the `build` and `push` actions when running `prefect deploy`. Particularly useful for CI/CD builds, this provides more versatility in handling different deployment scenarios. 
+Prefect now supports the usage of environment variables in deployment steps, allowing you to access environment variables during the `pull` action at runtime or during the `build` and `push` actions when running `prefect deploy`. Particularly useful for CI/CD builds, this provides more versatility in handling different deployment scenarios. 
 
 For example, you can now use the following syntax to set an image tag of a Dockerized build by loading an environment variable during the `build` action:
 
@@ -42,7 +42,7 @@ For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10199
 
 ### Use `prefect deploy` with multiple deployments with the same name
-Now, when there are multiple deployments with the same name, the `prefect deploy` command allows users to choose which one to deploy:
+Now, when there are multiple deployments with the same name, the `prefect deploy` command prompts you to choose which one to deploy:
 
 For example, if you have the following `prefect.yaml`:
 ```yaml
