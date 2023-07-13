@@ -34,7 +34,7 @@ build:
     tag: '{{ $CUSTOM_TAG }}'
 ```
 
-User can also use environment variables inside of steps. 
+You can also use environment variables inside of steps. 
 
 For example:
 ```yaml
