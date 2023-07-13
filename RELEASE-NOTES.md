@@ -2,6 +2,12 @@
 
 ## Release 2.10.21
 
+### The Prefect Dashboard - your heads up display
+The response to the experimental Prefect dashboard was so enthusiastic that we've made it generally availible as the default landing page in the Prefect UI. The dashboard provides an overview of all Prefect activity, surfaces the urgent information, and provides the context to understand that information. With the dashboard, you can:
+- Confirm that all flows run in the past 24 hours behaved as expected
+- Identify a flow run that recently failed and jump directly to its page
+- See a work pool that is unhealthy and the work that is impacted
+
 ### Deploy deployments prefixed by flow name during `prefect deploy` 
 You can now specify the deployment to be executed by prefixing the deployment name with the flow name.
 
@@ -15,8 +21,7 @@ This is especially useful when you have several flows with deployments that have
 For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10189
 
-## Use environment variables in deployment steps
-
+### Use environment variables in deployment steps
 Prefect now supports the usage of environment variables in deployment steps, allowing you to access environment variables during the `pull` action at runtime or during the `build` and `push` actions when running `prefect deploy`. Particularly useful for CI/CD builds, this makes Prefect deployments more versatile. 
 
 For example, you can now use the following syntax to set an image tag of a Dockerized build by loading an environment variable during the `build` action:
