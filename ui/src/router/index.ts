@@ -46,7 +46,7 @@ const routeRecords: AppRouteRecord[] = [
   {
     name: 'root',
     path: '/',
-    redirect: routes.flowRuns(),
+    redirect: routes.dashboard(),
     children: workspaceRoutes,
   },
   {
