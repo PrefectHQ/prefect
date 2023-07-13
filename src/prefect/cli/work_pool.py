@@ -48,6 +48,8 @@ async def create(
         $ prefect work-pool create "my-pool" --paused
     """
     async with get_collections_metadata_client() as collections_client:
+        if not name.lower().strip("'\" "):
+            exit_with_error("Work pool name cannot be empty.")
         if type is None:
             if not is_interactive():
                 exit_with_error(
