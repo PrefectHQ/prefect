@@ -1,5 +1,10 @@
+import importlib
 import json
+import pathlib
 import re
+from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
+from types import ModuleType
 from unittest import mock
 from uuid import uuid4
 
@@ -453,6 +458,74 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.is_schedule_active == is_active
+
+    async def test_deployment_import_from_python_environment_entrypoint_error_when_skip_upload_is_false(
+        self, flow_function
+    ):
+        with pytest.raises(RuntimeError):
+            await Deployment.build_from_flow(
+                flow_function,
+                name="foo",
+                import_from_python_environment=True,
+                skip_upload=False,
+            )
+
+    async def test_deployment_entrypoint_fails_for_unknown_module(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            import_from_python_environment=True,
+            skip_upload=True,
+        )
+
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(d.entrypoint)
+
+    async def test_deployment_entrypoint_import_passes_for_new_importable_module(
+        self,
+    ):
+        @contextmanager
+        def temporary_flow_module():
+            temporary_flow_py_file = pathlib.Path(
+                "/tmp/test_entrypoint_pkg/temporary_flow.py"
+            )
+            try:
+                import sys
+
+                temporary_flow_py_file.parent.mkdir(exist_ok=False)
+                with temporary_flow_py_file.open("w") as tmp:
+                    tmp.write(
+                        "\n".join(
+                            [
+                                "from prefect import flow",
+                                "@flow(name='flow')",
+                                "def flow_func():",
+                                "    pass",
+                            ]
+                        )
+                    )
+                (temporary_flow_py_file.parent / "__init__.py").touch()
+                sys.path.insert(0, "/tmp")
+                yield temporary_flow_py_file
+            finally:
+                import shutil
+
+                shutil.rmtree(temporary_flow_py_file.parent)
+                sys.path.remove("/tmp")
+
+        with temporary_flow_module():
+            import test_entrypoint_pkg.temporary_flow as imported_mod
+
+            d = await Deployment.build_from_flow(
+                flow=imported_mod.flow_func,
+                name="foo",
+                import_from_python_environment=True,
+                skip_upload=True,
+            )
+
+            assert "test_entrypoint_pkg.temporary_flow:flow_func" == d.entrypoint
+            assert imported_mod.flow_func.name == d.flow_name
+            assert imported_mod.flow_func.fn() is None
 
 
 class TestYAML:

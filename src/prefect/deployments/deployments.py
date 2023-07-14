@@ -1,8 +1,9 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
 """
-
 import importlib
+import importlib.util
+import inspect
 import json
 import os
 import sys
@@ -219,16 +220,29 @@ async def load_flow_from_flow_run(
             logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
-    import_path = relative_path_to_current_platform(deployment.entrypoint)
-    logger.debug(f"Importing flow code from '{import_path}'")
-
-    # for backwards compat
-    if deployment.manifest_path:
-        with open(deployment.manifest_path, "r") as f:
-            import_path = json.load(f)["import_path"]
-            import_path = (
-                Path(deployment.manifest_path).parent / import_path
-            ).absolute()
+    if (
+        ignore_storage is True
+        and importlib.util.find_spec(deployment.entrypoint) is not None
+    ):
+        # Try to import the entrypoint as an installed module if storage is ignored
+        import_path = deployment.entrypoint
+        flow_module, flow_function = deployment.entrypoint.split(":")
+        logger.debug(
+            f"Importing flow {flow_function} from the module'{flow_module}' in the"
+            " current python environment."
+        )
+    else:
+        # for backwards compat
+        if deployment.manifest_path:
+            with open(deployment.manifest_path, "r") as f:
+                import_path = json.load(f)["import_path"]
+                import_path = (
+                    Path(deployment.manifest_path).parent / import_path
+                ).absolute()
+        else:
+            import_path = relative_path_to_current_platform(deployment.entrypoint)
+        logger.debug(f"Importing flow code from '{import_path}'")
+    # for seeing if the path is importable from
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
     return flow
 
@@ -788,6 +802,7 @@ class Deployment(BaseModel):
         ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
+        import_from_python_environment: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -807,31 +822,45 @@ class Deployment(BaseModel):
             load_existing: if True, load any settings that may already be configured for
                 the named deployment server-side (e.g., schedules, default parameter
                 values, etc.)
+            import_from_python_environment: if True, the flow will be imported as an installed
+                package from the python environment. Only applicable if `skip_upload` is True.
             **kwargs: other keyword arguments to pass to the constructor for the
                 `Deployment` class
         """
         if not name:
             raise ValueError("A deployment name must be provided.")
 
+        if skip_upload is False and import_from_python_environment is True:
+            raise RuntimeError(
+                "`import_from_python_environment` cannot be set to `True` if"
+                " `skip_upload` is False."
+            )
+
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
         deployment = cls(name=name, **kwargs)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
-            ## first see if an entrypoint can be determined
-            flow_file = getattr(flow, "__globals__", {}).get("__file__")
-            mod_name = getattr(flow, "__module__", None)
-            if not flow_file:
-                if not mod_name:
-                    # todo, check if the file location was manually set already
-                    raise ValueError("Could not determine flow's file location.")
-                module = importlib.import_module(mod_name)
-                flow_file = getattr(module, "__file__", None)
+            if skip_upload and import_from_python_environment:
+                entry_path = inspect.getmodule(flow).__spec__.name
+            else:
+                ## first see if an entrypoint can be determined
+                flow_file = getattr(flow, "__globals__", {}).get("__file__")
+                mod_name = getattr(flow, "__module__", None)
                 if not flow_file:
-                    raise ValueError("Could not determine flow's file location.")
+                    if not mod_name:
+                        # todo, check if the file location was manually set already
+                        raise ValueError("Could not determine flow's file location.")
+                    module = importlib.import_module(mod_name)
+                    flow_file = getattr(module, "__file__", None)
+                    if not flow_file:
+                        raise ValueError("Could not determine flow's file location.")
 
-            # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+                # import from a file
+                entry_path = (
+                    Path(flow_file).absolute().relative_to(Path(".").absolute())
+                )
+
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
         if load_existing:

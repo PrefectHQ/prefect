@@ -3,6 +3,7 @@ import datetime
 import enum
 import inspect
 import os
+import shutil
 import signal
 import sys
 import time
@@ -2180,7 +2181,8 @@ class TestFlowRetries:
             assert run_count == 2
 
 
-def test_load_flow_from_entrypoint(tmp_path):
+@pytest.fixture()
+def dog_code_fpath(tmp_path):
     flow_code = """
     from prefect import flow
 
@@ -2188,10 +2190,28 @@ def test_load_flow_from_entrypoint(tmp_path):
     def dog():
         return "woof!"
     """
-    fpath = tmp_path / "f.py"
+    fpath = tmp_path / "dog_pkg" / "dog_flow.py"
+    fpath.parent.mkdir(exist_ok=False)
+    (fpath.parent / "__init__.py").touch()
     fpath.write_text(dedent(flow_code))
+    sys.path.insert(0, str(tmp_path.absolute()))
+    yield fpath.absolute()
+    sys.path.remove(str(tmp_path.absolute()))
+    shutil.rmtree(fpath.parent)
 
-    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+def test_load_flow_from_entrypoint_by_unix_path(dog_code_fpath):
+    # Test import as a file
+    flow = load_flow_from_entrypoint(f"{dog_code_fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
+def test_load_flow_from_entrypoint_by_python_module_name(
+    dog_code_fpath,
+):
+    # Test importing as a module
+    pkg, mod = dog_code_fpath.parent.name, dog_code_fpath.stem
+    flow = load_flow_from_entrypoint(f"{pkg}.{mod}:dog")
     assert flow.fn() == "woof!"
 
 
@@ -2218,8 +2238,7 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
         # Make sure that warning is raised
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
-            "Consider updating the script to only call the flow"
-            in caplog.text
+            "Consider updating the script to only call the flow" in caplog.text
         )
 
     flow_runs = await prefect_client.read_flows()
