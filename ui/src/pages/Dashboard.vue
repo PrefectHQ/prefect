@@ -34,11 +34,16 @@
     PageHeading,
     FlowRunTagsInput,
     FlowRunsPageEmptyState,
-    useWorkspaceApi
+    useWorkspaceApi,
+    subscriptionIntervalKey
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInHour } from 'date-fns'
-  import { computed } from 'vue'
+  import { secondsInHour, secondsToMilliseconds } from 'date-fns'
+  import { computed, provide } from 'vue'
+
+  provide(subscriptionIntervalKey, {
+    interval: secondsToMilliseconds(30),
+  })
 
   const api = useWorkspaceApi()
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
