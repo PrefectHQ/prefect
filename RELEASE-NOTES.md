@@ -3,7 +3,7 @@
 ## Release 2.10.21
 
 ### The Prefect Dashboard - your heads up display
-The response to the experimental Prefect dashboard was so enthusiastic that we've made it generally availible as the default landing page in the Prefect UI. The dashboard provides an overview of all Prefect activity, surfaces the urgent information, and provides the context to understand that information. With the dashboard, you can:
+The response to the experimental Prefect dashboard was so enthusiastic that we've made it generally available as the default landing page in the Prefect UI. The dashboard provides an overview of all Prefect activity, surfaces the urgent information, and provides the context to understand that information. With the dashboard, you can:
 - Confirm that all flows run in the past 24 hours behaved as expected
 - Identify a flow run that recently failed and jump directly to its page
 - See a work pool that is unhealthy and the work that is impacted
@@ -34,7 +34,7 @@ build:
     tag: '{{ $CUSTOM_TAG }}'
 ```
 
-User can also use environment variables inside of steps. 
+You can also use environment variables inside of steps. 
 
 For example:
 ```yaml
