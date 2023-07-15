@@ -45,14 +45,14 @@ Here is an example flow that calls 2 tasks:
 import httpx
 from prefect import flow, task
 
-@task(retries=3)
+@task # This is a Task!
 def get_contributors(url):
     response = httpx.get(url)
     response.raise_for_status()
     contributors = response.json()
     return {"n_contributors": len(contributors)}
 
-@task(retries=4)
+@task(retries=4) # This is a Task that will retry 4 times!
 def calculate_average_commits(contributors):
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
@@ -62,7 +62,7 @@ def calculate_average_commits(contributors):
     average_commits = total_commits / contributors["n_contributors"]
     return average_commits
 
-@flow(name="Repo Info", log_prints=True)
+@flow(name="Repo Info", log_prints=True) # This is a Flow called Repo Info
 def my_flow_function():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
@@ -71,15 +71,15 @@ def my_flow_function():
     stars = repo_info['stargazers_count']
     forks = repo_info['forks_count']
     contributors_url = repo_info['contributors_url']
-    contributors = get_contributors(contributors_url) # TASK
-    average_commits = calculate_average_commits(contributors) # TASK
+    contributors = get_contributors(contributors_url) # Task Call
+    average_commits = calculate_average_commits(contributors) # Task Call
     print(f"PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {stars}")
     print(f"Forks 🍴 : {forks}")
     print(f"Average commits per contributor 💌 : {average_commits:.2f}")
 
 if __name__ == '__main__':
-    my_flow_function()
+    my_flow_function() # Call a flow function for a local flow run!
 ```
 
 ### Step 4: Run your Flow locally
@@ -110,7 +110,7 @@ python my_flow.py
 </div>
 
 
-Beyond examining these logs, you have the option to explore the flow run via the UI to visualize its dependency diagram. You should find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
+Beyond examining these logs, you have the option to explore the flow run via the UI to visualize its dependency diagram. You will find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
 
 ![Alt text](flow_run_diagram.png)
 
