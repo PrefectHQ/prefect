@@ -23,7 +23,6 @@ prefect cloud login
 
 Alternatively, to host your own server with a subset of Prefect Cloud's features, run the following command in the same environment, but in a separate terminal window:
 
-self-host the Prefect engine locally by running:
 
 ```bash
 prefect server start
