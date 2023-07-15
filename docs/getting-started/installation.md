@@ -36,9 +36,9 @@ We recommend installing Prefect using a Python virtual environment manager such 
 
 The following sections describe how to install Prefect in your development or execution environment.
 
-### Installing the latest version
+### Installing the most recent version
 
-Prefect is published as a Python package. To install the latest Prefect release, run the following in a shell or terminal session:
+Prefect is published as a Python package. To install the most recent release, run the following command in your terminal:
 
 <div class="terminal">
 ```bash
@@ -46,7 +46,7 @@ pip install -U prefect
 ```
 </div>
 
-To install a specific version, specify the version, such as:
+To install a specific version, specify the version number like this:
 
 <div class="terminal">
 ```bash
@@ -54,20 +54,7 @@ pip install -U "prefect==2.10.4"
 ```
 </div>
 
-Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
-
-### Installing the bleeding edge
-
-If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
-
-<div class="terminal">
-```bash
-pip install -U git+https://github.com/PrefectHQ/prefect
-```
-</div>
-
-!!! warning "The `main` branch may not be stable"
-    Please be aware that this method installs unreleased code and may not be stable.
+See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
 
 ### Installing for development
 
@@ -90,30 +77,28 @@ See our [Contributing](/contributing/overview/) guide for more details about sta
 
 ### Checking your installation
 
-To check that Prefect was installed correctly, use the Prefect CLI command `prefect version`. Running this command should print version and environment details to your console.
+To confirm that Prefect was installed correctly, run the command `prefect version` to print the version and environment details to your console.
 
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.10.4
+Version:             2.10.21
 API version:         0.8.4
-Python version:      3.9.16
-Git commit:          b6d0433a
-Built:               Thu, Apr 13, 2023 5:34 PM
+Python version:      3.10.12
+Git commit:          da816542
+Built:               Thu, Jul 13, 2023 2:05 PM
 OS/Arch:             darwin/arm64
-Profile:             default
-Server type:         cloud
+Profile:              local
+Server type:         ephemeral
+Server:
+  Database:          sqlite
+  SQLite version:    3.42.0
 ```
 </div>
 
 ## Windows installation notes
 
-Prefect supports running Prefect flows on Windows.
-
-!!! note "Prefect on Windows requires Python 3.8 or later"
-    Make sure to use Python 3.8 or higher when running a Prefect agent on Windows.
-
-You can install and run Prefect as described above via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). Note that, after installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
+You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
 The `Scripts` folder path looks something like this (the username and Python version may be different on your system):
 
@@ -123,13 +108,13 @@ C:\Users\Terry\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.9_qbz5n2
 
 Watch the `pip install` installation output messages for the `Scripts` folder path on your system.
 
-If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
+If you're using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
 
 ## Linux installation notes
 
-Currently, Prefect requires SQLite 3.24 or newer.
+Prefect requires SQLite 3.24 or newer.
 
-When installing Prefect and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect.
+Certain Linux version of SQLite that cannot be used with Prefect.
 
 Known compatible releases include:
 
@@ -183,11 +168,11 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.10.4
+Version:             2.10.21
 API version:         0.8.4
-Python version:      3.9.16
-Git commit:          b6d0433a
-Built:               Thu, Apr 13, 2023 5:34 PM
+Python version:      3.10.12
+Git commit:          a46cbebb
+Built:               Sat, Jul 15, 2023 7:59 AM
 OS/Arch:             darwin/arm64
 Profile:              default
 Server type:         cloud
