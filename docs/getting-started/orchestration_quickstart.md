@@ -10,7 +10,7 @@ We recommend installing Prefect using a Python virtual environment manager such 
 pip install -U prefect
 ```
 ### Step 2: Connect to Cloud or self-hosted Prefect server
-#### Create a forever free cloud account.
+#### Create a forever free Cloud account.
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
 2. [Create a workspace](#create-a-workspace) for your account.
