@@ -306,7 +306,8 @@ def _collect_futures(futures, expr, context):
 
 
 async def resolve_futures_to_data(
-    expr: Union[PrefectFuture[R, Any], Any]
+    expr: Union[PrefectFuture[R, Any], Any],
+    raise_on_failure: bool = True,
 ) -> Union[R, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
@@ -332,7 +333,7 @@ async def resolve_futures_to_data(
         *[
             # We must wait for the future in the thread it was created in
             from_async.call_soon_in_loop_thread(
-                create_call(future._result, raise_on_failure=False)
+                create_call(future._result, raise_on_failure=raise_on_failure)
             ).aresult()
             for future in futures
         ]

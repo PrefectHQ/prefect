@@ -73,6 +73,23 @@ class TestRunStep:
             "stderr": "",
         }
 
+    async def test_run_step_resolves_environment_variables_before_running(
+        self, monkeypatch
+    ):
+        monkeypatch.setenv("TEST_ENV_VAR", "test_value")
+        output = await run_step(
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": 'echo "{{ $TEST_ENV_VAR }}"',
+                }
+            }
+        )
+        assert isinstance(output, dict)
+        assert output == {
+            "stdout": "test_value",
+            "stderr": "",
+        }
+
     async def test_run_step_resolves_variables_before_running(self, variables):
         output = await run_step(
             {
