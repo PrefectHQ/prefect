@@ -47,7 +47,7 @@ For deeper dives on specific topics, explore our [guides](guides/index/) for com
 <p>Or, read on for a quick sample of Prefect.</p>
 ---
 
-## Quick Start: Hello Prefect
+## Hello Prefect
 
 Install Prefect with 
 
