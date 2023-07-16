@@ -2935,6 +2935,7 @@ class TestMultiDeploy:
             ("my-flow/test-name-3", "my-flow/test-name-4"),
         ],
     )
+    @pytest.mark.usefixtures("project_dir")
     async def test_deploy_multiple_nonexistent_deployments_raises(
         self, deploy_names, work_pool, prefect_client
     ):
