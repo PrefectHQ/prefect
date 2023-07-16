@@ -59,7 +59,7 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 
 ### Run a basic flow
 
-Import the `flow` decorator and decorate your Python function [`@flow`][prefect.flows.flow].
+Decorate your Python function with the `flow` decorator.
 
 ```python hl_lines="1 3"
 from prefect import flow
@@ -72,7 +72,7 @@ def my_favorite_function():
 print(my_favorite_function())
 ```
 
-That's it! Your function is now a flow. Run the code as you normally would, and you'll see its execution via the Prefect logs:
+That's it! Your function is now a flow. Run the code as you normally would, and you'll see its execution in the Prefect logs:
 
 <div class="terminal">
 ```bash
