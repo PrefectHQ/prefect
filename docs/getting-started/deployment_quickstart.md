@@ -1,4 +1,4 @@
-# Orchestration Quickstart
+# Deployment Quickstart
 
 This guide is designed to show you how to deploy a Prefect flow in as few steps as possible. For a more comprehensive introduction to Prefect's core components and how they work together, please follow our [tutorial](/tutorial/index/).
 
@@ -16,47 +16,59 @@ This guide is designed to show you how to deploy a Prefect flow in as few steps 
     - A task represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
     - Flows can be called inside of other flows (we call these subflows) but a task **cannot** be run inside of another task or from outside the context of a flow.
 
-Here is an example flow that calls 2 tasks:
+Here is an example flow called `Get Repo Info` that contains tasks and a subflow:
 ```python
 # my_flow.py
 import httpx
-from prefect import flow, task
+from datetime import timedelta
+from prefect import flow, task, get_run_logger
+from prefect.tasks import task_input_hash
 
-@task # This is a Task!
-def get_contributors(url):
-    response = httpx.get(url)
+
+@task(
+    cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1)
+)  # Tasks support the ability to cache their return value
+def get_url(url: str, params: dict = None):
+    response = httpx.get(url, params=params)
     response.raise_for_status()
-    contributors = response.json()
-    return {"n_contributors": len(contributors)}
+    return response.json()
 
-@task(retries=4) # This is a Task that will retry 4 times!
-def calculate_average_commits(contributors):
-    commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
-    response = httpx.get(commits_url)
-    response.raise_for_status()
-    commit_data = response.json()
-    total_commits = sum(c['total'] for c in commit_data)
-    average_commits = total_commits / contributors["n_contributors"]
-    return average_commits
 
-@flow(name="Repo Info", log_prints=True) # This is a Flow called Repo Info
-def my_flow_function():
-    url = 'https://api.github.com/repos/PrefectHQ/prefect'
-    api_response = httpx.get(url)
-    api_response.raise_for_status()
-    repo_info = api_response.json()
-    stars = repo_info['stargazers_count']
-    forks = repo_info['forks_count']
-    contributors_url = repo_info['contributors_url']
-    contributors = get_contributors(contributors_url) # Task Call
-    average_commits = calculate_average_commits(contributors) # Task Call
-    print(f"PrefectHQ/prefect repository statistics 🤓:")
-    print(f"Stars 🌠 : {stars}")
-    print(f"Forks 🍴 : {forks}")
-    print(f"Average commits per contributor 💌 : {average_commits:.2f}")
+@flow 
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 10):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(  # The submit method changes the task execution from sequential to concurrent
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [
+        i for p in issues for i in p.result()
+    ]  # Use the result method to unpack a prefect future outside of a task
 
-if __name__ == '__main__':
-    my_flow_function() # Call a flow function for a local flow run!
+
+@flow(name="Get Repo Info", retries=3)  # Optionally add retries to flows and tasks
+def get_repo_info(
+    repo_name: str = "PrefectHQ/prefect",  # Prefect coerces parameter values based on type hints
+):
+    repo = get_url(f"https://api.github.com/repos/{repo_name}")  # - Task Call -
+    issues = get_open_issues(repo_name, repo["open_issues_count"])  # - Subflow Call -
+    issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
+    logger = (
+        get_run_logger()
+    )  # Use logger to add logs or set log_prints to True in flow argument to log stdout
+    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
+    logger.info(f"Forks 🍴 : {repo['forks_count']}")
+    logger.info(f"Average open issues per user 💌 : {issues_per_user:.2f}")
+
+
+if __name__ == "__main__":
+    get_repo_info() # Call a flow function for a local flow run!
+
 ```
 
 ### Step 2: Run your Flow locally
@@ -68,21 +80,24 @@ Call any function that you've decorated with a `@flow` decorator to see a local 
 python my_flow.py
 ``` 
 
+#### TODO CHANGE This
+
 <div class="terminal">
 ```bash
-14:36:55.567 | INFO    | prefect.engine - Created flow run 'dazzling-hawk' for flow 'Repo Info'
-14:36:55.570 | INFO    | Flow run 'dazzling-hawk' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/aaf96bd2-298c-4fe4-98b0-6b4d520951e1/flow-runs/flow-run/5a891994-8ac3-44e5-894a-1b2f801c9333
-14:36:56.497 | INFO    | Flow run 'dazzling-hawk' - Created task run 'get_contributors-0' for task 'get_contributors'
-14:36:56.499 | INFO    | Flow run 'dazzling-hawk' - Executing 'get_contributors-0' immediately...
-14:36:57.405 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
-14:36:57.525 | INFO    | Flow run 'dazzling-hawk' - Created task run 'calculate_average_commits-0' for task 'calculate_average_commits'
-14:36:57.526 | INFO    | Flow run 'dazzling-hawk' - Executing 'calculate_average_commits-0' immediately...
-14:36:58.227 | INFO    | Task run 'calculate_average_commits-0' - Finished in state Completed()
-14:36:58.256 | INFO    | Flow run 'dazzling-hawk' - PrefectHQ/prefect repository statistics 🤓:
-14:36:58.257 | INFO    | Flow run 'dazzling-hawk' - Stars 🌠 : 12160
-14:36:58.258 | INFO    | Flow run 'dazzling-hawk' - Forks 🍴 : 1252
-14:36:58.259 | INFO    | Flow run 'dazzling-hawk' - Average commits per contributor 💌 : 345.07
-14:36:58.494 | INFO    | Flow run 'dazzling-hawk' - Finished in state Completed('All states completed.')
+15:14:07.025 | INFO    | prefect.engine - Created flow run 'dainty-lionfish' for flow 'Repo Info'
+15:14:07.027 | INFO    | Flow run 'dainty-lionfish' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/c859e5b6-1539-4c77-81e0-444c2ddcaafe/flow-runs/flow-run/3039d822-2e77-4d51-90bd-b5ccc4ff16b0
+15:14:07.998 | INFO    | Flow run 'dainty-lionfish' - Created task run 'get_general_info-0' for task 'get_general_info'
+15:14:07.999 | INFO    | Flow run 'dainty-lionfish' - Executing 'get_general_info-0' immediately...
+15:14:08.822 | INFO    | Task run 'get_general_info-0' - Finished in state Completed()
+15:14:13.833 | INFO    | Flow run 'dainty-lionfish' - Stars 🌠 : 12332
+15:14:13.945 | INFO    | Flow run 'dainty-lionfish' - Created task run 'get_n_contributors-0' for task 'get_n_contributors'
+15:14:13.946 | INFO    | Flow run 'dainty-lionfish' - Executing 'get_n_contributors-0' immediately...
+15:14:14.656 | INFO    | Task run 'get_n_contributors-0' - Finished in state Completed()
+15:14:19.837 | INFO    | Flow run 'dainty-lionfish' - Created task run 'calculate_average_commits-0' for task 'calculate_average_commits'
+15:14:19.838 | INFO    | Flow run 'dainty-lionfish' - Executing 'calculate_average_commits-0' immediately...
+15:14:20.440 | INFO    | Task run 'calculate_average_commits-0' - Finished in state Completed()
+15:14:20.450 | INFO    | Flow run 'dainty-lionfish' - Average commits per contributor 💌 : 448.87
+15:14:25.597 | INFO    | Flow run 'dainty-lionfish' - Finished in state Completed('All states completed.')
 ```
 </div>
 
@@ -132,6 +147,7 @@ Now you've seen:
 
 ### Next Steps
 
+- For a more detailed explanation of the concepts introduced above, our [tutorial](/tutorial/index/) is recommended. 
 - Learn about deploying multiple flows and CI/CD with [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
 - [Our concepts](/concepts/) contain deep dives into Prefect components.

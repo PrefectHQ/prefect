@@ -135,7 +135,7 @@ nav:
           - index.md
           - Installation: getting-started/installation.md
           - First Steps: getting-started/first_steps.md
-          - Orchestration Quickstart: getting-started/orchestration_quickstart.md
+          - Deployment Quickstart: getting-started/deployment_quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md

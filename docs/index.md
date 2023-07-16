@@ -37,60 +37,18 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 </figure>
 
 #### New to Prefect?
-If you're ready to dive in and learn Prefect, start with the [tutorial](/tutorial/) and then checkout out the [concepts](/concepts/index/) for more in depth information.
 
-For deeper dives on specific topics, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
+Head to our [First Steps](/getting-started/first_steps/) page to run your first basic flow and connect to Prefect's API.
+
+If you're ready to dive in and learn Prefect, start with the [tutorial](/tutorial/) for an introduction to Prefect's core components and then checkout out the [concepts](/concepts/index/) for more in depth information.
+
+Alternatively, to deploy a flow in as few steps as possible, check out our [deployment quickstart](/getting-started/deployment_quickstart/).
+
+For discussions of best practices with specific tools, explore our [guides](guides/index/) to see common use-cases. <div style="height: 10px"></div>
 
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
-<p>Or, read on for a quick sample of Prefect.</p>
----
-
-## Hello Prefect
-
-Install Prefect with 
-
-<div class="terminal">
-```bash
-pip install -U prefect
-```
-</div>
-
-See the [install guide](/getting-started/installation/) for more detailed instructions.
-
-### Run a basic flow
-
-Import `flow` and decorate your Python function using the [`@flow`][prefect.flows.flow] decorator.
-
-```python hl_lines="1 3"
-from prefect import flow
-
-@flow
-def my_favorite_function():
-    print("What is your favorite number?")
-    return 42
-
-print(my_favorite_function())
-```
-
-Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its execution via the Prefect logs:
-
-<div class="terminal">
-```bash
-$ python hello_prefect.py
-15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
-15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
-What is your favorite number?
-15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed()
-42
-```
-</div>
-
-Prefect automatically persists all executions of your flow along with useful metadata such as start time, end time, and state. This is just the beginning, so keep exploring to learn how to add retries, notifications, scheduling and much more!
-
-## Next Steps
-To learn more, try our [tutorial](/tutorial) and [guides](/guides), or go deeper with [concepts](/concepts).
 
 !!! tip "Need help?"
     Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=dpcs)!
