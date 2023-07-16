@@ -37,7 +37,7 @@ With Prefect you gain:
 </figure>
 
 #### New to Prefect?
-Start with the [tutorial](/tutorial/) and then checkout out the [concepts](/concepts/index/) for more in-depth information. For deeper dives on specific use cases, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
+Start with the [tutorial](/tutorial/) and then check out the [concepts](/concepts/index/) for more in-depth information. For deeper dives on specific use cases, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
 
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
