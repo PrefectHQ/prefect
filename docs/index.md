@@ -12,12 +12,9 @@ search:
   boost: 2
 ---
 
-
 # **Welcome to Prefect**
 
-Prefect enables you to build and observe resilient data workflows so that you can understand, react to, and recover from unexpected changes. 
-
-TK - Russel had some suggestions here focussed on observability - look at the updated positioning language
+Prefect is a workflow orchestration tool empowering developers to build, observe, and react to data pipelines.
 
 It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
@@ -26,8 +23,8 @@ With Prefect you gain:
 <ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
     <li> <a href="/concepts/tasks/#task-arguments"> retries </a> </li>
-     <li> <a href="/concepts/task-runners/#task-runners"> convenient async functionality</a> </li>
     <li> <a href="/concepts/logs/"> logging </a> </li>
+     <li> <a href="/concepts/task-runners/#task-runners"> convenient async functionality</a> </li>
     <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
     <li> <a href="/cloud/automations/"> notifications</a> </li>
     <li> <a href="/cloud/overview/"> observability</a> </li>
@@ -48,7 +45,7 @@ Start with the [tutorial](/tutorial/) and then checkout out the [concepts](/conc
 <p>Altenatively, read on for a quick sample of Prefect in action.</p>
 ---
 
-## Quick Start: Hello Prefect
+## Quick start: Hello Prefect
 
 Install Prefect with 
 
@@ -90,7 +87,7 @@ What is your favorite number?
 
 Prefect automatically persists useful metadata about your flow run such as the start time, end time, and state. Keep exploring to learn how to add retries, notifications, scheduling and much more!
 
-## Next Steps
+## Next steps
 Try our [tutorial](/tutorial) and [guides](/guides), or go deeper with [concepts](/concepts).
 
 !!! tip "Need help?"
