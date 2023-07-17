@@ -33,9 +33,9 @@ We recommend installing Prefect using a Python virtual environment manager such 
 
 The following sections describe how to install Prefect in your development or execution environment.
 
-### Installing the most recent version
+### Installing the latest version
 
-Prefect is published as a Python package. To install the most recent release or upgrade an existing Prefect install, run the following command in your terminal:
+Prefect is published as a Python package. To install the latest release or upgrade an existing Prefect install, run the following command in your terminal:
 
 <div class="terminal">
 ```bash
@@ -52,6 +52,19 @@ pip install -U "prefect==2.10.4"
 </div>
 
 See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
+
+### Installing the bleeding edge
+
+If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
+
+<div class="terminal">
+```bash
+pip install -U git+https://github.com/PrefectHQ/prefect
+```
+</div>
+
+!!! warning "The `main` branch may not be stable"
+    Please be aware that this method installs unreleased code and may not be stable.
 
 ### Installing for development
 
