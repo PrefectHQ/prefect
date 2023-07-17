@@ -10,6 +10,13 @@ Available attributes:
     - `id`: the flow run's unique ID
     - `tags`: the flow run's set of tags
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
+    - `name`: the name of the flow run
+    - `flow_name`: the name of the flow
+    - `parameters`: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values explicitly passed for the run
+    - `parent_flow_run_id`: the ID of the flow run that triggered this run, if any
+    - `parent_deployment_id`: the ID of the deployment that triggered this run, if any
+
 """
 import os
 from typing import Any, Dict, List, Optional
