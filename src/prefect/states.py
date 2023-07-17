@@ -265,6 +265,8 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             new_state_type = StateType.COMPLETED
         elif states.any_cancelled():
             new_state_type = StateType.CANCELLED
+        elif states.any_paused():
+            new_state_type = StateType.PAUSED
         else:
             new_state_type = StateType.FAILED
 
@@ -273,6 +275,8 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             message = "All states completed."
         elif states.any_cancelled():
             message = f"{states.cancelled_count}/{states.total_count} states cancelled."
+        elif states.any_paused():
+            message = f"{states.paused_count}/{states.total_count} states paused."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
@@ -430,6 +434,7 @@ class StateGroup:
         self.cancelled_count = self.type_counts[StateType.CANCELLED]
         self.final_count = sum(state.is_final() for state in states)
         self.not_final_count = self.total_count - self.final_count
+        self.paused_count = self.type_counts[StateType.PAUSED]
 
     @property
     def fail_count(self):
@@ -446,6 +451,9 @@ class StateGroup:
             self.type_counts[StateType.FAILED] > 0
             or self.type_counts[StateType.CRASHED] > 0
         )
+
+    def any_paused(self) -> bool:
+        return self.paused_count > 0
 
     def all_final(self) -> bool:
         return self.final_count == self.total_count
