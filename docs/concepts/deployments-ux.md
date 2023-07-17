@@ -215,6 +215,24 @@ There are three main types of steps that typically show up in a `pull` section:
 !!! tip "Use block and variable references"
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
+Below is an example of how to use an existing `GitHubCredentials` block to clone a private GitHub repository:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-credentials }}"
+```
+
+Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the 'access_token` field. You can use a Secret block to do this securely:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://bitbucket.org/org/repo.git
+        access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
+```
+
 #### Utility Steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
@@ -277,11 +295,12 @@ You can also run custom steps by packaging them. In the example below, `retrieve
 
 ### Templating Options
 
-Values that you place within your `prefect.yaml` file can reference dynamic values in two different ways:
+Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `prefect.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
 - **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
 - **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
+- **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. This is especially useful for referencing environment variables that are set at runtime.
 
 As an example, consider the following `prefect.yaml` file:
 
@@ -298,9 +317,9 @@ build:
 deployments:
   - # base metadata
     name: null
-    version: "{{ build_image.tag }}"
+    version: "{{ build-image.tag }}"
     tags:
-        - "{{ build_image.tag }}"
+        - "{{ $my_deployment_tag }}"
         - "{{ prefect.variables.some_common_tag }}"
     description: null
     schedule: null
@@ -315,7 +334,7 @@ deployments:
         name: "my-k8s-work-pool"
         work_queue_name: null
         job_variables:
-            image: "{{ build_image.image }}"
+            image: "{{ build-image.image }}"
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
@@ -382,6 +401,14 @@ To deploy multiple deployments you can provide multiple `--name` flags:
 <div class="terminal">
 ```bash
 $ prefect deploy --name deployment-1 --name deployment-2
+```
+</div>
+
+To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
+
+<div class="terminal">
+```bash
+$ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
 ```
 </div>
 
@@ -481,6 +508,7 @@ Below are fields that can be added to each deployment declaration.
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                                       |
 | `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |

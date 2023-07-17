@@ -63,6 +63,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 
+
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
@@ -155,6 +156,34 @@ class Flow(Generic[P, R]):
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
+        # Validate if hook passed is list and contains callables
+        hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
+        hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
+        for hooks, hook_name in zip(hook_categories, hook_names):
+            if hooks is not None:
+                if not hooks:
+                    raise ValueError(f"Empty list passed for '{hook_name}'")
+                try:
+                    hooks = list(hooks)
+                except TypeError:
+                    raise TypeError(
+                        f"Expected iterable for '{hook_name}'; got"
+                        f" {type(hooks).__name__} instead. Please provide a list of"
+                        f" hooks to '{hook_name}':\n\n"
+                        f"@flow({hook_name}=[hook1, hook2])\ndef"
+                        " my_flow():\n\tpass"
+                    )
+
+                for hook in hooks:
+                    if not callable(hook):
+                        raise TypeError(
+                            f"Expected callables in '{hook_name}'; got"
+                            f" {type(hook).__name__} instead. Please provide a list of"
+                            f" hooks to '{hook_name}':\n\n"
+                            f"@flow({hook_name}=[hook1, hook2])\ndef"
+                            " my_flow():\n\tpass"
+                        )
+
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 

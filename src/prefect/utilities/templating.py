@@ -1,4 +1,5 @@
 import enum
+import os
 import re
 from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, Type, TypeVar, Union
 
@@ -13,15 +14,17 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", str, int, float, bool, dict, list, None)
 
-PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]]+)\s*}})")
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]$]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
+ENV_VAR_PLACEHOLDER_PREFIX = "$"
 
 
 class PlaceholderType(enum.Enum):
     STANDARD = "standard"
     BLOCK_DOCUMENT = "block_document"
     VARIABLE = "variable"
+    ENV_VAR = "env_var"
 
 
 class Placeholder(NamedTuple):
@@ -44,6 +47,8 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.BLOCK_DOCUMENT
     elif name.startswith(VARIABLE_PLACEHOLDER_PREFIX):
         return PlaceholderType.VARIABLE
+    elif name.startswith(ENV_VAR_PLACEHOLDER_PREFIX):
+        return PlaceholderType.ENV_VAR
     else:
         return PlaceholderType.STANDARD
 
@@ -126,12 +131,19 @@ def apply_values(
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
                     value = get_from_dict(values, name, NotSet)
-                    if value is NotSet and not remove_notset:
-                        continue
-                    elif value is NotSet:
-                        template = template.replace(full_match, "")
-                    else:
-                        template = template.replace(full_match, str(value))
+                elif placeholder_type is PlaceholderType.ENV_VAR:
+                    name = name.lstrip(ENV_VAR_PLACEHOLDER_PREFIX)
+                    value = os.environ.get(name, NotSet)
+                else:
+                    continue
+
+                if value is NotSet and not remove_notset:
+                    continue
+                elif value is NotSet:
+                    template = template.replace(full_match, "")
+                else:
+                    template = template.replace(full_match, str(value))
+
             return template
     elif isinstance(template, dict):
         updated_template = {}
@@ -191,7 +203,9 @@ async def resolve_block_document_references(
             return block_document.data
         updated_template = {}
         for key, value in template.items():
-            updated_value = await resolve_block_document_references(value)
+            updated_value = await resolve_block_document_references(
+                value, client=client
+            )
             updated_template[key] = updated_value
         return updated_template
     elif isinstance(template, list):
