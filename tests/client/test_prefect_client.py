@@ -1174,10 +1174,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await prefect_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+    response: List[FlowRunNotificationPolicy] = (
+        await prefect_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        )
     )
 
     assert len(response) == 1
