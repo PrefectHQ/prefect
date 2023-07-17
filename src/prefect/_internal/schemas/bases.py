@@ -17,7 +17,7 @@ from pydantic.json import custom_pydantic_encoder
 
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect._internal.schemas.serializers import orjson_dumps
+from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 
 T = TypeVar("T")
 
@@ -60,7 +60,7 @@ class PrefectBaseModel(BaseModel):
 
         # Use orjson for serialization
         json_loads = orjson.loads
-        json_dumps = orjson_dumps
+        json_dumps = orjson_dumps_extra_compatible
 
     def _reset_fields(self) -> Set[str]:
         """A set of field names that are reset when the PrefectBaseModel is copied.
