@@ -91,8 +91,19 @@ def prompt_select_from_table(
             table.add_column(column.get("header", ""))
 
         rows = []
+        max_length = 250
         for item in data:
-            rows.append(tuple(item.get(column.get("key")) for column in columns))
+            rows.append(
+                tuple(
+                    (
+                        value[:max_length] + "...\n"
+                        if isinstance(value := item.get(column.get("key")), str)
+                        and len(value) > max_length
+                        else value
+                    )
+                    for column in columns
+                )
+            )
 
         for i, row in enumerate(rows):
             if i == current_idx:
@@ -378,8 +389,11 @@ async def prompt_build_custom_docker_image(
             build_step["dockerfile"] = "Dockerfile"
         else:
             if confirm(
-                "A Dockerfile exists but you chose not to use it. Would you like to"
-                " rename it?"
+                "A Dockerfile exists. You chose not to use it. A temporary Dockerfile"
+                " will be automatically built during the deployment build step. If"
+                " another file named 'Dockerfile' already exists at that time, the"
+                " build step will fail. Would you like to rename your existing"
+                " Dockerfile?"
             ):
                 new_dockerfile_name = prompt(
                     "New Dockerfile name", default="Dockerfile.backup"
