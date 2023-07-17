@@ -86,6 +86,12 @@ class TestGetClient:
             assert isinstance(new_client, PrefectClient)
             assert new_client is not client
 
+    def test_get_client_prioritizes_and_passes_kwargs_to_client(self):
+        with temporary_settings(updates={PREFECT_API_URL: "http://bar/api"}):
+            client = get_client(api="https://test.com")
+            assert isinstance(client, PrefectClient)
+            assert client.api_url == "https://test.com"
+
 
 class TestClientProxyAwareness:
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where
@@ -1168,10 +1174,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[FlowRunNotificationPolicy] = (
-        await prefect_client.read_flow_run_notification_policies(
-            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-        )
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await prefect_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 1
