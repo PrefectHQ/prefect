@@ -125,9 +125,9 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p]
 
 
-@flow
+@flow(retries=3, retry_delay_seconds=5)
 def get_repo_info(
-    repo_name: str = "PrefectHQ/prefect", retries=3, retry_delay_seconds=5
+    repo_name: str = "PrefectHQ/prefect"
 ):
     repo = get_url(f"https://api.github.com/repos/{repo_name}")
     issues = get_open_issues(repo_name, repo["open_issues_count"])
