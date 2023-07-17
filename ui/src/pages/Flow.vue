@@ -35,9 +35,7 @@
   const flowId = useRouteParam('flowId')
   const flowIds = computed(() => [flowId.value])
   const router = useRouter()
-  const tabs = computed(() => {
-    return ['Runs', 'Deployments', 'Details']
-  })
+  const tabs = ['Runs', 'Deployments', 'Details']
 
   const subscriptionOptions = {
     interval: 300000,
