@@ -53,6 +53,7 @@ class PrefectAgent:
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
+        api: Optional[str] = None,
     ) -> None:
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
@@ -72,6 +73,7 @@ class PrefectAgent:
         self.limit: Optional[int] = limit
         self.limiter: Optional[anyio.CapacityLimiter] = None
         self.client: Optional[PrefectClient] = None
+        self.api = api
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -642,9 +644,12 @@ class PrefectAgent:
         self.limiter = (
             anyio.CapacityLimiter(self.limit) if self.limit is not None else None
         )
-        self.client = get_client()
+        self.client = get_client(api=self.api)
         await self.client.__aenter__()
         await self.task_group.__aenter__()
+        health = await self.client.api_healthcheck()
+        if health is not None:
+            self.logger.warning(f"Prefect API {self.api} did not pass healthcheck")
 
     async def shutdown(self, *exc_info):
         self.started = False

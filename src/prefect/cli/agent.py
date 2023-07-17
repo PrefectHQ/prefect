@@ -156,7 +156,7 @@ async def start(
     if not hide_welcome:
         if api:
             app.console.print(
-                f"Starting v{prefect.__version__} agent connected to {api}..."
+                f"Starting v{prefect.__version__} agent connecting to {api}..."
             )
         else:
             app.console.print(
@@ -174,6 +174,7 @@ async def start(
         work_pool_name=work_pool_name,
         prefetch_seconds=prefetch_seconds,
         limit=limit,
+        api=api,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
