@@ -35,7 +35,7 @@
             <FlowRunsSort v-model="filter.sort" />
           </div>
 
-          <FlowRunList v-model:selected="selectedFlowRuns" selectable :flow-runs="flowRuns" />
+          <FlowRunList v-model:selected="selectedFlowRuns" selectable :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>
@@ -54,7 +54,7 @@
 
 <script lang="ts" setup>
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRuns } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRunsInfiniteScroll } from '@prefecthq/prefect-ui-library'
   import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -86,7 +86,7 @@
   const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, subscription: flowRunsSubscription } = useFlowRuns(filter)
+  const { flowRuns, subscriptions: flowRunsSubscriptions, loadMore: loadMoreFlowRuns } = useFlowRunsInfiniteScroll(filter, subscriptionOptions)
   const selectedFlowRuns = ref([])
 
   function clear(): void {
@@ -95,7 +95,7 @@
 
   const deleteFlowRuns = (): void => {
     selectedFlowRuns.value = []
-    flowRunsSubscription.refresh()
+    flowRunsSubscriptions.refresh()
     flowRunCountSubscription.refresh()
   }
 
