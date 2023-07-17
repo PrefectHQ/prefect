@@ -20,55 +20,59 @@ Here is an example flow called `Get Repo Info` that contains tasks and a subflow
 ```python
 # my_flow.py
 import httpx
-from datetime import timedelta
-from prefect import flow, task, get_run_logger
-from prefect.tasks import task_input_hash
+from prefect import flow, task
 
 
-@task(
-    cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1)
-)  # Tasks support the ability to cache their return value
-def get_url(url: str, params: dict = None):
-    response = httpx.get(url, params=params)
+@task(retries=1)
+def get_general_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    api_response = httpx.get(url)
+    api_response.raise_for_status()
+    general_info = api_response.json()
+    return general_info
+
+
+@task
+def get_n_contributors(general_info: dict):
+    contributors_url = general_info["contributors_url"]
+    response = httpx.get(contributors_url)
     response.raise_for_status()
-    return response.json()
+    contributors = response.json()
+    return {"count": len(contributors)}
 
 
-@flow 
-def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 10):
-    issues = []
-    pages = range(1, -(open_issues_count // -per_page) + 1)
-    for page in pages:
-        issues.append(
-            get_url.submit(  # The submit method changes the task execution from sequential to concurrent
-                f"https://api.github.com/repos/{repo_name}/issues",
-                params={"page": page, "per_page": per_page, "state": "open"},
-            )
-        )
-    return [
-        i for p in issues for i in p.result()
-    ]  # Use the result method to unpack a prefect future outside of a task
+@task(retries=4)  # This is a Task that will retry 4 times!
+def calculate_average_commits(general_info: dict, n_contributors: int):
+    response = httpx.get(general_info["contributors_url"])
+    response.raise_for_status()
+    commit_data = response.json()
+    total_commits = sum(c["contributions"] for c in commit_data)
+    average_commits = total_commits / n_contributors["count"]
+    return {"avg_commits": average_commits}
 
+@flow(name="Repo Info", log_prints=True)  # This is a Flow called Repo Info
+def repo_info(
+    repo_owner: str = "PrefectHQ", repo_name: str = "prefect"
+):  # Prefect coerces types based on type hints
+    """
+    A flow that retrieves info on how many stars a github repo has and also calculates the average commits per contributor.
+    """
+    general_info = get_general_info()
+    print(f"Stars 🌠 : {general_info['stargazers_count']}")
 
-@flow(name="Get Repo Info", retries=3)  # Optionally add retries to flows and tasks
-def get_repo_info(
-    repo_name: str = "PrefectHQ/prefect",  # Prefect coerces parameter values based on type hints
-):
-    repo = get_url(f"https://api.github.com/repos/{repo_name}")  # - Task Call -
-    issues = get_open_issues(repo_name, repo["open_issues_count"])  # - Subflow Call -
-    issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
-    logger = (
-        get_run_logger()
-    )  # Use logger to add logs or set log_prints to True in flow argument to log stdout
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
-    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
-    logger.info(f"Forks 🍴 : {repo['forks_count']}")
-    logger.info(f"Average open issues per user 💌 : {issues_per_user:.2f}")
+    n_contributors = get_n_contributors.submit(
+        general_info
+    )  # Submit a task to a task runner for concurrent or parallel execution.
+    print(
+        f"Number of contributors 👷: {n_contributors.result()['count']}"
+    )  # resolve a prefect future outside of a task using .result()
+
+    average_commits = calculate_average_commits(general_info, n_contributors)
+    print(f"Average commits per contributor 💌 : {average_commits['avg_commits']:.2f}")
 
 
 if __name__ == "__main__":
-    get_repo_info() # Call a flow function for a local flow run!
-
+    repo_info()  # Call a flow function for a local flow run!
 ```
 
 ### Step 2: Run your Flow locally
@@ -79,8 +83,6 @@ Call any function that you've decorated with a `@flow` decorator to see a local 
 ```bash
 python my_flow.py
 ``` 
-
-#### TODO CHANGE This
 
 <div class="terminal">
 ```bash
