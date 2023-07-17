@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pytest
 
 from prefect import flow
@@ -25,6 +27,17 @@ def flow_function():
         return param
 
     return client_test_flow
+
+
+@pytest.fixture(scope="session")
+def flow_function_dict_parameter():
+    @flow(
+        version="test", description="A test function with a dictionary as a parameter"
+    )
+    def client_test_flow_dict_parameter(dict_param: Dict[int, str]):
+        return dict_param
+
+    return client_test_flow_dict_parameter
 
 
 @pytest.fixture(scope="module")

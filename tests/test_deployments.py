@@ -689,6 +689,23 @@ class TestDeploymentApply:
                     create_route.calls[0].request.content
                 ) == trigger.as_automation().dict(json_compatible=True)
 
+    async def test_deployment_apply_with_dict_parameter(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep is not None
+
 
 class TestRunDeployment:
     @pytest.mark.parametrize(
