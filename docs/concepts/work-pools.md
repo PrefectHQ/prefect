@@ -14,7 +14,7 @@ search:
   boost: 2
 ---
 
-# Work Pools, Workers, & Agents
+# Work Pools, Workers, and Agents
 
 ![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
 
