@@ -1,8 +1,10 @@
 <template>
-  <p-layout-well class="flow">
+  <p-layout-default class="flow">
     <template #header>
       <PageHeadingFlow v-if="flow" :flow="flow" @delete="deleteFlow" />
     </template>
+
+    <FlowStats v-if="flow" :flow-id="flow.id" />
 
     <p-tabs :tabs="tabs">
       <template #details>
@@ -17,19 +19,15 @@
         <FlowRunFilteredList :flow-run-filter="flowRunsFilter" />
       </template>
     </p-tabs>
-
-    <template #well>
-      <FlowDetails v-if="flow" :flow="flow" />
-    </template>
-  </p-layout-well>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { media } from '@prefecthq/prefect-design'
   import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import FlowStats from '@/components/FlowStats.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
 
@@ -37,15 +35,7 @@
   const flowId = useRouteParam('flowId')
   const flowIds = computed(() => [flowId.value])
   const router = useRouter()
-  const tabs = computed(() => {
-    const values = ['Runs', 'Deployments']
-
-    if (!media.xl) {
-      values.unshift('Details')
-    }
-
-    return values
-  })
+  const tabs = ['Runs', 'Deployments', 'Details']
 
   const subscriptionOptions = {
     interval: 300000,
