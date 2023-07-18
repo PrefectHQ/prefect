@@ -42,7 +42,7 @@ Start with the [tutorial](/tutorial/) and then check out the [concepts](/concept
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
-<p>Alternatively, read on for a quickstart of Prefect.</p>
+<p>Alternatively, read on for a quickstart of Prefect. </p>
 ---
 
 ## Prefect Quickstart
@@ -70,7 +70,7 @@ Sign up for a forever free [Prefect Cloud Account](/cloud/) or, alternatively, h
     ```
     </div>
 
-### Step 3: Author a flow
+### Step 3: Create a flow
 **The fastest way to get started with Prefect is to add a `@flow` decorator to any python function**.
 
 !!! tip "Rules of Thumb"
@@ -154,12 +154,12 @@ You'll find a link directing you to the flow run page conveniently positioned at
 
 ![Alt text](getting-started/flow-run-diagram.jpg)
 
-Local flow run execution is great for development and testing, but in order to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
+Local flow run execution is great for development and testing, but to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
 
 ### Step 5: Deploy the flow
 
-Deploying your flows is, in essence, the act of informing the Prefect API of where, how, and when to run your flows.
+Deploying your flows informs the Prefect API of where, how, and when to run your flows.
 
 !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
 
@@ -172,10 +172,10 @@ prefect deploy
 </div>
 
 !!! note "It's recommended to save the configuration for the deployment."
-    Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this yaml file to edit and [define multiple deployments](/concepts/deployments-ux/) for this repo.
+    Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments-ux/) for this repo.
 
 
-### Step 5: Start a worker and run deployed flow
+### Step 5: Start a worker and run the deployed flow
 
 Start a worker to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
 
