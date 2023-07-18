@@ -1,5 +1,5 @@
 ---
-description: Learn how to build Prefect deployments that create flow runs in Docker containers.
+description: Learn how to store your Prefect code in Docker images and build Prefect deployments that create flow runs in Docker containers.
 tags:
     - Docker
     - containers
@@ -16,8 +16,11 @@ In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating con
 
 In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
+This guide will also dive into how you can "bake" your code directly into your Docker image.  This will allow for easy storage and allow you to deploy flow code without the need for a storage block.  
+
 In this guide we'll:
 
+- Create a Docker image that stores your Prefect flow code
 - Configure a [build step](/concepts/deployments#build) which will build a docker image on our behalf
 - Build and register a new `log_flow.py` deployment that uses the new image.
 - Create a flow run from this deployment that spins up a Docker container and executes, logging a message.
@@ -37,11 +40,34 @@ To run a deployed flow in a Docker container, you'll need the following:
     
     If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
-## Prefect.yaml File
+## Storing Prefect Flow Code in a Docker Image 
 
 First let's create a directory to work from, calling it `docker-tutorial`.
 
-We're going to make use of Prefect's deployment recipes. Next, in your terminal run:
+In this directory you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial.  In this case I named the flow `docker-tutorial-flow.py`.
+
+The next file you will add to the `docker-tutorial` directory is a `requirements.txt`.  In this file make sure to include all dependencies that are required for your `docker-tutorial-flow.py` script.  
+
+Next, you will create a `Dockerfile` that will be used to create a Docker image that will also store the flow code.  This `Dockerfile` should look similar to the following:  
+
+```bash
+FROM prefecthq/prefect:2-python3.9
+COPY requirements.txt .
+RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-dir
+ADD flows /opt/prefect/flows
+```
+
+Finally you will builds this image by running: 
+
+```bash
+docker build -t docker-tutorial-image .
+```
+
+This will create a Docker image in your Docker repository with your Prefect flow stored in the image.  
+
+## Prefect.yaml File
+
+Now that you have created a Docker image that stores your Prefect flow code, you're going to make use of Prefect's deployment recipes. In your terminal run:
 
 <div class="terminal">
 ```bash
@@ -51,7 +77,7 @@ prefect init --recipe docker
 
 You will see a prompt to input values for image name and tag, lets use:
 ```
-image_name: prefect-docker-tutorial
+image_name: docker-tutorial-image
 tag: latest
 ```
 
@@ -71,7 +97,7 @@ build:
 - prefect_docker.deployments.steps.build_docker_image:
     id: build_image
     requires: prefect-docker>=0.3.0
-    image_name: prefect-docker-tutorial
+    image_name: docker-tutorial-image
     tag: latest
     dockerfile: auto
     push: true
@@ -101,8 +127,15 @@ deployments:
       image: '{{ build_image.image }}'
 ```
 
-A few callouts
+Once you have made any updates you would like to this `prefect.yaml` file, in your terminal run: 
 
+<div class="terminal">
+```bash
+prefect deploy
+```
+</div>
+
+The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
 ## Cleaning up
 
 When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.
