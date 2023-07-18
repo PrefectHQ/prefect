@@ -16,7 +16,6 @@ In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating con
 
 In this guide, we will "bake" your code directly into a Docker image. This will allow for easy storage and allow you to deploy flow code without the need for a storage block. Then, we'll configure the deployment so flow runs are executed in a Docker container based on that image. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
-This guide will also dive into how you can "bake" your code directly into your Docker image.  This will allow for easy storage and allow you to deploy flow code without the need for a storage block.  
 
 In this guide we'll:
 
