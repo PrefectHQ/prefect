@@ -3,10 +3,12 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
+
 import pendulum
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from fastapi.responses import ORJSONResponse
 
@@ -108,6 +110,66 @@ async def count_flow_runs(
             work_pool_filter=work_pools,
             work_queue_filter=work_pool_queues,
         )
+
+
+@router.post("/lateness")
+async def average_flow_run_lateness(
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Optional[float]:
+    """
+    Query for average flow-run lateness in seconds.
+    """
+    async with db.session_context() as session:
+        if db.dialect.name == "sqlite":
+            # Since we want an _average_ of the lateness we're unable to use
+            # the existing FlowRun.expected_start_time_delta property as it
+            # returns a timedelta and SQLite is unable to properly deal with it
+            # and always returns 1970.0 as the average. This copies the same
+            # logic but ensures that it returns the number of seconds instead
+            # so it's compatible with SQLite.
+            base_query = sa.case(
+                (
+                    db.FlowRun.start_time > db.FlowRun.expected_start_time,
+                    sa.func.strftime("%s", db.FlowRun.start_time)
+                    - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                ),
+                (
+                    db.FlowRun.start_time.is_(None)
+                    & db.FlowRun.state_type.notin_(schemas.states.TERMINAL_STATES)
+                    & (db.FlowRun.expected_start_time < sa.func.datetime("now")),
+                    sa.func.strftime("%s", sa.func.datetime("now"))
+                    - sa.func.strftime("%s", db.FlowRun.expected_start_time),
+                ),
+                else_=0,
+            )
+        else:
+            base_query = db.FlowRun.estimated_start_time_delta
+
+        query = await models.flow_runs._apply_flow_run_filters(
+            sa.select(sa.func.avg(base_query)),
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+        )
+        result = await session.execute(query)
+
+        avg_lateness = result.scalar()
+
+        if avg_lateness is None:
+            return None
+        elif isinstance(avg_lateness, datetime.timedelta):
+            return avg_lateness.total_seconds()
+        else:
+            return avg_lateness
 
 
 @router.post("/history")
@@ -335,7 +397,9 @@ async def set_flow_run_state(
     now = pendulum.now()
 
     # create the state
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,

@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import time
 from abc import ABC, abstractmethod
 from functools import partial
@@ -12,8 +11,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import StateType
 from prefect.logging import get_run_logger
-from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
@@ -463,10 +462,6 @@ class TaskRunnerStandardTestSuite(ABC):
         if os.environ.get("CI"):
             # CI machines are slow
             sleep_time += 3
-
-        if sys.version_info < (3, 8):
-            # Python 3.7 is slower
-            sleep_time += 0.5
 
         return sleep_time
 

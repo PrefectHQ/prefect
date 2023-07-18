@@ -33,6 +33,10 @@ from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.settings import (
+    PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+)
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -180,13 +184,15 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: datetime.timedelta = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
-        retries: int = 0,
-        retry_delay_seconds: Union[
-            float,
-            int,
-            List[float],
-            Callable[[int], List[float]],
-        ] = 0,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[
+            Union[
+                float,
+                int,
+                List[float],
+                Callable[[int], List[float]],
+            ]
+        ] = None,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -199,6 +205,34 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
+        # Validate if hook passed is list and contains callables
+        hook_categories = [on_completion, on_failure]
+        hook_names = ["on_completion", "on_failure"]
+        for hooks, hook_name in zip(hook_categories, hook_names):
+            if hooks is not None:
+                if not hooks:
+                    raise ValueError(f"Empty list passed for '{hook_name}'")
+                try:
+                    hooks = list(hooks)
+                except TypeError:
+                    raise TypeError(
+                        f"Expected iterable for '{hook_name}'; got"
+                        f" {type(hooks).__name__} instead. Please provide a list of"
+                        f" hooks to '{hook_name}':\n\n"
+                        f"@flow({hook_name}=[hook1, hook2])\ndef"
+                        " my_flow():\n\tpass"
+                    )
+
+                for hook in hooks:
+                    if not callable(hook):
+                        raise TypeError(
+                            f"Expected callables in '{hook_name}'; got"
+                            f" {type(hook).__name__} instead. Please provide a list of"
+                            f" hooks to '{hook_name}':\n\n"
+                            f"@flow({hook_name}=[hook1, hook2])\ndef"
+                            " my_flow():\n\tpass"
+                        )
+
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
@@ -242,7 +276,12 @@ class Task(Generic[P, R]):
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = retries
+
+        self.retries = (
+            retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
+        )
+        if retry_delay_seconds is None:
+            retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)
@@ -916,13 +955,13 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
-    retries: int = 0,
+    retries: int = None,
     retry_delay_seconds: Union[
         float,
         int,
         List[float],
         Callable[[int], List[float]],
-    ] = 0,
+    ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,

@@ -1,9 +1,0 @@
-name: null
-prefect-version: null
-description: "Store project on a local filesystem"
-
-build: null
-push: null
-pull: 
-  - prefect.projects.steps.set_working_directory:
-      directory: "{{ directory }}"

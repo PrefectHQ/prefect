@@ -83,20 +83,20 @@ def test_context_exit_restores_previous_context():
     assert ExampleContext.get() is None
 
 
-async def test_flow_run_context(orion_client):
+async def test_flow_run_context(prefect_client):
     @flow
     def foo():
         pass
 
     test_task_runner = SequentialTaskRunner()
-    flow_run = await orion_client.create_flow_run(foo)
+    flow_run = await prefect_client.create_flow_run(foo)
     result_factory = await ResultFactory.from_flow(foo)
 
     async with anyio.create_task_group() as task_group:
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,
-            client=orion_client,
+            client=prefect_client,
             task_runner=test_task_runner,
             result_factory=result_factory,
             background_tasks=task_group,
@@ -105,25 +105,25 @@ async def test_flow_run_context(orion_client):
             ctx = FlowRunContext.get()
             assert ctx.flow is foo
             assert ctx.flow_run == flow_run
-            assert ctx.client is orion_client
+            assert ctx.client is prefect_client
             assert ctx.task_runner is test_task_runner
             assert ctx.result_factory == result_factory
             assert isinstance(ctx.start_time, DateTime)
             assert ctx.parameters == {"x": "y"}
 
 
-async def test_task_run_context(orion_client, flow_run):
+async def test_task_run_context(prefect_client, flow_run):
     @task
     def foo():
         pass
 
-    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     result_factory = await ResultFactory.default_factory()
 
     with TaskRunContext(
         task=foo,
         task_run=task_run,
-        client=orion_client,
+        client=prefect_client,
         result_factory=result_factory,
         parameters={"foo": "bar"},
     ):
@@ -144,7 +144,7 @@ def remove_existing_settings_context():
         SettingsContext.__var__.reset(token)
 
 
-async def test_get_run_context(orion_client, local_filesystem):
+async def test_get_run_context(prefect_client, local_filesystem):
     @flow
     def foo():
         pass
@@ -154,8 +154,8 @@ async def test_get_run_context(orion_client, local_filesystem):
         pass
 
     test_task_runner = SequentialTaskRunner()
-    flow_run = await orion_client.create_flow_run(foo)
-    task_run = await orion_client.create_task_run(bar, flow_run.id, dynamic_key="")
+    flow_run = await prefect_client.create_flow_run(foo)
+    task_run = await prefect_client.create_task_run(bar, flow_run.id, dynamic_key="")
 
     with pytest.raises(RuntimeError):
         get_run_context()
@@ -167,10 +167,10 @@ async def test_get_run_context(orion_client, local_filesystem):
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,
-            client=orion_client,
+            client=prefect_client,
             task_runner=test_task_runner,
             background_tasks=task_group,
-            result_factory=await ResultFactory.from_flow(foo, client=orion_client),
+            result_factory=await ResultFactory.from_flow(foo, client=prefect_client),
             parameters={"x": "y"},
         ) as flow_ctx:
             assert get_run_context() is flow_ctx
@@ -178,8 +178,10 @@ async def test_get_run_context(orion_client, local_filesystem):
             with TaskRunContext(
                 task=bar,
                 task_run=task_run,
-                client=orion_client,
-                result_factory=await ResultFactory.from_task(bar, client=orion_client),
+                client=prefect_client,
+                result_factory=await ResultFactory.from_task(
+                    bar, client=prefect_client
+                ),
                 parameters={"foo": "bar"},
             ) as task_ctx:
                 assert get_run_context() is task_ctx, "Task context takes precendence"

@@ -7,8 +7,8 @@ from fastapi import status
 
 import prefect
 from prefect.server import models, schemas
-from prefect.server.schemas.actions import WorkPoolCreate
-from prefect.server.schemas.core import WorkPool, WorkQueue
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool, WorkQueue
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -87,6 +87,12 @@ class TestCreateWorkPool:
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
+    async def test_create_work_pool_with_empty_name(self, client, name):
+        response = await client.post("/work_pools/", json=dict(name=name))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "name cannot be empty" in response.json()["detail"]
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
@@ -470,6 +476,65 @@ class TestCreateWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
+
+    async def test_create_work_queue_with_priority(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        data = dict(name="my-wpq", priority=99)
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues",
+            json=data,
+        )
+        assert response.status_code == 201
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
+
+    async def test_create_work_queue_with_no_priority_when_low_priority_set(
+        self,
+        client,
+        work_pool,
+    ):
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-1")
+        )
+        # priority 2 because the default queue exists
+        assert response.json()["priority"] == 2
+
+        response2 = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-2")
+        )
+        assert response2.json()["priority"] == 3
+
+    async def test_create_work_queue_with_no_priority_when_high_priority_set(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-1", priority=99)
+        )
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        response2 = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-2")
+        )
+        assert response2.json()["priority"] == 2
+
+        work_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
 
 
 class TestReadWorkQueue:
@@ -488,6 +553,7 @@ class TestReadWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
 
 
 class TestUpdateWorkQueue:

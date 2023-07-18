@@ -149,7 +149,7 @@ def prefect_test_harness():
     """
     Temporarily run flows against a local SQLite database for testing.
 
-    Example:
+    Examples:
         >>> from prefect import flow
         >>> @flow
         >>> def my_flow():
@@ -242,5 +242,10 @@ async def assert_uses_result_storage(
 
 
 def a_test_step(**kwargs):
+    kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
+    return kwargs
+
+
+def b_test_step(**kwargs):
     kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
     return kwargs

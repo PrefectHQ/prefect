@@ -130,6 +130,12 @@ async def create_work_pool(
     name already exists, an error will be raised.
     """
 
+    if not work_pool.name.lower().strip("' \""):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Work pool name cannot be empty.",
+        )
+
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -322,7 +328,9 @@ async def _record_work_queue_polls(
 
     If no work queue names are provided, all work queues in the work pool are recorded as polled.
     """
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         work_queue_filter = (
             schemas.filters.WorkQueueFilter(
                 name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)
@@ -361,7 +369,7 @@ async def create_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
@@ -389,7 +397,7 @@ async def create_work_queue(
             ),
         )
 
-    return model
+    return schemas.responses.WorkQueueResponse.from_orm(model)
 
 
 @router.get("/{work_pool_name}/queues/{name}")
@@ -400,7 +408,7 @@ async def read_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Read a work pool queue
     """
@@ -412,9 +420,11 @@ async def read_work_queue(
             work_queue_name=work_queue_name,
         )
 
-        return await models.workers.read_work_queue(
+        model = await models.workers.read_work_queue(
             session=session, work_queue_id=work_queue_id, db=db
         )
+
+    return schemas.responses.WorkQueueResponse.from_orm(model)
 
 
 @router.post("/{work_pool_name}/queues/filter")
@@ -425,7 +435,7 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
+) -> List[schemas.responses.WorkQueueResponse]:
     """
     Read all work pool queues
     """
@@ -434,7 +444,7 @@ async def read_work_queues(
             session=session,
             work_pool_name=work_pool_name,
         )
-        return await models.workers.read_work_queues(
+        wqs = await models.workers.read_work_queues(
             session=session,
             work_pool_id=work_pool_id,
             work_queue_filter=work_queues,
@@ -442,6 +452,8 @@ async def read_work_queues(
             offset=offset,
             db=db,
         )
+
+    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
 
 
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)

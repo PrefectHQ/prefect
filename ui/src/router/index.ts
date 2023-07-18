@@ -7,6 +7,7 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   artifact: () => import('@/pages/Artifact.vue'),
   artifactKey: () => import('@/pages/ArtifactKey.vue'),
   artifacts: () => import('@/pages/Artifacts.vue'),
+  dashboard: () => import('@/pages/Dashboard.vue'),
   flowRuns: () => import('@/pages/FlowRuns.vue'),
   flowRun: () => import('@/pages/FlowRun.vue'),
   taskRun: () => import('@/pages/TaskRun.vue'),
@@ -45,7 +46,7 @@ const routeRecords: AppRouteRecord[] = [
   {
     name: 'root',
     path: '/',
-    redirect: routes.flowRuns(),
+    redirect: routes.dashboard(),
     children: workspaceRoutes,
   },
   {

@@ -51,13 +51,13 @@ After running some flows, fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![](/docs/img/ui/flow-run-page.png)
+![](/docs/img/ui/dashboard-oss.png)
 
-From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote envirnments, running on a scheduled or event-driven basis.
+From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote environments, running on a scheduled or event-driven basis.
 
 ## Getting Started
 
-Prefect requires Python 3.7 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
+Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
 
 ```bash
 pip install prefect
@@ -67,7 +67,7 @@ Start by then exploring the [core concepts of Prefect workflows](https://docs.pr
 
 ## Join the community
 
-Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more abou Prefect, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an community-driven knowledge base to find answers to your Prefect-related questions. All community forums, including code contributions, issue discussions, and slack messages are subject to our [Code of Conduct](https://discourse.prefect.io/faq).
+Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more about Prefect, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is a community-driven knowledge base to find answers to your Prefect-related questions. All community forums, including code contributions, issue discussions, and slack messages are subject to our [Code of Conduct](https://discourse.prefect.io/faq).
 
 ## Contribute
 

@@ -11,16 +11,18 @@ tags:
     - workspaces
     - PaaS
 title: Prefect Cloud
+search:
+  boost: 2
 ---
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>
 
-Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect server](/tutorials/orchestration/#running-the-prefect-server) and UI in a hosted environment, plus additional features such as automations, workspaces, and organizations.
+Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect server](/host) and UI in a hosted environment, plus additional features such as automations, workspaces, and organizations.
 
 !!! success "Prefect Cloud Quickstart"
     Ready to jump right in and start running with Prefect Cloud? See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-workspace-dashboard.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
 Prefect Cloud includes all the features in the open-source Prefect server plus the following:
 
@@ -30,7 +32,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
     - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
     - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
-    - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's serves based on automation triggers.
+    - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's server based on automation triggers.
     - [Organizations](/cloud/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
     - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
@@ -67,11 +69,12 @@ Each workspace keeps track of its own:
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud. 
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-new-workspace.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
 ## Events
 
-Prefect Cloud allows you to see your events. TK image 
+Prefect Cloud allows you to see your [events](https://docs.prefect.io/2.10.13/cloud/events/). 
+![Prefect UI](/img/ui/event-feed.png)
 
 
 ## Automations
@@ -119,6 +122,9 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 
 ## Start using Prefect Cloud
 
-To create an account or sign in with an existing Prefect Cloud account, go to [http://app.prefect.cloud/](http://app.prefect.cloud/).
+To create an account or sign in with an existing Prefect Cloud account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
 Then follow the steps in our [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and start running workflows with Prefect Cloud.
+
+!!! tip "Need help?"
+    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!

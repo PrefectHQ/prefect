@@ -13,10 +13,10 @@ from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.docker import get_prefect_image_name
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
@@ -675,19 +675,56 @@ class KubernetesJob(Infrastructure):
                     namespace=self.namespace,
                     **timeout_seconds,
                 ):
-                    if event["object"].status.completion_time:
+                    if event["type"] == "DELETED":
+                        self.logger.error(f"Job {job_name!r}: Job has been deleted.")
+                        completed = True
+                    elif event["object"].status.completion_time:
                         if not event["object"].status.succeeded:
                             # Job failed, exit while loop and return pod exit code
                             self.logger.error(f"Job {job_name!r}: Job failed.")
                         completed = True
+                    # Check if the job has reached its backoff limit
+                    # and stop watching if it has
+                    elif (
+                        event["object"].spec.backoff_limit is not None
+                        and event["object"].status.failed is not None
+                        and event["object"].status.failed
+                        > event["object"].spec.backoff_limit
+                    ):
+                        self.logger.error(
+                            f"Job {job_name!r}: Job reached backoff limit."
+                        )
+                        completed = True
+                    # If the job has no backoff limit, check if it has failed
+                    # and stop watching if it has
+                    elif (
+                        not event["object"].spec.backoff_limit
+                        and event["object"].status.failed
+                    ):
+                        completed = True
+
+                    if completed:
                         watch.stop()
                         break
 
         with self.get_client() as client:
-            pod_status = client.read_namespaced_pod_status(
-                namespace=self.namespace, name=pod.metadata.name
+            # Get all pods for the job
+            pods = client.list_namespaced_pod(
+                namespace=self.namespace, label_selector=f"job-name={job_name}"
             )
-            first_container_status = pod_status.status.container_statuses[0]
+            # Get the status for only the most recently used pod
+            pods.items.sort(
+                key=lambda pod: pod.metadata.creation_timestamp, reverse=True
+            )
+            most_recent_pod = pods.items[0] if pods.items else None
+            first_container_status = (
+                most_recent_pod.status.container_statuses[0]
+                if most_recent_pod
+                else None
+            )
+            if not first_container_status:
+                self.logger.error(f"Job {job_name!r}: No pods found for job.")
+                return -1
 
         return first_container_status.state.terminated.exit_code
 

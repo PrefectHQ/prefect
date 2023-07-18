@@ -8,12 +8,14 @@ tags:
     - Windows
     - SQLite
     - upgrading
+search:
+  boost: 2
 ---
 
 
 # Installation
 
-Prefect requires Python 3.7 or later.
+Prefect requires Python 3.8 or newer.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
@@ -140,7 +142,6 @@ You can also:
 - Use the `conda` virtual environment manager, which enables configuring a compatible SQLite version.
 - [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
-- Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
 
 ## Using Self-Signed SSL Certificates
@@ -167,7 +168,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+The Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will already have SQLite installed, since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
@@ -177,7 +178,6 @@ $ sqlite3 --version
 ```
 </div>
 
-Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 
 <div class="terminal">
@@ -253,32 +253,6 @@ environment variable to specify which hosts should not be sent through the proxy
 
 For more information about these environment variables, see the [cURL
 documentation](https://everything.curl.dev/usingcurl/proxies/env).
-
-## Upgrading from Prefect beta
-
-The following sections provide important notes for users upgrading from Prefect 2 beta releases.
-
-### Upgrading to 2.0b6
-
-In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/concepts/blocks/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
-
-After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2 API.
-
-Actions needed to upgrade:
-
-- Upgrade Prefect Python package: `pip install -U "prefect>=2.0b6"`
-- Restart any agent processes.
-- If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
-
-You don't need to recreate any deployments or pause your schedules &mdash; stopping your agent process to perform an upgrade may result in some late runs, but those will be picked up once you restart your agent, so Don't Panic!
-
-### Upgrading to 2.0a10
-
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect database.
-
-Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
-
-Resetting the database with the CLI command `prefect server database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/prefect.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
     Note that resetting the database causes the loss of any existing data.

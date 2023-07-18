@@ -1,6 +1,7 @@
 """
 Command line interface for working with agent services
 """
+import os
 from functools import partial
 from typing import List
 from uuid import UUID
@@ -20,6 +21,7 @@ from prefect.settings import (
     PREFECT_AGENT_QUERY_INTERVAL,
     PREFECT_API_URL,
 )
+from prefect.utilities.processutils import setup_signal_handlers_agent
 from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
@@ -160,6 +162,11 @@ async def start(
             app.console.print(
                 f"Starting v{prefect.__version__} agent with ephemeral API..."
             )
+
+    agent_process_id = os.getpid()
+    setup_signal_handlers_agent(
+        agent_process_id, "the Prefect agent", app.console.print
+    )
 
     async with PrefectAgent(
         work_queues=work_queues,

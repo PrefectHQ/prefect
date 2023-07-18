@@ -1,6 +1,8 @@
 import re
 from uuid import uuid4
 
+import httpx
+import json
 import pendulum
 import pytest
 import respx
@@ -11,6 +13,7 @@ from pydantic.error_wrappers import ValidationError
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow, task
+from prefect.events.schemas import DeploymentTrigger
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
@@ -20,7 +23,7 @@ from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
 from prefect.utilities.slugify import slugify
 
 
@@ -105,12 +108,22 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo", path="/full/path/to/flow/")
         assert d.location == "/full/path/to/flow/"
 
+    def test_triggers_have_names(self):
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[DeploymentTrigger(), DeploymentTrigger(name="run-it")],
+        )
+
+        assert deployment.triggers[0].name == "TEST__automation_1"
+        assert deployment.triggers[1].name == "run-it"
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
-        self, orion_client, flow, storage_document_id, infrastructure_document_id
+        self, prefect_client, flow, storage_document_id, infrastructure_document_id
     ):
-        await orion_client.create_deployment(
+        await prefect_client.create_deployment(
             name="My Deployment",
             version="mint",
             path="/",
@@ -141,20 +154,20 @@ class TestDeploymentLoad:
         assert d.parameters == {"foo": "bar"}
         assert d.infra_overrides == {"limits.cpu": 24}
 
-        infra_document = await orion_client.read_block_document(
+        infra_document = await prefect_client.read_block_document(
             infrastructure_document_id
         )
         infrastructure_block = Block._from_block_document(infra_document)
         assert d.infrastructure == infrastructure_block
 
-        storage_document = await orion_client.read_block_document(storage_document_id)
+        storage_document = await prefect_client.read_block_document(storage_document_id)
         storage_block = Block._from_block_document(storage_document)
         assert d.storage == storage_block
 
     async def test_deployment_load_doesnt_overwrite_set_fields(
-        self, orion_client, flow, storage_document_id, infrastructure_document_id
+        self, prefect_client, flow, storage_document_id, infrastructure_document_id
     ):
-        await orion_client.create_deployment(
+        await prefect_client.create_deployment(
             name="My Deployment",
             version="mint",
             path="/",
@@ -181,7 +194,7 @@ class TestDeploymentLoad:
         assert d.parameters == {"foo": "bar"}
         assert d.infra_overrides == {"limits.cpu": 24}
 
-        infra_document = await orion_client.read_block_document(
+        infra_document = await prefect_client.read_block_document(
             infrastructure_document_id
         )
         infrastructure_block = Block._from_block_document(infra_document)
@@ -595,7 +608,7 @@ class TestDeploymentApply:
         self,
         patch_import,
         tmp_path,
-        orion_client,
+        prefect_client,
     ):
         d = Deployment(
             name="TEST",
@@ -603,7 +616,7 @@ class TestDeploymentApply:
         )
         await d.apply(work_queue_concurrency=424242)
         queue_name = d.work_queue_name
-        work_queue = await orion_client.read_work_queue_by_name(queue_name)
+        work_queue = await prefect_client.read_work_queue_by_name(queue_name)
         assert work_queue.concurrency_limit == 424242
 
     @pytest.mark.parametrize(
@@ -611,7 +624,7 @@ class TestDeploymentApply:
         [(True, True), (False, False), (None, True)],
     )
     async def test_deployment_is_active_behaves_as_expected(
-        self, flow_function, provided, expected, orion_client
+        self, flow_function, provided, expected, prefect_client
     ):
         d = await Deployment.build_from_flow(
             flow_function,
@@ -626,8 +639,72 @@ class TestDeploymentApply:
         assert d.is_schedule_active is provided
 
         dep_id = await d.apply()
-        dep = await orion_client.read_deployment(dep_id)
+        dep = await prefect_client.read_deployment(dep_id)
         assert dep.is_schedule_active == expected
+
+    async def test_deployment_apply_syncs_triggers(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        infrastructure = Process()
+        await infrastructure._save(is_anonymous=True)
+
+        trigger = DeploymentTrigger()
+
+        deployment = Deployment(
+            name="TEST",
+            flow_name="fn",
+            triggers=[trigger],
+            infrastructure=infrastructure,
+        )
+
+        created_deployment_id = str(uuid4())
+
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{uuid4()}/workspaces/{uuid4()}",
+                PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
+            }
+        ):
+            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+                router.post("/flows/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+                router.post("/deployments/").mock(
+                    return_value=httpx.Response(201, json={"id": created_deployment_id})
+                )
+                delete_route = router.delete(
+                    f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
+                ).mock(return_value=httpx.Response(204))
+                create_route = router.post("/automations/").mock(
+                    return_value=httpx.Response(201, json={"id": str(uuid4())})
+                )
+
+                await deployment.apply()
+
+                assert delete_route.called
+                assert create_route.called
+                assert json.loads(
+                    create_route.calls[0].request.content
+                ) == trigger.as_automation().dict(json_compatible=True)
+
+    async def test_deployment_apply_with_dict_parameter(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep is not None
 
 
 class TestRunDeployment:
@@ -731,7 +808,7 @@ class TestRunDeployment:
     async def test_run_deployment_with_ephemeral_api(
         self,
         test_deployment,
-        orion_client,
+        prefect_client,
     ):
         d, deployment_id = test_deployment
 
@@ -739,7 +816,7 @@ class TestRunDeployment:
             f"{d.flow_name}/{d.name}",
             timeout=0,
             poll_interval=0,
-            client=orion_client,
+            client=prefect_client,
         )
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
@@ -747,7 +824,7 @@ class TestRunDeployment:
     async def test_run_deployment_with_deployment_id_str(
         self,
         test_deployment,
-        orion_client,
+        prefect_client,
     ):
         _, deployment_id = test_deployment
 
@@ -755,7 +832,7 @@ class TestRunDeployment:
             f"{deployment_id}",
             timeout=0,
             poll_interval=0,
-            client=orion_client,
+            client=prefect_client,
         )
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
@@ -763,7 +840,7 @@ class TestRunDeployment:
     async def test_run_deployment_with_deployment_id_uuid(
         self,
         test_deployment,
-        orion_client,
+        prefect_client,
     ):
         _, deployment_id = test_deployment
 
@@ -771,7 +848,7 @@ class TestRunDeployment:
             deployment_id,
             timeout=0,
             poll_interval=0,
-            client=orion_client,
+            client=prefect_client,
         )
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
@@ -950,7 +1027,7 @@ class TestRunDeployment:
         assert flow_run_a.id == flow_run_b.id
 
     async def test_links_to_parent_flow_run_when_used_in_flow(
-        self, test_deployment, use_hosted_api_server, orion_client: PrefectClient
+        self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
     ):
         d, deployment_id = test_deployment
 
@@ -965,12 +1042,12 @@ class TestRunDeployment:
         parent_state = await foo(return_state=True)
         child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
-        task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
+        task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
     async def test_tracks_dependencies_when_used_in_flow(
-        self, test_deployment, use_hosted_api_server, orion_client
+        self, test_deployment, use_hosted_api_server, prefect_client
     ):
         d, deployment_id = test_deployment
 
@@ -993,7 +1070,7 @@ class TestRunDeployment:
         parent_state = await foo(return_state=True)
         upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
-        task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
+        task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.task_inputs == {
             "x": [
                 TaskRunResult(

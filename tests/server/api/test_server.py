@@ -1,20 +1,21 @@
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-
 import pytest
 import sqlalchemy as sa
+import asyncpg
 import toml
-from fastapi import APIRouter, FastAPI, status, testclient
+from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.server.api.server import (
     API_ROUTERS,
     SERVER_API_VERSION,
     _memoize_block_auto_registration,
-    create_orion_api,
-    db_locked_exception_handler,
+    create_api_app,
+    create_app,
     method_paths_from_routes,
+    SQLITE_LOCKED_MSG,
 )
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -52,32 +53,77 @@ async def test_validation_error_handler_409(client):
     assert "Data integrity conflict" in response.json()["detail"]
 
 
-async def test_db_locked_exception_handler():
-    app = FastAPI()
+@pytest.mark.parametrize("ephemeral", [True, False])
+@pytest.mark.parametrize("errorname", ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT", None])
+async def test_sqlite_database_locked_handler(errorname, ephemeral):
+    async def raise_busy_error():
+        if errorname is None:
+            orig = sqlite3.OperationalError(SQLITE_LOCKED_MSG)
+        else:
+            orig = sqlite3.OperationalError("db locked")
+            setattr(orig, "sqlite_errorname", errorname)
+        raise sa.exc.OperationalError(
+            "statement",
+            {"params": 1},
+            orig,
+            Exception,
+        )
 
-    @app.get("/raise_db_locked")
-    async def raise_db_locked():
-        """A route that raises a sqlite db locked error"""
-        orig = sqlite3.OperationalError("database locked")
-        setattr(orig, "sqlite_errorname", "SQLITE_BUSY")
-        setattr(orig, "sqlite_errorcode", 5)
-        raise sa.exc.OperationalError("", "", orig=orig)
+    async def raise_other_error():
+        orig = sqlite3.OperationalError("db locked")
+        setattr(orig, "sqlite_errorname", "FOO")
+        raise sa.exc.OperationalError(
+            "statement",
+            {"params": 1},
+            orig,
+            Exception,
+        )
 
-    @app.get("/other_sql_error")
-    async def raise_other_sql_error():
-        """A route that raises a different OperationalError"""
-        raise sa.exc.OperationalError("", "", orig=ValueError("something else"))
-
-    app.add_exception_handler(sa.exc.OperationalError, db_locked_exception_handler)
+    app = create_app(ephemeral=ephemeral, ignore_cache=True)
+    app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
+    app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
     async with AsyncClient(
         transport=ASGITransport(app=app, raise_app_exceptions=False),
         base_url="https://test",
     ) as client:
-        response = await client.get("/raise_db_locked")
+        response = await client.get("/api/raise_busy_error")
         assert response.status_code == 503
 
-        response = await client.get("/other_sql_error")
+        response = await client.get("/api/raise_other_error")
+        assert response.status_code == 500
+
+
+@pytest.mark.parametrize(
+    "exc",
+    (
+        sa.exc.DBAPIError("statement", {"params": 0}, ValueError("orig")),
+        asyncpg.exceptions.QueryCanceledError(),
+        asyncpg.exceptions.ConnectionDoesNotExistError(),
+        asyncpg.exceptions.CannotConnectNowError(),
+        sa.exc.InvalidRequestError(),
+        sa.orm.exc.DetachedInstanceError(),
+    ),
+)
+async def test_retryable_exception_handler(exc):
+    async def raise_retryable_error():
+        raise exc
+
+    async def raise_other_error():
+        raise ValueError()
+
+    app = create_app(ephemeral=True, ignore_cache=True)
+    app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
+    app.api_app.add_api_route("/raise_other_error", raise_other_error)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://test",
+    ) as client:
+        response = await client.get("/api/raise_retryable_error")
+        assert response.status_code == 503
+
+        response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
 
 
@@ -107,7 +153,7 @@ class TestCreateOrionAPI:
     }
 
     def test_includes_all_default_paths(self):
-        app = create_orion_api()
+        app = create_api_app()
 
         expected = self.BUILTIN_ROUTES.copy()
 
@@ -117,7 +163,7 @@ class TestCreateOrionAPI:
         assert method_paths_from_routes(app.router.routes) == expected
 
     def test_allows_router_omission_with_null_override(self):
-        app = create_orion_api(router_overrides={"/logs": None})
+        app = create_api_app(router_overrides={"/logs": None})
 
         routes = method_paths_from_routes(app.router.routes)
         assert all("/logs" not in route for route in routes)
@@ -131,7 +177,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="override for '/logs' is missing paths",
         ) as exc:
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
         # These are displayed in a non-deterministic order
         assert exc.match("POST /logs/filter")
@@ -144,7 +190,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="Router override for '/logs' defines a different prefix '/foo'",
         ):
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
     def test_checks_for_new_prefix_during_override(self):
         router = APIRouter(prefix="/foo")
@@ -153,7 +199,7 @@ class TestCreateOrionAPI:
             KeyError,
             match="Router override provided for prefix that does not exist: '/foo'",
         ):
-            create_orion_api(router_overrides={"/foo": router})
+            create_api_app(router_overrides={"/foo": router})
 
     def test_only_includes_missing_paths_in_override_error(self):
         router = APIRouter(prefix="/logs")
@@ -166,7 +212,7 @@ class TestCreateOrionAPI:
             ValueError,
             match="override for '/logs' is missing paths.* {'POST /logs/filter'}",
         ):
-            create_orion_api(router_overrides={"/logs": router})
+            create_api_app(router_overrides={"/logs": router})
 
     def test_override_uses_new_router(self):
         router = APIRouter(prefix="/logs")
@@ -180,7 +226,7 @@ class TestCreateOrionAPI:
         logs_filter = MagicMock()
         router.post("/filter")(logs_filter)
 
-        app = create_orion_api(router_overrides={"/logs": router})
+        app = create_api_app(router_overrides={"/logs": router})
         client = testclient.TestClient(app)
         client.post("/logs")
         logs.assert_called_once()
@@ -206,7 +252,7 @@ class TestCreateOrionAPI:
         def foobar():
             return logs_get()
 
-        app = create_orion_api(router_overrides={"/logs": router})
+        app = create_api_app(router_overrides={"/logs": router})
 
         client = testclient.TestClient(app)
         client.get("/logs/").raise_for_status()

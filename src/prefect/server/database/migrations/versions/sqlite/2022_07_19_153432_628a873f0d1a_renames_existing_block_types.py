@@ -35,8 +35,8 @@ BLOCK_TYPES_TO_REMOVE = [
 
 def upgrade():
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
+    meta_data = sa.MetaData()
+    meta_data.reflect(connection)
     BLOCK_TYPE = meta_data.tables["block_type"]
 
     for block_type_rename_config in BLOCK_TYPES_TO_RENAME:

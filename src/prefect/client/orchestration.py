@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
@@ -13,37 +14,83 @@ from fastapi import FastAPI, status
 
 import prefect
 import prefect.exceptions
-import prefect.server.schemas as schemas
 import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
-from prefect.deprecated.data_documents import DataDocument
-from prefect.logging import get_logger
-from prefect.server.schemas.actions import (
+from prefect.client.schemas.actions import (
+    ArtifactCreate,
+    BlockDocumentCreate,
+    BlockDocumentUpdate,
+    BlockSchemaCreate,
+    BlockTypeCreate,
+    BlockTypeUpdate,
+    ConcurrencyLimitCreate,
+    DeploymentCreate,
+    DeploymentFlowRunCreate,
+    DeploymentUpdate,
+    FlowCreate,
+    FlowRunCreate,
     FlowRunNotificationPolicyCreate,
+    FlowRunUpdate,
     LogCreate,
+    TaskRunCreate,
+    TaskRunUpdate,
+    WorkPoolCreate,
+    WorkPoolUpdate,
     WorkQueueCreate,
     WorkQueueUpdate,
 )
-from prefect.server.schemas.core import (
+from prefect.client.schemas.filters import (
+    ArtifactCollectionFilter,
+    ArtifactFilter,
+    DeploymentFilter,
+    FlowFilter,
+    FlowRunFilter,
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    TaskRunFilter,
+    WorkerFilter,
+    WorkPoolFilter,
+    WorkQueueFilter,
+    WorkQueueFilterName,
+)
+from prefect.client.schemas.objects import (
     Artifact,
     ArtifactCollection,
     BlockDocument,
     BlockSchema,
     BlockType,
+    ConcurrencyLimit,
+    Constant,
+    Deployment,
+    Flow,
     FlowRunNotificationPolicy,
+    FlowRunPolicy,
+    Log,
+    Parameter,
     QueueFilter,
+    TaskRunPolicy,
+    TaskRunResult,
+    Variable,
+    Worker,
     WorkPool,
     WorkQueue,
 )
-from prefect.server.schemas.filters import (
-    FlowRunNotificationPolicyFilter,
-    LogFilter,
-    WorkPoolFilter,
-    WorkQueueFilter,
+from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.sorting import (
+    ArtifactCollectionSort,
+    ArtifactSort,
+    DeploymentSort,
+    FlowRunSort,
+    FlowSort,
+    LogSort,
+    TaskRunSort,
 )
-from prefect.server.schemas.responses import WorkerFlowRunResponse
+from prefect.deprecated.data_documents import DataDocument
+from prefect.events.schemas import Automation, ExistingAutomation
+from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
@@ -52,12 +99,13 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
-    from prefect.flows import Flow
-    from prefect.tasks import Task
+    from prefect.flows import Flow as FlowObject
+    from prefect.tasks import Task as TaskObject
 
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
@@ -68,7 +116,7 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
-def get_client(httpx_settings: dict = None) -> "PrefectClient":
+def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -81,6 +129,7 @@ def get_client(httpx_settings: dict = None) -> "PrefectClient":
     """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
+
     if not api:
         # create an ephemeral API if none was provided
         from prefect.server.api.server import create_app
@@ -196,7 +245,21 @@ class PrefectClient:
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
-            httpx_settings.setdefault("app", self._ephemeral_app)
+
+            # When using an ephemeral server, server-side exceptions can be raised
+            # client-side breaking all of our response error code handling. To work
+            # around this, we create an ASGI transport with application exceptions
+            # disabled instead of using the application directly.
+            # refs:
+            # - https://github.com/PrefectHQ/prefect/pull/9637
+            # - https://github.com/encode/starlette/blob/d3a11205ed35f8e5a58a711db0ff59c86fa7bb31/starlette/middleware/errors.py#L184
+            # - https://github.com/tiangolo/fastapi/blob/8cc967a7605d3883bd04ceb5d25cc94ae079612f/fastapi/applications.py#L163-L164
+            httpx_settings.setdefault(
+                "transport",
+                httpx.ASGITransport(
+                    app=self._ephemeral_app, raise_app_exceptions=False
+                ),
+            )
             httpx_settings.setdefault("base_url", "http://ephemeral-prefect/api")
 
         else:
@@ -216,9 +279,10 @@ class PrefectClient:
             ),
         )
 
-        self._client = PrefectHttpxClient(
-            **httpx_settings,
-        )
+        if not PREFECT_UNIT_TEST_MODE:
+            httpx_settings.setdefault("follow_redirects", True)
+        self._client = PrefectHttpxClient(**httpx_settings)
+        self._loop = None
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
@@ -271,7 +335,7 @@ class PrefectClient:
         """
         return await self._client.get("/hello")
 
-    async def create_flow(self, flow: "Flow") -> UUID:
+    async def create_flow(self, flow: "FlowObject") -> UUID:
         """
         Create a flow in the Prefect API.
 
@@ -299,7 +363,7 @@ class PrefectClient:
         Returns:
             the ID of the flow in the backend
         """
-        flow_data = schemas.actions.FlowCreate(name=flow_name)
+        flow_data = FlowCreate(name=flow_name)
         response = await self._client.post(
             "/flows/", json=flow_data.dict(json_compatible=True)
         )
@@ -311,7 +375,7 @@ class PrefectClient:
         # Return the id of the created flow
         return UUID(flow_id)
 
-    async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
+    async def read_flow(self, flow_id: UUID) -> Flow:
         """
         Query the Prefect API for a flow by id.
 
@@ -319,24 +383,24 @@ class PrefectClient:
             flow_id: the flow ID of interest
 
         Returns:
-            a [Flow model][prefect.server.schemas.core.Flow] representation of the flow
+            a [Flow model][prefect.client.schemas.objects.Flow] representation of the flow
         """
         response = await self._client.get(f"/flows/{flow_id}")
-        return schemas.core.Flow.parse_obj(response.json())
+        return Flow.parse_obj(response.json())
 
     async def read_flows(
         self,
         *,
-        flow_filter: schemas.filters.FlowFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        deployment_filter: schemas.filters.DeploymentFilter = None,
-        work_pool_filter: schemas.filters.WorkPoolFilter = None,
-        work_queue_filter: schemas.filters.WorkQueueFilter = None,
-        sort: schemas.sorting.FlowSort = None,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        work_pool_filter: WorkPoolFilter = None,
+        work_queue_filter: WorkQueueFilter = None,
+        sort: FlowSort = None,
         limit: int = None,
         offset: int = 0,
-    ) -> List[schemas.core.Flow]:
+    ) -> List[Flow]:
         """
         Query the Prefect API for flows. Only flows matching all criteria will
         be returned.
@@ -386,12 +450,12 @@ class PrefectClient:
         }
 
         response = await self._client.post("/flows/filter", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
+        return pydantic.parse_obj_as(List[Flow], response.json())
 
     async def read_flow_by_name(
         self,
         flow_name: str,
-    ) -> schemas.core.Flow:
+    ) -> Flow:
         """
         Query the Prefect API for a flow by name.
 
@@ -402,7 +466,7 @@ class PrefectClient:
             a fully hydrated Flow model
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
-        return schemas.core.Flow.parse_obj(response.json())
+        return Flow.parse_obj(response.json())
 
     async def create_flow_run_from_deployment(
         self,
@@ -447,7 +511,7 @@ class PrefectClient:
         state = state or prefect.states.Scheduled()
         tags = tags or []
 
-        flow_run_create = schemas.actions.DeploymentFlowRunCreate(
+        flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state.to_state_create(),
@@ -465,7 +529,7 @@ class PrefectClient:
 
     async def create_flow_run(
         self,
-        flow: "Flow",
+        flow: "FlowObject",
         name: str = None,
         parameters: Dict[str, Any] = None,
         context: dict = None,
@@ -502,7 +566,7 @@ class PrefectClient:
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
 
-        flow_run_create = schemas.actions.FlowRunCreate(
+        flow_run_create = FlowRunCreate(
             flow_id=flow_id,
             flow_version=flow.version,
             name=name,
@@ -511,7 +575,7 @@ class PrefectClient:
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state.to_state_create(),
-            empirical_policy=schemas.core.FlowRunPolicy(
+            empirical_policy=FlowRunPolicy(
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
             ),
@@ -534,7 +598,7 @@ class PrefectClient:
         parameters: Optional[dict] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
-        empirical_policy: Optional[schemas.core.FlowRunPolicy] = None,
+        empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
     ) -> httpx.Response:
         """
@@ -570,7 +634,7 @@ class PrefectClient:
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
 
-        flow_run_data = schemas.actions.FlowRunUpdate(**params)
+        flow_run_data = FlowRunUpdate(**params)
 
         return await self._client.patch(
             f"/flow_runs/{flow_run_id}",
@@ -618,7 +682,7 @@ class PrefectClient:
             the ID of the concurrency limit in the backend
         """
 
-        concurrency_limit_create = schemas.actions.ConcurrencyLimitCreate(
+        concurrency_limit_create = ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=concurrency_limit,
         )
@@ -666,7 +730,7 @@ class PrefectClient:
         if not concurrency_limit_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(response.json())
+        concurrency_limit = ConcurrencyLimit.parse_obj(response.json())
         return concurrency_limit
 
     async def read_concurrency_limits(
@@ -691,9 +755,7 @@ class PrefectClient:
         }
 
         response = await self._client.post("/concurrency_limits/filter", json=body)
-        return pydantic.parse_obj_as(
-            List[schemas.core.ConcurrencyLimit], response.json()
-        )
+        return pydantic.parse_obj_as(List[ConcurrencyLimit], response.json())
 
     async def reset_concurrency_limit_by_tag(
         self,
@@ -763,7 +825,7 @@ class PrefectClient:
         concurrency_limit: Optional[int] = None,
         priority: Optional[int] = None,
         work_pool_name: Optional[str] = None,
-    ) -> schemas.core.WorkQueue:
+    ) -> WorkQueue:
         """
         Create a work queue.
 
@@ -782,7 +844,7 @@ class PrefectClient:
             httpx.RequestError: If request fails
 
         Returns:
-            UUID: The UUID of the newly created workflow
+            The created work queue
         """
         if tags:
             warnings.warn(
@@ -804,7 +866,8 @@ class PrefectClient:
             create_model.concurrency_limit = concurrency_limit
         if priority is not None:
             create_model.priority = priority
-        data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
+
+        data = create_model.dict(json_compatible=True)
         try:
             if work_pool_name is not None:
                 response = await self._client.post(
@@ -819,13 +882,13 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return schemas.core.WorkQueue.parse_obj(response.json())
+        return WorkQueue.parse_obj(response.json())
 
     async def read_work_queue_by_name(
         self,
         name: str,
         work_pool_name: Optional[str] = None,
-    ) -> schemas.core.WorkQueue:
+    ) -> WorkQueue:
         """
         Read a work queue by name.
 
@@ -839,7 +902,7 @@ class PrefectClient:
             httpx.HTTPStatusError: other status errors
 
         Returns:
-            schemas.core.WorkQueue: a work queue API object
+            WorkQueue: a work queue API object
         """
         try:
             if work_pool_name is not None:
@@ -854,7 +917,7 @@ class PrefectClient:
             else:
                 raise
 
-        return schemas.core.WorkQueue.parse_obj(response.json())
+        return WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
         """
@@ -925,7 +988,7 @@ class PrefectClient:
     async def read_work_queue(
         self,
         id: UUID,
-    ) -> schemas.core.WorkQueue:
+    ) -> WorkQueue:
         """
         Read a work queue.
 
@@ -946,12 +1009,12 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return schemas.core.WorkQueue.parse_obj(response.json())
+        return WorkQueue.parse_obj(response.json())
 
     async def match_work_queues(
         self,
         prefixes: List[str],
-    ) -> List[schemas.core.WorkQueue]:
+    ) -> List[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
@@ -970,8 +1033,8 @@ class PrefectClient:
             new_queues = await self.read_work_queues(
                 offset=current_page * page_length,
                 limit=page_length,
-                work_queue_filter=schemas.filters.WorkQueueFilter(
-                    name=schemas.filters.WorkQueueFilterName(startswith_=prefixes)
+                work_queue_filter=WorkQueueFilter(
+                    name=WorkQueueFilterName(startswith_=prefixes)
                 ),
             )
             if not new_queues:
@@ -1005,9 +1068,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def create_block_type(
-        self, block_type: schemas.actions.BlockTypeCreate
-    ) -> BlockType:
+    async def create_block_type(self, block_type: BlockTypeCreate) -> BlockType:
         """
         Create a block type in the Prefect API.
         """
@@ -1025,9 +1086,7 @@ class PrefectClient:
                 raise
         return BlockType.parse_obj(response.json())
 
-    async def create_block_schema(
-        self, block_schema: schemas.actions.BlockSchemaCreate
-    ) -> BlockSchema:
+    async def create_block_schema(self, block_schema: BlockSchemaCreate) -> BlockSchema:
         """
         Create a block schema in the Prefect API.
         """
@@ -1049,7 +1108,7 @@ class PrefectClient:
 
     async def create_block_document(
         self,
-        block_document: Union[BlockDocument, schemas.actions.BlockDocumentCreate],
+        block_document: Union[BlockDocument, BlockDocumentCreate],
         include_secrets: bool = True,
     ) -> BlockDocument:
         """
@@ -1063,7 +1122,7 @@ class PrefectClient:
                 this is set to `False`.
         """
         if isinstance(block_document, BlockDocument):
-            block_document = schemas.actions.BlockDocumentCreate.parse_obj(
+            block_document = BlockDocumentCreate.parse_obj(
                 block_document.dict(
                     json_compatible=True,
                     include_secrets=include_secrets,
@@ -1092,7 +1151,7 @@ class PrefectClient:
     async def update_block_document(
         self,
         block_document_id: UUID,
-        block_document: schemas.actions.BlockDocumentUpdate,
+        block_document: BlockDocumentUpdate,
     ):
         """
         Update a block document in the Prefect API.
@@ -1140,7 +1199,7 @@ class PrefectClient:
 
     async def read_block_schema_by_checksum(
         self, checksum: str, version: Optional[str] = None
-    ) -> schemas.core.BlockSchema:
+    ) -> BlockSchema:
         """
         Look up a block schema checksum
         """
@@ -1154,11 +1213,9 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return schemas.core.BlockSchema.parse_obj(response.json())
+        return BlockSchema.parse_obj(response.json())
 
-    async def update_block_type(
-        self, block_type_id: UUID, block_type: schemas.actions.BlockTypeUpdate
-    ):
+    async def update_block_type(self, block_type_id: UUID, block_type: BlockTypeUpdate):
         """
         Update a block document in the Prefect API.
         """
@@ -1168,7 +1225,7 @@ class PrefectClient:
                 json=block_type.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include=schemas.actions.BlockTypeUpdate.updatable_fields(),
+                    include=BlockTypeUpdate.updatable_fields(),
                     include_secrets=True,
                 ),
             )
@@ -1198,7 +1255,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_block_types(self) -> List[schemas.core.BlockType]:
+    async def read_block_types(self) -> List[BlockType]:
         """
         Read all block types
         Raises:
@@ -1208,9 +1265,9 @@ class PrefectClient:
             List of BlockTypes.
         """
         response = await self._client.post("/block_types/filter", json={})
-        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
+        return pydantic.parse_obj_as(List[BlockType], response.json())
 
-    async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
+    async def read_block_schemas(self) -> List[BlockSchema]:
         """
         Read all block schemas
         Raises:
@@ -1220,7 +1277,7 @@ class PrefectClient:
             A BlockSchema.
         """
         response = await self._client.post("/block_schemas/filter", json={})
-        return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
+        return pydantic.parse_obj_as(List[BlockSchema], response.json())
 
     async def read_block_document(
         self,
@@ -1335,7 +1392,7 @@ class PrefectClient:
         flow_id: UUID,
         name: str,
         version: str = None,
-        schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        schedule: SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
@@ -1371,7 +1428,7 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
-        deployment_create = schemas.actions.DeploymentCreate(
+        deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
             version=version,
@@ -1420,11 +1477,11 @@ class PrefectClient:
 
     async def update_deployment(
         self,
-        deployment: schemas.core.Deployment,
-        schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        deployment: Deployment,
+        schedule: SCHEDULE_TYPES = None,
         is_schedule_active: bool = None,
     ):
-        deployment_update = schemas.actions.DeploymentUpdate(
+        deployment_update = DeploymentUpdate(
             version=deployment.version,
             schedule=schedule if schedule is not None else deployment.schedule,
             is_schedule_active=(
@@ -1452,9 +1509,7 @@ class PrefectClient:
             json=deployment_update.dict(json_compatible=True),
         )
 
-    async def _create_deployment_from_schema(
-        self, schema: schemas.actions.DeploymentCreate
-    ) -> UUID:
+    async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
         """
         Create a deployment from a prepared `DeploymentCreate` schema.
         """
@@ -1472,7 +1527,7 @@ class PrefectClient:
     async def read_deployment(
         self,
         deployment_id: UUID,
-    ) -> schemas.responses.DeploymentResponse:
+    ) -> DeploymentResponse:
         """
         Query the Prefect API for a deployment by id.
 
@@ -1480,15 +1535,21 @@ class PrefectClient:
             deployment_id: the deployment ID of interest
 
         Returns:
-            a [Deployment model][prefect.server.schemas.core.Deployment] representation of the deployment
+            a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
-        response = await self._client.get(f"/deployments/{deployment_id}")
-        return schemas.responses.DeploymentResponse.parse_obj(response.json())
+        try:
+            response = await self._client.get(f"/deployments/{deployment_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return DeploymentResponse.parse_obj(response.json())
 
     async def read_deployment_by_name(
         self,
         name: str,
-    ) -> schemas.responses.DeploymentResponse:
+    ) -> DeploymentResponse:
         """
         Query the Prefect API for a deployment by name.
 
@@ -1510,21 +1571,21 @@ class PrefectClient:
             else:
                 raise
 
-        return schemas.responses.DeploymentResponse.parse_obj(response.json())
+        return DeploymentResponse.parse_obj(response.json())
 
     async def read_deployments(
         self,
         *,
-        flow_filter: schemas.filters.FlowFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        deployment_filter: schemas.filters.DeploymentFilter = None,
-        work_pool_filter: schemas.filters.WorkPoolFilter = None,
-        work_queue_filter: schemas.filters.WorkQueueFilter = None,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        work_pool_filter: WorkPoolFilter = None,
+        work_queue_filter: WorkQueueFilter = None,
         limit: int = None,
-        sort: schemas.sorting.DeploymentSort = None,
+        sort: DeploymentSort = None,
         offset: int = 0,
-    ) -> List[schemas.responses.DeploymentResponse]:
+    ) -> List[DeploymentResponse]:
         """
         Query the Prefect API for deployments. Only deployments matching all
         the provided criteria will be returned.
@@ -1574,9 +1635,7 @@ class PrefectClient:
         }
 
         response = await self._client.post("/deployments/filter", json=body)
-        return pydantic.parse_obj_as(
-            List[schemas.responses.DeploymentResponse], response.json()
-        )
+        return pydantic.parse_obj_as(List[DeploymentResponse], response.json())
 
     async def delete_deployment(
         self,
@@ -1638,13 +1697,13 @@ class PrefectClient:
     async def read_flow_runs(
         self,
         *,
-        flow_filter: schemas.filters.FlowFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        deployment_filter: schemas.filters.DeploymentFilter = None,
-        work_pool_filter: schemas.filters.WorkPoolFilter = None,
-        work_queue_filter: schemas.filters.WorkQueueFilter = None,
-        sort: schemas.sorting.FlowRunSort = None,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        work_pool_filter: WorkPoolFilter = None,
+        work_queue_filter: WorkQueueFilter = None,
+        sort: FlowRunSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[FlowRun]:
@@ -1752,7 +1811,7 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
     async def set_task_run_name(self, task_run_id: UUID, name: str):
-        task_run_data = schemas.actions.TaskRunUpdate(name=name)
+        task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
             f"/task_runs/{task_run_id}",
             json=task_run_data.dict(json_compatible=True, exclude_unset=True),
@@ -1760,7 +1819,7 @@ class PrefectClient:
 
     async def create_task_run(
         self,
-        task: "Task",
+        task: "TaskObject",
         flow_run_id: UUID,
         dynamic_key: str,
         name: str = None,
@@ -1770,9 +1829,9 @@ class PrefectClient:
             str,
             List[
                 Union[
-                    schemas.core.TaskRunResult,
-                    schemas.core.Parameter,
-                    schemas.core.Constant,
+                    TaskRunResult,
+                    Parameter,
+                    Constant,
                 ]
             ],
         ] = None,
@@ -1799,14 +1858,14 @@ class PrefectClient:
         if state is None:
             state = prefect.states.Pending()
 
-        task_run_data = schemas.actions.TaskRunCreate(
+        task_run_data = TaskRunCreate(
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
             dynamic_key=dynamic_key,
             tags=list(tags),
             task_version=task.version,
-            empirical_policy=schemas.core.TaskRunPolicy(
+            empirical_policy=TaskRunPolicy(
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
                 retry_jitter_factor=task.retry_jitter_factor,
@@ -1836,11 +1895,11 @@ class PrefectClient:
     async def read_task_runs(
         self,
         *,
-        flow_filter: schemas.filters.FlowFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        deployment_filter: schemas.filters.DeploymentFilter = None,
-        sort: schemas.sorting.TaskRunSort = None,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        sort: TaskRunSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[TaskRun]:
@@ -2018,7 +2077,7 @@ class PrefectClient:
         log_filter: LogFilter = None,
         limit: int = None,
         offset: int = None,
-        sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
+        sort: LogSort = LogSort.TIMESTAMP_ASC,
     ) -> None:
         """
         Read flow and task run logs.
@@ -2031,7 +2090,7 @@ class PrefectClient:
         }
 
         response = await self._client.post("/logs/filter", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.Log], response.json())
+        return pydantic.parse_obj_as(List[Log], response.json())
 
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
         """
@@ -2080,10 +2139,10 @@ class PrefectClient:
     async def read_workers_for_work_pool(
         self,
         work_pool_name: str,
-        worker_filter: Optional[schemas.filters.WorkerFilter] = None,
+        worker_filter: Optional[WorkerFilter] = None,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
-    ) -> List[schemas.core.Worker]:
+    ) -> List[Worker]:
         """
         Reads workers for a given work pool.
 
@@ -2107,9 +2166,9 @@ class PrefectClient:
             },
         )
 
-        return pydantic.parse_obj_as(List[schemas.core.Worker], response.json())
+        return pydantic.parse_obj_as(List[Worker], response.json())
 
-    async def read_work_pool(self, work_pool_name: str) -> schemas.core.WorkPool:
+    async def read_work_pool(self, work_pool_name: str) -> WorkPool:
         """
         Reads information for a given work pool
 
@@ -2161,8 +2220,8 @@ class PrefectClient:
 
     async def create_work_pool(
         self,
-        work_pool: schemas.actions.WorkPoolCreate,
-    ) -> schemas.core.WorkPool:
+        work_pool: WorkPoolCreate,
+    ) -> WorkPool:
         """
         Creates a work pool with the provided configuration.
 
@@ -2172,17 +2231,23 @@ class PrefectClient:
         Returns:
             Information about the newly created work pool.
         """
-        response = await self._client.post(
-            "/work_pools/",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        try:
+            response = await self._client.post(
+                "/work_pools/",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
 
         return pydantic.parse_obj_as(WorkPool, response.json())
 
     async def update_work_pool(
         self,
         work_pool_name: str,
-        work_pool: schemas.actions.WorkPoolUpdate,
+        work_pool: WorkPoolUpdate,
     ):
         await self._client.patch(
             f"/work_pools/{work_pool_name}",
@@ -2213,7 +2278,7 @@ class PrefectClient:
         work_queue_filter: Optional[WorkQueueFilter] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> List[schemas.core.WorkQueue]:
+    ) -> List[WorkQueue]:
         """
         Retrieves queues for a work pool.
 
@@ -2288,8 +2353,8 @@ class PrefectClient:
 
     async def create_artifact(
         self,
-        artifact: schemas.actions.ArtifactCreate,
-    ) -> schemas.core.Artifact:
+        artifact: ArtifactCreate,
+    ) -> Artifact:
         """
         Creates an artifact with the provided configuration.
 
@@ -2309,10 +2374,10 @@ class PrefectClient:
     async def read_artifacts(
         self,
         *,
-        artifact_filter: schemas.filters.ArtifactFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        sort: schemas.sorting.ArtifactSort = None,
+        artifact_filter: ArtifactFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        sort: ArtifactSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[Artifact]:
@@ -2349,10 +2414,10 @@ class PrefectClient:
     async def read_latest_artifacts(
         self,
         *,
-        artifact_filter: schemas.filters.ArtifactCollectionFilter = None,
-        flow_run_filter: schemas.filters.FlowRunFilter = None,
-        task_run_filter: schemas.filters.TaskRunFilter = None,
-        sort: schemas.sorting.ArtifactCollectionSort = None,
+        artifact_filter: ArtifactCollectionFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        sort: ArtifactCollectionSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[ArtifactCollection]:
@@ -2401,11 +2466,11 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_variable_by_name(self, name: str) -> Optional[schemas.core.Variable]:
+    async def read_variable_by_name(self, name: str) -> Optional[Variable]:
         """Reads a variable by name. Returns None if no variable is found."""
         try:
             response = await self._client.get(f"/variables/name/{name}")
-            return pydantic.parse_obj_as(schemas.core.Variable, response.json())
+            return pydantic.parse_obj_as(Variable, response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None
@@ -2422,10 +2487,44 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_variables(self, limit: int = None) -> List[schemas.core.Variable]:
+    async def read_variables(self, limit: int = None) -> List[Variable]:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
-        return pydantic.parse_obj_as(List[schemas.core.Variable], response.json())
+        return pydantic.parse_obj_as(List[Variable], response.json())
+
+    async def read_worker_metadata(self) -> Dict[str, Any]:
+        """Reads worker metadata stored in Prefect collection registry."""
+        response = await self._client.get("collections/views/aggregate-worker-metadata")
+        response.raise_for_status()
+        return response.json()
+
+    async def create_automation(self, automation: Automation) -> UUID:
+        """Creates an automation in Prefect Cloud."""
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        response = await self._client.post(
+            "/automations/",
+            json=automation.dict(json_compatible=True),
+        )
+
+        return UUID(response.json()["id"])
+
+    async def read_resource_related_automations(
+        self, resource_id: str
+    ) -> List[ExistingAutomation]:
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        response = await self._client.get(f"/automations/related-to/{resource_id}")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
+
+    async def delete_resource_owned_automations(self, resource_id: str):
+        if self.server_type != ServerType.CLOUD:
+            raise RuntimeError("Automations are only supported for Prefect Cloud.")
+
+        await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def __aenter__(self):
         """
@@ -2447,6 +2546,7 @@ class PrefectClient:
             # httpx.AsyncClient does not allow reentrancy so we will not either.
             raise RuntimeError("The client cannot be started more than once.")
 
+        self._loop = asyncio.get_running_loop()
         await self._exit_stack.__aenter__()
 
         # Enter a lifespan context if using an ephemeral application.

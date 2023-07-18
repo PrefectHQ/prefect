@@ -6,6 +6,7 @@ futures in nested data structures.
 """
 import asyncio
 import warnings
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,13 +14,14 @@ from typing import (
     Callable,
     Generic,
     Optional,
+    Set,
     TypeVar,
     Union,
     cast,
-    Set,
     overload,
 )
 from uuid import UUID
+
 import anyio
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -27,15 +29,9 @@ from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
-from functools import partial
 from prefect.utilities.annotations import quote
-from prefect.utilities.asyncutils import (
-    A,
-    Async,
-    Sync,
-    sync,
-)
-from prefect.utilities.collections import visit_collection, StopVisiting
+from prefect.utilities.asyncutils import A, Async, Sync, sync
+from prefect.utilities.collections import StopVisiting, visit_collection
 
 if TYPE_CHECKING:
     from prefect.task_runners import BaseTaskRunner
@@ -310,7 +306,8 @@ def _collect_futures(futures, expr, context):
 
 
 async def resolve_futures_to_data(
-    expr: Union[PrefectFuture[R, Any], Any]
+    expr: Union[PrefectFuture[R, Any], Any],
+    raise_on_failure: bool = True,
 ) -> Union[R, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
@@ -336,7 +333,7 @@ async def resolve_futures_to_data(
         *[
             # We must wait for the future in the thread it was created in
             from_async.call_soon_in_loop_thread(
-                create_call(future._result, raise_on_failure=False)
+                create_call(future._result, raise_on_failure=raise_on_failure)
             ).aresult()
             for future in futures
         ]

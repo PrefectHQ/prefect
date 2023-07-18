@@ -1,8 +1,11 @@
 import enum
 import inspect
+import os
 import sys
 import asyncio
 import time
+import signal
+import regex as re
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -12,7 +15,9 @@ import pydantic
 import pytest
 
 from prefect import flow, get_run_logger, tags, task
-from prefect.client.orchestration import PrefectClient
+from prefect import runtime
+import prefect
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
     CancelledRun,
@@ -26,6 +31,7 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
+from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
@@ -37,6 +43,21 @@ from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
+import prefect.exceptions
+
+
+@pytest.fixture
+def mock_sigterm_handler():
+    mock = MagicMock()
+
+    def handler(*args, **kwargs):
+        mock(*args, **kwargs)
+
+    prev_handler = signal.signal(signal.SIGTERM, handler)
+    try:
+        yield handler, mock
+    finally:
+        signal.signal(signal.SIGTERM, prev_handler)
 
 
 class TestFlow:
@@ -221,20 +242,24 @@ class TestFlowWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
-            on_completion=[],
-            on_failure=[],
-            on_crashed=[],
+            on_completion=None,
+            on_failure=None,
+            on_cancellation=None,
+            on_crashed=None,
         )
         def initial_flow():
             pass
 
-        def failure_hook(task, task_run, state):
+        def failure_hook(flow, flow_run, state):
             return print("Woof!")
 
-        def success_hook(task, task_run, state):
+        def success_hook(flow, flow_run, state):
             return print("Meow!")
 
-        def crash_hook(task, task_run, state):
+        def cancellation_hook(flow, flow_run, state):
+            return print("Fizz Buzz!")
+
+        def crash_hook(flow, flow_run, state):
             return print("Crash!")
 
         flow_with_options = initial_flow.with_options(
@@ -252,6 +277,7 @@ class TestFlowWithOptions:
             cache_result_in_memory=True,
             on_completion=[success_hook],
             on_failure=[failure_hook],
+            on_cancellation=[cancellation_hook],
             on_crashed=[crash_hook],
         )
 
@@ -269,6 +295,7 @@ class TestFlowWithOptions:
         assert flow_with_options.cache_result_in_memory is True
         assert flow_with_options.on_completion == [success_hook]
         assert flow_with_options.on_failure == [failure_hook]
+        assert flow_with_options.on_cancellation == [cancellation_hook]
         assert flow_with_options.on_crashed == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
@@ -435,7 +462,7 @@ class TestFlowCall:
         assert state.is_failed() if error else state.is_completed()
         assert exceptions_equal(state.result(raise_on_failure=False), error)
 
-    def test_final_state_respects_returned_state(sel):
+    def test_final_state_respects_returned_state(self):
         @flow(version="test")
         def foo():
             return State(
@@ -829,7 +856,7 @@ class TestSubflowCalls:
 
         assert recurse(5) == 5 + 4 + 3 + 2 + 1
 
-    async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
+    async def test_subflow_with_invalid_parameters_is_failed(self, prefect_client):
         @flow
         def child(x: int):
             return x
@@ -844,7 +871,7 @@ class TestSubflowCalls:
             await parent_state.result()
 
         child_state = await parent_state.result(raise_on_failure=False)
-        flow_run = await orion_client.read_flow_run(
+        flow_run = await prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
         assert flow_run.state.is_failed()
@@ -886,7 +913,7 @@ class TestSubflowCalls:
 
         assert parent("foo") == "foo"
 
-    async def test_subflow_relationship_tracking(self, orion_client):
+    async def test_subflow_relationship_tracking(self, prefect_client):
         @flow(version="inner")
         def child(x, y):
             return x + y
@@ -900,10 +927,10 @@ class TestSubflowCalls:
         child_state = await parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
 
-        child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+        child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
 
         # This task represents the child flow run in the parent
-        parent_flow_run_task = await orion_client.read_task_run(
+        parent_flow_run_task = await prefect_client.read_task_run(
             child_flow_run.parent_task_run_id
         )
 
@@ -918,7 +945,7 @@ class TestSubflowCalls:
 
         assert all(
             state.state_details.task_run_id == parent_flow_run_task.id
-            for state in await orion_client.read_flow_run_states(child_flow_run_id)
+            for state in await prefect_client.read_flow_run_states(child_flow_run_id)
         ), "All server subflow run states link to the parent task"
 
         assert (
@@ -940,7 +967,7 @@ class TestSubflowCalls:
 
 
 class TestFlowRunTags:
-    async def test_flow_run_tags_added_at_call(self, orion_client):
+    async def test_flow_run_tags_added_at_call(self, prefect_client):
         @flow
         def my_flow():
             pass
@@ -948,10 +975,10 @@ class TestFlowRunTags:
         with tags("a", "b"):
             state = my_flow._run()
 
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
 
-    async def test_flow_run_tags_added_to_subflows(self, orion_client):
+    async def test_flow_run_tags_added_to_subflows(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
@@ -964,7 +991,7 @@ class TestFlowRunTags:
         with tags("a", "b"):
             subflow_state = await my_flow._run().result()
 
-        flow_run = await orion_client.read_flow_run(
+        flow_run = await prefect_client.read_flow_run(
             subflow_state.state_details.flow_run_id
         )
         assert set(flow_run.tags) == {"a", "b", "c", "d"}
@@ -1015,13 +1042,8 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
-        """
-        Sync flows are cancelled when they change instructions. The flow will return
-        immediately when the timeout is reached, but the thread it executes in will
-        continue until the next instruction is reached. `time.sleep` will return then
-        the thread will be interrupted.
-        """
         if sys.version_info[1] == 11:
             pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
 
@@ -1309,7 +1331,7 @@ class TestFlowParameterTypes:
 
 
 class TestSubflowTaskInputs:
-    async def test_subflow_with_one_upstream_task_future(self, orion_client):
+    async def test_subflow_with_one_upstream_task_future(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1326,7 +1348,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1334,7 +1356,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_one_upstream_task_state(self, orion_client):
+    async def test_subflow_with_one_upstream_task_state(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1350,7 +1372,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1358,7 +1380,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_one_upstream_task_result(self, orion_client):
+    async def test_subflow_with_one_upstream_task_result(self, prefect_client):
         @task
         def child_task(x):
             return x
@@ -1375,7 +1397,7 @@ class TestSubflowTaskInputs:
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1384,7 +1406,7 @@ class TestSubflowTaskInputs:
         )
 
     async def test_subflow_with_one_upstream_task_future_and_allow_failure(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def child_task():
@@ -1402,7 +1424,7 @@ class TestSubflowTaskInputs:
 
         task_state, flow_state = parent_flow().unquote()
         assert isinstance(await flow_state.result(), ValueError)
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1412,7 +1434,7 @@ class TestSubflowTaskInputs:
         )
 
     async def test_subflow_with_one_upstream_task_state_and_allow_failure(
-        self, orion_client
+        self, prefect_client
     ):
         @task
         def child_task():
@@ -1430,7 +1452,7 @@ class TestSubflowTaskInputs:
 
         task_state, flow_state = parent_flow().unquote()
         assert isinstance(await flow_state.result(), ValueError)
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             flow_state.state_details.task_run_id
         )
 
@@ -1439,7 +1461,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    async def test_subflow_with_no_upstream_tasks(self, orion_client):
+    async def test_subflow_with_no_upstream_tasks(self, prefect_client):
         @flow
         def bar(x, y):
             return x + y
@@ -1449,7 +1471,7 @@ class TestSubflowTaskInputs:
             return bar._run(x=2, y=1)
 
         child_flow_state = foo()
-        flow_tracking_task_run = await orion_client.read_task_run(
+        flow_tracking_task_run = await prefect_client.read_task_run(
             child_flow_state.state_details.task_run_id
         )
 
@@ -1461,7 +1483,7 @@ class TestSubflowTaskInputs:
 
 @pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
-    async def test_user_logs_are_sent_to_orion(self, orion_client):
+    async def test_user_logs_are_sent_to_orion(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1469,10 +1491,10 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
-    async def test_repeated_flow_calls_send_logs_to_orion(self, orion_client):
+    async def test_repeated_flow_calls_send_logs_to_orion(self, prefect_client):
         @flow
         async def my_flow(i):
             logger = get_run_logger()
@@ -1481,10 +1503,10 @@ class TestFlowRunLogs:
         await my_flow(1)
         await my_flow(2)
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
-    async def test_exception_info_is_included_in_log(self, orion_client):
+    async def test_exception_info_is_included_in_log(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1495,13 +1517,13 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "Traceback" in error_log
         assert "NameError" in error_log, "Should reference the exception type"
         assert "x + y" in error_log, "Should reference the line of code"
 
-    async def test_raised_exceptions_include_tracebacks(self, orion_client):
+    async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
         def my_flow():
             raise ValueError("Hello!")
@@ -1509,7 +1531,7 @@ class TestFlowRunLogs:
         with pytest.raises(ValueError):
             my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         error_log = [
             log.message
             for log in logs
@@ -1518,21 +1540,21 @@ class TestFlowRunLogs:
         assert "Traceback" in error_log
         assert "ValueError: Hello!" in error_log, "References the exception"
 
-    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+    async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
             logger.info(
                 "Hello world!",
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         my_flow()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert "Hello world!" not in {log.message for log in logs}
 
-    async def test_logs_are_given_correct_id(self, orion_client):
+    async def test_logs_are_given_correct_id(self, prefect_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -1541,14 +1563,14 @@ class TestFlowRunLogs:
         state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert all([log.flow_run_id == flow_run_id for log in logs])
         assert all([log.task_run_id is None for log in logs])
 
 
 @pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
-    async def test_subflow_logs_are_written_correctly(self, orion_client):
+    async def test_subflow_logs_are_written_correctly(self, prefect_client):
         @flow
         def my_subflow():
             logger = get_run_logger()
@@ -1564,7 +1586,7 @@ class TestSubflowRunLogs:
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
         assert "Hello world!" in log_messages, "Parent log message is present"
@@ -1577,7 +1599,7 @@ class TestSubflowRunLogs:
             == subflow_run_id
         ), "Child log message has correct id"
 
-    async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
+    async def test_subflow_logs_are_written_correctly_with_tasks(self, prefect_client):
         @task
         def a_log_task():
             logger = get_run_logger()
@@ -1598,7 +1620,7 @@ class TestSubflowRunLogs:
         subflow_state = my_flow()
         subflow_run_id = subflow_state.state_details.flow_run_id
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
@@ -1708,7 +1730,7 @@ class TestFlowRetries:
         assert task_run_count == 2, "Task should be reset and run again"
 
     @pytest.mark.xfail
-    async def test_flow_retry_with_branched_tasks(self, orion_client):
+    async def test_flow_retry_with_branched_tasks(self, prefect_client):
         flow_run_count = 0
 
         @task
@@ -1736,7 +1758,7 @@ class TestFlowRetries:
 
         # The state is pulled from the API and needs to be decoded
         document = await (await my_flow().result()).result()
-        result = await orion_client.retrieve_data(document)
+        result = await prefect_client.retrieve_data(document)
 
         assert result == "bar"
         # AssertionError: assert 'foo' == 'bar'
@@ -1745,7 +1767,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -1773,7 +1795,7 @@ class TestFlowRetries:
         assert child_run_count == 2, "Child flow should be reset and run again"
 
         # Ensure that the tracking task run for the subflow is reset and tracked
-        task_runs = await orion_client.read_task_runs(
+        task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
                 id={"any_": [state.state_details.flow_run_id]}
             )
@@ -1811,7 +1833,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -1846,10 +1868,10 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
-        child_flow_run = await orion_client.read_flow_run(
+        child_flow_run = await prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
-        child_flow_runs = await orion_client.read_flow_runs(
+        child_flow_runs = await prefect_client.read_flow_runs(
             flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
@@ -2035,6 +2057,21 @@ class TestFlowRetries:
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
 
+    def test_global_retry_config(self):
+        with temporary_settings(updates={PREFECT_FLOW_DEFAULT_RETRIES: "1"}):
+            run_count = 0
+
+            @flow()
+            def foo():
+                nonlocal run_count
+                run_count += 1
+                if run_count == 1:
+                    raise ValueError()
+                return "hello"
+
+            assert foo() == "hello"
+            assert run_count == 2
+
 
 def test_load_flow_from_entrypoint(tmp_path):
     flow_code = """
@@ -2054,7 +2091,7 @@ def test_load_flow_from_entrypoint(tmp_path):
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
-    orion_client,
+    prefect_client,
 ):
     flow_code_with_call = """
     from prefect import flow, get_run_logger
@@ -2078,13 +2115,13 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
             in caplog.text
         )
 
-    flow_runs = await orion_client.read_flows()
+    flow_runs = await prefect_client.read_flows()
     assert len(flow_runs) == 0
 
     # Make sure that flow runs when called
     res = flow()
     assert res == "woof!"
-    flow_runs = await orion_client.read_flows()
+    flow_runs = await prefect_client.read_flows()
     assert len(flow_runs) == 1
 
 
@@ -2109,7 +2146,7 @@ class TestFlowRunName:
         ):
             my_flow()
 
-    async def test_sets_run_name_when_provided(self, orion_client):
+    async def test_sets_run_name_when_provided(self, prefect_client):
         @flow(flow_run_name="hi")
         def flow_with_name(foo: str = "bar", bar: int = 1):
             pass
@@ -2117,10 +2154,10 @@ class TestFlowRunName:
         state = flow_with_name(return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi"
 
-    async def test_sets_run_name_with_params_including_defaults(self, orion_client):
+    async def test_sets_run_name_with_params_including_defaults(self, prefect_client):
         @flow(flow_run_name="hi-{foo}-{bar}")
         def flow_with_name(foo: str = "one", bar: str = "1"):
             pass
@@ -2128,10 +2165,10 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi-one-two"
 
-    async def test_sets_run_name_with_function(self, orion_client):
+    async def test_sets_run_name_with_function(self, prefect_client):
         def generate_flow_run_name():
             return "hi"
 
@@ -2142,11 +2179,11 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi"
 
     async def test_sets_run_name_with_function_using_runtime_context(
-        self, orion_client
+        self, prefect_client
     ):
         def generate_flow_run_name():
             params = flow_run_ctx.parameters
@@ -2167,10 +2204,12 @@ class TestFlowRunName:
         state = flow_with_name(bar="two", return_state=True)
 
         assert state.type == StateType.COMPLETED
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi-one-two"
 
-    async def test_sets_run_name_with_function_not_returning_string(self, orion_client):
+    async def test_sets_run_name_with_function_not_returning_string(
+        self, prefect_client
+    ):
         def generate_flow_run_name():
             pass
 
@@ -2245,6 +2284,61 @@ def create_async_hook(mock_obj):
 
 
 class TestFlowHooksOnCompletion:
+    def test_noniterable_hook_raises(self):
+        def completion_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_completion'; got function instead. Please"
+                " provide a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=completion_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
+
+            @flow(on_completion=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def completion_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_completion'; got str instead. Please provide"
+                " a list of hooks to 'on_completion':\n\n"
+                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_completion=[completion_hook, "test"])
+            def flow2():
+                pass
+
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -2277,7 +2371,7 @@ class TestFlowHooksOnCompletion:
 
         state = my_flow._run()
         assert state.type == StateType.FAILED
-        assert my_mock.call_args_list == []
+        my_mock.assert_not_called()
 
     def test_other_completion_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
@@ -2323,6 +2417,61 @@ class TestFlowHooksOnCompletion:
 
 
 class TestFlowHooksOnFailure:
+    def test_noniterable_hook_raises(self):
+        def failure_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_failure'; got function instead. Please"
+                " provide a list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=failure_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
+
+            @flow(on_failure=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def failure_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_failure'; got str instead. Please provide a"
+                " list of hooks to 'on_failure':\n\n"
+                "@flow(on_failure=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_failure=[failure_hook, "test"])
+            def flow2():
+                pass
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -2355,7 +2504,7 @@ class TestFlowHooksOnFailure:
 
         state = my_flow._run()
         assert state.type == StateType.COMPLETED
-        assert my_mock.call_args_list == []
+        my_mock.assert_not_called()
 
     def test_other_failure_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
@@ -2400,7 +2549,270 @@ class TestFlowHooksOnFailure:
         assert my_mock.call_args_list == [call(), call()]
 
 
+class TestFlowHooksOnCancellation:
+    def test_noniterable_hook_raises(self):
+        def cancellation_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_cancellation'; got function instead. Please"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_cancellation=cancellation_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_cancellation'"):
+
+            @flow(on_cancellation=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_cancellation'; got str instead. Please"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_cancellation=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def cancellation_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_cancellation'; got str instead. Please"
+                " provide a list of hooks to 'on_cancellation':\n\n"
+                "@flow(on_cancellation=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_cancellation=[cancellation_hook, "test"])
+            def flow2():
+                pass
+
+    def test_on_cancellation_hooks_run_on_cancelled_state(self):
+        my_mock = MagicMock()
+
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("cancelled_hook1"), call("cancelled_hook2")]
+
+    def test_on_cancellation_hooks_are_ignored_if_terminal_state_completed(self):
+        my_mock = MagicMock()
+
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
+        def my_flow():
+            return State(type=StateType.COMPLETED)
+
+        my_flow._run()
+        my_mock.assert_not_called()
+
+    def test_on_cancellation_hooks_are_ignored_if_terminal_state_failed(self):
+        my_mock = MagicMock()
+
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        @flow(on_cancellation=[cancelled_hook1, cancelled_hook2])
+        def my_flow():
+            return State(type=StateType.FAILED)
+
+        my_flow._run()
+        my_mock.assert_not_called()
+
+    def test_other_cancellation_hooks_run_if_one_hook_fails(self):
+        my_mock = MagicMock()
+
+        def cancelled1(flow, flow_run, state):
+            my_mock("cancelled1")
+
+        def cancelled2(flow, flow_run, state):
+            raise Exception("Failing flow")
+
+        def cancelled3(flow, flow_run, state):
+            my_mock("cancelled3")
+
+        @flow(on_cancellation=[cancelled1, cancelled2, cancelled3])
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
+
+    def test_on_cancelled_hook_on_subflow_succeeds(self):
+        my_mock = MagicMock()
+
+        def cancelled(flow, flow_run, state):
+            my_mock("cancelled")
+
+        def failed(flow, flow_run, state):
+            my_mock("failed")
+
+        @flow(on_cancellation=[cancelled])
+        def subflow():
+            return State(type=StateType.CANCELLING)
+
+        @flow(on_failure=[failed])
+        def my_flow():
+            subflow()
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call("cancelled"), call("failed")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_cancellation_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_cancellation=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        my_flow._run()
+        assert my_mock.mock_calls == [call(), call()]
+
+    async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def cancelled(flow, flow_run, state):
+            my_mock("cancelled")
+
+        @task
+        async def cancel_parent():
+            async with get_client() as client:
+                await client.set_flow_run_state(
+                    runtime.flow_run.id, State(type=StateType.CANCELLING), force=True
+                )
+
+        @flow(on_cancellation=[cancelled])
+        async def my_flow():
+            # simulate user cancelling flow run from UI
+            await cancel_parent()
+            # simulate worker cancellation of flow run
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == [call("cancelled")]
+
+    async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def cancelled(flow, flow_run, state):
+            my_mock("cancelled")
+
+        @flow(on_cancellation=[cancelled])
+        def my_flow():
+            # terminate process with SIGTERM
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        my_mock.assert_not_called()
+
+
 class TestFlowHooksOnCrashed:
+    def test_noniterable_hook_raises(self):
+        def crashed_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_crashed'; got function instead. Please"
+                " provide a list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_crashed=crashed_hook)
+            def flow1():
+                pass
+
+    def test_empty_hook_list_raises(self):
+        with pytest.raises(ValueError, match="Empty list passed for 'on_crashed'"):
+
+            @flow(on_crashed=[])
+            def flow2():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_crashed'; got str instead. Please provide a"
+                " list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_crashed=["test"])
+            def flow1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def crashed_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_crashed'; got str instead. Please provide a"
+                " list of hooks to 'on_crashed':\n\n"
+                "@flow(on_crashed=[hook1, hook2])\ndef my_flow():\n\tpass"
+            ),
+        ):
+
+            @flow(on_crashed=[crashed_hook, "test"])
+            def flow2():
+                pass
+
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
 
@@ -2432,7 +2844,7 @@ class TestFlowHooksOnCrashed:
 
         state = my_passing_flow._run()
         assert state.type == StateType.COMPLETED
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_on_crashed_hooks_are_ignored_if_terminal_state_failed(self):
         my_mock = MagicMock()
@@ -2449,7 +2861,7 @@ class TestFlowHooksOnCrashed:
 
         state = my_failing_flow._run()
         assert state.type == StateType.FAILED
-        assert my_mock.mock_calls == []
+        my_mock.assert_not_called()
 
     def test_other_crashed_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
@@ -2510,3 +2922,46 @@ class TestFlowHooksOnCrashed:
 
         my_flow._run()
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
+
+    async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def crashed(flow, flow_run, state):
+            my_mock("crashed")
+
+        @flow(on_crashed=[crashed])
+        def my_flow():
+            # terminate process with SIGTERM
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        assert my_mock.mock_calls == [call("crashed")]
+
+    async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
+        self, mock_sigterm_handler
+    ):
+        my_mock = MagicMock()
+
+        def crashed(flow, flow_run, state):
+            my_mock("crashed")
+
+        @task
+        async def cancel_parent():
+            async with get_client() as client:
+                await client.set_flow_run_state(
+                    runtime.flow_run.id, State(type=StateType.CANCELLING), force=True
+                )
+
+        @flow(on_crashed=[crashed])
+        async def my_flow():
+            # simulate user cancelling flow run from UI
+            await cancel_parent()
+            # simulate worker cancellation of flow run
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            await my_flow._run()
+        my_mock.assert_not_called()

@@ -3,15 +3,17 @@ description: Prefect variables are dynamic-named, mutable string values, much li
 tags:
     - variables
     - blocks
+search:
+  boost: 2
 ---
 
 # Variables
 
-Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
+Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect server instance or a single workspace in Prefect Cloud.
 
 Variables can be created or modified at any time, but are intended for values with infrequent writes and frequent reads. Variable values may be cached for quicker retrieval.
 
-While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as project steps.
+While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as deployment steps.
 
 !!! warning "Variables are not Encrypted"
     Using variables to store sensitive information, such as credentials, is not recommended. Instead, use [Secret blocks](https://docs.prefect.io/concepts/blocks/#prefect-built-in-blocks) to store and access sensitive information.
@@ -32,11 +34,11 @@ Optionally, you can add tags to the variable.
 
 ### Via the Prefect UI
 
-You can see all the variables in your Prefect Server instance or Prefect Cloud workspace on the **Variables** page of the Prefect UI. Both the name and value of all variables are visible to anyone with access to the server or workspace.
+You can see all the variables in your Prefect server instance or Prefect Cloud workspace on the **Variables** page of the Prefect UI. Both the name and value of all variables are visible to anyone with access to the server or workspace.
 
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
-![variables-ui](../img/concepts/variables-ui.png)
+![variables-ui](/img/concepts/variables-ui.png)
 
 ### Via the REST API
 
@@ -67,7 +69,7 @@ answer = await variables.get('the_answer')
 print(answer)
 # 42
 
-# with a default value
+# without a default value
 answer = variables.get('not_the_answer')
 print(answer)
 # None
@@ -80,11 +82,11 @@ print(answer)
 
 ### In Project steps
 
-In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize project steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a projects `pull` step:
+In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize deployment steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a deployment `pull` step:
 
 ```
 pull:
-- prefect.projects.steps.git_clone_project:
+- prefect.deployments.steps.git_clone:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: "{{ prefect.variables.deployment_branch }}"
 ```

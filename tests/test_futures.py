@@ -7,9 +7,10 @@ import pytest
 from prefect.client import PrefectClient
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
-from prefect.states import Completed
+from prefect.states import Completed, Failed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
+from prefect.exceptions import FailedRun
 
 mock_client = MagicMock(spec=PrefectClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]
@@ -177,3 +178,38 @@ def test_raise_warning_futures_in_condition():
 
     with assert_does_not_warn():
         if_result_flow._run()
+
+
+async def test_resolve_futures_to_data_raises_exception_default(task_run):
+    future = PrefectFuture(
+        key=str(task_run.id),
+        name="foo",
+        task_runner=None,
+        _final_state=Failed(data="foo"),
+    )
+    future.task_run = task_run
+    future._submitted.set()
+
+    def failed_fun():
+        yield future
+
+    with pytest.raises(FailedRun) as excinfo:
+        await resolve_futures_to_data(failed_fun())
+
+    assert "foo" in str(excinfo.value)
+
+
+async def test_resolve_futures_to_data_dont_raises_exception(task_run):
+    future = PrefectFuture(
+        key=str(task_run.id),
+        name="foo",
+        task_runner=None,
+        _final_state=Failed(data="foo"),
+    )
+    future.task_run = task_run
+    future._submitted.set()
+
+    def failed_fun():
+        yield future
+
+    assert await resolve_futures_to_data(failed_fun(), raise_on_failure=False) == []

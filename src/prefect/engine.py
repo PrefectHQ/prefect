@@ -1,27 +1,95 @@
 """
 Client-side execution and orchestration of flows and tasks.
 
-Engine process overview
+## Engine process overview
 
-- The flow or task is called by the user.
-    See `Flow.__call__`, `Task.__call__`
+### Flows
 
-- A synchronous engine function acts as an entrypoint to the async engine.
-    See `enter_flow_run_engine`, `enter_task_run_engine`
+- **The flow is called by the user or an existing flow run is executed in a new process.**
 
-- The async engine creates a run via the API and prepares for execution of user-code.
-    See `begin_flow_run`, `begin_task_run`
+    See `Flow.__call__` and `prefect.engine.__main__` (`python -m prefect.engine`)
 
-- The run is orchestrated through states, calling the user's function as necessary.
-    See `orchestrate_flow_run`, `orchestrate_task_run`
+- **A synchronous function acts as an entrypoint to the engine.**
+    The engine executes on a dedicated "global loop" thread. For asynchronous flow calls,
+    we return a coroutine from the entrypoint so the user can enter the engine without
+    blocking their event loop.
+
+    See `enter_flow_run_engine_from_flow_call`, `enter_flow_run_engine_from_subprocess`
+
+- **The thread that calls the entrypoint waits until orchestration of the flow run completes.**
+    This thread is referred to as the "user" thread and is usually the "main" thread.
+    The thread is not blocked while waiting — it allows the engine to send work back to it.
+    This allows us to send calls back to the user thread from the global loop thread.
+
+    See `wait_for_call_in_loop_thread` and `call_soon_in_waiting_thread`
+
+- **The asynchronous engine branches depending on if the flow run exists already and if
+    there is a parent flow run in the current context.**
+
+    See `create_then_begin_flow_run`, `create_and_begin_subflow_run`, and `retrieve_flow_then_begin_flow_run`
+
+- **The asynchronous engine prepares for execution of the flow run.**
+    This includes starting the task runner, preparing context, etc.
+
+    See `begin_flow_run`
+
+- **The flow run is orchestrated through states, calling the user's function as necessary.**
+    Generally the user's function is sent for execution on the user thread.
+    If the flow function cannot be safely executed on the user thread, e.g. it is
+    a synchronous child in an asynchronous parent it will be scheduled on a worker
+    thread instead.
+
+    See `orchestrate_flow_run`, `call_soon_in_waiting_thread`, `call_soon_in_new_thread`
+
+### Tasks
+
+- **The task is called or submitted by the user.**
+    We require that this is always within a flow.
+
+    See `Task.__call__` and `Task.submit`
+    
+- **A synchronous function acts as an entrypoint to the engine.**
+    Unlike flow calls, this _will not_ block until completion if `submit` was used.
+
+    See `enter_task_run_engine`
+
+- **A future is created for the task call.**
+    Creation of the task run and submission to the task runner is scheduled as a 
+    background task so submission of many tasks can occur concurrently.
+
+    See `create_task_run_future` and `create_task_run_then_submit`
+
+- **The engine branches depending on if a future, state, or result is requested.**
+    If a future is requested, it is returned immediately to the user thread.
+    Otherwise, the engine will wait for the task run to complete and return the final
+    state or result.
+
+    See `get_task_call_return_value`
+
+- **An engine function is submitted to the task runner.**
+    The task runner will schedule this function for execution on a worker.
+    When executed, it will prepare for orchestration and wait for completion of the run.
+
+    See `create_task_run_then_submit` and `begin_task_run`
+
+- **The task run is orchestrated through states, calling the user's function as necessary.**
+    The user's function is always executed in a worker thread for isolation. 
+    
+    See `orchestrate_task_run`, `call_soon_in_new_thread`
+
+    _Ideally, for local and sequential task runners we would send the task run to the
+    user thread as we do for flows. See [#9855](https://github.com/PrefectHQ/prefect/pull/9855).
 """
 import asyncio
+import contextlib
 import logging
 import os
 import signal
+import prefect.plugins
+import threading
 import sys
 import time
-from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
@@ -33,12 +101,23 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+import prefect.plugins
+from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect._internal.concurrency.timeouts import get_deadline
+from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.objects import (
+    StateDetails,
+    StateType,
+    TaskRunInput,
+    TaskRunResult,
+)
+from prefect.client.schemas.responses import SetStateStatus
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -47,6 +126,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.events import Event, emit_event
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -55,6 +135,7 @@ from prefect.exceptions import (
     NotPausedError,
     Pause,
     PausedRun,
+    PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
@@ -70,15 +151,11 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.results import BaseResult, ResultFactory
-from prefect.server.schemas.core import TaskRunInput, TaskRunResult
-from prefect.server.schemas.filters import FlowRunFilter
-from prefect.server.schemas.responses import SetStateStatus
-from prefect.server.schemas.sorting import FlowRunSort
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_UI_URL,
 )
 from prefect.states import (
     Paused,
@@ -100,7 +177,6 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
-    run_sync_in_worker_thread,
     sync_compatible,
 )
 from prefect.utilities.callables import (
@@ -111,6 +187,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
+from prefect.utilities.text import truncated_to
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -140,7 +217,7 @@ def enter_flow_run_engine_from_flow_call(
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed."
             " Consider updating the script to only call the flow if executed"
-            f' directly:\n\n\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+            f' directly:\n\n\tif __name__ == "__main__":\n\t\t{flow.fn.__name__}()'
         )
         return None
 
@@ -163,6 +240,7 @@ def enter_flow_run_engine_from_flow_call(
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
+        user_thread=threading.current_thread(),
     )
 
     # On completion of root flows, wait for the global thread to ensure that
@@ -171,18 +249,30 @@ def enter_flow_run_engine_from_flow_call(
         [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
     )
 
+    # WARNING: You must define any context managers here to pass to our concurrency
+    # api instead of entering them in here in the engine entrypoint. Otherwise, async
+    # flows will not use the context as this function _exits_ to return an awaitable to
+    # the user. Generally, you should enter contexts _within_ the async `begin_run`
+    # instead but if you need to enter a context from the main thread you'll need to do
+    # it here.
+    contexts = [capture_sigterm()]
+
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
         retval = from_async.wait_for_call_in_loop_thread(
-            begin_run, done_callbacks=done_callbacks
+            begin_run,
+            done_callbacks=done_callbacks,
+            contexts=contexts,
         )
 
     else:
         retval = from_sync.wait_for_call_in_loop_thread(
-            begin_run, done_callbacks=done_callbacks
+            begin_run,
+            done_callbacks=done_callbacks,
+            contexts=contexts,
         )
 
     return retval
@@ -197,11 +287,24 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
+
+    # Ensure collections are imported and have the opportunity to register types before
+    # loading the user code from the deployment
+    prefect.plugins.load_prefect_collections()
+
     setup_logging()
 
-    return from_sync.wait_for_call_in_loop_thread(
-        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    state = from_sync.wait_for_call_in_loop_thread(
+        create_call(
+            retrieve_flow_then_begin_flow_run,
+            flow_run_id,
+            user_thread=threading.current_thread(),
+        ),
+        contexts=[capture_sigterm()],
     )
+
+    APILogHandler.flush()
+    return state
 
 
 @inject_client
@@ -211,6 +314,7 @@ async def create_then_begin_flow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -241,15 +345,28 @@ async def create_then_begin_flow_run(
 
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
+    logger = flow_run_logger(flow_run, flow)
+
+    ui_url = PREFECT_UI_URL.value()
+    if ui_url:
+        logger.info(
+            f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+            extra={"send_to_api": False},
+        )
+
     if state.is_failed():
-        flow_run_logger(flow_run).error(state.message)
+        logger.error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as"
             " failed."
         )
     else:
         state = await begin_flow_run(
-            flow=flow, flow_run=flow_run, parameters=parameters, client=client
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            client=client,
+            user_thread=user_thread,
         )
 
     if return_type == "state":
@@ -262,7 +379,9 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: PrefectClient
+    flow_run_id: UUID,
+    client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -325,6 +444,7 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run=flow_run,
         parameters=parameters,
         client=client,
+        user_thread=user_thread,
     )
 
 
@@ -333,6 +453,7 @@ async def begin_flow_run(
     flow_run: FlowRun,
     parameters: Dict[str, Any],
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -405,6 +526,7 @@ async def begin_flow_run(
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
+            user_thread=user_thread,
         )
 
     if terminal_or_paused_state.is_paused():
@@ -444,6 +566,7 @@ async def create_and_begin_subflow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: PrefectClient,
+    user_thread: threading.Thread,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -510,7 +633,15 @@ async def create_and_begin_subflow_run(
         parent_logger.info(
             f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
         )
+
         logger = flow_run_logger(flow_run, flow)
+        ui_url = PREFECT_UI_URL.value()
+        if ui_url:
+            logger.info(
+                f"View at {ui_url}/flow-runs/flow-run/{flow_run.id}",
+                extra={"send_to_api": False},
+            )
+
         result_factory = await ResultFactory.from_flow(
             flow, client=parent_flow_run_context.client
         )
@@ -567,6 +698,7 @@ async def create_and_begin_subflow_run(
                         result_factory=result_factory,
                         log_prints=log_prints,
                     ),
+                    user_thread=user_thread,
                 )
 
     # Display the full state (including the result) if debugging
@@ -595,6 +727,7 @@ async def orchestrate_flow_run(
     interruptible: bool,
     client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
+    user_thread: threading.Thread,
 ) -> State:
     """
     Executes a flow run.
@@ -620,7 +753,7 @@ async def orchestrate_flow_run(
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:
-            await resolve_inputs(wait_for, return_data=False)
+            await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -679,7 +812,7 @@ async def orchestrate_flow_run(
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
                 # This check for a parent call is needed for cases where the engine
-                # was entered directly; such as during testing _or_ deployment runs
+                # was entered directly during testing
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -689,8 +822,8 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.call_soon_in_waiter_thread(
-                        flow_call, timeout=flow.timeout_seconds
+                    from_async.call_soon_in_waiting_thread(
+                        flow_call, thread=user_thread, timeout=flow.timeout_seconds
                     )
                 else:
                     from_async.call_soon_in_new_thread(
@@ -706,25 +839,26 @@ async def orchestrate_flow_run(
             paused_flow_run = await client.read_flow_run(flow_run.id)
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
-        except Exception as exc:
-            name = message = None
-            if (
-                # Flow run timeouts
-                isinstance(exc, TimeoutError)
-                # Only update the message if the timeout was actually encountered since
-                # this could be a timeout in the user's code
-                and flow_call.cancelled()
-            ):
-                # TODO: Cancel task runs if feasible
-                name = "TimedOut"
-                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
-            else:
-                # Generic exception in user code
-                message = "Flow run encountered an exception."
-                logger.exception("Encountered exception during execution:")
+        except CancelledError as exc:
+            if not flow_call.timedout():
+                # If the flow call was not cancelled by us; this is a crash
+                raise
+            # Construct a new exception as `TimeoutError`
+            original = exc
+            exc = TimeoutError()
+            exc.__cause__ = original
+            logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
-                name=name,
-                message=message,
+                exc,
+                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+                result_factory=flow_run_context.result_factory,
+                name="TimedOut",
+            )
+        except Exception:
+            # Generic exception in user code
+            logger.exception("Encountered exception during execution:")
+            terminal_state = await exception_to_failed_state(
+                message="Flow run encountered an exception.",
                 result_factory=flow_run_context.result_factory,
             )
         else:
@@ -770,7 +904,7 @@ async def orchestrate_flow_run(
                     f"Received new state {state} when proposing final state"
                     f" {terminal_state}"
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
 
         if not state.is_final():
@@ -779,7 +913,7 @@ async def orchestrate_flow_run(
                     f"Received non-final state {state.name!r} when proposing final"
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
-                extra={"send_to_orion": False},
+                extra={"send_to_api": False},
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
@@ -1104,7 +1238,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     task run inputs it finds in the data structure. It produces a set of all inputs
     found.
 
-    Example:
+    Examples:
         >>> task_inputs = {
         >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
@@ -1119,7 +1253,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             # We need to wait for futures to be submitted before we can get the task
             # run id but we want to do so asynchronously
             futures.add(obj)
-        elif isinstance(obj, State):
+        elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         else:
@@ -1488,7 +1622,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_inputs(wait_for, return_data=False)
+        await resolve_inputs({"wait_for": wait_for}, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
@@ -1520,6 +1654,12 @@ async def orchestrate_task_run(
         else PREFECT_TASKS_REFRESH_CACHE.value()
     )
 
+    # Emit an event to capture that the task run was in the `PENDING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run, initial_state=None, validated_state=task_run.state
+    )
+    last_state = task_run.state
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
@@ -1529,19 +1669,20 @@ async def orchestrate_task_run(
         task_run_id=task_run.id,
     )
 
+    # Emit an event to capture the result of proposing a `RUNNING` state.
+    last_event = _emit_task_run_state_change_event(
+        task_run=task_run,
+        initial_state=last_state,
+        validated_state=state,
+        follows=last_event,
+    )
+    last_state = state
+
     # flag to ensure we only update the task run name once
     run_name_set = False
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-        # Need to create timeout_context from inside of loop so that a
-        # new context is created on retries
-        timeout_context = (
-            anyio.fail_after(task.timeout_seconds)
-            if task.timeout_seconds
-            else nullcontext()
-        )
-
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
@@ -1549,59 +1690,56 @@ async def orchestrate_task_run(
             update={"task_run": task_run, "start_time": pendulum.now("UTC")}
         ):
             try:
-                with timeout_context as timeout_scope:
-                    args, kwargs = parameters_to_args_kwargs(
-                        task.fn, resolved_parameters
+                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+                # update task run name
+                if not run_name_set and task.task_run_name:
+                    task_run_name = _resolve_custom_task_run_name(
+                        task=task, parameters=resolved_parameters
                     )
-                    # update task run name
-                    if not run_name_set and task.task_run_name:
-                        task_run_name = _resolve_custom_task_run_name(
-                            task=task, parameters=resolved_parameters
-                        )
-                        await client.set_task_run_name(
-                            task_run_id=task_run.id, name=task_run_name
-                        )
-                        logger.extra["task_run_name"] = task_run_name
-                        logger.debug(
-                            f"Renamed task run {task_run.name!r} to {task_run_name!r}"
-                        )
-                        task_run.name = task_run_name
-                        run_name_set = True
-
-                    if PREFECT_DEBUG_MODE.value():
-                        logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            "Beginning execution...", extra={"state_message": True}
-                        )
-
-                    call = from_async.call_soon_in_new_thread(
-                        create_call(task.fn, *args, **kwargs)
+                    await client.set_task_run_name(
+                        task_run_id=task_run.id, name=task_run_name
                     )
-                    result = await call.aresult()
-
-            except Exception as exc:
-                name = message = None
-                if (
-                    # Task run timeouts
-                    isinstance(exc, TimeoutError)
-                    and timeout_scope
-                    # Only update the message if the timeout was actually encountered since
-                    # this could be a timeout in the user's code
-                    and timeout_scope.cancel_called
-                ):
-                    name = "TimedOut"
-                    message = (
-                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    logger.extra["task_run_name"] = task_run_name
+                    logger.debug(
+                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
                     )
-                    logger.exception(message)
+                    task_run.name = task_run_name
+                    run_name_set = True
+
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
-                    message = "Task run encountered an exception:"
-                    logger.exception("Encountered exception during execution:")
+                    logger.debug(
+                        "Beginning execution...", extra={"state_message": True}
+                    )
 
+                call = from_async.call_soon_in_new_thread(
+                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
+                )
+                result = await call.aresult()
+
+            except (CancelledError, asyncio.CancelledError) as exc:
+                if not call.timedout():
+                    # If the task call was not cancelled by us; this is a crash
+                    raise
+                # Construct a new exception as `TimeoutError`
+                original = exc
+                exc = TimeoutError()
+                exc.__cause__ = original
+                logger.exception("Encountered exception during execution:")
                 terminal_state = await exception_to_failed_state(
-                    name=name,
-                    message=message,
+                    exc,
+                    message=(
+                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                    ),
+                    result_factory=task_run_context.result_factory,
+                    name="TimedOut",
+                )
+            except Exception as exc:
+                logger.exception("Encountered exception during execution:")
+                terminal_state = await exception_to_failed_state(
+                    exc,
+                    message="Task run encountered an exception",
                     result_factory=task_run_context.result_factory,
                 )
             else:
@@ -1620,6 +1758,13 @@ async def orchestrate_task_run(
                     terminal_state.state_details.cache_key = cache_key
 
             state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+            last_event = _emit_task_run_state_change_event(
+                task_run=task_run,
+                initial_state=last_state,
+                validated_state=state,
+                follows=last_event,
+            )
+            last_state = state
 
             await _run_task_hooks(
                 task=task,
@@ -1633,7 +1778,7 @@ async def orchestrate_task_run(
                         f"Received new state {state} when proposing final state"
                         f" {terminal_state}"
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
 
             if not state.is_final():
@@ -1643,10 +1788,17 @@ async def orchestrate_task_run(
                         f" state {terminal_state.name!r} and will attempt to run"
                         " again..."
                     ),
-                    extra={"send_to_orion": False},
+                    extra={"send_to_api": False},
                 )
                 # Attempt to enter a running state again
                 state = await propose_state(client, Running(), task_run_id=task_run.id)
+                last_event = _emit_task_run_state_change_event(
+                    task_run=task_run,
+                    initial_state=last_state,
+                    validated_state=state,
+                    follows=last_event,
+                )
+                last_state = state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -1708,15 +1860,8 @@ async def wait_for_task_runs_and_report_crashes(
     return True
 
 
-@asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
-    """
-    Detect flow run crashes during this context and update the run to a proper final
-    state.
-
-    This context _must_ reraise the exception to properly exit the run.
-    """
-
+@contextlib.contextmanager
+def capture_sigterm():
     def cancel_flow_run(*args):
         raise TerminationSignal(signal=signal.SIGTERM)
 
@@ -1729,6 +1874,33 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
 
     try:
         yield
+    except TerminationSignal as exc:
+        # Termination signals are swapped out during a flow run to perform
+        # a graceful shutdown and raise this exception. This `os.kill` call
+        # ensures that the previous handler, likely the Python default,
+        # gets called as well.
+        if original_term_handler is not None:
+            signal.signal(exc.signal, original_term_handler)
+            os.kill(os.getpid(), exc.signal)
+
+        raise
+
+    finally:
+        if original_term_handler is not None:
+            signal.signal(signal.SIGTERM, original_term_handler)
+
+
+@asynccontextmanager
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
+    """
+    Detect flow run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
+
+    try:
+        yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
@@ -1738,35 +1910,22 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exc)
-            await client.set_flow_run_state(
-                state=state,
-                flow_run_id=flow_run.id,
-            )
+            flow_run_state = await propose_state(client, state, flow_run_id=flow_run.id)
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
-            # Only `on_crashed` flow run state change hook is called here
-            # We call the hook after the state is set to `CRASHED`
+            # Only `on_crashed` and `on_cancellation` flow run state change hooks can be called here.
+            # We call the hooks after the state change proposal to `CRASHED` is validated
+            # or rejected (if it is in a `CANCELLING` state).
             await _run_flow_hooks(
                 flow=flow,
                 flow_run=flow_run,
-                state=state,
+                state=flow_run_state,
             )
 
-        if isinstance(exc, TerminationSignal):
-            # Termination signals are swapped out during a flow run to perform
-            # a graceful shutdown and raise this exception. This `os.kill` call
-            # ensures that the previous handler, likely the Python default,
-            # gets called as well.
-            signal.signal(exc.signal, original_term_handler)
-            os.kill(os.getpid(), exc.signal)
-
         # Reraise the exception
-        raise exc from None
-    finally:
-        if original_term_handler is not None:
-            signal.signal(signal.SIGTERM, original_term_handler)
+        raise
 
 
 @asynccontextmanager
@@ -1819,6 +1978,9 @@ async def resolve_inputs(
     states = set()
     result_by_state = {}
 
+    if not parameters:
+        return {}
+
     def collect_futures_and_states(expr, context):
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
@@ -1826,7 +1988,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             futures.add(expr)
-        if isinstance(expr, State):
+        if is_state(expr):
             states.add(expr)
 
         return expr
@@ -1865,7 +2027,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             state = expr._final_state
-        elif isinstance(expr, State):
+        elif is_state(expr):
             state = expr
         else:
             return expr
@@ -1888,14 +2050,28 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    return visit_collection(
-        parameters,
-        visit_fn=resolve_input,
-        return_data=return_data,
-        max_depth=max_depth,
-        remove_annotations=True,
-        context={},
-    )
+    resolved_parameters = {}
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_input,
+                return_data=return_data,
+                # we're manually going 1 layer deeper here
+                max_depth=max_depth - 1,
+                remove_annotations=True,
+                context={},
+            )
+        except UpstreamTaskError:
+            raise
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters
 
 
 async def propose_state(
@@ -1926,8 +2102,8 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.server.schemas.states] representation of the flow or task run
-            state
+        a [State model][prefect.client.schemas.objects.State] representation of the
+            flow or task run state
 
     Raises:
         ValueError: if neither task_run_id or flow_run_id is provided
@@ -1979,6 +2155,8 @@ async def propose_state(
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
         # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
         if response.state.state_details:
             state.state_details = response.state.state_details
         return state
@@ -2153,8 +2331,8 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(task=task, task_run=task_run, state=state)
                 else:
-                    await run_sync_in_worker_thread(
-                        hook, task=task, task_run=task_run, state=state
+                    await from_async.call_in_new_thread(
+                        create_call(hook, task=task, task_run=task_run, state=state)
                     )
             except Exception:
                 logger.error(
@@ -2166,7 +2344,7 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
-    """Run the on_failure, on_completion, and on_crashed hooks for a flow, making sure to
+    """Run the on_failure, on_completion, on_cancellation, and on_crashed hooks for a flow, making sure to
     catch and log any errors that occur.
     """
     hooks = None
@@ -2174,6 +2352,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         hooks = flow.on_failure
     elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
+    elif state.is_cancelling() and flow.on_cancellation:
+        hooks = flow.on_cancellation
     elif state.is_crashed() and flow.on_crashed:
         hooks = flow.on_crashed
 
@@ -2188,8 +2368,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                 if is_async_fn(hook):
                     await hook(flow=flow, flow_run=flow_run, state=state)
                 else:
-                    await run_sync_in_worker_thread(
-                        hook, flow=flow, flow_run=flow_run, state=state
+                    await from_async.call_in_new_thread(
+                        create_call(hook, flow=flow, flow_run=flow_run, state=state)
                     )
             except Exception:
                 logger.error(
@@ -2216,6 +2396,60 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
 
     # Create a 10 minute cache for the healthy response
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
+
+
+def _emit_task_run_state_change_event(
+    task_run: TaskRun,
+    initial_state: Optional[State],
+    validated_state: State,
+    follows: Optional[Event] = None,
+) -> Event:
+    state_message_truncation_length = 100_000
+
+    return emit_event(
+        id=validated_state.id,
+        occurred=validated_state.timestamp,
+        event=f"prefect.task-run.{validated_state.name}",
+        payload={
+            "intended": {
+                "from": str(initial_state.type.value) if initial_state else None,
+                "to": str(validated_state.type.value) if validated_state else None,
+            },
+            "initial_state": (
+                {
+                    "type": str(initial_state.type.value),
+                    "name": initial_state.name,
+                    "message": truncated_to(
+                        state_message_truncation_length, initial_state.message
+                    ),
+                }
+                if initial_state
+                else None
+            ),
+            "validated_state": {
+                "type": str(validated_state.type.value),
+                "name": validated_state.name,
+                "message": truncated_to(
+                    state_message_truncation_length, validated_state.message
+                ),
+            },
+        },
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+            "prefect.resource.name": task_run.name,
+            "prefect.state-message": truncated_to(
+                state_message_truncation_length, validated_state.message
+            ),
+            "prefect.state-name": validated_state.name or "",
+            "prefect.state-timestamp": (
+                validated_state.timestamp.isoformat()
+                if validated_state and validated_state.timestamp
+                else ""
+            ),
+            "prefect.state-type": str(validated_state.type.value),
+        },
+        follows=follows,
+    )
 
 
 if __name__ == "__main__":

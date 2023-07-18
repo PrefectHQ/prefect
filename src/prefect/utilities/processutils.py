@@ -297,21 +297,22 @@ async def consume_process_output(
         )
 
 
-async def stream_text(source: TextReceiveStream, sink: Optional[TextSink]):
-    if isinstance(sink, TextIOBase):
-        # Convert the blocking sink to an async-compatible object
-        sink = anyio.wrap_file(sink)
-
+async def stream_text(source: TextReceiveStream, *sinks: TextSink):
+    wrapped_sinks = [
+        anyio.wrap_file(sink) if isinstance(sink, TextIOBase) else sink
+        for sink in sinks
+    ]
     async for item in source:
-        if isinstance(sink, TextSendStream):
-            await sink.send(item)
-        elif isinstance(sink, anyio.AsyncFile):
-            await sink.write(item)
-            await sink.flush()
-        elif sink is None:
-            pass  # Consume the item but perform no action
-        else:
-            raise TypeError(f"Unsupported sink type {type(sink).__name__}")
+        for sink in wrapped_sinks:
+            if isinstance(sink, TextSendStream):
+                await sink.send(item)
+            elif isinstance(sink, anyio.AsyncFile):
+                await sink.write(item)
+                await sink.flush()
+            elif sink is None:
+                pass  # Consume the item but perform no action
+            else:
+                raise TypeError(f"Unsupported sink type {type(sink).__name__}")
 
 
 def forward_signal_handler(
@@ -320,12 +321,20 @@ def forward_signal_handler(
     """Forward subsequent signum events (e.g. interrupts) to respective signums."""
     current_signal, future_signals = signums[0], signums[1:]
 
+    # avoid RecursionError when setting up a direct signal forward to the same signal for the main pid
+    avoid_infinite_recursion = signum == current_signal and pid == os.getpid()
+    if avoid_infinite_recursion:
+        # store the vanilla handler so it can be temporarily restored below
+        original_handler = signal.getsignal(current_signal)
+
     def handler(*args):
         print_fn(
             f"Received {getattr(signum, 'name', signum)}. "
             f"Sending {getattr(current_signal, 'name', current_signal)} to"
             f" {process_name} (PID {pid})..."
         )
+        if avoid_infinite_recursion:
+            signal.signal(current_signal, original_handler)
         os.kill(pid, current_signal)
         if future_signals:
             forward_signal_handler(
@@ -345,12 +354,49 @@ def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
-    # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
-    # https://bugs.python.org/issue26350
+    # when server receives a signal, it needs to be propagated to the uvicorn subprocess
     if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
         setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
     else:
         # first interrupt: SIGTERM, second interrupt: SIGKILL
         setup_handler(signal.SIGINT, signal.SIGTERM, signal.SIGKILL)
         # forward first SIGTERM directly, send SIGKILL on subsequent SIGTERM
         setup_handler(signal.SIGTERM, signal.SIGTERM, signal.SIGKILL)
+
+
+def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable):
+    """Handle interrupts of the agent gracefully."""
+    setup_handler = partial(
+        forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
+    )
+    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
+    if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
+    else:
+        # forward first SIGINT directly, send SIGKILL on subsequent interrupt
+        setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
+        # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
+        setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+
+
+def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable):
+    """Handle interrupts of workers gracefully."""
+    setup_handler = partial(
+        forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
+    )
+    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
+    if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
+    else:
+        # forward first SIGINT directly, send SIGKILL on subsequent interrupt
+        setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
+        # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
+        setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
