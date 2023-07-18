@@ -1,5 +1,5 @@
 ---
-description: Learn how to store your Prefect code in Docker images and build Prefect deployments that create flow runs in Docker containers.
+description: Learn how to store your flow code in a Docker image and build Prefect deployments that create flow runs in Docker containers.
 tags:
     - Docker
     - containers
