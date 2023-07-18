@@ -225,4 +225,3 @@ To learn more, try our [tutorial](/tutorial) and [guides](/guides), or go deeper
     Prefect 2 is used by thousands of teams in production. It is highly recommended that you use Prefect 2 for all new projects. 
     
     If you are looking for the Prefect 1 Core and Server documentation, it is still available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
-
