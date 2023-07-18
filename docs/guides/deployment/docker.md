@@ -56,7 +56,7 @@ RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-di
 ADD flows /opt/prefect/flows
 ```
 
-Finally you will builds this image by running: 
+Finally, we build this image by running: 
 
 ```bash
 docker build -t docker-tutorial-image .
