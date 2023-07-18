@@ -160,7 +160,7 @@ You've seen:
 
 ### Next Steps
 
-- For a more detailed walk through see the [tutorial](/tutorial/index/) is recommended. 
+- For a more detailed walk through see the [tutorial](/tutorial/index/). 
 - Learn about deploying multiple flows and CI/CD with [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
 - [Our concepts](/concepts/) contain deep dives into Prefect components.
