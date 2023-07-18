@@ -38,11 +38,11 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 
 #### New to Prefect?
 
-Head to our [First Steps](/getting-started/first_steps/) page to run your first basic flow and connect to Prefect's API.
+Head to the [quickstart](/getting-started/prefect-quickstart/) to create, schedule, and run your first flow.
 
 If you're ready to dive in and learn Prefect, start with the [tutorial](/tutorial/) for an introduction to Prefect's core components and then checkout out the [concepts](/concepts/index/) for more in depth information.
 
-Alternatively, to deploy a flow in as few steps as possible, check out our [deployment quickstart](/getting-started/deployment_quickstart/).
+Alternatively, to deploy a flow in as few steps as possible, check out our [quickstart](/getting-started/prefect-quickstart/).
 
 For discussions of best practices with specific tools, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
 

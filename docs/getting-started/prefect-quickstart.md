@@ -140,7 +140,7 @@ prefect worker start --pool '<work-pool-name>'
 ```
 </div>
 
-Now that your worker is started, you are ready to kick off deployed flow runs from either the UI or by running:
+Now that your worker is running, you are ready to kick off deployed flow runs from the UI or by running:
 
 <div class="terminal">
 ```bash
@@ -148,9 +148,11 @@ prefect deployment run '<flow-name>/<deployment-name>'
 ```
 </div>
 
+Check out this flow run's logs from the Flow Runs page in the UI or from the worker logs.
+
 Congrats on your first successfully deployed flow run! 🎉
 
-Now you've seen:
+You've seen:
 
 - how to define your flows and tasks using decorators
 - how to deploy a flow
@@ -158,7 +160,7 @@ Now you've seen:
 
 ### Next Steps
 
-- For a more detailed explanation of the concepts introduced above, our [tutorial](/tutorial/index/) is recommended. 
+- For a more detailed walk through see the [tutorial](/tutorial/index/) is recommended. 
 - Learn about deploying multiple flows and CI/CD with [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
 - [Our concepts](/concepts/) contain deep dives into Prefect components.
