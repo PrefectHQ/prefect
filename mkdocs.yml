@@ -134,7 +134,6 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
-          - First Steps: getting-started/first_steps.md
           - Prefect Quickstart: getting-started/prefect-quickstart.md
     - Tutorial:
           - tutorial/index.md
@@ -165,7 +164,6 @@ nav:
                 - Logging: concepts/logs.md
     - Cloud:
           - cloud/index.md
-          - Cloud Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
