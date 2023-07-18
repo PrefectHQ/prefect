@@ -43,7 +43,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 First let's create a directory to work from, calling it `docker-tutorial`.
 
-In this directory you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial.  In this case I named the flow `docker-tutorial-flow.py`.
+In this directory, you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial. In this case, I've named the flow `docker-tutorial-flow.py`.
 
 The next file you will add to the `docker-tutorial` directory is a `requirements.txt`.  In this file make sure to include all dependencies that are required for your `docker-tutorial-flow.py` script.  
 
