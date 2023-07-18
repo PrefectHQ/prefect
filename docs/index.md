@@ -152,12 +152,12 @@ python my_flow.py
 
 You'll find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
 
-![Alt text](getting-started/flow-run-diagram.jpg)
+![Alt text](img/ui/flow-run-diagram.jpg)
 
 Local flow run execution is great for development and testing, but to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
 
-### Step 5: Deploy the flow
+### Step 5: [Deploy the flow](/tutorials/)
 
 Deploying your flows informs the Prefect API of where, how, and when to run your flows.
 
