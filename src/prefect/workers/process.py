@@ -141,7 +141,6 @@ class ProcessWorker(BaseWorker):
         "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
     )
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
-    _is_beta = True
 
     async def run(
         self,
