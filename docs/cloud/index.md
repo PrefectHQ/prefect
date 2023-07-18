@@ -19,8 +19,8 @@ search:
 
 Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect server](/host) and UI in a hosted environment, plus additional features such as automations, workspaces, and organizations.
 
-!!! success "Prefect Cloud Quickstart"
-    Ready to jump right in and start running with Prefect Cloud? See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
+!!! success "Getting Started with Prefect Cloud"
+    Ready to jump right in and start running with Prefect Cloud? See the [Cloud Getting Started Guide](/cloud/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 

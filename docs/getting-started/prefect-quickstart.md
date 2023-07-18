@@ -25,7 +25,7 @@ Sign up for a forever free [Prefect Cloud Account](/cloud/) or, alternatively, h
     ```
     </div>
 
-### Step 3: Author a Flow
+### Step 3: Author a flow
 **The fastest way to get started with Prefect is to add a `@flow` decorator to any python function**.
 
 !!! tip "Rules of Thumb"
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     repo_info()
 ```
 
-### Step 4: Run your Flow locally
+### Step 4: Run your flow locally
 Call any function that you've decorated with a `@flow` decorator to see a local instance of a flow run.
 
 <div class="terminal">
@@ -129,7 +129,7 @@ prefect deploy
     Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this yaml file to edit and [define multiple deployments](/concepts/deployments-ux/) for this repo.
 
 
-### Step 5: Start a Worker and Run Deployed Flow
+### Step 5: Start a worker and run deployed flow
 
 Start a worker to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
 

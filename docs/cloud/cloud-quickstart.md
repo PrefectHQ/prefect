@@ -12,7 +12,7 @@ search:
   boost: 2
 ---
 
-# Prefect Cloud Quickstart <span class="badge cloud"></span>
+# Getting Started with Prefect Cloud <span class="badge cloud"></span>
 
 Get signed in and using Prefect Cloud, including running a flow observed by Prefect Cloud, in just a few steps:
 
