@@ -80,7 +80,7 @@ image_name: docker-tutorial-image
 tag: latest
 ```
 
-This will create a `prefect.yaml` file for us populated with some fields, by default it will look like this:
+This will create a `prefect.yaml` file for us populated with some fields. By default, it will look like this:
 
 ```yaml
 # Welcome to your prefect.yaml file! You can you this file for storing and managing
