@@ -47,14 +47,14 @@ Client-side execution and orchestration of flows and tasks.
     We require that this is always within a flow.
 
     See `Task.__call__` and `Task.submit`
-    
+
 - **A synchronous function acts as an entrypoint to the engine.**
     Unlike flow calls, this _will not_ block until completion if `submit` was used.
 
     See `enter_task_run_engine`
 
 - **A future is created for the task call.**
-    Creation of the task run and submission to the task runner is scheduled as a 
+    Creation of the task run and submission to the task runner is scheduled as a
     background task so submission of many tasks can occur concurrently.
 
     See `create_task_run_future` and `create_task_run_then_submit`
@@ -73,8 +73,8 @@ Client-side execution and orchestration of flows and tasks.
     See `create_task_run_then_submit` and `begin_task_run`
 
 - **The task run is orchestrated through states, calling the user's function as necessary.**
-    The user's function is always executed in a worker thread for isolation. 
-    
+    The user's function is always executed in a worker thread for isolation.
+
     See `orchestrate_task_run`, `call_soon_in_new_thread`
 
     _Ideally, for local and sequential task runners we would send the task run to the
@@ -531,13 +531,10 @@ async def begin_flow_run(
 
     if terminal_or_paused_state.is_paused():
         timeout = terminal_or_paused_state.state_details.pause_timeout
-        logger.log(
-            level=logging.INFO,
-            msg=(
-                "Currently paused and suspending execution. Resume before"
-                f" {timeout.to_rfc3339_string()} to finish execution."
-            ),
-        )
+        msg = "Currently paused and suspending execution."
+        if timeout:
+            msg += f" Resume before {timeout.to_rfc3339_string()} to finish execution."
+        logger.log(level=logging.INFO, msg=msg)
         await APILogHandler.aflush()
 
         return terminal_or_paused_state
@@ -907,7 +904,7 @@ async def orchestrate_flow_run(
                 extra={"send_to_api": False},
             )
 
-        if not state.is_final():
+        if not state.is_final() and not state.is_paused():
             logger.info(
                 (
                     f"Received non-final state {state.name!r} when proposing final"

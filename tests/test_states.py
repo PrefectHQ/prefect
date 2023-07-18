@@ -16,6 +16,7 @@ from prefect.states import (
     Crashed,
     Failed,
     Pending,
+    Paused,
     Running,
     State,
     StateGroup,
@@ -277,6 +278,21 @@ class TestStateGroup:
 
         assert not StateGroup(states).any_cancelled()
 
+    def test_any_paused(self):
+        states = [
+            Paused(),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert StateGroup(states).any_paused()
+
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert not StateGroup(states).any_paused()
+
     def test_any_failed(self):
         states = [
             Completed(data="test"),
@@ -308,6 +324,16 @@ class TestStateGroup:
             Crashed(data=ValueError("crashed")),
             Completed(data="complete"),
             Cancelled(data="cancelled"),
+            Running(),
+        ]
+
+        assert not StateGroup(states).all_final()
+
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Paused(data="paused"),
             Running(),
         ]
 
