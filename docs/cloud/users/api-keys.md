@@ -28,7 +28,7 @@ Select the **+** button to create a new API key. You're prompted to provide a na
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
-## Log into Prefect Cloud from a terminal with API Key
+## Log into Prefect Cloud with an API Key
 
 ```bash
 prefect cloud login -k '<my-api-key>'
