@@ -12,7 +12,7 @@ search:
 # Push Work to Servless Computing Infrastructure <span class="badge cloud"></span>
 Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker. Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and AWS ECS Tasks.
 
-In this guide we'll:
+In this guide you will:
 
 - Create a push work pool that sends work to Google Cloud Run or AWS ECS
 - Deploy a flow to that work pool
