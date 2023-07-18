@@ -42,7 +42,7 @@ Start with the [tutorial](/tutorial/) and then check out the [concepts](/concept
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
 <div style="height: 10px"></div>
-<p>Altenatively, read on for a quick sample of Prefect in action.</p>
+<p>Alternatively, read on for a quick sample of Prefect in action.</p>
 ---
 
 ## Quick start: Hello Prefect
