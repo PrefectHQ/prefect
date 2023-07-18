@@ -41,7 +41,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 ## Storing Prefect Flow Code in a Docker Image 
 
-First let's create a directory to work from, calling it `docker-tutorial`.
+First let's create a directory to work from, `docker-tutorial`.
 
 In this directory, you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial. In this case, I've named the flow `docker-tutorial-flow.py`.
 
