@@ -14,7 +14,7 @@ search:
 
 In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
-In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
+In this guide, we will "bake" your code directly into a Docker image. This will allow for easy storage and allow you to deploy flow code without the need for a storage block. Then, we'll configure the deployment so flow runs are executed in a Docker container based on that image. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
 This guide will also dive into how you can "bake" your code directly into your Docker image.  This will allow for easy storage and allow you to deploy flow code without the need for a storage block.  
 
