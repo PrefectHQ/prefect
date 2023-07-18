@@ -20,7 +20,7 @@ In this guide, we will "bake" your code directly into a Docker image. This will 
 In this guide we'll:
 
 - Create a Docker image that stores your Prefect flow code.
-- Configure a [build step](/concepts/deployments#build) which will build a docker image on our behalf
+- Configure a [build step](/concepts/deployments#build) which will build a docker image on our behalf.
 - Build and register a new `log_flow.py` deployment that uses the new image.
 - Create a flow run from this deployment that spins up a Docker container and executes, logging a message.
 
