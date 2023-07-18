@@ -9,7 +9,6 @@ search:
 ---
 
 # API Keys
-...
 
 ---
 
@@ -36,7 +35,7 @@ Note that API keys cannot be revealed again in the UI after you generate them, s
 ## Log into Prefect Cloud from a terminal with API Key
 
 ```bash
-prefect cloud login -k `<my-api-key>` -w '<account_handle>/<workspace_handle>'
+prefect cloud login -k '<my-api-key>'
 ```
 
 ## Service account API keys <span class="badge orgs"></span>
