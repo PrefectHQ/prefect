@@ -44,7 +44,7 @@ If you're ready to dive in and learn Prefect, start with the [tutorial](/tutoria
 
 Alternatively, to deploy a flow in as few steps as possible, check out our [deployment quickstart](/getting-started/deployment_quickstart/).
 
-For discussions of best practices with specific tools, explore our [guides](guides/index/) to see common use-cases. <div style="height: 10px"></div>
+For discussions of best practices with specific tools, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
 
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
 
