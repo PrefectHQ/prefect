@@ -157,7 +157,7 @@ You'll find a link directing you to the flow run page conveniently positioned at
 Local flow run execution is great for development and testing, but to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
 
-### Step 5: [Deploy the flow](/tutorials/)
+### Step 5: [Deploy the flow](/tutorials/deployments/)
 
 Deploying your flows informs the Prefect API of where, how, and when to run your flows.
 
