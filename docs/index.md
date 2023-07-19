@@ -61,7 +61,7 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 Sign up for a forever free [Prefect Cloud account](/cloud/) or, alternatively, host your own [server](/host/) with a subset of Prefect Cloud's features.
 
 1. If using Prefect Cloud sign in with an existing account or create a new account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
-2. [Create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
+2. If setting up a new account, [create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
 3. Use the `prefect cloud login` Prefect CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
 
     <div class="terminal">
