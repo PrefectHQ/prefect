@@ -66,7 +66,7 @@ This will create a Docker image in your Docker repository with your Prefect flow
 
 ## Prefect.yaml File
 
-Now that you have created a Docker image that stores your Prefect flow code, you're going to make use of Prefect's deployment recipes. In your terminal run:
+Now that you have created a Docker image that stores your Prefect flow code, you're going to make use of Prefect's deployment recipes. In your terminal, run:
 
 <div class="terminal">
 ```bash
