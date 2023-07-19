@@ -55,7 +55,7 @@ pip install -U prefect
 ```
 </div>
 
-
+See the [install guide](/getting-started/installation/) for more detailed installation instructions.
 ### Step 2: Connect to Prefect's API
 
 Sign up for a forever free [Prefect Cloud Account](/cloud/) or, alternatively, host your own [server](/host/) with a subset of Prefect Cloud's features.
