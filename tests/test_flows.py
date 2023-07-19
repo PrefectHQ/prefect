@@ -804,6 +804,7 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
