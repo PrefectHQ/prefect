@@ -12,9 +12,9 @@ search:
   boost: 2
 ---
 
-# Prefect Cloud Quickstart <span class="badge cloud"></span>
+# Getting Started with Prefect Cloud <span class="badge cloud"></span>
 
-Get signed in and using Prefect Cloud, including running a flow observed by Prefect Cloud, in just a few steps:
+Get started with Prefect Cloud in just a few steps:
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
 1. [Create a workspace](#create-a-workspace) for your account.
