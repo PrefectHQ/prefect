@@ -61,7 +61,7 @@ pip install -U prefect
 Sign up for a forever free [Prefect Cloud Account](/cloud/) or, alternatively, host your own [server](/host/) with a subset of Prefect Cloud's features.
 
 1. To sign in with an existing account or register an account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
-2. [Create a workspace](#create-a-workspace) for your account.
+2. [Create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
 3. Use the `prefect cloud login` Prefect CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
 
     <div class="terminal">
