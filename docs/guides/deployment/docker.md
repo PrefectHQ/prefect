@@ -134,7 +134,7 @@ prefect deploy
 ```
 </div>
 
-The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
+The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed, you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
 ## Cleaning up
 
 When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.
