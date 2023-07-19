@@ -79,7 +79,7 @@ Sign up for a forever free [Prefect Cloud account](/cloud/) or, alternatively, h
     - A [task](/concepts/tasks/) represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
     - [Flows](/concepts/flows) can be called inside of other flows (we call these [subflows](/concepts/flows/#composing-flows)) but a task **cannot** be run inside of another task or from outside the context of a flow.
 
-Here is an example flow called `Get Repo Info` that contains 2 tasks:
+Here is an example flow named `Repo Info` that contains two tasks:
 ```python
 # my_flow.py
 import httpx
