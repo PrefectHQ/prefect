@@ -93,11 +93,24 @@ class TestLocalFileSystem:
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-            f = LocalFileSystem()
+            f = LocalFileSystem(basepath=str(tmp_path))
 
             await f.get_directory(from_path=tmp_path, local_path=tmp_dst)
             assert set(os.listdir(tmp_dst)) == set(parent_contents)
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
+    async def test_dir_contents_copied_correctly_with_get_directory_relative_from_path(
+        self, tmp_path
+    ):
+        sub_dir_name = "puppy"
+
+        _, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            f = LocalFileSystem(basepath=str(tmp_path))
+
+            await f.get_directory(from_path=sub_dir_name, local_path=tmp_dst)
+            assert set(os.listdir(tmp_dst)) == set(child_contents)
 
     async def test_dir_contents_copied_correctly_with_put_directory(self, tmp_path):
         sub_dir_name = "puppy"
@@ -345,7 +358,7 @@ class TestRemoteFileSystem:
         cwd = tmp_path / "working"
         cwd.mkdir()
 
-        fs = LocalFileSystem()
+        fs = LocalFileSystem(basepath=str(tmp_path))
         with tmpchdir(cwd):
             await fs.get_directory(from_path=str(from_path), local_path=null_value)
 
