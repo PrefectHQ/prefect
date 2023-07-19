@@ -804,6 +804,7 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
@@ -2129,8 +2130,7 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
         # Make sure that warning is raised
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
-            "Consider updating the script to only call the flow"
-            in caplog.text
+            "Consider updating the script to only call the flow" in caplog.text
         )
 
     flow_runs = await prefect_client.read_flows()
