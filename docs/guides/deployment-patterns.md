@@ -107,44 +107,19 @@ With Prefect’s automations release, a new pattern is now possible. Whenever a 
 
 This pattern is most useful when you want conceptual, execution, and awareness separation. In this pattern, the triggered flow doesn’t need to know anything about the initial flow. The event that triggers it could come from anywhere. It could even be one of several events that the trigger is listening for. We expect that users will adopt this pattern for the similar reasons that any organization might adopt an event-driven architecture. The loose coupling enables more distributed software and minimizes coordination costs.
 
+For example, you could send an event in your workflow where an Automation can kick off another deployment based off its response. 
+
 ```python
 @flow
-def some_function(name: str="kiki") -> None:
+def some_function(name: str="Marvin") -> None:
     print(f"hi {name}!")
-    emit_event(event=f"{name}.sent.event!", resource={"prefect.resource.id": f"coder.{name}"})
+    emit_event(event=f"{name}.sent.event!", resource={"prefect.resource.id": f"test-event-{name}"})
 
-@flow
-def test_deployment_trigger_as_automation():
-    trigger = DeploymentTrigger(
-        name="A deployment automation",
-    )
-    trigger.set_deployment_id(uuid4())
-
-    automation = trigger.as_automation()
-
-    assert automation == Automation(
-        name="A deployment automation",
-        description="",
-        enabled=True,
-        trigger=Trigger(
-            posture=Posture.Reactive,
-            threshold=1,
-            within=datetime.timedelta(0),
-        ),
-        actions=[
-            RunDeployment(
-                type="run-deployment",
-                source="selected",
-                parameters=None,
-                deployment_id=trigger._deployment_id,
-            )
-        ],
-        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
-    )
 ```
 
+Todo: include automations UI example of consuming an event resource and triggering an automation
 
-TODO: test event triggered flow + relate it to previous examples
-
+Keep in mind, this event driven workflow allows you to supercharge interactions between multiple workspaces by exploring event webhooks. Find more information on how to do so in the event webhooks documentation. 
+ 
 ### Use the right pattern for the job with Prefect
 The way flows are designed and composed has implications for how they perform, how they’re maintained, and how they’re used. Legacy data pipeline frameworks lock you into a one-size-fits-all pattern, appropriate for some circumstances, but not all. Prefect is designed for incremental change. You and your team can transition between patterns as requirements demand, perhaps starting with a monoflow, and decomposing it over time. With this flexibility, you can choose the patterns that best suit your data, your challenge, and your organization. Checkout all of the github examples at this repository here, and feel free to contribute more examples!
