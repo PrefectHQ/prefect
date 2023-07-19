@@ -132,7 +132,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if not from_path:
             from_path = Path(self.basepath).expanduser().resolve()
         else:
-            from_path = Path(from_path).resolve()
+            from_path = self._resolve_path(from_path)
 
         if not local_path:
             local_path = Path(".").resolve()
