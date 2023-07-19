@@ -47,7 +47,7 @@ Start with the [tutorial](/tutorial/) and then check out the [concepts](/concept
 
 ## Prefect Quickstart
 
-### Step 1: [Install Prefect](/getting-started/installation/)
+### Step 1: Install Prefect
 
 <div class="terminal">
 ```bash
@@ -154,12 +154,12 @@ You'll find a link directing you to the flow run page conveniently positioned at
 
 ![Alt text](img/ui/flow-run-diagram.jpg)
 
-Local flow run execution is great for development and testing, but to [schedule flow runs](/concepts/schedules/) or [trigger them based on events](/cloud/automations/), you’ll need to [deploy](/tutorial/deployments/) your flows.
+Local flow run execution is great for development and testing, but to [schedule flow runs](/concepts/schedules/) or [trigger them based on events](/cloud/automations/), you’ll need to [deploy](/concepts/deployments/) your flows.
 
 
-### Step 5: [Deploy the flow](/tutorial/deployments/)
+### Step 5: Deploy the flow
 
-[Deploying](/concepts/deployments/) your flows informs the Prefect API of where, how, and when to run your flows.
+[Deploying](/tutorial/deployments/) your flows informs the Prefect API of where, how, and when to run your flows.
 
 !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
 
@@ -177,7 +177,7 @@ prefect deploy
 
 ### Step 5: Start a [worker](/tutorial/deployments/#why-work-pools-and-workers) and [run the deployed flow](/concepts/deployments/#create-a-flow-run-from-a-deployment)
 
-Start a worker to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
+Start a [worker](/concepts/work-pools/#worker-overview) to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
 
 In a new terminal, run:
 <div class="terminal">
@@ -186,7 +186,7 @@ prefect worker start --pool '<work-pool-name>'
 ```
 </div>
 
-Now that your [worker](/concepts/work-pools/#worker-overview) is running, you are ready to [kick off deployed flow runs from the UI](/concepts/deployments/#create-a-flow-run-with-prefect-ui) or by running:
+Now that your worker is running, you are ready to [kick off deployed flow runs from the UI](/concepts/deployments/#create-a-flow-run-with-prefect-ui) or by running:
 
 <div class="terminal">
 ```bash
