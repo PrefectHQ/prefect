@@ -74,10 +74,10 @@ Sign up for a forever free [Prefect Cloud Account](/cloud/) or, alternatively, h
 **The fastest way to get started with Prefect is to add a `@flow` decorator to any python function**.
 
 !!! tip "Rules of Thumb"
-    - At a minimum, you need to define at least one flow function.
-    - Your flows can be segmented by introducing task (`@task`) functions, which can be invoked from within these flows.
-    - A task represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
-    - Flows can be called inside of other flows (we call these subflows) but a task **cannot** be run inside of another task or from outside the context of a flow.
+    - At a minimum, you need to define at least one [flow](/tutorial/flows/) function.
+    - Your flows can be segmented by introducing [task](/tutorial/tasks/) (`@task`) functions, which can be invoked from within these flows.
+    - A [task](/concepts/tasks/) represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
+    - [Flows](/concepts/flows) can be called inside of other flows (we call these [subflows](/concepts/flows/#composing-flows)) but a task **cannot** be run inside of another task or from outside the context of a flow.
 
 Here is an example flow called `Get Repo Info` that contains 2 tasks:
 ```python
@@ -157,7 +157,7 @@ You'll find a link directing you to the flow run page conveniently positioned at
 Local flow run execution is great for development and testing, but to schedule flow runs or trigger them based on events, you’ll need to [deploy](/tutorial/deployments/) your flows.
 
 
-### Step 5: [Deploy the flow](/tutorials/deployments/)
+### Step 5: [Deploy the flow](/tutorial/deployments/)
 
 Deploying your flows informs the Prefect API of where, how, and when to run your flows.
 
