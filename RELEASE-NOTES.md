@@ -3,7 +3,12 @@
 ## Release 2.11.1
 
 ### Flow summary graphs and stats
-BP to add
+Each flow page now includes graphs of it's recent flow runs, task runs, and related events, as well as summary statistics!
+
+<img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
+
+Flow details have been moved to a dedicated tab. For implementation details, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/10242
 
 ### Work pools and workers are generally availible
 BP to add
@@ -13,7 +18,6 @@ For implementation details, see the following pull requests:
 - https://github.com/PrefectHQ/prefect/pull/10243
 
 ### Enhancements
-- Add visualizations to the flow page and move details to a tab — https://github.com/PrefectHQ/prefect/pull/10242
 - Use `orjson_dumps_extra_compatible` when serializing in `build_from_flow`  — https://github.com/PrefectHQ/prefect/pull/10232
 
 ### Fixes
