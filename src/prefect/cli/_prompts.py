@@ -2,10 +2,17 @@
 Utilities for prompting the user for input
 """
 from datetime import timedelta
+from getpass import GetPassWarning
+import os
+import shutil
+import sys
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
+from prefect.infrastructure.container import DockerRegistry
+from prefect.utilities.processutils import run_process
 from rich.prompt import PromptBase, InvalidResponse
 from rich.text import Text
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -30,6 +37,8 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.collections import get_collections_metadata_client
 
 from prefect.client.schemas.actions import WorkPoolCreate
+
+from prefect.utilities.slugify import slugify
 
 
 def prompt(message, **kwargs):
@@ -82,8 +91,19 @@ def prompt_select_from_table(
             table.add_column(column.get("header", ""))
 
         rows = []
+        max_length = 250
         for item in data:
-            rows.append(tuple(item.get(column.get("key")) for column in columns))
+            rows.append(
+                tuple(
+                    (
+                        value[:max_length] + "...\n"
+                        if isinstance(value := item.get(column.get("key")), str)
+                        and len(value) > max_length
+                        else value
+                    )
+                    for column in columns
+                )
+            )
 
         for i, row in enumerate(rows):
             if i == current_idx:
@@ -344,6 +364,166 @@ async def prompt_select_work_pool(
         return selected_work_pool_row["name"]
 
 
+async def prompt_build_custom_docker_image(
+    console: Console,
+    deployment_config: dict,
+):
+    if not confirm(
+        "Would you like to build a custom Docker image for this deployment?",
+        console=console,
+        default=False,
+    ):
+        return
+
+    build_step = {
+        "requires": "prefect-docker>=0.3.1",
+        "id": "build-image",
+    }
+
+    if os.path.exists("Dockerfile"):
+        if confirm(
+            "Would you like to use the Dockerfile in the current directory?",
+            console=console,
+            default=True,
+        ):
+            build_step["dockerfile"] = "Dockerfile"
+        else:
+            if confirm(
+                "A Dockerfile exists. You chose not to use it. A temporary Dockerfile"
+                " will be automatically built during the deployment build step. If"
+                " another file named 'Dockerfile' already exists at that time, the"
+                " build step will fail. Would you like to rename your existing"
+                " Dockerfile?"
+            ):
+                new_dockerfile_name = prompt(
+                    "New Dockerfile name", default="Dockerfile.backup"
+                )
+                shutil.move("Dockerfile", new_dockerfile_name)
+                build_step["dockerfile"] = "auto"
+            else:
+                # this will otherwise raise when build steps are run as the auto-build feature
+                # executed in the build_docker_image step will create a temporary Dockerfile
+                raise ValueError(
+                    "A Dockerfile already exists. Please remove or rename the existing"
+                    " one."
+                )
+    else:
+        build_step["dockerfile"] = "auto"
+
+    repo_name = prompt("Repository name (e.g. your Docker Hub username)").rstrip("/")
+    image_name = prompt("Image name", default=deployment_config["name"])
+    build_step["image_name"] = f"{repo_name}/{image_name}"
+    build_step["tag"] = prompt("Image tag", default="latest")
+
+    console.print(
+        "Image"
+        f" [bold][yellow]{build_step['image_name']}:{build_step['tag']}[/yellow][/bold]"
+        " will be built."
+    )
+
+    return {"prefect_docker.deployments.steps.build_docker_image": build_step}
+
+
+async def prompt_push_custom_docker_image(
+    console: Console,
+    deployment_config: dict,
+    build_docker_image_step: dict,
+):
+    if not confirm(
+        "Would you like to push this image to a remote registry?",
+        console=console,
+        default=False,
+    ):
+        return None, build_docker_image_step
+
+    push_step = {
+        "requires": "prefect-docker>=0.3.1",
+        "image_name": "{{ build-image.image_name }}",
+        "tag": "{{ build-image.tag }}",
+    }
+
+    registry_url = prompt("Registry URL", default="docker.io").rstrip("/")
+
+    repo_and_image_name = build_docker_image_step[
+        "prefect_docker.deployments.steps.build_docker_image"
+    ]["image_name"]
+    full_image_name = f"{registry_url}/{repo_and_image_name}"
+    build_docker_image_step["prefect_docker.deployments.steps.build_docker_image"][
+        "image_name"
+    ] = full_image_name
+
+    if confirm("Is this a private registry?", console=console):
+        docker_credentials = {}
+        docker_credentials["registry_url"] = registry_url
+
+        if confirm(
+            "Would you like use prefect-docker to manage Docker registry credentials?",
+            console=console,
+            default=False,
+        ):
+            try:
+                import prefect_docker
+            except ImportError:
+                console.print("Installing prefect-docker...")
+                await run_process(
+                    [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                    stream_output=True,
+                )
+                import prefect_docker
+
+            credentials_block = prefect_docker.DockerRegistryCredentials
+            push_step["credentials"] = (
+                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            )
+        else:
+            credentials_block = DockerRegistry
+            push_step["credentials"] = (
+                "{{ prefect.docker-registry.docker_registry_creds_name }}"
+            )
+        docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
+        create_new_block = False
+        try:
+            await credentials_block.load(docker_registry_creds_name)
+            if not confirm(
+                (
+                    "Would you like to use the existing Docker registry credentials"
+                    f" block {docker_registry_creds_name}?"
+                ),
+                console=console,
+                default=True,
+            ):
+                create_new_block = True
+        except ValueError:
+            create_new_block = True
+
+        if create_new_block:
+            docker_credentials["username"] = prompt(
+                "Docker registry username", console=console
+            )
+            try:
+                docker_credentials["password"] = prompt(
+                    "Docker registry password",
+                    console=console,
+                    password=True,
+                )
+            except GetPassWarning:
+                docker_credentials["password"] = prompt(
+                    "Docker registry password",
+                    console=console,
+                )
+
+            new_creds_block = credentials_block(
+                username=docker_credentials["username"],
+                password=docker_credentials["password"],
+                registry_url=docker_credentials["registry_url"],
+            )
+            await new_creds_block.save(name=docker_registry_creds_name, overwrite=True)
+
+    return {
+        "prefect_docker.deployments.steps.push_docker_image": push_step
+    }, build_docker_image_step
+
+
 @inject_client
 async def prompt_create_work_pool(
     console: Console,
@@ -413,7 +593,17 @@ async def prompt_entrypoint(console: Console) -> str:
     from a list of discovered flows. If no flows are found, the user will be prompted
     to enter a flow entrypoint manually.
     """
-    discovered_flows = await _search_for_flow_functions()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        task_id = progress.add_task(
+            description="Scanning for flows...",
+            total=1,
+        )
+        discovered_flows = await _search_for_flow_functions()
+        progress.update(task_id, completed=1)
     if not discovered_flows:
         return EntrypointPrompt.ask(
             (

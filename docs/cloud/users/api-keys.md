@@ -8,11 +8,6 @@ search:
   boost: 2
 ---
 
-# Document title
-...
-
----
-
 # Manage Prefect Cloud API Keys <span class="badge cloud"></span>
 
 API keys enable you to authenticate a local environment to work with Prefect Cloud. See [Configure execution environment](#configure-execution-environment) for details on how API keys are configured in your execution environment.
@@ -32,6 +27,12 @@ Select the **+** button to create a new API key. You're prompted to provide a na
 ![Creating an API key in the Cloud UI.](/img/ui/cloud-new-api-key.png)
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
+
+## Log into Prefect Cloud with an API Key
+
+```bash
+prefect cloud login -k '<my-api-key>'
+```
 
 ## Service account API keys <span class="badge orgs"></span>
 

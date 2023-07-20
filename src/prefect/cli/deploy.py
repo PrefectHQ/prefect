@@ -3,8 +3,10 @@ from getpass import GetPassWarning
 import json
 from copy import deepcopy
 from datetime import timedelta
+import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
 import typer
 import typer.core
@@ -22,6 +24,8 @@ from prefect.cli._prompts import (
     prompt_schedule,
     prompt_select_work_pool,
     prompt_entrypoint,
+    prompt_build_custom_docker_image,
+    prompt_push_custom_docker_image,
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.schedules import (
@@ -31,6 +35,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.deployments import find_prefect_directory, register_flow
@@ -52,13 +57,15 @@ from prefect.blocks.system import Secret
 
 from prefect.utilities.slugify import slugify
 
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, ServerType
 
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )
 
 from prefect.utilities.collections import get_from_dict
+
+from prefect.utilities.annotations import NotSet
 
 
 @app.command()
@@ -74,7 +81,7 @@ async def deploy(
         None,
         "--flow",
         "-f",
-        help="The name of a registered flow to create a deployment for.",
+        help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
@@ -240,7 +247,11 @@ async def deploy(
                 ci=ci,
             )
         else:
-            options["names"] = names
+            # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
+            options["names"] = [
+                name.split("/", 1)[-1] if "/" in name else name for name in names
+            ]
+
             await _run_single_deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
                 actions=actions,
@@ -299,13 +310,10 @@ async def _run_single_deploy(
     if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
         if not is_interactive() and not ci:
             raise ValueError(
-                "An entrypoint or flow name must be provided.\n\nDeploy a flow by"
-                " entrypoint:\n\n\t[yellow]prefect deploy"
-                " path/to/file.py:flow_function[/]\n\nDeploy a flow by"
-                " name:\n\n\t[yellow]prefect project register-flow"
-                " path/to/file.py:flow_function\n\tprefect deploy --flow"
-                " registered-flow-name[/]\n\nYou can also provide an entrypoint or flow"
-                " name in this project's prefect.yaml file."
+                "An entrypoint must be provided:\n\n"
+                " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
+                "You can also provide an entrypoint in a prefect.yaml"
+                " file located in the current working directory."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
     if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
@@ -371,7 +379,8 @@ async def _run_single_deploy(
         # set entrypoint from prior registration
         deploy_config["entrypoint"] = flows[deploy_config["flow_name"]]
 
-    if not deploy_config.get("name"):
+    deployment_name = deploy_config.get("name")
+    if not deployment_name:
         if not is_interactive() or ci:
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
@@ -428,6 +437,70 @@ async def _run_single_deploy(
             console=app.console, client=client
         )
 
+    docker_build_steps = [
+        "prefect_docker.deployments.steps.build_docker_image",
+        "prefect_docker.projects.steps.build_docker_image",
+    ]
+
+    docker_build_step_exists = any(
+        any(step in action for step in docker_build_steps)
+        for action in deploy_config.get("build", actions.get("build")) or []
+    )
+
+    update_work_pool_image = False
+
+    if is_interactive() and not docker_build_step_exists:
+        work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+        docker_based_infrastructure = "image" in work_pool.base_job_template.get(
+            "variables", {}
+        ).get("properties", {})
+        if docker_based_infrastructure:
+            build_docker_image_step = await prompt_build_custom_docker_image(
+                app.console, deploy_config
+            )
+            if build_docker_image_step is not None:
+                work_pool_job_variables_image_not_found = not get_from_dict(
+                    deploy_config, "work_pool.job_variables.image"
+                )
+                if work_pool_job_variables_image_not_found:
+                    update_work_pool_image = True
+
+                push_docker_image_step, updated_build_docker_image_step = (
+                    await prompt_push_custom_docker_image(
+                        app.console, deploy_config, build_docker_image_step
+                    )
+                )
+
+                if actions.get("build"):
+                    actions["build"].append(updated_build_docker_image_step)
+                else:
+                    actions["build"] = [updated_build_docker_image_step]
+
+                if push_docker_image_step is not None:
+                    if actions.get("push"):
+                        actions["push"].append(push_docker_image_step)
+                    else:
+                        actions["push"] = [push_docker_image_step]
+
+            build_steps = deploy_config.get("build", actions.get("build")) or []
+            push_steps = deploy_config.get("push", actions.get("push")) or []
+
+    triggers: List[DeploymentTrigger] = []
+    trigger_specs = deploy_config.get("triggers")
+    if trigger_specs:
+        triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
+        if client.server_type != ServerType.CLOUD:
+            app.console.print(
+                Panel(
+                    (
+                        "Deployment triggers are only supported on "
+                        "Prefect Cloud. Any triggers defined for the deployment will "
+                        "not be created."
+                    ),
+                ),
+                style="yellow",
+            )
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
@@ -444,9 +517,19 @@ async def _run_single_deploy(
 
     step_outputs.update(variable_overrides)
 
+    if update_work_pool_image:
+        if "build-image" not in step_outputs:
+            app.console.print(
+                "Warning: no build-image step found in the deployment build steps."
+                " The work pool image will not be updated."
+            )
+        deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
+
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
 
+    # save deploy_config before templating
+    deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
     _parameter_schema = deploy_config.pop("parameter_openapi_schema")
     _schedule = deploy_config.pop("schedule")
@@ -460,9 +543,10 @@ async def _run_single_deploy(
     ) or await _generate_default_pull_action(
         app.console,
         deploy_config=deploy_config,
+        actions=actions,
         ci=ci,
     )
-    pull_steps = apply_values(pull_steps, step_outputs)
+    pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
 
@@ -481,6 +565,8 @@ async def _run_single_deploy(
         pull_steps=pull_steps,
         infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
+
+    await _create_deployment_triggers(client, deployment_id, triggers)
 
     app.console.print(
         Panel(
@@ -503,21 +589,43 @@ async def _run_single_deploy(
         ),
         console=app.console,
     ):
-        _save_deployment_to_prefect_file(
-            deploy_config,
-            build_steps=build_steps or None,
-            push_steps=push_steps or None,
-            pull_steps=pull_steps or None,
+        matching_deployment_exists = (
+            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+                deploy_config=deploy_config_before_templating
+            )
         )
-        app.console.print(
+        if matching_deployment_exists and not confirm(
             (
-                "\n[green]Deployment configuration saved to prefect.yaml![/] You can"
-                " now deploy using this deployment configuration with:\n\n\t[blue]$"
-                f" prefect deploy -n {deploy_config['name']}[/]\n\nYou can also make"
-                " changes to this deployment configuration by making changes to the"
-                " prefect.yaml file."
+                "Found existing deployment configuration with name:"
+                f" [yellow]{deploy_config_before_templating.get('name')}[/yellow] and"
+                " entrypoint:"
+                f" [yellow]{deploy_config_before_templating.get('entrypoint')}[/yellow]"
+                " in the [yellow]prefect.yaml[/yellow] file. Would you like to"
+                " overwrite that entry?"
             ),
-        )
+        ):
+            app.console.print(
+                "[red]Cancelled saving deployment configuration"
+                f" '{deploy_config_before_templating.get('name')}' to the prefect.yaml"
+                " file.[/red]"
+            )
+        else:
+            _save_deployment_to_prefect_file(
+                deploy_config_before_templating,
+                build_steps=build_steps or None,
+                push_steps=push_steps or None,
+                pull_steps=pull_steps or None,
+            )
+            app.console.print(
+                (
+                    "\n[green]Deployment configuration saved to prefect.yaml![/] You"
+                    " can now deploy using this deployment configuration"
+                    " with:\n\n\t[blue]$ prefect deploy -n"
+                    f" {deploy_config['name']}[/]\n\nYou can also make changes to this"
+                    " deployment configuration by making changes to the prefect.yaml"
+                    " file."
+                ),
+            )
 
     app.console.print(
         "\nTo execute flow runs from this deployment, start a worker in a"
@@ -593,7 +701,7 @@ def _construct_schedule(
     Returns:
         A schedule object
     """
-    schedule = None
+    schedule = deploy_config.get("schedule", NotSet)
     cron = get_from_dict(deploy_config, "schedule.cron")
     interval = get_from_dict(deploy_config, "schedule.interval")
     anchor_date = get_from_dict(deploy_config, "schedule.anchor_date")
@@ -622,7 +730,7 @@ def _construct_schedule(
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-    else:
+    elif schedule is NotSet:
         if (
             not ci
             and is_interactive()
@@ -633,6 +741,10 @@ def _construct_schedule(
             )
         ):
             schedule = prompt_schedule(app.console)
+        else:
+            schedule = None
+    else:
+        schedule = None
 
     return schedule
 
@@ -656,7 +768,6 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
         "version": None,
         "tags": [],
         "description": None,
-        "schedule": {},
         "flow_name": None,
         "entrypoint": None,
         "parameters": {},
@@ -680,10 +791,162 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
     return deploy_config
 
 
+async def _generate_git_clone_pull_step(
+    console: Console,
+    deploy_config: Dict,
+    remote_url: str,
+):
+    branch = _get_git_branch() or "main"
+
+    if not confirm(
+        f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
+        default=True,
+        console=console,
+    ):
+        remote_url = prompt(
+            "Please enter the URL to pull your flow code from", console=console
+        )
+    if not confirm(
+        f"Is [green]{branch}[/] the correct branch to pull your flow code from?",
+        default=True,
+        console=console,
+    ):
+        branch = prompt(
+            "Please enter the branch to pull your flow code from",
+            default="main",
+            console=console,
+        )
+    token_secret_block_name = None
+    if confirm("Is this a private repository?", console=console):
+        token_secret_block_name = f"deployment-{slugify(deploy_config['name'])}-{slugify(deploy_config['flow_name'])}-repo-token"
+        create_new_block = False
+        prompt_message = (
+            "Please enter a token that can be used to access your private"
+            " repository. This token will be saved as a secret via the Prefect API"
+        )
+
+        try:
+            await Secret.load(token_secret_block_name)
+            if not confirm(
+                (
+                    "We found an existing token saved for this deployment. Would"
+                    " you like use the existing token?"
+                ),
+                default=True,
+                console=console,
+            ):
+                prompt_message = (
+                    "Please enter a token that can be used to access your private"
+                    " repository (this will overwrite the existing token saved via"
+                    " the Prefect API)."
+                )
+
+                create_new_block = True
+        except ValueError:
+            create_new_block = True
+
+        if create_new_block:
+            try:
+                repo_token = prompt(
+                    prompt_message,
+                    console=console,
+                    password=True,
+                )
+            except GetPassWarning:
+                # Handling for when password masking is not supported
+                repo_token = prompt(
+                    prompt_message,
+                    console=console,
+                )
+            await Secret(
+                value=repo_token,
+            ).save(name=token_secret_block_name, overwrite=True)
+
+    git_clone_step = {
+        "prefect.deployments.steps.git_clone": {
+            "repository": remote_url,
+            "branch": branch,
+        }
+    }
+
+    if token_secret_block_name:
+        git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
+            "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
+        )
+
+    return [git_clone_step]
+
+
+async def _generate_pull_step_for_build_docker_image(
+    console: Console, deploy_config: Dict, auto: bool = True
+):
+    pull_step = {}
+    dir_name = os.path.basename(os.getcwd())
+    if auto:
+        pull_step["directory"] = f"/opt/prefect/{dir_name}"
+    else:
+        pull_step["directory"] = prompt(
+            "What is the path to your flow code in your Dockerfile?",
+            default=f"/opt/prefect/{dir_name}",
+            console=console,
+        )
+
+    return [{"prefect.deployments.steps.set_working_directory": pull_step}]
+
+
+async def _check_for_build_docker_image_step(
+    build_action: List[Dict],
+) -> Optional[Dict[str, Any]]:
+    if not build_action:
+        return None
+
+    build_docker_image_steps = [
+        "prefect_docker.projects.steps.build_docker_image",  # legacy
+        "prefect_docker.deployments.steps.build_docker_image",
+    ]
+    for build_docker_image_step in build_docker_image_steps:
+        for action in build_action:
+            if action.get(build_docker_image_step):
+                return action.get(build_docker_image_step)
+
+    return None
+
+
 async def _generate_default_pull_action(
-    console: Console, deploy_config: Dict, ci: bool = False
+    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
     remote_url = _get_git_remote_origin_url()
+    build_docker_image_step = await _check_for_build_docker_image_step(
+        deploy_config.get("build") or actions["build"]
+    )
+    if build_docker_image_step:
+        dockerfile = build_docker_image_step.get("dockerfile")
+        if dockerfile == "auto":
+            return await _generate_pull_step_for_build_docker_image(
+                console, deploy_config
+            )
+        else:
+            if is_interactive():
+                if remote_url and confirm(
+                    "Would you like to pull your flow code from its remote"
+                    " repository when running your deployment?"
+                ):
+                    return await _generate_git_clone_pull_step(
+                        console, deploy_config, remote_url
+                    )
+                if not confirm(
+                    "Does your Dockerfile have a line that copies the current working"
+                    " directory into your image?"
+                ):
+                    exit_with_error(
+                        "Your flow code must be copied into your Docker image to run"
+                        " your deployment.\nTo do so, you can copy this line into your"
+                        " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
+                    )
+                return await _generate_pull_step_for_build_docker_image(
+                    console, deploy_config, auto=False
+                )
+
     if (
         is_interactive()
         and not ci
@@ -698,85 +961,8 @@ async def _generate_default_pull_action(
             console=console,
         )
     ):
-        branch = _get_git_branch() or "main"
+        return await _generate_git_clone_pull_step(console, deploy_config, remote_url)
 
-        if not confirm(
-            f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
-            default=True,
-            console=console,
-        ):
-            remote_url = prompt(
-                "Please enter the URL to pull your flow code from", console=console
-            )
-        if not confirm(
-            f"Is [green]{branch}[/] the correct branch to pull your flow code from?",
-            default=True,
-            console=console,
-        ):
-            branch = prompt(
-                "Please enter the branch to pull your flow code from",
-                default="main",
-                console=console,
-            )
-        token_secret_block_name = None
-        if confirm("Is this a private repository?", console=console):
-            token_secret_block_name = f"deployment-{slugify(deploy_config['name'])}-{slugify(deploy_config['flow_name'])}-repo-token"
-            create_new_block = False
-            prompt_message = (
-                "Please enter a token that can be used to access your private"
-                " repository. This token will be saved as a secret via the Prefect API"
-            )
-
-            try:
-                await Secret.load(token_secret_block_name)
-                if not confirm(
-                    (
-                        "We found an existing token saved for this deployment. Would"
-                        " you like use the existing token?"
-                    ),
-                    default=True,
-                    console=console,
-                ):
-                    prompt_message = (
-                        "Please enter a token that can be used to access your private"
-                        " repository (this will overwrite the existing token saved via"
-                        " the Prefect API)."
-                    )
-
-                    create_new_block = True
-            except ValueError:
-                create_new_block = True
-
-            if create_new_block:
-                try:
-                    repo_token = prompt(
-                        prompt_message,
-                        console=console,
-                        password=True,
-                    )
-                except GetPassWarning:
-                    # Handling for when password masking is not supported
-                    repo_token = prompt(
-                        prompt_message,
-                        console=console,
-                    )
-                await Secret(
-                    value=repo_token,
-                ).save(name=token_secret_block_name, overwrite=True)
-
-        git_clone_step = {
-            "prefect.deployments.steps.git_clone": {
-                "repository": remote_url,
-                "branch": branch,
-            }
-        }
-
-        if token_secret_block_name:
-            git_clone_step["prefect.deployments.steps.git_clone"]["access_token"] = (
-                "{{ prefect.blocks.secret." + token_secret_block_name + " }}"
-            )
-
-        return [git_clone_step]
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(
@@ -908,20 +1094,57 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         # and we are not in interactive mode
         return deploy_configs
     elif len(names) >= 1:
-        # Return all deployment configurations with the given names
-        matched_deploy_configs = [
-            deploy_config
-            for deploy_config in deploy_configs
-            if deploy_config.get("name") in names
-        ]
-        unfound_names = set(names) - {
+        matched_deploy_configs = []
+        deployment_names = []
+        for name in names:
+            # if flow-name/deployment-name format
+            if "/" in name:
+                flow_name, deployment_name = name.split("/")
+                flow_name = flow_name.replace("-", "_")
+                matched_deploy_configs += [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == deployment_name
+                    and deploy_config.get("entrypoint", "").split(":")[-1] == flow_name
+                ]
+                deployment_names.append(deployment_name)
+
+            else:
+                # If deployment-name format
+                matching_deployment = [
+                    deploy_config
+                    for deploy_config in deploy_configs
+                    if deploy_config.get("name") == name
+                ]
+                if len(matching_deployment) > 1 and is_interactive() and not ci:
+                    user_selected_matching_deployment = prompt_select_from_table(
+                        app.console,
+                        (
+                            "Found multiple deployment configurations with the name"
+                            f" [yellow]{name}[/yellow]. Please select the one you would"
+                            " like to deploy:"
+                        ),
+                        [
+                            {"header": "Name", "key": "name"},
+                            {"header": "Entrypoint", "key": "entrypoint"},
+                            {"header": "Description", "key": "description"},
+                        ],
+                        matching_deployment,
+                    )
+                    matched_deploy_configs.append(user_selected_matching_deployment)
+                elif matching_deployment:
+                    matched_deploy_configs.extend(matching_deployment)
+                deployment_names.append(name)
+
+        unfound_names = set(deployment_names) - {
             deploy_config.get("name") for deploy_config in matched_deploy_configs
         }
+
         if unfound_names:
             app.console.print(
                 (
                     "The following deployment(s) could not be found and will not be"
-                    f" deployed: {' ,'.join(list(unfound_names))}"
+                    f" deployed: {', '.join(list(sorted(unfound_names)))}"
                 ),
                 style="yellow",
             )
@@ -929,7 +1152,7 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
             app.console.print(
                 (
                     "Could not find any deployment configurations with the given"
-                    f" name(s): {' ,'.join(names)}. Your flow will be deployed with a"
+                    f" name(s): {', '.join(names)}. Your flow will be deployed with a"
                     " new deployment configuration."
                 ),
                 style="yellow",
@@ -1047,3 +1270,52 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
             deploy_config["parameters"].update(parameters)
 
     return deploy_config, variable_overrides
+
+
+def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
+    deploy_config,
+) -> bool:
+    prefect_file = Path("prefect.yaml")
+    if prefect_file.exists():
+        with prefect_file.open(mode="r") as f:
+            parsed_prefect_file_contents = yaml.safe_load(f)
+            deployments = parsed_prefect_file_contents.get("deployments")
+            if deployments is not None:
+                for _, existing_deployment in enumerate(deployments):
+                    if existing_deployment.get("name") == deploy_config.get(
+                        "name"
+                    ) and (
+                        existing_deployment.get("entrypoint")
+                        == deploy_config.get("entrypoint")
+                    ):
+                        return True
+    return False
+
+
+def _initialize_deployment_triggers(
+    deployment_name: str, triggers_spec: List[Dict[str, Any]]
+) -> List[DeploymentTrigger]:
+    triggers = []
+    for i, spec in enumerate(triggers_spec, start=1):
+        spec.setdefault("name", f"{deployment_name}__automation_{i}")
+        triggers.append(DeploymentTrigger(**spec))
+
+    return triggers
+
+
+async def _create_deployment_triggers(
+    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTrigger]
+):
+    if client.server_type == ServerType.CLOUD:
+        # The triggers defined in the deployment spec are, essentially,
+        # anonymous and attempting truly sync them with cloud is not
+        # feasible. Instead, we remove all automations that are owned
+        # by the deployment, meaning that they were created via this
+        # mechanism below, and then recreate them.
+        await client.delete_resource_owned_automations(
+            f"prefect.deployment.{deployment_id}"
+        )
+
+        for trigger in triggers:
+            trigger.set_deployment_id(deployment_id)
+            await client.create_automation(trigger.as_automation())

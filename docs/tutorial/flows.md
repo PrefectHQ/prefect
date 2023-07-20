@@ -56,7 +56,7 @@ Forks 🍴 : 1245
 
 ## Parameters
 
-As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](https://docs.prefect.io/2.10.15/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
+As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
 ```python hl_lines="6"
 import httpx
@@ -119,16 +119,14 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 
 ## Retries
 
-So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](https://docs.prefect.io/2.10.15/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
+So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
 ```python hl_lines="7"
 import httpx
 from prefect import flow, get_run_logger
 
 
-@flow
-def get_repo_info(
-    repo_name: str = "PrefectHQ/prefect", retries=3, retry_delay_seconds=5
-):
+@flow(retries=3, retry_delay_seconds=5)
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     url = f"https://api.github.com/repos/{repo_name}"
     response = httpx.get(url)
     response.raise_for_status()
