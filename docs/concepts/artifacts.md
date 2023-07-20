@@ -162,6 +162,7 @@ You can create a table artifact by calling `create_table_artifact()`. To create 
 ```python
 from prefect.artifacts import create_table_artifact
 
+@flow
 def my_fn():
     highest_churn_possibility = [
        {'customer_id':'12345', 'name': 'John Smith', 'churn_probability': 0.85 }, 
