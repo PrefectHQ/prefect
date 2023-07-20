@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.11.1
+## Release 2.11.0
 
 ### Flow summary graphs and stats
 Each flow page now includes graphs of it's recent flow runs, task runs, and related events, as well as summary statistics!
@@ -10,8 +10,10 @@ Each flow page now includes graphs of it's recent flow runs, task runs, and rela
 Flow details have been moved to a dedicated tab. For implementation details, see the following pull request:
 - https://github.com/PrefectHQ/prefect/pull/10242
 
-### Work pools and workers are generally availible
-BP to add
+### Work pools and workers are now generally availible
+Since first being introduced in Prefect 2.10.0, Prefect [workers and work pools](https://docs.prefect.io/2.10.21/concepts/work-pools/) have come a long way. There are now work pools for every major infrastructure type. Work pools expose rich configuration of their infrastructure. Every work pool type has a base configuration with sensible defaults such that you can begin executing work with just a single command. The infrastructure configuration is fully customizable from the Prefect UI.
+
+Push work pools, recently released in Prefect Cloud, remain a beta feature.
 
 For implementation details, see the following pull requests:
 - https://github.com/PrefectHQ/prefect/pull/10244
