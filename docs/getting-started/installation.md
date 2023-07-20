@@ -1,5 +1,5 @@
 ---
-description: Installing Prefect and configuring on supported environments.
+description: Installing Prefect and configuring your environment
 tags:
     - installation
     - pip install
@@ -15,7 +15,7 @@ search:
 
 # Installation
 
-Prefect requires Python 3.7 or later. 
+Prefect requires Python 3.8 or newer.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
@@ -26,10 +26,7 @@ Prefect requires Python 3.7 or later.
 
 We recommend installing Prefect using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
 
-!!! success "Upgrading from Prefect 1 to Prefect 2"
-    If you're upgrading from Prefect 1 to Prefect 2, we recommend creating a new environment. Should you encounter any issues when upgrading, this ensures being able to roll back to a known working state easily.
-
-!!! warning "Windows and Linux requirements"
+!!! info "Windows and Linux requirements"
     See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
 
 ## Install Prefect
@@ -38,7 +35,7 @@ The following sections describe how to install Prefect in your development or ex
 
 ### Installing the latest version
 
-Prefect is published as a Python package. To install the latest Prefect release, run the following in a shell or terminal session:
+Prefect is published as a Python package. To install the latest release or upgrade an existing Prefect install, run the following command in your terminal:
 
 <div class="terminal">
 ```bash
@@ -46,7 +43,7 @@ pip install -U prefect
 ```
 </div>
 
-To install a specific version, specify the version, such as:
+To install a specific version, specify the version number like this:
 
 <div class="terminal">
 ```bash
@@ -54,7 +51,7 @@ pip install -U "prefect==2.10.4"
 ```
 </div>
 
-Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+See available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md).
 
 ### Installing the bleeding edge
 
@@ -90,86 +87,71 @@ See our [Contributing](/contributing/overview/) guide for more details about sta
 
 ### Checking your installation
 
-To check that Prefect was installed correctly, use the Prefect CLI command `prefect version`. Running this command should print version and environment details to your console.
+To confirm that Prefect was installed correctly, run the command `prefect version` to print the version and environment details to your console.
 
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.10.4
+
+Version:             2.10.21
 API version:         0.8.4
-Python version:      3.9.16
-Git commit:          b6d0433a
-Built:               Thu, Apr 13, 2023 5:34 PM
+Python version:      3.10.12
+Git commit:          da816542
+Built:               Thu, Jul 13, 2023 2:05 PM
 OS/Arch:             darwin/arm64
-Profile:             default
-Server type:         cloud
+Profile:              local
+Server type:         ephemeral
+Server:
+  Database:          sqlite
+  SQLite version:    3.42.0
 ```
 </div>
 
 ## Windows installation notes
 
-Prefect supports running Prefect flows on Windows.
-
-!!! note "Prefect on Windows requires Python 3.8 or later"
-    Make sure to use Python 3.8 or higher when running a Prefect agent on Windows.
-
-You can install and run Prefect as described above via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). Note that, after installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
+You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
 The `Scripts` folder path looks something like this (the username and Python version may be different on your system):
 
 ```bash
-C:\Users\Terry\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.9_qbz5n2kfra8p0\LocalCache\local-packages\Python39\Scripts
+C:\Users\MyUserNameHere\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts
 ```
 
-Watch the `pip install` installation output messages for the `Scripts` folder path on your system.
+Watch the `pip install` output messages for the `Scripts` folder path on your system.
 
-If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
+If you're using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
 
 ## Linux installation notes
 
-Currently, Prefect requires SQLite 3.24 or newer.
+Linux is a popular operating system for running Prefect. You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database). 
 
-When installing Prefect and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect.
+For development, you can use [SQLite](/concepts/database/#configuring_a_sqlite_database) 2.24 or newer as your database. Note that certain Linux versions of SQLite can be problematic. Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
 
-Known compatible releases include:
+Alternatively, you can [install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version. 
 
-- Ubuntu 22.04 LTS
-- Ubuntu 20.04 LTS
-
-You can also:
-
-- Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
-- Use the `conda` virtual environment manager, which enables configuring a compatible SQLite version.
-- [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
-- [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
-- Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
-
-
-## Using Self-Signed SSL Certificates
+## Using a self-signed SSL certificate
 
 If you're using a self-signed SSL certificate, you need to configure your
-environment to trust the certificate. This is usually done by adding the
-certificate to your system bundle and pointing your tools to use that bundle
-by configuring the `SSL_CERT_FILE` environment variable.
+environment to trust the certificate. You can add the
+certificate to your system bundle and pointing your tools to use that bundle by configuring the `SSL_CERT_FILE` environment variable.
 
-If the certificate is not part of your system bundle you can set the
-`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate
-verification altogether.
+If the certificate is not part of your system bundle, you can set the
+`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate verification altogether.
 
-***Note:*** This is not secure and so is recommended only for testing!
+***Note:*** Disabling certificate validation is insecure and only suggested as an option for testing!
 
 
 ## Proxies
 
-Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. You can read more about this in the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. Read more about using Prefect Cloud with proxies [here](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
 
 ## External requirements
 
-While Prefect works with many of your favorite tools and Python modules, it has a few external dependencies.
-
 ### SQLite
 
-Prefect server uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+You can use [Prefect Cloud](/ui/cloud/) as your API server, or [host your own Prefect server](/host/) backed by [PostgreSQL](/concepts/database/#configuring_a_postgresql_database). 
+
+By default, a local Prefect server instance uses SQLite as the backing database. SQLite is not packaged with the Prefect installation. Most systems will already have SQLite installed, because it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
@@ -180,16 +162,15 @@ $ sqlite3 --version
 </div>
 
 Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
-Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.10.4
+Version:             2.10.21
 API version:         0.8.4
-Python version:      3.9.16
-Git commit:          b6d0433a
-Built:               Thu, Apr 13, 2023 5:34 PM
+Python version:      3.10.12
+Git commit:          a46cbebb
+Built:               Sat, Jul 15, 2023 7:59 AM
 OS/Arch:             darwin/arm64
 Profile:              default
 Server type:         cloud
@@ -198,9 +179,7 @@ Server type:         cloud
 
 ### Install SQLite on RHEL
 
-The following steps are needed to install an appropriate version of SQLite on Red Hat Enterprise Linux (RHEL).
-
-Note that some RHEL instances have no C compiler, so you may need to check for and install `gcc` first:
+The following steps are needed to install an appropriate version of SQLite on Red Hat Enterprise Linux (RHEL). Note that some RHEL instances have no C compiler, so you may need to check for and install `gcc` first:
 
 <div class="terminal">
 ```bash
@@ -217,7 +196,7 @@ tar -xzf sqlite-autoconf-3390200.tar.gz
 ```
 </div>
 
-Change to the extracted SQLite folder, then build and install SQLite.
+Move to the extracted SQLite directory, then build and install SQLite.
 
 <div class="terminal">
 ```bash
@@ -256,5 +235,5 @@ environment variable to specify which hosts should not be sent through the proxy
 For more information about these environment variables, see the [cURL
 documentation](https://everything.curl.dev/usingcurl/proxies/env).
 
-!!! warning "Resetting the database deletes data"
-    Note that resetting the database causes the loss of any existing data.
+## Next steps
+Now that you have Prefect installed and your environment configured, you may want to check out the [Tutorial](/tutorial/) to get more familiar with Prefect.

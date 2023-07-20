@@ -20,7 +20,7 @@ Prefect Cloud enforces the following rate limits:
 - Flow and task creation rate limits
 - Log service rate limits
 
-## Flow and task creation rate limits
+## Flow, flow run, and task run rate limits
 
 Prefect Cloud limits the `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes at the following levels:
 

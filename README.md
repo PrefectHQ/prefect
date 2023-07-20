@@ -51,13 +51,13 @@ After running some flows, fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![](/docs/img/ui/flow-run-page.png)
+![](/docs/img/ui/dashboard-oss.png)
 
 From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote environments, running on a scheduled or event-driven basis.
 
 ## Getting Started
 
-Prefect requires Python 3.7 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
+Prefect requires Python 3.8 or later. To [install Prefect](https://docs.prefect.io/getting-started/installation/), run the following command in a shell or terminal session:
 
 ```bash
 pip install prefect

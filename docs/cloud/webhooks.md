@@ -15,13 +15,6 @@ from other systems in your ecosystem.  Each webhook exposes a unique URL endpoin
 receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
-!!! cloud-ad "Webhooks are only available in Prefect Cloud"
-
-    As of Q2 2023, webhooks can be configured via the CLI or via the
-    <a href="https://app.prefect.cloud/api/docs" target="_blank">Prefect Cloud REST
-    API</a>.  Support for managing webhooks with the Prefect Cloud UI is on the roadmap
-    for Q3 2023.
-
 Webhooks are defined by two essential components: a unique URL and a template which
 translates incoming web requests to a Prefect event.
 
@@ -34,6 +27,12 @@ endpoints](https://app.prefect.cloud/api/docs#tag/Webhooks).  This is a Prefect
 Cloud-only feature. You authenticate API calls using the standard
 [authentication methods you use with Prefect
 Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
+
+### Via Prefect Cloud
+
+Webhooks can be created and managed from the Prefect Cloud UI.
+
+![Managing a webhook in the Prefect Cloud UI.](/img/ui/webhook.png)
 
 ### Via the Prefect CLI
 

@@ -33,7 +33,7 @@ permissions:
 #
 # https://docs.github.com/en/actions/using-jobs/using-concurrency
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -71,7 +71,6 @@ jobs:
         os:
           - ${{ needs.isinternal.outputs.status == 'true' && github.event_name == 'pull_request' && 'oss-test-runner' || 'ubuntu-latest' }}
         python-version:
-          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
@@ -81,10 +80,6 @@ jobs:
           - "--only-services"
 
         include:
-          # Run 3.7 tests with lower bound pins
-          - python-version: "3.7"
-            lower-bound-requirements: true
-
           # Include Docker image builds on the service test run, and disallow the test
           # suite from building images automaticlly in fixtures
           - pytest-options: "--only-services"
@@ -99,11 +94,10 @@ jobs:
           - database: "postgres:14"
             pytest-options: "--only-services"
 
-
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Display current test matrix

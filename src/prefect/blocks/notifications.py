@@ -617,3 +617,57 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
         resp = await client.request(**self._build_request_args(body, subject))
         resp.raise_for_status()
+
+
+class SendgridEmail(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via any sendgrid account.
+    See [Apprise Notify_sendgrid docs](https://github.com/caronc/apprise/wiki/Notify_Sendgrid)
+
+    Examples:
+        Load a saved Sendgrid and send a email message:
+        ```python
+        from prefect.blocks.notifications import SendgridEmail
+
+        sendgrid_block = SendgridEmail.load("BLOCK_NAME")
+
+        sendgrid_block.notify("Hello from Prefect!")
+    """
+
+    _description = "Enables sending notifications via Sendgrid email service."
+    _block_type_name = "Sendgrid Email"
+    _block_type_slug = "sendgrid-email"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/3PcxFuO9XUqs7wU9MiUBMg/af6affa646899cc1712d14b7fc4c0f1f/email__1_.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SendgridEmail"
+
+    api_key: SecretStr = Field(
+        default=...,
+        title="API Key",
+        description="The API Key associated with your sendgrid account.",
+    )
+
+    sender_email: str = Field(
+        title="Sender email id",
+        description="The sender email id.",
+        example="test-support@gmail.com",
+    )
+
+    to_emails: List[str] = Field(
+        default=...,
+        title="Recipient emails",
+        description="Email ids of all recipients.",
+        example="recipient1@gmail.com",
+    )
+
+    def block_initialization(self) -> None:
+        from apprise.plugins.NotifySendGrid import NotifySendGrid
+
+        url = SecretStr(
+            NotifySendGrid(
+                apikey=self.api_key.get_secret_value(),
+                from_email=self.sender_email,
+                targets=self.to_emails,
+            ).url()
+        )
+
+        self._start_apprise_client(url)

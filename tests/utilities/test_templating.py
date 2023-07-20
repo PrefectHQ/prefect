@@ -81,6 +81,50 @@ class TestFindPlaceholders:
         assert placeholder.name == "prefect.blocks.document.name"
         assert placeholder.type is PlaceholderType.BLOCK_DOCUMENT
 
+    def test_finds_env_var_placeholders(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "VALUE")
+        template = "Hello {{$MY_ENV_VAR}}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 1
+        placeholder = placeholders.pop()
+        assert placeholder.name == "$MY_ENV_VAR"
+        assert placeholder.type is PlaceholderType.ENV_VAR
+
+    def test_apply_values_clears_placeholder_for_missing_env_vars(self):
+        template = "{{ $MISSING_ENV_VAR }}"
+        values = {"ANOTHER_ENV_VAR": "test_value"}
+        result = apply_values(template, values)
+        assert result == ""
+
+    def test_finds_nested_env_var_placeholders(self, monkeypatch):
+        monkeypatch.setenv("GREETING", "VALUE")
+        template = {"greeting": "Hello {{name}}!", "message": {"text": "{{$GREETING}}"}}
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"name", "$GREETING"}
+
+        types = set(p.type for p in placeholders)
+        assert types == {PlaceholderType.STANDARD, PlaceholderType.ENV_VAR}
+
+    @pytest.mark.parametrize(
+        "template,expected",
+        [
+            (
+                '{"greeting": "Hello {{name}}!", "message": {"text": "{{$$}}"}}',
+                '{"greeting": "Hello Dan!", "message": {"text": ""}}',
+            ),
+            (
+                '{"greeting": "Hello {{name}}!", "message": {"text": "{{$GREETING}}"}}',
+                '{"greeting": "Hello Dan!", "message": {"text": ""}}',
+            ),
+        ],
+    )
+    def test_invalid_env_var_placeholder(self, template, expected):
+        values = {"name": "Dan"}
+        result = apply_values(template, values)
+        assert result == expected
+
 
 class TestApplyValues:
     def test_apply_values_simple_string_with_one_placeholder(self):
@@ -131,6 +175,14 @@ class TestApplyValues:
         values = {"age": 30}
         assert apply_values(template, values, remove_notset=False) == {
             "name": NotSet,
+            "age": 30,
+        }
+
+    def test_apply_values_string_with_missing_value_not_removed(self):
+        template = {"name": "Bob {{last_name}}", "age": "{{age}}"}
+        values = {"age": 30}
+        assert apply_values(template, values, remove_notset=False) == {
+            "name": "Bob {{last_name}}",
             "age": 30,
         }
 
@@ -414,6 +466,7 @@ class TestResolveVariables:
         template = {
             "key": "{{ another_placeholder }}",
             "key2": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}",
+            "key3": "{{ $another_placeholder }}",
         }
         result = await resolve_variables(template, client=prefect_client)
         assert result == template
