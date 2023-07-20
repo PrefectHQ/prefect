@@ -369,6 +369,10 @@ from = "/api-ref/prefect/projects/"
 to = "/api-ref/prefect/deployments-ux/"
 status = 301
 
+[[redirects]]
+from = "/guides/cloud-run-push-work-pools.md"
+to = "/guides/push-work-pools.md"
+status = 301
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.

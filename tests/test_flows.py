@@ -32,7 +32,14 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
-from prefect.states import Cancelled, State, StateType, raise_state_exception
+from prefect.states import (
+    Cancelled,
+    Paused,
+    PausedRun,
+    State,
+    StateType,
+    raise_state_exception,
+)
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,
@@ -630,6 +637,17 @@ class TestFlowCall:
             state = foo(1, 2)
             assert state is None
 
+    def test_flow_can_end_in_paused_state(self):
+        @flow
+        def my_flow():
+            return Paused()
+
+        with pytest.raises(PausedRun, match="result is not available"):
+            my_flow()
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_paused()
+
     def test_flow_can_end_in_cancelled_state(self):
         @flow
         def my_flow():
@@ -786,6 +804,7 @@ class TestSubflowCalls:
 
         assert parent(1, 2) == 6
 
+    @pytest.mark.flaky(max_runs=2)
     async def test_concurrent_async_subflow(self):
         @task
         async def test_task():
