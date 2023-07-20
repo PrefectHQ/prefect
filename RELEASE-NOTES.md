@@ -26,8 +26,7 @@ For implementation details, see the following pull requests:
 - Make `resolve_futures_to_data` function raise on failure by default — https://github.com/PrefectHQ/prefect/pull/10197
 - Fix flow runs page not polling for new runs and not loading more flow runs when scrolling — https://github.com/PrefectHQ/prefect/pull/10247
 - Don't create DB default during settings load — https://github.com/PrefectHQ/prefect/pull/10246
-- Fix issues causing flow runs to be incorrectly marked as failed
- — https://github.com/PrefectHQ/prefect/pull/10249
+- Fix issues causing flow runs to be incorrectly marked as failed — https://github.com/PrefectHQ/prefect/pull/10249
 - Fix incorrect path in error message — https://github.com/PrefectHQ/prefect/pull/10255
 - Fix `LocalFileSystem.get_directory` with basepath behaviour  — https://github.com/PrefectHQ/prefect/pull/10258
 - Fix Dashboard refresh cadence — https://github.com/PrefectHQ/prefect/pull/10227
