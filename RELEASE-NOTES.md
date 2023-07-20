@@ -3,7 +3,7 @@
 ## Release 2.11.0
 
 ### Flow summary graphs and stats
-Each flow page now includes graphs of it's recent flow runs, task runs, and related events, as well as summary statistics!
+Each flow page now includes graphs of it's recent flow runs, task runs, and (in prefect Cloud) related events, as well as summary statistics!
 
 <img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
 
