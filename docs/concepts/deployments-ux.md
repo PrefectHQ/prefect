@@ -15,7 +15,7 @@ search:
   boost: 2
 ---
 
-# Managing Deployments<span class="badge beta"></span>
+# Managing Deployments
 
 You can manage your deployments with a `prefect.yaml` file that describes how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
 
