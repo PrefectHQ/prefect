@@ -1,5 +1,53 @@
 # Prefect Release Notes
 
+## Release 2.11.0
+
+### Flow summary graphs and stats
+Each flow page now includes graphs of it's recent flow runs, task runs, and (in prefect Cloud) related events, as well as summary statistics!
+
+<img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
+
+Flow details have been moved to a dedicated tab. For implementation details, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/10242
+
+### Work pools and workers are now generally available
+Since first being introduced in Prefect 2.10.0, Prefect [workers and work pools](https://docs.prefect.io/2.10.21/concepts/work-pools/) have come a long way. There are now work pools for every major infrastructure type. Work pools expose rich configuration of their infrastructure. Every work pool type has a base configuration with sensible defaults such that you can begin executing work with just a single command. The infrastructure configuration is fully customizable from the Prefect UI.
+
+Push work pools, recently released in Prefect Cloud, remain a beta feature.
+
+For implementation details, see the following pull requests:
+- https://github.com/PrefectHQ/prefect/pull/10244
+- https://github.com/PrefectHQ/prefect/pull/10243
+
+### Enhancements
+- Use `orjson_dumps_extra_compatible` when serializing in `build_from_flow`  — https://github.com/PrefectHQ/prefect/pull/10232
+
+### Fixes
+- Make `resolve_futures_to_data` function raise on failure by default — https://github.com/PrefectHQ/prefect/pull/10197
+- Fix flow runs page not polling for new runs and not loading more flow runs when scrolling — https://github.com/PrefectHQ/prefect/pull/10247
+- Don't create DB default during settings load — https://github.com/PrefectHQ/prefect/pull/10246
+- Fix issues causing flow runs to be incorrectly marked as failed — https://github.com/PrefectHQ/prefect/pull/10249
+- Fix incorrect path in error message — https://github.com/PrefectHQ/prefect/pull/10255
+- Fix `LocalFileSystem.get_directory` with basepath behaviour  — https://github.com/PrefectHQ/prefect/pull/10258
+- Fix Dashboard refresh cadence — https://github.com/PrefectHQ/prefect/pull/10227
+
+### Documentation
+- Add undocumented runtime parameters — https://github.com/PrefectHQ/prefect/pull/10229
+- Add Deployment Quickstart — https://github.com/PrefectHQ/prefect/pull/9985
+- Add guide for setting up a push work pool — https://github.com/PrefectHQ/prefect/pull/10248
+- Add guide for deploying a flow using Docker — https://github.com/PrefectHQ/prefect/pull/10252
+- Edit install and quick start pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
+- Update automations screenshots — https://github.com/PrefectHQ/prefect/pull/10245
+- Fix typos on Deployment Management page — https://github.com/PrefectHQ/prefect/pull/10241
+- Fix flow retries example — https://github.com/PrefectHQ/prefect/pull/10233
+- Fix missing document title and adding terminal login section — https://github.com/PrefectHQ/prefect/pull/10256
+
+### Contributors
+- @dbentall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10258
+- @mesejo
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...preview
+
 ## Release 2.10.21
 
 ### The Prefect Dashboard - your heads up display
