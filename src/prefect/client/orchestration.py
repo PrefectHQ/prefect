@@ -77,7 +77,11 @@ from prefect.client.schemas.objects import (
     WorkPool,
     WorkQueue,
 )
-from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
+from prefect.client.schemas.responses import (
+    DeploymentResponse,
+    WorkerFlowRunResponse,
+    MinimalConcurrencyLimitResponse,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
     ArtifactCollectionSort,
@@ -102,6 +106,7 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.math import clamped_poisson_interval
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -2533,6 +2538,48 @@ class PrefectClient:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")
+
+    async def acquire_concurrency_slots(
+        self, names: List[str], slots: int
+    ) -> List[MinimalConcurrencyLimitResponse]:
+        try_count = 0
+        while True:
+            retry_seconds = None
+            try_count += 1
+            try:
+                response = await self._client.post(
+                    "/v2/concurrency_limits/increment",
+                    json={"names": names, "slots": slots},
+                )
+            except Exception as exc:
+                if exc.response.status_code == 423:
+                    # Failed to acquire lock, wait and try again.
+
+                    # TODO: The API should probably return a `Retry-After`
+                    # header that's used here instead of a clamped exponential
+                    # backoff, the tricky part is what value the API should
+                    # return.
+                    retry_seconds = clamped_poisson_interval(min(2**try_count, 30))
+                    await asyncio.sleep(retry_seconds)
+                else:
+                    raise exc
+            else:
+                return [
+                    MinimalConcurrencyLimitResponse.parse_obj(obj_)
+                    for obj_ in response.json()
+                ]
+
+    async def release_concurrency_slots(
+        self, names: List[str], slots: int
+    ) -> List[MinimalConcurrencyLimitResponse]:
+        response = await self._client.post(
+            "/v2/concurrency_limits/decrement",
+            json={"names": names, "slots": slots},
+        )
+
+        return [
+            MinimalConcurrencyLimitResponse.parse_obj(obj_) for obj_ in response.json()
+        ]
 
     async def __aenter__(self):
         """
