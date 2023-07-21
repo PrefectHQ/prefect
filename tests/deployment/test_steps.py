@@ -66,6 +66,23 @@ class TestRunStep:
             "stderr": "",
         }
 
+    async def test_run_step_resolves_environment_variables_before_running(
+        self, monkeypatch
+    ):
+        monkeypatch.setenv("TEST_ENV_VAR", "test_value")
+        output = await run_step(
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": 'echo "{{ $TEST_ENV_VAR }}"',
+                }
+            }
+        )
+        assert isinstance(output, dict)
+        assert output == {
+            "stdout": "test_value",
+            "stderr": "",
+        }
+
     async def test_run_step_resolves_variables_before_running(self, variables):
         output = await run_step(
             {
@@ -221,6 +238,18 @@ class TestRunSteps:
         mock_print.assert_any_call("this is a warning")
 
 
+class MockGitHubCredentials:
+    def __init__(self, token: str):
+        self.token = token
+        self.data = {"value": {"token": self.token}}
+
+    async def save(self, name: str):
+        pass
+
+    async def load(self, name: str):
+        return MockGitHubCredentials("mock-token")
+
+
 class TestGitCloneStep:
     async def test_git_clone(self, monkeypatch):
         subprocess_mock = MagicMock()
@@ -336,6 +365,114 @@ class TestGitCloneStep:
                 }
             )
         assert "super-secret-42".upper() not in str(exc.getrepr())
+
+    @pytest.mark.asyncio
+    async def test_git_clone_with_valid_credentials_block_succeeds(self, monkeypatch):
+        mock_subprocess = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            mock_subprocess,
+        )
+        blocks = {
+            "github-credentials": {
+                "my-github-creds-block": MockGitHubCredentials("mock-token")
+            }
+        }
+
+        async def mock_read_block_document(self, name: str, block_type_slug: str):
+            return blocks[block_type_slug][name]
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
+            mock_read_block_document,
+        )
+
+        await MockGitHubCredentials("mock-token").save("my-github-creds-block")
+
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "credentials": (
+                        "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
+                    ),
+                }
+            }
+        )
+
+        assert output["directory"] == "repo"
+        mock_subprocess.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://mock-token@github.com/org/repo.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    @pytest.mark.asyncio
+    async def test_git_clone_with_invalid_credentials_block_raises(self, monkeypatch):
+        blocks = {
+            "github-credentials": {
+                "my-github-creds-block": MockGitHubCredentials("mock-token")
+            }
+        }
+
+        async def mock_read_block_document(self, name: str, block_type_slug: str):
+            return blocks[block_type_slug][name]
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
+            mock_read_block_document,
+        )
+
+        with pytest.raises(KeyError, match="invalid-block"):
+            await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git",
+                        "credentials": (
+                            "{{ prefect.blocks.github-credentials.invalid-block }}"
+                        ),
+                    }
+                }
+            )
+
+    @pytest.mark.asyncio
+    async def test_git_clone_with_token_and_credentials_raises(self, monkeypatch):
+        blocks = {
+            "github-credentials": {
+                "my-github-creds-block": MockGitHubCredentials("mock-token")
+            }
+        }
+
+        async def mock_read_block_document(self, name: str, block_type_slug: str):
+            return blocks[block_type_slug][name]
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
+            mock_read_block_document,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Please provide either an access token or credentials but not both",
+        ):
+            await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git",
+                        "access_token": "my-token",
+                        "credentials": (
+                            "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
+                        ),
+                    }
+                }
+            )
 
 
 class TestRunShellScript:

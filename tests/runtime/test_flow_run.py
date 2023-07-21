@@ -4,7 +4,7 @@ import datetime
 import pendulum
 import pytest
 
-from prefect import flow, states, tags
+from prefect import flow, states, tags, task
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
@@ -276,3 +276,214 @@ class TestParameters:
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=flow_run_id)
         assert flow_run.parameters == {"x": {"y": 1}}
+
+
+class TestParentFlowRunId:
+    async def test_parent_flow_run_id_is_attribute(self):
+        assert "parent_flow_run_id" in dir(flow_run)
+
+    async def test_parent_flow_run_id_is_empty_when_not_set(self):
+        assert flow_run.parent_flow_run_id is None
+
+    async def test_parent_flow_run_id_returns_parent_flow_run_id_when_present_dynamically(
+        self, prefect_client
+    ):
+        assert flow_run.parent_flow_run_id is None
+
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(parent_task_run_id=None),
+            flow=Flow(fn=lambda: None, name="foo"),
+        ):
+            assert flow_run.parent_flow_run_id is None
+
+        parent_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="foo2"), parameters={"x": "foo", "y": "bar"}
+        )
+
+        @task
+        def foo():
+            return 1
+
+        parent_task_run = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run.id
+        )
+
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(parent_task_run_id=parent_task_run.id),
+            flow=Flow(fn=lambda: None, name="foo3"),
+        ):
+            assert (
+                flow_run.parent_flow_run_id
+                == parent_flow_run.id
+                == parent_task_run.flow_run_id
+            )
+
+        assert flow_run.parent_flow_run_id is None
+
+    async def test_parent_flow_run_id_pulls_from_api_when_needed(
+        self, monkeypatch, prefect_client
+    ):
+        assert flow_run.parent_flow_run_id is None
+
+        parent_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="parent"),
+            parameters={"x": "foo", "y": "bar"},
+        )
+
+        @task
+        def foo():
+            return 1
+
+        parent_task_run = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run.id
+        )
+
+        child_flow_run = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="child"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=parent_task_run.id,
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(child_flow_run.id))
+        assert (
+            flow_run.parent_flow_run_id
+            == parent_flow_run.id
+            == parent_task_run.flow_run_id
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run.id))
+        assert flow_run.parent_flow_run_id is None
+
+
+class TestParentDeploymentId:
+    async def test_parent_deployment_id_is_attribute(self):
+        assert "parent_deployment_id" in dir(flow_run)
+
+    async def test_parent_deployment_id_is_empty_when_not_set(self):
+        assert flow_run.parent_deployment_id is None
+
+    async def test_parent_deployment_id_returns_parent_deployment_id_when_present_dynamically(
+        self, prefect_client
+    ):
+        assert flow_run.parent_deployment_id is None
+
+        @flow
+        def parent():
+            return 1
+
+        @task
+        def foo():
+            return 1
+
+        parent_flow_id = await prefect_client.create_flow(parent)
+
+        # Parent flow run that does not have a deployment
+        parent_flow_run_no_deployment = await prefect_client.create_flow_run(
+            flow=parent,
+        )
+        parent_task_run_no_deployment = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run_no_deployment.id
+        )
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(
+                parent_task_run_id=parent_task_run_no_deployment.id
+            ),
+            flow=Flow(fn=lambda: None, name="child-flow-no-deployment"),
+        ):
+            assert flow_run.parent_deployment_id is None
+
+        # Parent flow run that does have a deployment
+        parent_flow_deployment_id = await prefect_client.create_deployment(
+            flow_id=parent_flow_id,
+            name="example",
+        )
+        parent_flow_run_with_deployment = (
+            await prefect_client.create_flow_run_from_deployment(
+                deployment_id=parent_flow_deployment_id,
+            )
+        )
+        parent_task_run_with_deployment = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run_with_deployment.id
+        )
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(
+                parent_task_run_id=parent_task_run_with_deployment.id
+            ),
+            flow=Flow(fn=lambda: None, name="child-flow-with-parent-deployment"),
+        ):
+            assert flow_run.parent_deployment_id == parent_flow_deployment_id
+
+        # No parent flow run
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(parent_task_run_id=None),
+            flow=Flow(fn=lambda: None, name="child-flow-no-parent-task-run"),
+        ):
+            assert flow_run.parent_deployment_id is None
+
+    async def test_parent_deployment_id_pulls_from_api_when_needed(
+        self, monkeypatch, prefect_client
+    ):
+        assert flow_run.parent_deployment_id is None
+
+        @flow
+        def parent():
+            return 1
+
+        @task
+        def foo():
+            return 1
+
+        parent_flow_id = await prefect_client.create_flow(parent)
+
+        # Parent flow run that does not have a deployment
+        parent_flow_run_no_deployment = await prefect_client.create_flow_run(
+            flow=parent,
+        )
+
+        parent_task_run_no_deployment = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run_no_deployment.id
+        )
+
+        child_flow_run_no_deployment = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="child-no-deploy"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=parent_task_run_no_deployment.id,
+        )
+
+        monkeypatch.setenv(
+            name="PREFECT__FLOW_RUN_ID", value=str(child_flow_run_no_deployment.id)
+        )
+        assert flow_run.parent_deployment_id is None
+
+        # Parent flow run that does have a deployment
+        parent_flow_deployment_id = await prefect_client.create_deployment(
+            flow_id=parent_flow_id,
+            name="example",
+        )
+
+        parent_flow_run_with_deployment = (
+            await prefect_client.create_flow_run_from_deployment(
+                deployment_id=parent_flow_deployment_id,
+            )
+        )
+
+        parent_task_run_with_deployment = await prefect_client.create_task_run(
+            task=foo, dynamic_key="1", flow_run_id=parent_flow_run_with_deployment.id
+        )
+
+        child_flow_run_with_deployment = await prefect_client.create_flow_run(
+            flow=Flow(fn=lambda: None, name="child-deploy"),
+            parameters={"x": "foo", "y": "bar"},
+            parent_task_run_id=parent_task_run_with_deployment.id,
+        )
+
+        monkeypatch.setenv(
+            name="PREFECT__FLOW_RUN_ID", value=str(child_flow_run_with_deployment.id)
+        )
+        assert flow_run.parent_deployment_id == parent_flow_deployment_id
+
+        # No parent flow run
+        monkeypatch.setenv(
+            name="PREFECT__FLOW_RUN_ID", value=str(parent_flow_run_no_deployment.id)
+        )
+        assert flow_run.parent_deployment_id is None

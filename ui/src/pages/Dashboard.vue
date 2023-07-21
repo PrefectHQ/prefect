@@ -3,7 +3,7 @@
     <PageHeading :crumbs="crumbs">
       <template v-if="!empty" #actions>
         <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-        <DashboardTimeSpanFilter v-model:selected="timeSpanInSeconds" />
+        <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
       </template>
     </PageHeading>
     <template v-if="loaded">
@@ -14,7 +14,7 @@
         <div class="workspace-dashboard__grid">
           <WorkspaceDashboardFlowRunsCard :filter="filter" />
           <div class="workspace-dashboard__side">
-            <WorkspaceDashboardTaskRunsCard :filter="filter" />
+            <CumulativeTaskRunsCard :filter="tasksFilter" />
             <DashboardWorkPoolsCard class="workspace-dashboard__work-pools" :filter="filter" />
           </div>
         </div>
@@ -26,19 +26,25 @@
 <script setup lang="ts">
   import { Crumb } from '@prefecthq/prefect-design'
   import {
-    DashboardTimeSpanFilter,
+    TimeSpanFilter,
     DashboardWorkPoolsCard,
     WorkspaceDashboardFilter,
     WorkspaceDashboardFlowRunsCard,
-    WorkspaceDashboardTaskRunsCard,
+    CumulativeTaskRunsCard,
     PageHeading,
     FlowRunTagsInput,
     FlowRunsPageEmptyState,
-    useWorkspaceApi
+    useWorkspaceApi,
+    subscriptionIntervalKey,
+    mapper
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInHour } from 'date-fns'
-  import { computed } from 'vue'
+  import { secondsInHour, secondsToMilliseconds } from 'date-fns'
+  import { computed, provide } from 'vue'
+
+  provide(subscriptionIntervalKey, {
+    interval: secondsToMilliseconds(30),
+  })
 
   const api = useWorkspaceApi()
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
@@ -54,6 +60,8 @@
     timeSpanInSeconds: timeSpanInSeconds.value,
     tags: tags.value,
   }))
+
+  const tasksFilter = computed(() => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter'))
 </script>
 
 <style>
