@@ -523,8 +523,11 @@ class PrefectClient:
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
-            work_queue_name=work_queue_name,
         )
+
+        # done separately to avoid including this field in payloads sent to older API versions
+        if work_queue_name:
+            flow_run_create.work_queue_name = work_queue_name
 
         response = await self._client.post(
             f"/deployments/{deployment_id}/create_flow_run",

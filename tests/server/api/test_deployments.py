@@ -1247,6 +1247,31 @@ class TestCreateFlowRunFromDeployment:
         )
         assert response.json()["work_queue_name"] == "my-new-test-queue"
 
+    async def test_create_flow_run_from_deployment_does_not_reset_default_queue(
+        self, deployment, client, session
+    ):
+        default_queue = deployment.work_queue_name
+
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(
+                work_queue_name="my-new-test-queue"
+            ).dict(json_compatible=True),
+        )
+        assert response.json()["work_queue_name"] == "my-new-test-queue"
+        await session.commit()
+
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run", json={}
+        )
+        assert response.json()["work_queue_name"] == default_queue
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+
+        assert deployment.work_queue_name == default_queue
+
     async def test_create_flow_run_from_deployment_disambiguates_queue_name_from_other_pools(
         self, deployment, client, session
     ):

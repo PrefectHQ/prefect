@@ -408,16 +408,18 @@ async def create_flow_run_from_deployment(
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
 
+        work_queue_name = deployment.work_queue_name
+        work_queue_id = deployment.work_queue_id
+
         if flow_run.work_queue_name:
-            deployment.work_queue_id = (
-                await worker_lookups._get_work_queue_id_from_name(
-                    session=session,
-                    work_pool_name=deployment.work_queue.work_pool.name,
-                    work_queue_name=flow_run.work_queue_name,
-                    create_queue_if_not_found=True,
-                )
+            # cant mutate the ORM model or else it will commit the changes back
+            work_queue_id = await worker_lookups._get_work_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_queue.work_pool.name,
+                work_queue_name=flow_run.work_queue_name,
+                create_queue_if_not_found=True,
             )
-            deployment.work_queue_name = flow_run.work_queue_name
+            work_queue_name = flow_run.work_queue_name
 
         # hydrate the input model into a full flow run / state model
         flow_run = schemas.core.FlowRun(
@@ -437,8 +439,8 @@ async def create_flow_run_from_deployment(
                 flow_run.infrastructure_document_id
                 or deployment.infrastructure_document_id
             ),
-            work_queue_name=deployment.work_queue_name,
-            work_queue_id=deployment.work_queue_id,
+            work_queue_name=work_queue_name,
+            work_queue_id=work_queue_id,
         )
 
         if not flow_run.state:
