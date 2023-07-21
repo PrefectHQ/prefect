@@ -73,6 +73,24 @@ class WorkerLookups:
 
         return work_pool.default_queue_id
 
+    async def _get_work_pool_name_from_work_queue_id(
+        self, session: AsyncSession, work_queue_id: UUID
+    ):
+        """
+        Given a work queue ID, return the work pool name that it is associated with.
+        """
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=work_pool_name,
+        )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Work pool "{work_pool_name}" not found.',
+            )
+
+        return work_pool.default_queue_id
+
     async def _get_work_queue_id_from_name(
         self,
         session: AsyncSession,
