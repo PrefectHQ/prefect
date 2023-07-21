@@ -15,13 +15,13 @@ search:
   boost: 2
 ---
 
-# Managing Deployments<span class="badge beta"></span>
+# Managing Deployments
 
 You can manage your deployments with a `prefect.yaml` file that describes how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
 
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing base settings for your deployments, procedural steps for preparing deployments, as well as instructions for preparing the execution environment for a deployment run
 
-You can initialize your deployment configuration, which creates the `.prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
+You can initialize your deployment configuration, which creates the `prefect.yaml` file, by running the CLI command `prefect init` in any directory or repository that stores your flow code.
 
 !!! tip "Deployment configuration recipes"
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect init` to be prompted with available recipes in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your working directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
@@ -91,7 +91,7 @@ section:
 Every step can optionally provide a `requires` field that Prefect will use to auto-install in the event that the step cannot be found in the current environment. Each step can also specify an `id` for the step which is used when referencing step outputs in later steps. The additional fields map directly onto Python keyword arguments to the step function.  Within a given section, steps always run in the order that they are provided within the `prefect.yaml` file.
 
 !!! tip "Deployment Instruction Overrides"
-    `build`, `push`, and `pull` sections can all be overridden a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the `prefect.yaml` file.
+    `build`, `push`, and `pull` sections can all be overridden on a per-deployment basis by defining `build`, `push`, and `pull` fields within a deployment definition in the `prefect.yaml` file.
 
     The `prefect deploy` command will use any `build`, `push`, or `pull` instructions provided in a deployment's definition in the `prefect.yaml` file.
 
@@ -131,7 +131,7 @@ build:
     push: true
 ```
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image }}` within `prefect.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/guides/deployment/docker).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the deployments tutorial](/guides/deployment/docker).
 
 
 !!! note Some steps require Prefect integrations
@@ -295,11 +295,12 @@ You can also run custom steps by packaging them. In the example below, `retrieve
 
 ### Templating Options
 
-Values that you place within your `prefect.yaml` file can reference dynamic values in two different ways:
+Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `prefect.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
 - **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
 - **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
+- **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. This is especially useful for referencing environment variables that are set at runtime.
 
 As an example, consider the following `prefect.yaml` file:
 
@@ -316,9 +317,9 @@ build:
 deployments:
   - # base metadata
     name: null
-    version: "{{ build_image.tag }}"
+    version: "{{ build-image.tag }}"
     tags:
-        - "{{ build_image.tag }}"
+        - "{{ $my_deployment_tag }}"
         - "{{ prefect.variables.some_common_tag }}"
     description: null
     schedule: null
@@ -333,7 +334,7 @@ deployments:
         name: "my-k8s-work-pool"
         work_queue_name: null
         job_variables:
-            image: "{{ build_image.image }}"
+            image: "{{ build-image.image }}"
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
@@ -400,6 +401,14 @@ To deploy multiple deployments you can provide multiple `--name` flags:
 <div class="terminal">
 ```bash
 $ prefect deploy --name deployment-1 --name deployment-2
+```
+</div>
+
+To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
+
+<div class="terminal">
+```bash
+$ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
 ```
 </div>
 
@@ -501,7 +510,7 @@ Below are fields that can be added to each deployment declaration.
 | `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                                       |
-| `entrypoint`                               | The path to the `.py` file containing flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
+| `entrypoint`                               | The path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
@@ -527,7 +536,7 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 | Property                                       | Description                                                                                                                                                                                               |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
-| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool with be used.                       |
+| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool will be used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 ## Deployment mechanics

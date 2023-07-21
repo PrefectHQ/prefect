@@ -293,7 +293,9 @@ async def register_flow(entrypoint: str, force: bool = False):
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
             missing_flow_name_msg = (
                 "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name> as your"
+                f" entrypoint. If you meant to specify '{entrypoint}' as the deployment"
+                f" name, try `prefect deploy -n {entrypoint}`."
             )
             raise ValueError(missing_flow_name_msg)
         else:
@@ -325,7 +327,7 @@ async def register_flow(entrypoint: str, force: bool = False):
                 f"Conflicting entry found for flow with name {flow.name!r}.\nExisting"
                 f" entrypoint: {flows[flow.name]}\nAttempted entrypoint:"
                 f" {entrypoint}\n\nYou can try removing the existing entry for"
-                f" {flow.name!r} from your [yellow]~./prefect/flows.json[/yellow]."
+                f" {flow.name!r} from your [yellow]~/.prefect/flows.json[/yellow]."
             )
 
     flows[flow.name] = entrypoint

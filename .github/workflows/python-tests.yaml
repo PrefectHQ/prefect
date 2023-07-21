@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Display current test matrix

@@ -386,9 +386,6 @@ def default_database_connection_url(settings, value):
         if old_default.exists():
             return "sqlite+aiosqlite:///" + str(old_default)
 
-        # Create the new default database with 0600 permissions if it does not exist
-        new_default.touch(mode=0o600)
-
     # Otherwise, return the new default
     return "sqlite+aiosqlite:///" + str(new_default)
 
@@ -485,7 +482,7 @@ PREFECT_CLI_PROMPT = Setting(
     Optional[bool],
     default=None,
 )
-"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive 
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive
 prompts will be used. If `None`, the value will be dynamically determined based on
 the presence of an interactive-enabled terminal.
 """
@@ -529,7 +526,7 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
     bool,
     default=False,
 )
-"""If `True`, disables SSL checking to allow insecure requests. 
+"""If `True`, disables SSL checking to allow insecure requests.
 This is recommended only during development, e.g. when using self-signed certificates.
 """
 
@@ -554,7 +551,7 @@ PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
 """
 If true, enable support for HTTP/2 for communicating with an API.
 
-If the API does not support HTTP/2, this will have no effect and connections will be 
+If the API does not support HTTP/2, this will have no effect and connections will be
 made via HTTP/1.1.
 """
 
@@ -566,7 +563,7 @@ The maximum number of retries to perform on failed HTTP requests.
 Defaults to 5.
 Set to 0 to disable retries.
 
-See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are 
+See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
 retried.
 """
 
@@ -684,7 +681,7 @@ This value does not overwrite individually set retries values on tasks
 
 PREFECT_FLOW_DEFAULT_RETRIES = Setting(int, default=0)
 """
-This value sets the default number of retries for all flows. 
+This value sets the default number of retries for all flows.
 This value does not overwrite individually set retries values on a flow
 """
 
@@ -721,7 +718,7 @@ PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
     default=True,
 )
 """
-Controls whether or not block auto-registration on start 
+Controls whether or not block auto-registration on start
 up should be memoized. Setting to False may result in slower server start
 up times.
 """
@@ -760,7 +757,7 @@ PREFECT_LOGGING_SETTINGS_PATH = Setting(
 )
 """
 The path to a custom YAML logging configuration file. If
-no file is found, the default `logging.yml` is used. 
+no file is found, the default `logging.yml` is used.
 Defaults to a logging.yml in the Prefect home directory.
 """
 
@@ -817,7 +814,7 @@ PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW = Setting(
 Controls the behavior when loggers attempt to send logs to the API handler from outside
 of a flow.
 
-All logs sent to the API must be associated with a flow run. The API log handler can 
+All logs sent to the API must be associated with a flow run. The API log handler can
 only be used outside of a flow by manually providing a flow run identifier. Logs
 that are not associated with a flow run will not be sent to the API. This setting can
 be used to determine if a warning or error is displayed when the identifier is missing.
@@ -853,7 +850,7 @@ PREFECT_AGENT_QUERY_INTERVAL = Setting(
     default=15,
 )
 """
-The agent loop interval, in seconds. Agents will check for new runs this often. 
+The agent loop interval, in seconds. Agents will check for new runs this often.
 Defaults to `15`.
 """
 
@@ -874,7 +871,7 @@ PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 Determines whether `State.result()` fetches results automatically or not.
 In Prefect 2.6.0, the `State.result()` method was updated to be async
 to facilitate automatic retrieval of results from storage which means when
-writing async code you must `await` the call. For backwards compatibility, 
+writing async code you must `await` the call. For backwards compatibility,
 the result is not retrieved by default for async users. You may opt into this
 per call by passing  `fetch=True` or toggle this setting to change the behavior
 globally.
@@ -888,8 +885,8 @@ PREFECT_API_BLOCKS_REGISTER_ON_START = Setting(
     default=True,
 )
 """
-If set, any block types that have been imported will be registered with the 
-backend on application startup. If not set, block types must be manually 
+If set, any block types that have been imported will be registered with the
+backend on application startup. If not set, block types must be manually
 registered.
 """
 
@@ -1031,7 +1028,7 @@ PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
 )
 """The number of flow runs the scheduler will attempt to insert
 in one batch across all deployments. If the number of flow runs to
-schedule exceeds this amount, the runs will be inserted in batches of this size. 
+schedule exceeds this amount, the runs will be inserted in batches of this size.
 Defaults to `500`.
 """
 
@@ -1133,7 +1130,7 @@ PREFECT_API_SERVICES_SCHEDULER_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the scheduling service in the server application. 
+"""Whether or not to start the scheduling service in the server application.
 If disabled, you will need to run this service separately to schedule runs for deployments.
 """
 
@@ -1141,8 +1138,8 @@ PREFECT_API_SERVICES_LATE_RUNS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the late runs service in the server application. 
-If disabled, you will need to run this service separately to have runs past their 
+"""Whether or not to start the late runs service in the server application.
+If disabled, you will need to run this service separately to have runs past their
 scheduled start time marked as late.
 """
 
@@ -1150,7 +1147,7 @@ PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the flow run notifications service in the server application. 
+"""Whether or not to start the flow run notifications service in the server application.
 If disabled, you will need to run this service separately to send flow run notifications.
 """
 
@@ -1234,7 +1231,7 @@ PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect artifacts are used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=True)
 """
 Whether or not to enable the experimental workspace dashboard.
 """
