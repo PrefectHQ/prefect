@@ -1233,6 +1233,47 @@ class TestCreateFlowRunFromDeployment:
         )
         assert response.json()["work_queue_name"] == "wq-test"
 
+    async def test_create_flow_run_from_deployment_allows_queue_override(
+        self, deployment, client, session
+    ):
+        await client.patch(
+            f"deployments/{deployment.id}", json=dict(work_queue_name="wq-test")
+        )
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(
+                work_queue_name="my-new-test-queue"
+            ).dict(json_compatible=True),
+        )
+        assert response.json()["work_queue_name"] == "my-new-test-queue"
+
+    async def test_create_flow_run_from_deployment_disambiguates_queue_name_from_other_pools(
+        self, deployment, client, session
+    ):
+        """
+        This test ensures that if a user provides a common queue name, the correct work pool is used.
+        """
+        # create a bunch of pools with "default" named queues
+        for idx in range(3):
+            await models.workers.create_work_pool(
+                session=session,
+                work_pool=schemas.actions.WorkPoolCreate(
+                    name=f"Bogus Work Pool {idx}", base_job_template={}
+                ),
+            )
+        await session.commit()
+
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(
+                work_queue_name="default"
+            ).dict(json_compatible=True),
+        )
+        assert response.json()["work_queue_name"] == "default"
+        assert response.json()["work_queue_id"] == str(
+            deployment.work_queue.work_pool.default_queue_id
+        )
+
     async def test_create_flow_run_from_deployment_override_params(
         self, deployment, client
     ):
