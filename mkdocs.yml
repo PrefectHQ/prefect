@@ -134,7 +134,6 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
-          - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md
@@ -164,7 +163,6 @@ nav:
                 - Logging: concepts/logs.md
     - Cloud:
           - cloud/index.md
-          - Cloud Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
@@ -195,7 +193,7 @@ nav:
           - Recipes: recipes/recipes.md
           - Migration Guide: guides/migration-guide.md
           - State Change Hooks: guides/state-change-hooks.md
-          - Cloud Run Push Work Pools: guides/cloud-run-push-work-pools.md
+          - Cloud Run and ECS Push Work Pools: guides/push-work-pools.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
