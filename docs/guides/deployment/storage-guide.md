@@ -19,7 +19,10 @@ search:
 
 When you run a deployment, your execution environment needs access your flow code. Your flow code is not stored in the Prefect Cloud database or a prefect server database instance. When creating a deployment, you have several options for flow code storage.
 
-## Option 1: Git-based storage
+## Option 1: Local storage
+Local flow code storage is recommended for initial experimentation only. When creating a deployment you likely will want code capable of running on infrastructure other than your local machine. A version-controlled system accessible to other team members with redundancy is a best practice. One of the other remote flow code storage options is recommended for production deployments.
+
+## Option 2: Git-based storage
 
 A git repository is a popular location to store your code. When a git repository is hosted in the cloud you gain easier collaboration and redundancy, in addition to version control.
 
@@ -94,9 +97,6 @@ Then, when you run a flow, the Prefect worker (which matched the Docker work poo
 TK Link to Matt's guide or Matt, fold your guide into this one.
 
 Your team can version control your Docker image via tags in a Docker registry. Your Docker image code can be version controlled in a git repository.
-
-## Option 3: Local storage
-Local flow code storage is only suggested for testing only. When creating a deployment you likely will want code capable of running on infrastructure other than your local machine. A version-controlled system accessible to other team members with redundancy is a best practice. One of the other remote flow code storage options is recommended for production deployments.
 
 ## Option 4: Cloud-provider storage
 Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
