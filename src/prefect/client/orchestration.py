@@ -531,7 +531,7 @@ class PrefectClient:
 
         response = await self._client.post(
             f"/deployments/{deployment_id}/create_flow_run",
-            json=flow_run_create.dict(json_compatible=True),
+            json=flow_run_create.dict(json_compatible=True, exclude_unset=True),
         )
         return FlowRun.parse_obj(response.json())
 
