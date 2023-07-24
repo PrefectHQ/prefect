@@ -1,25 +1,67 @@
-from typing import List, Literal, Union
+import asyncio
+from typing import Awaitable, Callable, List, Literal, Union
 from contextlib import contextmanager
+
+import httpx
 
 from prefect import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.events import Event, RelatedResource, emit_event
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect.utilities.math import clamped_poisson_interval
+
+
+async def wait_for_successful_response(
+    fn: Callable[..., Awaitable[httpx.Response]],
+    *args,
+    max_retry_seconds=30,
+    retryable_status_codes=[429, 502, 503],
+    **kwargs,
+) -> httpx.Response:
+    """Given a callable `fn`, call it with `*args` and `**kwargs` and retry on
+    `retryable_status_codes` until a 2xx status code is returned. Uses an
+    exponential backoff with a max of `max_retry_seconds` seconds."""
+
+    try_count = 0
+    while True:
+        retry_seconds = None
+        try_count += 1
+        try:
+            response = await fn(*args, **kwargs)
+        except Exception as exc:
+            if exc.response.status_code in retryable_status_codes:
+                # TODO: This should handle a `Retry-After` header instead of
+                # always using a clamped exponential backoff.
+                retry_seconds = clamped_poisson_interval(
+                    min(2**try_count, max_retry_seconds)
+                )
+                await asyncio.sleep(retry_seconds)
+            else:
+                raise exc
+        else:
+            return response
 
 
 async def acquire_concurrency_slots(
     names: List[str], slots: int
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
-        return await client.acquire_concurrency_slots(names=names, slots=slots)
+        response = await wait_for_successful_response(
+            client.increment_concurrency_slots,
+            names=names,
+            slots=slots,
+            retryable_status_codes=[423],
+        )
+        return _response_to_minimal_concurrency_limit_response(response)
 
 
 async def release_concurrency_slots(
     names: List[str], slots: int
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
-        return await client.release_concurrency_slots(names=names, slots=slots)
+        response = await client.release_concurrency_slots(names=names, slots=slots)
+        return _response_to_minimal_concurrency_limit_response(response)
 
 
 def emit_concurrency_event(
@@ -56,29 +98,37 @@ def emit_concurrency_event(
 
 
 @contextmanager
-def concurrency(names: Union[str, List[str]], slots: int = 1):
+def concurrency(names: Union[str, List[str]], occupy: int = 1):
+    """A context manager to acquire, hold, and release concurrency slots of the
+    concurrency limits given in `names`.
+
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and holf from each limit.
+    """
+
     if isinstance(names, str):
         names = [names]
 
-    limits = run_async_function(acquire_concurrency_slots, names, slots)
+    limits = call_async_function(acquire_concurrency_slots, names, occupy)
 
     concurrency_limit_events = {}
 
     for limit in limits:
-        event = emit_concurrency_event("acquired", limit, limits, slots)
+        event = emit_concurrency_event("acquired", limit, limits, occupy)
         concurrency_limit_events[limit.id] = event
 
     try:
         yield
     finally:
-        run_async_function(release_concurrency_slots, names, slots)
-    for limit in limits:
-        emit_concurrency_event(
-            "released", limit, limits, slots, concurrency_limit_events[limit.id]
-        )
+        call_async_function(release_concurrency_slots, names, occupy)
+        for limit in limits:
+            emit_concurrency_event(
+                "released", limit, limits, occupy, concurrency_limit_events[limit.id]
+            )
 
 
-def run_async_function(fn, *args, **kwargs):
+def call_async_function(fn, *args, **kwargs):
     loop = get_running_loop()
     call = create_call(fn, *args, **kwargs)
 
@@ -86,3 +136,9 @@ def run_async_function(fn, *args, **kwargs):
         return from_sync.call_soon_in_loop_thread(call).result()
     else:
         return call()
+
+
+def _response_to_minimal_concurrency_limit_response(
+    response: httpx.Response,
+) -> List[MinimalConcurrencyLimitResponse]:
+    return [MinimalConcurrencyLimitResponse.parse_obj(obj_) for obj_ in response.json()]
