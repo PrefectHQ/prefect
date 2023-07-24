@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field, validator
+from prefect._internal.compatibility.pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound

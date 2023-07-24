@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
 import jsonschema
-from pydantic import Field, root_validator, validator
+from prefect._internal.compatibility.pydantic import Field, root_validator, validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.experimental import experimental_field

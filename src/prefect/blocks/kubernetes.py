@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
-from pydantic import Field, validator
+from prefect._internal.compatibility.pydantic import Field, validator
 from typing_extensions import Self
 
 from prefect.blocks.core import Block

@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, validator
+from prefect._internal.compatibility.pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError

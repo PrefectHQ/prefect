@@ -3,7 +3,11 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
-from pydantic import AnyHttpUrl, root_validator, validator
+from prefect._internal.compatibility.pydantic import (
+    AnyHttpUrl,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect.flows import Flow, load_flow_from_script

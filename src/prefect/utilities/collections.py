@@ -27,7 +27,7 @@ from typing import (
 )
 from unittest.mock import Mock
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa

@@ -2,7 +2,7 @@ import json
 from typing import Type
 
 import pytest
-from pydantic import ValidationError
+from prefect._internal.compatibility.pydantic import ValidationError
 
 from prefect.events import RelatedResource, Resource
 

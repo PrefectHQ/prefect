@@ -10,7 +10,7 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
-from pydantic import BaseModel
+from prefect._internal.compatibility.pydantic import BaseModel
 
 import prefect
 from prefect import flow

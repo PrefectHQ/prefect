@@ -15,7 +15,7 @@ from typing import (
 )
 
 import cloudpickle
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 from typing_extensions import Protocol
 
 from prefect._internal.compatibility.deprecated import (

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 
 import anyio.abc
 import yaml
-from pydantic import Field, root_validator, validator
+from prefect._internal.compatibility.pydantic import Field, root_validator, validator
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig

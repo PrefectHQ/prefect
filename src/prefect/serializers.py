@@ -15,9 +15,9 @@ import base64
 import warnings
 from typing import Any, Generic, Optional, TypeVar
 
-import pydantic
-from pydantic import BaseModel
-from pydantic.json import pydantic_encoder
+import prefect._internal.compatibility.pydantic as pydantic
+from prefect._internal.compatibility.pydantic import BaseModel
+from prefect._internal.compatibility.pydantic.json import pydantic_encoder
 from typing_extensions import Literal
 
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name

@@ -6,7 +6,7 @@ import traceback
 from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 from typing_extensions import Self

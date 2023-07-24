@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 
 from prefect.utilities.annotations import BaseAnnotation, quote

@@ -1,7 +1,7 @@
 from typing import Any
 
 import pendulum
-from pydantic import Field, SecretStr
+from prefect._internal.compatibility.pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
 

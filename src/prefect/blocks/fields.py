@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Any, Dict
 
-from pydantic import SecretField
-from pydantic.utils import update_not_none
-from pydantic.validators import dict_validator
+from prefect._internal.compatibility.pydantic import SecretField
+from prefect._internal.compatibility.pydantic.utils import update_not_none
+from prefect._internal.compatibility.pydantic.validators import dict_validator
 
 if TYPE_CHECKING:
-    from pydantic.typing import CallableGenerator
+    from prefect._internal.compatibility.pydantic.typing import CallableGenerator
 
 
 class SecretDict(SecretField):

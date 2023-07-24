@@ -6,7 +6,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.schemas as schemas

@@ -2,10 +2,10 @@ import string
 from typing import List
 from uuid import uuid4
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 from fastapi import status
-from pydantic import SecretBytes, SecretStr
+from prefect._internal.compatibility.pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict

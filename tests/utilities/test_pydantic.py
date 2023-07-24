@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import cloudpickle
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 from typing_extensions import Literal
 

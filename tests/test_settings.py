@@ -3,7 +3,7 @@ import os
 import textwrap
 from pathlib import Path
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 
 import prefect.context

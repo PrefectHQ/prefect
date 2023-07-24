@@ -8,7 +8,7 @@ import pendulum
 import pytest
 from dateutil import rrule
 from pendulum import datetime, now
-from pydantic import ValidationError
+from prefect._internal.compatibility.pydantic import ValidationError
 
 from prefect.server.schemas.schedules import (
     MAX_ITERATIONS,

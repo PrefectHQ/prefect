@@ -4,7 +4,7 @@ import math
 from typing import List
 
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession

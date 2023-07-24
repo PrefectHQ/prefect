@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 from fastapi import status
 

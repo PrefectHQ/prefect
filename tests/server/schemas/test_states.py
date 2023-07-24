@@ -1,7 +1,7 @@
 from uuid import UUID, uuid4
 
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 
 from prefect.deprecated.data_documents import DataDocument

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 
 import prefect
 import prefect.server.schemas as schemas

@@ -22,7 +22,13 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+from prefect._internal.compatibility.pydantic import (
+    BaseModel,
+    HttpUrl,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+)
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -485,7 +491,7 @@ class Block(BaseModel, ABC):
         Parses the docstring into list of DocstringSection objects.
         Helper method used primarily to suppress irrelevant logs, e.g.
         `<module>:11: No type or annotation for parameter 'write_json'`
-        because griffe is unable to parse the types from pydantic.BaseModel.
+        because griffe is unable to parse the types from prefect._internal.compatibility.pydantic.BaseModel.
         """
         with disable_logger("griffe.docstrings.google"):
             with disable_logger("griffe.agents.nodes"):

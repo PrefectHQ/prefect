@@ -6,7 +6,7 @@ import datetime
 import json
 from typing import List
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import sqlalchemy as sa
 from typing_extensions import Literal
 

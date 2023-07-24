@@ -5,7 +5,7 @@ Schemas that define Prefect REST API filtering operations.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ

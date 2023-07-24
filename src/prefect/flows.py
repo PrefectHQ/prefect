@@ -28,9 +28,9 @@ from typing import (
     overload,
 )
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 from fastapi.encoders import jsonable_encoder
-from pydantic.decorator import ValidatedFunction
+from prefect._internal.compatibility.pydantic.decorator import ValidatedFunction
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters

@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pydantic.schema
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind

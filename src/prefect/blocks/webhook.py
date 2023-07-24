@@ -1,7 +1,7 @@
 from typing import Optional
 
 from httpx import AsyncClient, AsyncHTTPTransport, Response
-from pydantic import Field, SecretStr
+from prefect._internal.compatibility.pydantic import Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block

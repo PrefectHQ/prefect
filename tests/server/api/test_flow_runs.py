@@ -2,7 +2,7 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 import sqlalchemy as sa
 from fastapi import status

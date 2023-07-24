@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, root_validator, validator
+from prefect._internal.compatibility.pydantic import Field, root_validator, validator
 
 from prefect.server.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum

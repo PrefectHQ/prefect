@@ -7,7 +7,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel

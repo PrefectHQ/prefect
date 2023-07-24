@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
-from pydantic import BaseModel
+from prefect._internal.compatibility.pydantic import BaseModel
 
 import yaml
 from ruamel.yaml import YAML

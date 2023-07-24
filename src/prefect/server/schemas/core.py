@@ -7,7 +7,13 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+from prefect._internal.compatibility.pydantic import (
+    Field,
+    HttpUrl,
+    conint,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 import prefect.server.database

@@ -3,7 +3,7 @@ from typing import List, Union
 
 import pytest
 import sqlalchemy as sa
-from pydantic import BaseModel
+from prefect._internal.compatibility.pydantic import BaseModel
 
 from prefect.blocks.core import Block
 from prefect.server import models, schemas

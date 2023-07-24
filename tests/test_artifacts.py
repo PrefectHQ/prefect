@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 
 from prefect import flow, task

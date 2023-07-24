@@ -1,7 +1,7 @@
 import uuid
 from typing import List
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession

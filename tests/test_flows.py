@@ -11,7 +11,7 @@ from typing import List
 from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 
 from prefect import flow, get_run_logger, tags, task

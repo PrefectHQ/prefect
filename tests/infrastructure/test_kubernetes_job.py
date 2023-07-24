@@ -16,7 +16,7 @@ import yaml
 from jsonpatch import JsonPatch
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config import ConfigException
-from pydantic import ValidationError
+from prefect._internal.compatibility.pydantic import ValidationError
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.kubernetes import (

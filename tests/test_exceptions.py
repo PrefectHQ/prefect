@@ -1,5 +1,5 @@
 import cloudpickle
-from pydantic import BaseModel, validator
+from prefect._internal.compatibility.pydantic import BaseModel, validator
 
 from prefect.exceptions import (
     ParameterBindError,

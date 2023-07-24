@@ -62,9 +62,15 @@ from typing import (
     Union,
 )
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from prefect._internal.compatibility.pydantic import (
+    BaseSettings,
+    Field,
+    create_model,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message

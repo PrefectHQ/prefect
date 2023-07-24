@@ -6,7 +6,12 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from prefect._internal.compatibility.pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    validator,
+)
 
 
 import prefect

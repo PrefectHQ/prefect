@@ -15,7 +15,13 @@ from typing_extensions import Literal
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+from prefect._internal.compatibility.pydantic import (
+    Field,
+    HttpUrl,
+    conint,
+    root_validator,
+    validator,
+)
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy

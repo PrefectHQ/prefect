@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 import pendulum
-from pydantic import BaseModel, Field
+from prefect._internal.compatibility.pydantic import BaseModel, Field
 
 
 class DateTimeTZ(pendulum.DateTime):

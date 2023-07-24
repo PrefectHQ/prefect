@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
-from pydantic import ValidationError
+from prefect._internal.compatibility.pydantic import ValidationError
 
 from prefect.events.schemas import (
     Automation,

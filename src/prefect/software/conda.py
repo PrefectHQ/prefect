@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Type
 
 import yaml
-from pydantic import Field, validate_arguments
+from prefect._internal.compatibility.pydantic import Field, validate_arguments
 from typing_extensions import Self
 
 from prefect.software.base import (

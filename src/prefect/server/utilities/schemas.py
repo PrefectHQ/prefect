@@ -4,7 +4,7 @@ Utilities for creating and working with Prefect REST API schemas.
 import copy
 from typing import List, Type, TypeVar
 
-from pydantic import BaseModel
+from prefect._internal.compatibility.pydantic import BaseModel
 
 from prefect._internal.schemas.bases import IDBaseModel as _IDBaseModel
 from prefect._internal.schemas.bases import ObjectBaseModel

@@ -4,7 +4,7 @@ Command line interface for working with profiles
 import os
 from typing import List, Optional
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import typer
 
 import prefect.context

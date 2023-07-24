@@ -13,7 +13,7 @@ import anyio
 import httpcore
 import httpx
 import pendulum
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 import pytest
 import respx
 from fastapi import Depends, FastAPI, status

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 from typing_extensions import Literal
 
 from prefect.blocks.system import JSON

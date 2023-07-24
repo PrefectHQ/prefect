@@ -5,7 +5,7 @@ from typing import List, Optional, cast
 import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger

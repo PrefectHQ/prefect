@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
 
-import pydantic
+import prefect._internal.compatibility.pydantic as pydantic
 from jsonpatch import JsonPatch as JsonPatchBase
 from typing_extensions import Self
 

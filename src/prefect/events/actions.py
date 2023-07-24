@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 from typing_extensions import Literal
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.compatibility.pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 
