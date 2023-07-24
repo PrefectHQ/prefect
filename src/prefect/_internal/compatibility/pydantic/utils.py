@@ -1,4 +1,4 @@
 try:
-    from pydantic.v1.utils import *
+    from pydantic.v1.utils import *  # noqa
 except ImportError:
-    from pydantic.utils import *
+    from pydantic.utils import *  # noqa

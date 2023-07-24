@@ -1,4 +1,4 @@
 try:
-    from pydantic.v1.json import *
+    from pydantic.v1.json import *  # noqa
 except ImportError:
-    from pydantic.json import *
+    from pydantic.json import *  # noqa
