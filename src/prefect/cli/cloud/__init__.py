@@ -95,13 +95,13 @@ class ServerExit(Exception):
 
 
 @login_api.post("/success")
-def receive_login(payload: LoginSuccess):
+def receive_login(payload: LoginSuccess) -> None:
     login_api.extra["result"] = LoginResult(type="success", content=payload)
     login_api.extra["result-event"].set()
 
 
 @login_api.post("/failure")
-def receive_failure(payload: LoginFailed):
+def receive_failure(payload: LoginFailed) -> None:
     login_api.extra["result"] = LoginResult(type="failure", content=payload)
     login_api.extra["result-event"].set()
 
