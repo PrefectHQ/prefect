@@ -2538,11 +2538,11 @@ class PrefectClient:
         await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int
+        self, names: List[str], slots: int, mode: str
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",
-            json={"names": names, "slots": slots},
+            json={"names": names, "slots": slots, "mode": mode},
         )
 
     async def release_concurrency_slots(
