@@ -78,7 +78,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     if state.is_paused():
         # Paused states are not truly terminal and do not have results associated with them
-        raise PausedRun("Run is paused, its result is not available.")
+        raise PausedRun("Run is paused, its result is not available.", state=state)
 
     if not state.is_final():
         raise UnfinishedRun(

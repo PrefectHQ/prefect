@@ -90,6 +90,10 @@ class PausedRun(PrefectException):
     Raised when the result from a paused run is retrieved.
     """
 
+    def __init__(self, *args, state=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = state
+
 
 class UnfinishedRun(PrefectException):
     """
