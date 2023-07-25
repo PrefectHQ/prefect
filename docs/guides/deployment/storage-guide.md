@@ -109,20 +109,25 @@ Authentication options for the different providers:
     Bitbucket docs on PATs are here: https://confluence.atlassian.com/bitbucketserver072/personal-access-tokens-1005335924.html and SSH keys are here: https://confluence.atlassian.com/bitbucketserver072/ssh-access-keys-for-system-use-1008045886.html.
 
 
-Does your worker need to have the same authentication as your git repo?
-
+Does your worker need to have the same authentication as your git repo? TK
 E.g. Worker is in K8s or a push work pool.
 
 !!! Warn
-When you make a change to your code, Prefect does not push your code to your cloud-based repository. You will need to do push your code manually or as part of your CI/CD pipeline. This design decision is to avoid confusion about the code push process.
+When you make a change to your code or a deployment, Prefect does not automatically push your code to your git-based version control platform. 
+You need to do push your code manually or as part of your CI/CD pipeline. 
+This design decision is an intentional one to avoid confusion about the code push process.
 
 ## Option 2: Docker-based storage
 
-Another popular way to store your flow code is directly inside a Docker image. 
+Another popular way to store your flow code is to bake it directly into a Docker image. 
+You can build your own Docker image or use the `prefect deploy` prompts or an existing `prefect.yaml` build step to build your Docker image. TK links
 
-When you create a deployment via the interactive prompts, specify a Docker-type [work pool](). You can create a Docker-type pool via the UI or the CLI. TK links. 
+Docker, Kubernetes, and serverless and push-based work pools with AWS ECS, GCP Cloud Run, and Microsoft ACI all use Docker images to run flows.
 
-Then, when you run a flow, the Prefect worker (which matched the Docker work pool type) will pull the Docker image and spin up a container. The flow code baked into the image will be available in the container.
+You can create a container-based work pool via the UI or the CLI. TK links
+
+Then, when you run a flow, the worker will pull the Docker image and spin up a container. 
+The flow code baked into the image will be available in the container.
 
 TK Link to Matt's guide or Matt, fold your guide into this one.
 
@@ -133,7 +138,10 @@ Cloud-provider storage is supported, but not recommended. Git-repository based s
 
 You can specify an S3 bucket, Azure storage blob, or GCP GCS bucket address directly in the `push` and `pull` steps of your `prefet.yaml` to send your flow code to a cloud-provider storage location. 
 
-If you use this option with a private storage bucket, you will need to provide credentials for a cloud account role with suffiicient permissions via a block or other method. Also ensure that your Prefect worker has the correct credentials to access the cloud-provider storage location.
+If you use this option with a private storage bucket, you will need to provide credentials for a cloud account role with sufficient permissions via a block or other method. 
+Also ensure that your Prefect worker has the correct credentials to access the cloud-provider storage location.
 
 ## Other code storage options
-In versions of Prefect 2 before the`prefect deploy` experience, storage blocks were the recommended way to store flow code. Storage blocks are still supported, but are usually only necessary if you need to authenticate to a private repository. As you saw above, the credential blocks for git-based storage can be created automatically through the interactive deployment creation prompts.
+In versions of Prefect 2 before the`prefect deploy` experience, storage blocks were the recommended way to store flow code. 
+Storage blocks are still supported, but are usually only necessary if you need to authenticate to a private repository. 
+As shown above TK link, the credential blocks for git-based storage can be created automatically through the interactive deployment creation prompts.
