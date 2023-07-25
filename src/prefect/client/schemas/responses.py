@@ -223,3 +223,12 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+
+
+class MinimalConcurrencyLimitResponse(PrefectBaseModel):
+    class Config:
+        extra = "ignore"
+
+    id: UUID
+    name: str
+    limit: int
