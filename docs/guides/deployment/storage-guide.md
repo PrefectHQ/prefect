@@ -76,7 +76,8 @@ If the repository is private, enter a token that can be used to access your priv
 
 <div class="terminal">
 ```bash
-    ? Please enter a token that can be used to access your private repository. This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
+
+? Please enter a token that can be used to access your private repository. This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
 ```
 </div>
 
@@ -109,6 +110,7 @@ Creating personal access tokens is different for each provider.
 If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
 
     ```yaml
+
     pull:
         - prefect.deployments.steps.git_clone:
             repository: https://bitbucket.org/org/repo.git
