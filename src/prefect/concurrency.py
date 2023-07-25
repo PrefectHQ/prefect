@@ -44,13 +44,16 @@ async def wait_for_successful_response(
 
 
 async def acquire_concurrency_slots(
-    names: List[str], slots: int
+    names: List[str],
+    slots: int,
+    mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
         response = await wait_for_successful_response(
             client.increment_concurrency_slots,
             names=names,
             slots=slots,
+            mode=mode,
             retryable_status_codes=[423],
         )
         return _response_to_minimal_concurrency_limit_response(response)
@@ -126,6 +129,27 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
             emit_concurrency_event(
                 "released", limit, limits, occupy, concurrency_limit_events[limit.id]
             )
+
+
+def rate_limit(names: Union[str, List[str]], occupy: int = 1):
+    """Block execution until `occupy` number of slots of the concurrency limits
+    given in `names` are aquired. Requires that all given concurrency limits
+    have slot decay.
+
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and holf from each limit.
+    """
+
+    if isinstance(names, str):
+        names = [names]
+
+    limits = call_async_function(
+        acquire_concurrency_slots, names, occupy, mode="rate_limit"
+    )
+
+    for limit in limits:
+        emit_concurrency_event("acquired", limit, limits, occupy)
 
 
 def call_async_function(fn, *args, **kwargs):
