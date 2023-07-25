@@ -17,24 +17,46 @@ search:
 
 # Flow Code Storage
 
-When you run a deployment, your execution environment needs access your flow code. Your flow code is not stored in the Prefect Cloud database or a prefect server database instance. When creating a deployment, you have several options for flow code storage.
+When you run a deployment, your execution environment needs access to your flow code. 
+Your flow code is not stored in either the Prefect Cloud database or a Prefect server database instance. 
+When creating a deployment, you have several flow code storage options.
 
 ## Option 1: Local storage
-Local flow code storage is recommended for initial experimentation only. When creating a deployment you likely will want code capable of running on infrastructure other than your local machine. A version-controlled system accessible to other team members with redundancy is a best practice. One of the other remote flow code storage options is recommended for production deployments.
+Local flow code storage is often used with a process work pool for initial experimentation. 
+
+Run `prefect deploy` from the root of the directory containing your flow code. 
+Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment. 
+Select a *process* work pool. 
+You are then shown the location that your flow code will be fetched from when a flow is run. 
+For example:
+
+<div class="terminal">
+```bash
+Your Prefect workers will attempt to load your flow from: 
+/Users/jeffhale/Desktop/prefect/demos/storage/gh_storage_flow.py. To see more options for managing your flow's code, run:
+
+        $ prefect project recipes ls
+```
+</div>
+
+When creating a production deployment you most likely want code capable of running on infrastructure other than your local machine. 
+One of the other remote flow code storage options is recommended for production deployments.
 
 ## Option 2: Git-based storage
 
-A git repository is a popular location to store your code. When a git repository is hosted in the cloud you gain easier collaboration and redundancy, in addition to version control.
+Git-based version control platforms are popular locations to store code. 
+This solution provides redundancy, version control, and easier collaboration.
 
-[GitHub](https://github.com/) is the most popular cloud-based repository hosting provider. [GitLab](https://www.gitlab.com) and [Bitbucket](https://bitbucket.org/) are other popular options.
+[GitHub](https://github.com/) is the most popular cloud-based repository hosting provider. 
+[GitLab](https://www.gitlab.com) and [Bitbucket](https://bitbucket.org/) are other popular options. 
+Prefect supports each of these options.
 
 ### Creating a deployment with git-based storage
 
-If you run `prefect deploy` from within a git repository and create a new deployment, Prefect presents a series of prompts.
-
+Run `prefect deploy` from within a git repository and create a new deployment, you will see a series of prompts.
 Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
-
-Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. If you select yes, Prefect will ask for the URL of your git repository and the branch name. 
+Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. 
+If you select yes, Prefect will ask you to confirm the URL of your git repository, the branch name, and whether the repository is private. 
 
 <div class="terminal">
 ```bash
@@ -45,16 +67,27 @@ Prefect detects that you are in a git repository and asks if you want to store y
     flow code from? [y/n] (y): 
     ? Is main the correct branch to pull your flow code from? [y/n] (y): 
     ? Is this a private repository? [y/n]: y
+```
+</div>
+
+In the example above, the git repository is linked to GitHub. If you are using Bitbucket or GitLab, the URL will match the provider.
+
+If the repository is public, enter "n" and you are on your way.
+
+If the repository is private, include a token that can be used to access your private repository. This token will be encrypted and saved in a Prefect block. 
+
+TK there are other ways to get the token in with an environment variables - maybe an advanced guide on that later.
+
+<div class="terminal">
+```bash
+You will then be asked to enter an authentication token that will be stored in a Prefect block.
+
     ? Please enter a token that can be used to access your private repository. This 
     token will be saved as a secret via the Prefect API: "123_abc_this_is_my_token"
 ```
 </div>
 
-TK show more of example here.
-
-If the repository is public, you can skip the authentication step. If the repository is private, include a token that can be used to access your private repository. This token will be encrypted and saved in a Prefect block. 
-
-Authentication options:
+Authentication options for the different providers:
 
 === "GitHub"
     Personal Access Tokens (PATs) - Classic and fine grained.
@@ -65,9 +98,7 @@ Authentication options:
 === "GitLab"
     [GitLab docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) on PATs. 
 
-    TK link to George's guide, or George fold in here
-
-    A private GitLab token that goes into a Prefect block require Prefect GitLab integration or not?
+    A private GitLab token that goes into a Prefect block require Prefect GitLab integration or not? TK
     
     GitLab docs on PATs are here: https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html and SSH keys are here: https://docs.gitlab.com/ee/ssh/.
 
@@ -77,7 +108,6 @@ Authentication options:
 
     Bitbucket docs on PATs are here: https://confluence.atlassian.com/bitbucketserver072/personal-access-tokens-1005335924.html and SSH keys are here: https://confluence.atlassian.com/bitbucketserver072/ssh-access-keys-for-system-use-1008045886.html.
 
-    TK link to Taylor's guide, or Taylor fold in here
 
 Does your worker need to have the same authentication as your git repo?
 
