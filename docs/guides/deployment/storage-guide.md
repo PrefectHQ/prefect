@@ -109,41 +109,53 @@ Creating personal access tokens is different for each provider.
 
 If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
 
-    ```yaml
+```yaml
 
-    pull:
-        - prefect.deployments.steps.git_clone:
-            repository: https://bitbucket.org/org/repo.git
-            access_token: "{{ prefect.blocks.secret.my-block-name }}"
-    ```
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://bitbucket.org/org/repo.git
+        access_token: "{{ prefect.blocks.secret.my-block-name }}"
+```
 
 <!-- Alternatively, you can create a GitHub, Bitbucket, or GitLab block ahead of time and reference it in the `prefect.yaml` pull step. TK This is currently not working. See https://github.com/PrefectHQ/prefect/issues/9683 and add when fixed.
  -->
 
 
-!!! Warn "Push your code"
+!!! Warning "Push your code"
     When you make a change to your code, Prefect does push your code to your git-based version control platform. 
     You need to do push your code manually or as part of your CI/CD pipeline. 
     This design decision is an intentional one to avoid confusion about the git history and push process.
 
 ## Option 3: Docker-based storage
 
-Another popular way to store your flow code is to bake it directly into a Docker image. The following work pools use Docker containers, so the flow code can be directly baked into the image:
+Another popular way to store your flow code is to include it in a Docker image. The following work pools use Docker containers, so the flow code can be directly baked into the image:
 
 - Docker
 - Kubernetes
 - Serverless cloud-based options
-    - AWS ECS
-    - GCP Cloud Run
-    - Microsoft ACI
-- Push-based serverless cloud-based options
-    - AWS ECS
-    - GCP Cloud Run
-    - Microsoft ACI
+    - AWS Elastic Container Service 
+    - Azure Container Instances
+    - Google Cloud Run
+- Push-based serverless cloud-based options (no worker required)
+    - AWS Elastic Container Service - Push
+    - Azure Container Instances - Push
+    - Google Cloud Run - Push
 
-You can create your own Docker image or use the `prefect deploy` prompts or an existing `prefect.yaml` file's build step to create a Docker image.
-Then, when you run a deployment, the worker will pull the Docker image and spin up a container. 
-The flow code baked into the image will run in the container.
+Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in.
+
+```yaml
+
+build:
+- prefect_docker.deployments.steps.build_docker_image:
+    id: build_image
+    requires: prefect-docker>=0.3.1
+    image_name: discdiver/storage-example
+    tag: '0.1'
+    dockerfile: auto
+```
+
+Run `prefect deploy` hen you run a deployment, the worker will pull the Docker image and spin up a container. 
+The flow code baked into the image will run inside the container.
 
 ## Option 4: Cloud-provider storage
 Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
