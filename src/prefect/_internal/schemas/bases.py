@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 import orjson
 import pendulum
-import prefect._internal.compatibility.pydantic as pydantic
+import pydantic
 from packaging.version import Version
 from prefect._internal.compatibility.pydantic import BaseModel, Field, SecretField
 from prefect._internal.compatibility.pydantic.json import custom_pydantic_encoder
