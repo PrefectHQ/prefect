@@ -832,8 +832,19 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-        except PausedRun:
+        except PausedRun as exc:
+            # could get raised either via utility or by returning Paused from a task run
+            # if a task run pauses, we set its state as the flow's state
+            # to preserve reschedule and timeout behavior
             paused_flow_run = await client.read_flow_run(flow_run.id)
+            if paused_flow_run.state.is_running():
+                state = await propose_state(
+                    client,
+                    state=exc.state,
+                    flow_run_id=flow_run.id,
+                )
+
+                return state
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
         except CancelledError as exc:
@@ -1778,7 +1789,7 @@ async def orchestrate_task_run(
                     extra={"send_to_api": False},
                 )
 
-            if not state.is_final():
+            if not state.is_final() and not state.is_paused():
                 logger.info(
                     (
                         f"Received non-final state {state.name!r} when proposing final"

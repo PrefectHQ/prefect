@@ -57,7 +57,7 @@ from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     temporary_settings,
 )
-from prefect.states import Cancelled, Failed, Pending, Running, State
+from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
@@ -518,6 +518,28 @@ class TestOutOfProcessPause:
 
         with pytest.raises(PausedRun):
             await pausing_flow_without_blocking()
+
+    async def test_task_can_pause_flow_via_returning_paused(self, session):
+        date = pendulum.now("utc")
+
+        @task
+        async def foo():
+            return Paused(pause_expiration_time=date, pause_key="foo")
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            await foo()
+            return 42
+
+        with pytest.raises(PausedRun):
+            await pausing_flow()
+
+        state = await pausing_flow(return_state=True)
+
+        assert state.is_paused()
+        assert state.state_details.pause_timeout == date
+        assert state.state_details.pause_reschedule is False
+        assert state.state_details.pause_key == "foo"
 
 
 class TestOrchestrateTaskRun:
