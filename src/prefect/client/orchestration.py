@@ -77,7 +77,10 @@ from prefect.client.schemas.objects import (
     WorkPool,
     WorkQueue,
 )
-from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
+from prefect.client.schemas.responses import (
+    DeploymentResponse,
+    WorkerFlowRunResponse,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
     ArtifactCollectionSort,
@@ -2533,6 +2536,22 @@ class PrefectClient:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")
+
+    async def increment_concurrency_slots(
+        self, names: List[str], slots: int
+    ) -> httpx.Response:
+        return await self._client.post(
+            "/v2/concurrency_limits/increment",
+            json={"names": names, "slots": slots},
+        )
+
+    async def release_concurrency_slots(
+        self, names: List[str], slots: int
+    ) -> httpx.Response:
+        return await self._client.post(
+            "/v2/concurrency_limits/decrement",
+            json={"names": names, "slots": slots},
+        )
 
     async def __aenter__(self):
         """
