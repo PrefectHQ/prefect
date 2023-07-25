@@ -35,7 +35,7 @@ For example:
 Your Prefect workers will attempt to load your flow from: 
 /Users/jeffhale/Desktop/prefect/demos/storage/gh_storage_flow.py. To see more options for managing your flow's code, run:
 
-        $ prefect project recipes ls
+    $ prefect project recipes ls
 ```
 </div>
 
@@ -60,13 +60,11 @@ If you select yes, Prefect will ask you to confirm the URL of your git repositor
 
 <div class="terminal">
 ```bash
-    ? Your Prefect workers will need access to this flow's code in order to run it. 
-    Would you like your workers to pull your flow code from its remote repository 
-    when running this flow? [y/n] (y): 
-    ? Is https://github.com/my_username/my_repo.git the correct URL to pull your 
-    flow code from? [y/n] (y): 
-    ? Is main the correct branch to pull your flow code from? [y/n] (y): 
-    ? Is this a private repository? [y/n]: y
+? Your Prefect workers will need access to this flow's code in order to run it. 
+Would you like your workers to pull your flow code from its remote repository when running this flow? [y/n] (y): 
+? Is https://github.com/my_username/my_repo.git the correct URL to pull your flow code from? [y/n] (y): 
+? Is main the correct branch to pull your flow code from? [y/n] (y): 
+? Is this a private repository? [y/n]: y
 ```
 </div>
 
@@ -82,12 +80,11 @@ TK there are other ways to get the token in with an environment variables - mayb
 ```bash
 You will then be asked to enter an authentication token that will be stored in a Prefect block.
 
-    ? Please enter a token that can be used to access your private repository. This 
-    token will be saved as a secret via the Prefect API: "123_abc_this_is_my_token"
+    ? Please enter a token that can be used to access your private repository. This token will be saved as a secret via the Prefect API: "123_abc_this_is_my_token"
 ```
 </div>
 
-TK - can you also reference an existing gh, bb, or gl credential block?
+Alternatively, you can create a GitHub, Bitbucket, or GitLab credential block and reference it in `prefect.yaml`. 
 
 Authentication options for the different providers:
 
@@ -98,14 +95,10 @@ Authentication options for the different providers:
     GitHub docs on [PATs](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) and [SSH keys](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
 
 === "GitLab"
-    [GitLab docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) on PATs. 
-
-    A private GitLab token that goes into a Prefect block require Prefect GitLab integration or not? TK
     
-    GitLab docs on PATs are here: https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html and SSH keys are here: https://docs.gitlab.com/ee/ssh/.
+    GitLab docs on [PATs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) and [SSH keys](https://docs.gitlab.com/ee/ssh/).
 
 === "Bitbucket"
-
      A private Bitbucket token that goes into a Prefect block require Prefect GitLab integration or not?
 
     Bitbucket docs on PATs are here: https://confluence.atlassian.com/bitbucketserver072/personal-access-tokens-1005335924.html and SSH keys are here: https://confluence.atlassian.com/bitbucketserver072/ssh-access-keys-for-system-use-1008045886.html.
