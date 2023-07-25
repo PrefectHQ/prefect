@@ -56,7 +56,7 @@ Prefect supports each of these options.
 Run `prefect deploy` from within a git repository and create a new deployment, you will see a series of prompts.
 Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
 Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. 
-If you select yes, Prefect will ask you to confirm the URL of your git repository, the branch name, and whether the repository is private. 
+If you select yes, Prefect will ask you to confirm the URL of your git repository and the branch name. 
 
 <div class="terminal">
 ```bash
@@ -68,49 +68,61 @@ Would you like your workers to pull your flow code from its remote repository wh
 ```
 </div>
 
-In the example above, the git repository is linked to GitHub. If you are using Bitbucket or GitLab, the URL will match the provider.
-
+In the example above, the git repository is linked to GitHub. 
+If you are using Bitbucket or GitLab, the URL will match the provider.
 If the repository is public, enter "n" and you are on your way.
 
-If the repository is private, include a token that can be used to access your private repository. This token will be encrypted and saved in a Prefect block. 
-
-TK there are other ways to get the token in with an environment variables - maybe an advanced guide on that later.
+If the repository is private, enter a token that can be used to access your private repository. This token will be saved in an encrypted Prefect Secret block. 
 
 <div class="terminal">
 ```bash
-You will then be asked to enter an authentication token that will be stored in a Prefect block.
-
-    ? Please enter a token that can be used to access your private repository. This token will be saved as a secret via the Prefect API: "123_abc_this_is_my_token"
+    ? Please enter a token that can be used to access your private repository. This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
 ```
 </div>
 
-Alternatively, you can create a GitHub, Bitbucket, or GitLab credential block and reference it in `prefect.yaml`. 
+Verify that you have a new Secret block in your active workspace named in the format "deployment-my-deployment-my-flow-name-repo-token".
 
-Authentication options for the different providers:
+Creating personal access tokens is different for each provider.
 
 === "GitHub"
-    Personal Access Tokens (PATs) - Classic and fine grained.
-    SSH keys.
 
-    GitHub docs on [PATs](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) and [SSH keys](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
+    See the GitHub docs for [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token). 
+
+    We recommend using HTTPS with [fine-grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) so that you can limit access by repository. 
+
+    Under *Your Profile->Developer Settings->Personal access tokens->Fine-grained token* choose *Generate New Token* and fill in the required fields. Under *Repository access* choose *Only select repositories* and grant the token permissions for *Contents*.
 
 === "GitLab"
-    
-    GitLab docs on [PATs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) and [SSH keys](https://docs.gitlab.com/ee/ssh/).
+
+    We recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
+
+    In your repository in the GitLab UI, select *Settings->Repository->Project Access Tokens* and check *read_repository* under *Select scopes*.
+
 
 === "Bitbucket"
-     A private Bitbucket token that goes into a Prefect block require Prefect GitLab integration or not?
 
-    Bitbucket docs on PATs are here: https://confluence.atlassian.com/bitbucketserver072/personal-access-tokens-1005335924.html and SSH keys are here: https://confluence.atlassian.com/bitbucketserver072/ssh-access-keys-for-system-use-1008045886.html.
+    We recommend using HTTPS with Repository [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
+    
+    Create the token with Scopes->Repositories->Read. 
 
 
-Does your worker need to have the same authentication as your git repo? TK
-E.g. Worker is in K8s or a push work pool.
+If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
+
+    ```yaml
+    pull:
+        - prefect.deployments.steps.git_clone:
+            repository: https://bitbucket.org/org/repo.git
+            access_token: "{{ prefect.blocks.secret.my-block-name }}"
+    ```
+
+<!-- Alternatively, you can create a GitHub, Bitbucket, or GitLab block ahead of time and reference it in the `prefect.yaml` pull step. TK This is currently not working. See https://github.com/PrefectHQ/prefect/issues/9683 and add when fixed.
+ -->
+
 
 !!! Warn "Push your code"
-    When you make a change to your code or a deployment, Prefect does not automatically push your code to your git-based version control platform. 
+    When you make a change to your code, Prefect does push your code to your git-based version control platform. 
     You need to do push your code manually or as part of your CI/CD pipeline. 
-    This design decision is an intentional one to avoid confusion about the code push process.
+    This design decision is an intentional one to avoid confusion about the git history and push process.
 
 ## Option 3: Docker-based storage
 
@@ -144,7 +156,6 @@ Here's the relevant portion of an example `prefect.yaml`` file.
 
     Choose `s3` as the storage option and enter the bucket name when prompted. 
 
-    
     ```yaml
     # push section allows you to manage if and how this project is uploaded to remote locations
     push:
@@ -152,7 +163,8 @@ Here's the relevant portion of an example `prefect.yaml`` file.
         id: push_code
         requires: prefect-aws>=0.3.4
         bucket: my_bucket
-        folder: prefect
+        folder: project-name
+        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -161,6 +173,7 @@ Here's the relevant portion of an example `prefect.yaml`` file.
         requires: prefect-aws>=0.3.4
         bucket: '{{ push_code.bucket }}'
         folder: '{{ push_code.folder }}'
+        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}" # if private
     ``` 
 
     TK, can you use a block (from s3 or S3 block?) 
