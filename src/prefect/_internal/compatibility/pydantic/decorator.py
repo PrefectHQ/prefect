@@ -1,4 +1,4 @@
 try:
-    pass
+    from pydantic.v1.decorator import ValidatedFunction  # noqa
 except ImportError:
-    pass
+    from pydantic.decorator import ValidatedFunction  # noqa
