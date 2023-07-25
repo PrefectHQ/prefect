@@ -87,6 +87,8 @@ You will then be asked to enter an authentication token that will be stored in a
 ```
 </div>
 
+TK - can you also reference an existing gh, bb, or gl credential block?
+
 Authentication options for the different providers:
 
 === "GitHub"
@@ -112,31 +114,68 @@ Authentication options for the different providers:
 Does your worker need to have the same authentication as your git repo? TK
 E.g. Worker is in K8s or a push work pool.
 
-!!! Warn
-When you make a change to your code or a deployment, Prefect does not automatically push your code to your git-based version control platform. 
-You need to do push your code manually or as part of your CI/CD pipeline. 
-This design decision is an intentional one to avoid confusion about the code push process.
+!!! Warn "Push your code"
+    When you make a change to your code or a deployment, Prefect does not automatically push your code to your git-based version control platform. 
+    You need to do push your code manually or as part of your CI/CD pipeline. 
+    This design decision is an intentional one to avoid confusion about the code push process.
 
-## Option 2: Docker-based storage
+## Option 3: Docker-based storage
 
-Another popular way to store your flow code is to bake it directly into a Docker image. 
-You can build your own Docker image or use the `prefect deploy` prompts or an existing `prefect.yaml` build step to build your Docker image. TK links
+Another popular way to store your flow code is to bake it directly into a Docker image. The following work pools use Docker containers, so the flow code can be directly baked into the image:
 
-Docker, Kubernetes, and serverless and push-based work pools with AWS ECS, GCP Cloud Run, and Microsoft ACI all use Docker images to run flows.
+- Docker
+- Kubernetes
+- Serverless cloud-based options
+    - AWS ECS
+    - GCP Cloud Run
+    - Microsoft ACI
+- Push-based serverless cloud-based options
+    - AWS ECS
+    - GCP Cloud Run
+    - Microsoft ACI
 
-You can create a container-based work pool via the UI or the CLI. TK links
-
-Then, when you run a flow, the worker will pull the Docker image and spin up a container. 
-The flow code baked into the image will be available in the container.
-
-TK Link to Matt's guide or Matt, fold your guide into this one.
-
-Your team can version control your Docker image via tags in a Docker registry. Your Docker image code can be version controlled in a git repository.
+You can create your own Docker image or use the `prefect deploy` prompts or an existing `prefect.yaml` file's build step to create a Docker image.
+Then, when you run a deployment, the worker will pull the Docker image and spin up a container. 
+The flow code baked into the image will run in the container.
 
 ## Option 4: Cloud-provider storage
 Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
 
-You can specify an S3 bucket, Azure storage blob, or GCP GCS bucket address directly in the `push` and `pull` steps of your `prefet.yaml` to send your flow code to a cloud-provider storage location. 
+You can specify an S3 bucket, Azure Blob Storage container, or GCS bucket directly in the `push` and `pull` steps of your `prefet.yaml` to send your flow code to a cloud-provider storage location and retrieve it at runtime. 
+
+Run `prefect init` and select the relevant cloud-provider storage option
+
+Here's the relevant portion of an example `prefect.yaml`` file.
+
+=== "AWS"
+
+    Choose `s3` as the storage option and enter the bucket name when prompted. 
+
+    
+    ```yaml
+    # push section allows you to manage if and how this project is uploaded to remote locations
+    push:
+    - prefect_aws.deployments.steps.push_to_s3:
+        id: push_code
+        requires: prefect-aws>=0.3.4
+        bucket: my_bucket
+        folder: prefect
+
+    # pull section allows you to provide instructions for cloning this project in remote locations
+    pull:
+    - prefect_aws.deployments.steps.pull_from_s3:
+        id: pull_code
+        requires: prefect-aws>=0.3.4
+        bucket: '{{ push_code.bucket }}'
+        folder: '{{ push_code.folder }}'
+    ``` 
+
+    TK, can you use a block (from s3 or S3 block?) 
+
+=== "GCS" 
+
+=== "Azure Blob Storage"
+
 
 If you use this option with a private storage bucket, you will need to provide credentials for a cloud account role with sufficient permissions via a block or other method. 
 Also ensure that your Prefect worker has the correct credentials to access the cloud-provider storage location.
