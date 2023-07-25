@@ -407,7 +407,7 @@ def tags(*new_tags: str) -> Set[str]:
         >>> @flow
         >>> def my_flow():
         >>>     pass
-        >>> with tags("a", b"):
+        >>> with tags("a", "b"):
         >>>     my_flow()  # has tags: a, b
 
         Run a task with nested tag contexts
