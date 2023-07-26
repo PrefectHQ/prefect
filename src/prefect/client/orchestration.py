@@ -77,7 +77,10 @@ from prefect.client.schemas.objects import (
     WorkPool,
     WorkQueue,
 )
-from prefect.client.schemas.responses import DeploymentResponse, WorkerFlowRunResponse
+from prefect.client.schemas.responses import (
+    DeploymentResponse,
+    WorkerFlowRunResponse,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
     ArtifactCollectionSort,
@@ -479,6 +482,7 @@ class PrefectClient:
         tags: Iterable[str] = None,
         idempotency_key: str = None,
         parent_task_run_id: UUID = None,
+        work_queue_name: str = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -499,6 +503,9 @@ class PrefectClient:
                 be returned instead of creating a new one.
             parent_task_run_id: if a subflow run is being created, the placeholder task
                 run identifier in the parent flow
+            work_queue_name: An optional work queue name to add this run to. If not provided,
+                will default to the deployment's set work queue.  If one is provided that does not
+                exist, a new work queue will be created within the deployment's work pool.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -521,9 +528,13 @@ class PrefectClient:
             parent_task_run_id=parent_task_run_id,
         )
 
+        # done separately to avoid including this field in payloads sent to older API versions
+        if work_queue_name:
+            flow_run_create.work_queue_name = work_queue_name
+
         response = await self._client.post(
             f"/deployments/{deployment_id}/create_flow_run",
-            json=flow_run_create.dict(json_compatible=True),
+            json=flow_run_create.dict(json_compatible=True, exclude_unset=True),
         )
         return FlowRun.parse_obj(response.json())
 
@@ -2525,6 +2536,22 @@ class PrefectClient:
             raise RuntimeError("Automations are only supported for Prefect Cloud.")
 
         await self._client.delete(f"/automations/owned-by/{resource_id}")
+
+    async def increment_concurrency_slots(
+        self, names: List[str], slots: int, mode: str
+    ) -> httpx.Response:
+        return await self._client.post(
+            "/v2/concurrency_limits/increment",
+            json={"names": names, "slots": slots, "mode": mode},
+        )
+
+    async def release_concurrency_slots(
+        self, names: List[str], slots: int
+    ) -> httpx.Response:
+        return await self._client.post(
+            "/v2/concurrency_limits/decrement",
+            json={"names": names, "slots": slots},
+        )
 
     async def __aenter__(self):
         """

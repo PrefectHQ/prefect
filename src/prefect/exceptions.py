@@ -90,6 +90,10 @@ class PausedRun(PrefectException):
     Raised when the result from a paused run is retrieved.
     """
 
+    def __init__(self, *args, state=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = state
+
 
 class UnfinishedRun(PrefectException):
     """
@@ -194,7 +198,7 @@ class ParameterBindError(TypeError, PrefectException):
 
         base = f"Error binding parameters for function '{fn.__name__}': {exc}"
         signature = f"Function '{fn.__name__}' has signature '{fn_signature}'"
-        received = f"received args: {call_args} and kwargs: {call_kwargs}"
+        received = f"received args: {call_args} and kwargs: {list(call_kwargs.keys())}"
         msg = f"{base}.\n{signature} but {received}."
         return cls(msg)
 
