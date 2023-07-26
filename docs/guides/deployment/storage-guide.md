@@ -281,7 +281,7 @@ If you want to configure a Secret ahead of time for use when deploying a `prefec
     1. Create an aws-credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
     1. Reference the block as shown above.
 
-Ensure the role has read and write permissions to access the bucket.
+    Ensure the role has read and write permissions to access the bucket.
 
 === "Azure"
 
@@ -290,7 +290,7 @@ Ensure the role has read and write permissions to access the bucket.
     1. Create a  block via code or the Prefect UI and reference it as shown above.
     1. In addition to the block name, most users will need to fill in the  and  fields.
 
-Ensure the role has sufficient (read and write) permissions to access the container.
+    Ensure the role has sufficient (read and write) permissions to access the container.
 
 === "GCP"
 
@@ -299,22 +299,26 @@ Ensure the role has sufficient (read and write) permissions to access the contai
     1. Create a GCP block via code or the Prefect UI and reference it as shown above.
     1. In addition to the block name, most users will need to fill in the  and  fields.
 
-Ensure the role has read and write permissions to access the bucket.
+    Ensure the role has read and write permissions to access the bucket.
 
 ## Including and excluding files from storage
 
 By default, Prefect uploads all files in the current folder to the configured storage location when you create a deployment.
 
 When using a git repository, Docker image, or cloud-provider storage location, you may want to exclude certain files or directories.
-- If you are familiar with git you are likely familiar with the []`.gitignore`](https://git-scm.com/docs/gitignore) file. 
+- If you are familiar with git you are likely familiar with the [`.gitignore`](https://git-scm.com/docs/gitignore) file. 
 - If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) file. 
-- For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. So an entry of *.pyc will ensure all .pyc files are ignored excluded from upload.
+- For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. So an entry of `*.pyc` will exclude all `.pyc` files from upload.
 
 ## Other code storage creation methods
 
 In earlier versions of Prefect [storage blocks](/concepts/blocks/) were the recommended way to store flow code. 
-Storage blocks are still supported, but are generally only necessary if you need to authenticate to a private repository. 
-As shown above, Secret blocks for git-based storage can be created automatically through interactive deployment creation prompts and Cloud-provider based storage can be referenced directly in a `prefect.yaml` file.
+Storage blocks are still supported, but not recommended.
+
+As shown above, repositories can be referenced directly through interactive prompts with `prefect deploy` or in a `prefect.yaml`. 
+When authentication is needed, Secret or Credential blocks can be referenced, and in some cases created automatically through interactive deployment creation prompts. 
+
+Another option for authentication is for the [worker](/concepts/work-pools/#worker-overview) to have access to the the storage location via SSH keys.
 
 ## Next steps
 
