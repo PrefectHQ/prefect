@@ -15,7 +15,7 @@ search:
   boost: 2
 ---
 
-# Flow Code Storage
+# How to Store your Flow Code
 
 When you run a deployment, your execution environment needs access to your flow code. 
 Your flow code is not stored in either the Prefect Cloud database or a Prefect server database instance. 
@@ -141,34 +141,23 @@ Another popular way to store your flow code is to include it in a Docker image. 
     - Azure Container Instances - Push
     - Google Cloud Run - Push
 
-Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in.
-
-```yaml
-
-build:
-- prefect_docker.deployments.steps.build_docker_image:
-    id: build_image
-    requires: prefect-docker>=0.3.1
-    image_name: discdiver/storage-example
-    tag: '0.1'
-    dockerfile: auto
-```
-
-Run `prefect deploy` hen you run a deployment, the worker will pull the Docker image and spin up a container. 
-The flow code baked into the image will run inside the container.
+1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See more in the [Docker guide](/guides/deployment/docker/)
+1. Run `prefect deploy` to create a deployment. 
+1. Upon deployment run the worker will pull the Docker image and spin up a container. 
+1. The flow code baked into the image will run inside the container. 
 
 ## Option 4: Cloud-provider storage
 Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
 
-You can specify an S3 bucket, Azure Blob Storage container, or GCS bucket directly in the `push` and `pull` steps of your `prefet.yaml` to send your flow code to a cloud-provider storage location and retrieve it at runtime. 
+You can specify an S3 bucket, Azure Blob Storage container, or GCS bucket directly in the `push` and `pull` steps of your `prefet.yaml` file to send your flow code to a cloud-provider storage location and retrieve it at runtime. 
 
-Run `prefect init` and select the relevant cloud-provider storage option
+Run `prefect init` and select the relevant cloud-provider storage option.
 
-Here's the relevant portion of an example `prefect.yaml`` file.
+Here are the options and the relevant portions of an example `prefect.yaml`` file.
 
 === "AWS"
 
-    Choose `s3` as the storage option and enter the bucket name when prompted. 
+    Choose *s3* as the storage option and enter the bucket name when prompted. TK or the URL 
 
     ```yaml
     # push section allows you to manage if and how this project is uploaded to remote locations
@@ -190,17 +179,73 @@ Here's the relevant portion of an example `prefect.yaml`` file.
         credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}" # if private
     ``` 
 
-    TK, can you use a block (from s3 or S3 block?) 
-
-=== "GCS" 
 
 === "Azure Blob Storage"
 
+    Choose *azure*.
 
-If you use this option with a private storage bucket, you will need to provide credentials for a cloud account role with sufficient permissions via a block or other method. 
-Also ensure that your Prefect worker has the correct credentials to access the cloud-provider storage location.
+    When prompted, enter the container. TK format
+
+    ```yaml
+    
+    push:
+    - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+        id: push_code
+        requires: prefect-azure>=0.2.8
+        container: fdfs TK
+        folder: storage
+
+    # pull section allows you to provide instructions for cloning this project in remote locations
+    pull:
+    - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+        id: pull_code
+        requires: prefect-azure>=0.2.8
+        container: '{{ push_code.container }}'
+        folder: '{{ push_code.folder }}'
+    ```
+
+=== "GCS" 
+
+    Choose *gcs*.
+
+    When prompted, enter the bucket. TK format
+
+
+If you use this a cloud storage provider with a private storage bucket/blob/contianer, you will need to provide credentials for a cloud account role with sufficient permissions via a block or other method. 
+
+If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file do the following:
+
+=== "AWS"
+
+1. Install the relevant library with `pip install -U prefect-aws`
+1. Register the blocks in that library with `prefect block register -m prefect_aws` 
+1. Create an aws-credentials block via code or the Prefect UI and reference it as shown above.
+1. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+
+Ensure the role has read and write permissions to access the bucket.
+
+=== "Azure"
+
+1. Install the relevant library with `pip install -U prefect-azure`
+1. Register the blocks in that library with `prefect block register -m prefect_azure` 
+1. Create a  block via code or the Prefect UI and reference it as shown above.
+1. In addition to the block name, most users will need to fill in the  and  fields.
+
+Ensure the role has read and write permissions to access the container.
+
+
+=== "GCS"
+
+1. Install the relevant library with `pip install -U prefect-gcp`
+1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
+1. Create a GCP block via code or the Prefect UI and reference it as shown above.
+1. In addition to the block name, most users will need to fill in the  and  fields.
+
+Ensure the role has read and write permissions to access the bucket.
 
 ## Other code storage options
-In versions of Prefect 2 before the`prefect deploy` experience, storage blocks were the recommended way to store flow code. 
-Storage blocks are still supported, but are usually only necessary if you need to authenticate to a private repository. 
-As shown above TK link, the credential blocks for git-based storage can be created automatically through the interactive deployment creation prompts.
+In earlier versions of Prefect [storage blocks](/concepts/blocks/) were the recommended way to store flow code. 
+Storage blocks are still supported, but are generally only necessary if you need to authenticate to a private repository. 
+As shown above, Secret blocks for git-based storage can be created automatically through interactive deployment creation prompts and Cloud-provider based storage can be referenced directly in a `prefect.yaml` file.
+
+Yo
