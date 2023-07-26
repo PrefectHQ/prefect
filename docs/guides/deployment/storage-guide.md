@@ -15,7 +15,7 @@ search:
   boost: 2
 ---
 
-# How to Store your Flow Code
+# Where to Store Your Flow Code
 
 When you run a deployment, your execution environment needs access to your flow code. 
 Your flow code is not stored in either the Prefect Cloud database or a Prefect server database instance. 
@@ -247,5 +247,3 @@ Ensure the role has read and write permissions to access the bucket.
 In earlier versions of Prefect [storage blocks](/concepts/blocks/) were the recommended way to store flow code. 
 Storage blocks are still supported, but are generally only necessary if you need to authenticate to a private repository. 
 As shown above, Secret blocks for git-based storage can be created automatically through interactive deployment creation prompts and Cloud-provider based storage can be referenced directly in a `prefect.yaml` file.
-
-Yo
