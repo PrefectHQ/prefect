@@ -11,6 +11,17 @@ tags:
     - git
     - gitlab
     - bitbucket
+    - s3
+    - azure
+    - blob storage
+    - bucket
+    - AWS
+    - GCP
+    - GCS
+    - Google Cloud Storage
+    - Azure Blob Storage
+    - Docker
+    - storage  
 search:
   boost: 2
 ---
@@ -18,15 +29,18 @@ search:
 # Where to Store Your Flow Code
 
 When you run a deployment, your execution environment needs access to your flow code. 
-Your flow code is not stored in either the Prefect Cloud database or a Prefect server database instance. 
+Your flow code is not stored in a Prefect server database instance or Prefect Cloud. 
 When creating a deployment, you have several flow code storage options.
 
 ## Option 1: Local storage
-Local flow code storage is often used with a process work pool for initial experimentation. 
+Local flow code storage is often used with a Local Subprocess work pool for initial experimentation. 
 
-Run `prefect deploy` from the root of the directory containing your flow code. 
-Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment. 
-Select a *process* work pool. 
+To create a deployment with local storage and a Local Subprocess work pool do the following:
+
+1. Run `prefect deploy` from the root of the directory containing your flow code.
+1. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment. 
+1. Select a *process* work pool. 
+
 You are then shown the location that your flow code will be fetched from when a flow is run. 
 For example:
 
@@ -39,24 +53,24 @@ Your Prefect workers will attempt to load your flow from:
 ```
 </div>
 
-When creating a production deployment you most likely want code capable of running on infrastructure other than your local machine. 
+When creating a production deployment you most likely want code to be capable of running on infrastructure other than your local machine. 
+
 One of the other remote flow code storage options is recommended for production deployments.
 
 ## Option 2: Git-based storage
 
-Git-based version control platforms are popular locations to store code. 
+Git-based version control platforms are popular locations for code storage. 
 This solution provides redundancy, version control, and easier collaboration.
 
 [GitHub](https://github.com/) is the most popular cloud-based repository hosting provider. 
 [GitLab](https://www.gitlab.com) and [Bitbucket](https://bitbucket.org/) are other popular options. 
-Prefect supports each of these options.
+Prefect supports each of these platforms.
 
 ### Creating a deployment with git-based storage
 
-Run `prefect deploy` from within a git repository and create a new deployment, you will see a series of prompts.
-Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
-Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. 
-If you select yes, Prefect will ask you to confirm the URL of your git repository and the branch name. 
+Run `prefect deploy` from within a git repository and create a new deployment. You will see a series of prompts. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
+
+Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. Select "y" and you will be prompted to confirm the URL of your git repository and the branch name, as in the example below:
 
 <div class="terminal">
 ```bash
@@ -68,11 +82,11 @@ Would you like your workers to pull your flow code from its remote repository wh
 ```
 </div>
 
-In the example above, the git repository is linked to GitHub. 
+In this example the git repository is hosted on GitHub. 
 If you are using Bitbucket or GitLab, the URL will match the provider.
 If the repository is public, enter "n" and you are on your way.
 
-If the repository is private, enter a token that can be used to access your private repository. This token will be saved in an encrypted Prefect Secret block. 
+If the repository is private, you can enter a token that can be used to access your private repository. This token will be saved in an encrypted Prefect Secret block. 
 
 <div class="terminal">
 ```bash
@@ -113,13 +127,56 @@ If you want to configure a Secret block ahead of time for use when deploying a `
 
 pull:
     - prefect.deployments.steps.git_clone:
-        repository: https://bitbucket.org/org/repo.git
+        repository: https://bitbucket.org/org/my-private-repo.git
         access_token: "{{ prefect.blocks.secret.my-block-name }}"
 ```
 
-<!-- Alternatively, you can create a GitHub, Bitbucket, or GitLab block ahead of time and reference it in the `prefect.yaml` pull step. TK This is currently not working. See https://github.com/PrefectHQ/prefect/issues/9683 and add when fixed.
- -->
+Alternatively, you can create a Credentials block ahead of time and reference it in the `prefect.yaml` pull step.
 
+=== "GitHub"
+
+    1. Install the library with `pip install -U prefect-github`
+    1. Register the blocks in that library to make them available on the server with `prefect block register -m prefect_github`.
+    1. Create a GitHub credentials block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the *GitHub Username* and *GitHub Personal Access Token* fields.
+
+    ```yaml
+
+    pull:
+        - prefect.deployments.steps.git_clone:
+            repository: https://github.com/discdiver/my-private-repo.git
+            credentials: "{{ prefect.blocks.github-credentials.my-block-name }}"
+    ```
+  
+=== "Bitbucket"
+    
+    1. Install the relevant library with `pip install -U prefect-bitbucket`
+    1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
+    1. Create a Bitbucket credentials block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the *Bitbucket Username* and *Bitbucket Personal Access Token* fields.
+
+    ```yaml
+
+    pull:
+        - prefect.deployments.steps.git_clone:
+            repository: https://bitbucket.org/org/my-private-repo.git
+            credentials: "{{ prefect.blocks.bitbucket-credentials.my-block-name }}"
+    ```
+
+=== "GitLab"
+    
+    1. Install the relevant library with `pip install -U prefect-gitlab`
+    1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
+    1. Create a GitLab credentials block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the *GitLab Username* and *GitLab Personal Access Token* fields.
+
+    ```yaml
+
+    pull:
+        - prefect.deployments.steps.git_clone:
+            repository: https://gitlab.com/org/my-private-repo.git
+            credentials: "{{ prefect.blocks.gitlab-credentials.my-block-name }}"
+    ```
 
 !!! Warning "Push your code"
     When you make a change to your code, Prefect does push your code to your git-based version control platform. 
@@ -153,7 +210,7 @@ You can specify an S3 bucket, Azure Blob Storage container, or GCS bucket direct
 
 Run `prefect init` and select the relevant cloud-provider storage option.
 
-Here are the options and the relevant portions of an example `prefect.yaml`` file.
+Here are the options and the relevant portions of the `prefect.yaml`` file.
 
 === "AWS"
 
@@ -167,7 +224,7 @@ Here are the options and the relevant portions of an example `prefect.yaml`` fil
         requires: prefect-aws>=0.3.4
         bucket: my_bucket
         folder: project-name
-        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}" # if private
+        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -176,7 +233,7 @@ Here are the options and the relevant portions of an example `prefect.yaml`` fil
         requires: prefect-aws>=0.3.4
         bucket: '{{ push_code.bucket }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}" # if private
+        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
     ``` 
 
 
@@ -211,16 +268,17 @@ Here are the options and the relevant portions of an example `prefect.yaml`` fil
     When prompted, enter the bucket. TK format
 
 
-If you use this a cloud storage provider with a private storage bucket/blob/contianer, you will need to provide credentials for a cloud account role with sufficient permissions via a block or other method. 
+If you use a cloud storage provider with a private storage bucket/blob/container, you will need to provide credentials for a cloud account. 
 
-If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file do the following:
+If you want to configure a Secret ahead of time for use when deploying a `prefect.yaml` file do the following:
 
 === "AWS"
+    TK are 1 and 2 only necessary if self-hosting? a Prefect server instance? In my cloud workspace they are pre-installed.
 
     1. Install the relevant library with `pip install -U prefect-aws`
     1. Register the blocks in that library with `prefect block register -m prefect_aws` 
-    1. Create an aws-credentials block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Create an aws-credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Reference the block as shown above.
 
 Ensure the role has read and write permissions to access the bucket.
 
@@ -243,7 +301,16 @@ Ensure the role has read and write permissions to access the container.
 
 Ensure the role has read and write permissions to access the bucket.
 
-## Other code storage options
+## Including and excluding files from storage
+
+By default, Prefect uploads all files in the current folder to the configured storage location when you create a deployment.
+
+When using a git repository, Docker image, or cloud-provider storage location, you may want to exclude certain files or directories.
+- If you are familiar with git you are likely familiar with the []`.gitignore`](https://git-scm.com/docs/gitignore) file. 
+- If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) file. 
+- For cloud-provider storage the `.prefectignore` file serves the same purpose and follows a similar syntax as those files. So an entry of *.pyc will ensure all .pyc files are ignored excluded from upload.
+
+## Other code storage creation methods
 
 In earlier versions of Prefect [storage blocks](/concepts/blocks/) were the recommended way to store flow code. 
 Storage blocks are still supported, but are generally only necessary if you need to authenticate to a private repository. 
