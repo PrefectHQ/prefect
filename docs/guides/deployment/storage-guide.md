@@ -236,6 +236,16 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
     ``` 
 
+    TK are 1 and 2 only necessary if self-hosting a Prefect server instance? In my cloud workspace they are pre-installed. 
+
+    If you don't have the relevant credentials block on the server:
+
+    1. Install the relevant library with `pip install -U prefect-aws`
+    1. Register the blocks in that library with `prefect block register -m prefect_aws` 
+
+    Create an aws-credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields. Reference the block in the pull step as shown above.
+
+    Ensure the role has read and write permissions to access the bucket.
 
 === "Azure"
 
@@ -251,6 +261,7 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         requires: prefect-azure>=0.2.8
         container: fdfs TK
         folder: storage
+        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -259,47 +270,61 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         requires: prefect-azure>=0.2.8
         container: '{{ push_code.container }}'
         folder: '{{ push_code.folder }}'
+        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
     ```
+
+    If you don't have the relevant credentials block on the server:
+
+    1. Install the relevant library with `pip install -U prefect-azure`
+    1. Register the blocks in that library with `prefect block register -m prefect_azure` 
+
+    Create a role with permission to ensure the role has sufficient (read and write) permissions to access the blob.
+
+    Create a Azure Blob Storage Credentials block via code or the Prefect UI and reference it as shown above. In addition to the block name, most users will need to fill in the  and  fields.
+
+    
 
 === "GCP" 
 
     Choose *gcs*.
 
-    When prompted, enter the bucket. TK format
+    When prompted, enter the bucket name. 
 
+    ```yaml
+    # push section allows you to manage if and how this project is uploaded to remote locations
+    push:
+    - prefect_gcp.deployment.steps.push_to_gcs:
+        id: push_code
+        requires: prefect-gcp>=0.4.3
+        bucket: prefect-storage-demo
+        folder: storage
+        credentials: "{{ prefect.blocks.gcpcredentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
 
-If you use a cloud storage provider with a private storage bucket/blob/container, you will need to provide credentials for a cloud account. 
-
-If you want to configure a Secret ahead of time for use when deploying a `prefect.yaml` file do the following:
-
-=== "AWS"
-
-    TK are 1 and 2 only necessary if self-hosting? a Prefect server instance? In my cloud workspace they are pre-installed.
-
-    1. Install the relevant library with `pip install -U prefect-aws`
-    1. Register the blocks in that library with `prefect block register -m prefect_aws` 
-    1. Create an aws-credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
-    1. Reference the block as shown above.
-
-    Ensure the role has read and write permissions to access the bucket.
-
-=== "Azure"
-
-    1. Install the relevant library with `pip install -U prefect-azure`
-    1. Register the blocks in that library with `prefect block register -m prefect_azure` 
-    1. Create a  block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the  and  fields.
-
-    Ensure the role has sufficient (read and write) permissions to access the container.
-
-=== "GCP"
-
+    # pull section allows you to provide instructions for cloning this project in remote locations
+    pull:
+    - prefect_gcp.deployment.steps.pull_from_gcs:
+        id: pull_code
+        requires: prefect-gcp>=0.4.3
+        bucket: '{{ push_code.bucket }}'
+        folder: '{{ pull_code.folder }}'
+        credentials: "{{ prefect.blocks.gcpcredentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
+    ```
+    
+    If you don't have the relevant credentials block on the server:
+    
     1. Install the relevant library with `pip install -U prefect-gcp`
     1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
-    1. Create a GCP block via code or the Prefect UI and reference it as shown above.
-    1. In addition to the block name, most users will need to fill in the  and  fields.
 
-    Ensure the role has read and write permissions to access the bucket.
+    Create a service account in GCP for a role with read and write permissions to access the bucket contents.
+
+    Create a GCP block via code or the Prefect UI and reference it as shown above.
+    In addition to the block name, most users will need to fill in the  and  fields.
+
+    
+
+If you use a cloud storage provider with private storage, you will need to provide credentials as part of the deployment or for the worker running the deployment. Let's look at how to provide credentials for each cloud provider.
+
+
 
 ## Including and excluding files from storage
 
