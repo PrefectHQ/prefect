@@ -1,3 +1,5 @@
+src = ["src"]
+
 # Do not enforce line length; black does this for code and we do not care about comments / docs
 ignore = ["E501"]
 
