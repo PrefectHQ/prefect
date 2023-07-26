@@ -180,7 +180,7 @@ Here are the options and the relevant portions of an example `prefect.yaml`` fil
     ``` 
 
 
-=== "Azure Blob Storage"
+=== "Azure"
 
     Choose *azure*.
 
@@ -204,7 +204,7 @@ Here are the options and the relevant portions of an example `prefect.yaml`` fil
         folder: '{{ push_code.folder }}'
     ```
 
-=== "GCS" 
+=== "GCP" 
 
     Choose *gcs*.
 
@@ -234,7 +234,7 @@ Ensure the role has read and write permissions to access the bucket.
 Ensure the role has read and write permissions to access the container.
 
 
-=== "GCS"
+=== "GCP"
 
     1. Install the relevant library with `pip install -U prefect-gcp`
     1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
