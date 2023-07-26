@@ -35,7 +35,7 @@ Attributes of a deployment include (but are not limited to):
 - __Schedule__: optional schedule for this deployment
 - __Tags__: optional text labels for organizing your deployments
 
-Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastrucuture. This means setting up a work pool and a worker to enable **your flows** to run on **your infrastructure**.
+Before you build your first deployment, its helpful to understand how Prefect configures flow run infrastructure. This means setting up a work pool and a worker to enable **your flows** to run on **your infrastructure**.
 
 ## Why Work Pools and Workers?
 
