@@ -66,18 +66,16 @@ from prefect import flow
 def get_repo_info():
     url = 'https://api.github.com/repos/PrefectHQ/prefect'
     api_response = httpx.get(url)
-    if api_response.status_code == 200:
-        repo_info = api_response.json()
-        stars = repo_info['stargazers_count']
-        forks = repo_info['forks_count']
-        contributors_url = repo_info['contributors_url']
-        average_commits = calculate_average_commits(contributors_url)
-        print(f"PrefectHQ/prefect repository statistics 🤓:")
-        print(f"Stars 🌠 : {stars}")
-        print(f"Forks 🍴 : {forks}")
-        print(f"Average commits per contributor 💌 : {average_commits:.2f}")
-    else:
-        raise Exception('Failed to fetch repository information.')
+    api_response.raise_for_status()
+    repo_info = api_response.json()
+    stars = repo_info['stargazers_count']
+    forks = repo_info['forks_count']
+    contributors_url = repo_info['contributors_url']
+    average_commits = calculate_average_commits(contributors_url)
+    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {stars}")
+    print(f"Forks 🍴 : {forks}")
+    print(f"Average commits per contributor 💌 : {average_commits:.2f}")
     
 @flow()
 def calculate_average_commits(contributors_url):
