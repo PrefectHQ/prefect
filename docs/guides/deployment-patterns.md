@@ -1,11 +1,10 @@
 ---
-description: Answers to frequently asked questions about Prefect.
+description: Different deployment design patterns with Prefect.
 tags:
     - FAQ
-    - frequently asked questions
-    - questions
-    - license
-    - databases
+    - deployment
+    - design
+    - patterns
 ---
 
 
@@ -80,19 +79,15 @@ def get_repo_info():
 @flow()
 def calculate_average_commits(contributors_url):
     response = httpx.get(contributors_url)
-    if response.status_code == 200:
-        contributors = len(response.json())
-    else:
-        raise Exception('Failed to fetch contributors.')      
+    response.raise_for_status()
+    contributors = len(response.json())    
     commits_url = f'https://api.github.com/repos/PrefectHQ/prefect/stats/contributors'
     response = httpx.get(commits_url)
-    if response.status_code == 200:
-        commit_data = response.json()
-        total_commits = sum(c['total'] for c in commit_data)
-        average_commits = total_commits / contributors
-        return average_commits
-    else:
-        raise Exception('Failed to fetch commit information.')
+    response.raise_for_status()
+    commit_data = response.json()
+    total_commits = sum(c['total'] for c in commit_data)
+    average_commits = total_commits / contributors
+    return average_commits
 
 if __name__ == "__main__":
     calculate_average_commits()
