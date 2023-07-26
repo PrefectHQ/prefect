@@ -203,18 +203,18 @@ Another popular way to store your flow code is to include it in a Docker image. 
 1. Upon deployment run the worker will pull the Docker image and spin up a container. 
 1. The flow code baked into the image will run inside the container. 
 
+Note that you don't need push or pull steps in the `prefect.yaml` file if using CI/CD to build a Docker image because the work pool can reference the image directly.
+
 ## Option 4: Cloud-provider storage
-Cloud-provider storage is supported, but not recommended. Git-repository based storage or Docker-based storage are the recommended options due to their version control and collaborative capabilities. 
 
-You can specify an S3 bucket, Azure Blob Storage container, or GCS bucket directly in the `push` and `pull` steps of your `prefet.yaml` file to send your flow code to a cloud-provider storage location and retrieve it at runtime. 
+You can store your code in an AWS S3 bucket, Azure Blob Storage container, or GCP GCS bucket and specify the url directly in the `push` and `pull` steps of your `prefect.yaml` file.
 
-Run `prefect init` and select the relevant cloud-provider storage option.
+To create a templated `prefect.yaml` file run `prefect init` and select the recipe for the applicable cloud-provider storage.
+Here are the options and the relevant portions of the `prefect.yaml` file.
 
-Here are the options and the relevant portions of the `prefect.yaml`` file.
+=== "AWS S3 bucket"
 
-=== "AWS"
-
-    Choose *s3* as the storage option and enter the bucket name when prompted. TK or the URL 
+    Choose `s3` as the recipe and enter the bucket name when prompted.
 
     ```yaml
     # push section allows you to manage if and how this project is uploaded to remote locations
@@ -233,25 +233,20 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         requires: prefect-aws>=0.3.4
         bucket: '{{ push_code.bucket }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
+        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private 
     ``` 
 
-    TK are 1 and 2 only necessary if self-hosting a Prefect server instance? In my cloud workspace they are pre-installed. 
+    If the bucket requires authentication to access it, you can do the following:
 
-    If you don't have the relevant credentials block on the server:
+    1. Install the [Prefect-AWS](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
+    1. If using Prefect server, register the blocks in that library with `prefect block register -m prefect_aws` 
+    1. Ensure the role you create has read and write permissions to access the bucket.
+    1. Create an AWS Credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Reference the block as shown in the push and pull steps above. 
+    
+=== "Azure Blob Storage container"
 
-    1. Install the relevant library with `pip install -U prefect-aws`
-    1. Register the blocks in that library with `prefect block register -m prefect_aws` 
-
-    Create an aws-credentials block via code or the Prefect UI. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields. Reference the block in the pull step as shown above.
-
-    Ensure the role has read and write permissions to access the bucket.
-
-=== "Azure"
-
-    Choose *azure*.
-
-    When prompted, enter the container. TK format
+    Choose `azure` as the recipe and enter the container name when prompted.
 
     ```yaml
     
@@ -259,9 +254,9 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
     - prefect_azure.deployments.steps.push_to_azure_blob_storage:
         id: push_code
         requires: prefect-azure>=0.2.8
-        container: fdfs TK
-        folder: storage
-        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
+        container: my-prefect-azure-container
+        folder: my-folder
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -270,25 +265,21 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         requires: prefect-azure>=0.2.8
         container: '{{ push_code.container }}'
         folder: '{{ push_code.folder }}'
-        credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if private
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if private
     ```
 
-    If you don't have the relevant credentials block on the server:
+    If the blob requires authentication to access it, you can do the following:
 
-    1. Install the relevant library with `pip install -U prefect-azure`
-    1. Register the blocks in that library with `prefect block register -m prefect_azure` 
+    1. Install the [Prefect-Azure](https://prefecthq.github.io/prefect-azure/) library with `pip install -U prefect-azure`
+    1. If using Prefect server, register the blocks in that library with `prefect block register -m prefect_azure` 
+    1. Create an access key for a role in the Azure portal with sufficient (read and write) permissions to access the blob. A connection string under Storage Account->Access keys in the Azure portal has everything needed.
+    1. Create an Azure Blob Storage Credentials block via code or the Prefect UI. Enter a name for the block and paste the connection string into the *Connection String* field.
+    1. Reference the block as shown in the push and pull steps above. 
 
-    Create a role with permission to ensure the role has sufficient (read and write) permissions to access the blob.
 
-    Create a Azure Blob Storage Credentials block via code or the Prefect UI and reference it as shown above. In addition to the block name, most users will need to fill in the  and  fields.
+=== "GCP GCS bucket"
 
-    
-
-=== "GCP" 
-
-    Choose *gcs*.
-
-    When prompted, enter the bucket name. 
+    Choose `gcs`` as the recipe and enter the bucket name when prompted.
 
     ```yaml
     # push section allows you to manage if and how this project is uploaded to remote locations
@@ -296,9 +287,9 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
     - prefect_gcp.deployment.steps.push_to_gcs:
         id: push_code
         requires: prefect-gcp>=0.4.3
-        bucket: prefect-storage-demo
-        folder: storage
-        credentials: "{{ prefect.blocks.gcpcredentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
+        bucket: my-bucket
+        folder: my-folder
+        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
 
     # pull section allows you to provide instructions for cloning this project in remote locations
     pull:
@@ -307,24 +298,30 @@ Here are the options and the relevant portions of the `prefect.yaml`` file.
         requires: prefect-gcp>=0.4.3
         bucket: '{{ push_code.bucket }}'
         folder: '{{ pull_code.folder }}'
-        credentials: "{{ prefect.blocks.gcpcredentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
+        credentials: "{{ prefect.blocks.gcp-credentials.my-credentials-block }}" # if private (is gcp-crdentials the right name?)
     ```
     
-    If you don't have the relevant credentials block on the server:
-    
-    1. Install the relevant library with `pip install -U prefect-gcp`
-    1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
+    If the bucket requires authentication to access it, you can do the following:
 
-    Create a service account in GCP for a role with read and write permissions to access the bucket contents.
+    1. Install the [Prefect-GCP](https://prefecthq.github.io/prefect-azure/) library with `pip install -U prefect-gcp`
+    1. If using Prefect server, register the blocks in that library with `prefect block register -m prefect_gcp` 
+    1. Create a service account in GCP for a role with read and write permissions to access the bucket contents. Go to *IAM & Admin->Service accounts->Create service account*. After choosing a role with the required permissions, see your service account and click on the three dot menu in the *Actions* column. Select *Manage Keys->ADD KEY->Create new key->JSON*. Download the JSON file.
+    1. Create a GCP Credentials block via code or the Prefect UI. Enter a name for the block and paste the entire contents of the JSON key file into the Service Account Info field.
+    1. Reference the block as shown in the push and pull steps above. 
 
-    Create a GCP block via code or the Prefect UI and reference it as shown above.
-    In addition to the block name, most users will need to fill in the  and  fields.
+Another option for authentication is for the [worker](/concepts/work-pools/#worker-overview) to have access to the the storage location at runtime via SSH keys.
 
-    
+Alternatively, you can use environment variables in your deployment like this example that uses `CUSTOM_FOLDER`:
 
-If you use a cloud storage provider with private storage, you will need to provide credentials as part of the deployment or for the worker running the deployment. Let's look at how to provide credentials for each cloud provider.
+```yaml
 
-
+ push:
+    - prefect_gcp.deployment.steps.push_to_gcs:
+        id: push_code
+        requires: prefect-gcp>=0.4.3
+        bucket: my-bucket
+        folder: '{{ $CUSTOM_FOLDER }}'
+```
 
 ## Including and excluding files from storage
 
@@ -342,8 +339,6 @@ Storage blocks are still supported, but not recommended.
 
 As shown above, repositories can be referenced directly through interactive prompts with `prefect deploy` or in a `prefect.yaml`. 
 When authentication is needed, Secret or Credential blocks can be referenced, and in some cases created automatically through interactive deployment creation prompts. 
-
-Another option for authentication is for the [worker](/concepts/work-pools/#worker-overview) to have access to the the storage location via SSH keys.
 
 ## Next steps
 
