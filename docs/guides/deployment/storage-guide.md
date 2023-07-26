@@ -48,7 +48,7 @@ For example:
 <div class="terminal">
 ```bash
 Your Prefect workers will attempt to load your flow from: 
-/Users/jeffhale/Desktop/prefect/demos/storage/gh_storage_flow.py. To see more options for managing your flow's code, run:
+/my-path/my-flow-file.py. To see more options for managing your flow's code, run:
 
     $ prefect project recipes ls
 ```
