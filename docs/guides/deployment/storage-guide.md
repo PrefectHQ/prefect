@@ -217,33 +217,42 @@ If you want to configure a Secret block ahead of time for use when deploying a `
 
 === "AWS"
 
-1. Install the relevant library with `pip install -U prefect-aws`
-1. Register the blocks in that library with `prefect block register -m prefect_aws` 
-1. Create an aws-credentials block via code or the Prefect UI and reference it as shown above.
-1. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Install the relevant library with `pip install -U prefect-aws`
+    1. Register the blocks in that library with `prefect block register -m prefect_aws` 
+    1. Create an aws-credentials block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
 
 Ensure the role has read and write permissions to access the bucket.
 
 === "Azure"
 
-1. Install the relevant library with `pip install -U prefect-azure`
-1. Register the blocks in that library with `prefect block register -m prefect_azure` 
-1. Create a  block via code or the Prefect UI and reference it as shown above.
-1. In addition to the block name, most users will need to fill in the  and  fields.
+    1. Install the relevant library with `pip install -U prefect-azure`
+    1. Register the blocks in that library with `prefect block register -m prefect_azure` 
+    1. Create a  block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the  and  fields.
 
 Ensure the role has read and write permissions to access the container.
 
 
 === "GCS"
 
-1. Install the relevant library with `pip install -U prefect-gcp`
-1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
-1. Create a GCP block via code or the Prefect UI and reference it as shown above.
-1. In addition to the block name, most users will need to fill in the  and  fields.
+    1. Install the relevant library with `pip install -U prefect-gcp`
+    1. Register the blocks in that library with `prefect block register -m prefect_gcp` 
+    1. Create a GCP block via code or the Prefect UI and reference it as shown above.
+    1. In addition to the block name, most users will need to fill in the  and  fields.
 
 Ensure the role has read and write permissions to access the bucket.
 
 ## Other code storage options
+
 In earlier versions of Prefect [storage blocks](/concepts/blocks/) were the recommended way to store flow code. 
 Storage blocks are still supported, but are generally only necessary if you need to authenticate to a private repository. 
 As shown above, Secret blocks for git-based storage can be created automatically through interactive deployment creation prompts and Cloud-provider based storage can be referenced directly in a `prefect.yaml` file.
+
+## Next steps
+
+You've seen where to store your flow code. 
+
+We recommend using Docker-based storage or git-based storage for your production deployments.
+
+Check out more [guides](/guides/) to reach your goals with Prefect.
