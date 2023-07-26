@@ -695,6 +695,8 @@ class KubernetesJob(Infrastructure):
                             f"Job {job_name!r}: Job reached backoff limit."
                         )
                         completed = True
+                        watch.stop()
+                        return -1
                     # If the job has no backoff limit, check if it has failed
                     # and stop watching if it has
                     elif (
