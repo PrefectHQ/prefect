@@ -198,7 +198,7 @@ Another popular way to store your flow code is to include it in a Docker image. 
     - Azure Container Instances - Push
     - Google Cloud Run - Push
 
-1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See more in the [Docker guide](/guides/deployment/docker/)
+1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See the [Docker guide](/guides/deployment/docker/) for more info.
 1. Run `prefect deploy` to create a deployment. 
 1. Upon deployment run the worker will pull the Docker image and spin up a container. 
 1. The flow code baked into the image will run inside the container. 
@@ -273,6 +273,7 @@ If you use a cloud storage provider with a private storage bucket/blob/container
 If you want to configure a Secret ahead of time for use when deploying a `prefect.yaml` file do the following:
 
 === "AWS"
+
     TK are 1 and 2 only necessary if self-hosting? a Prefect server instance? In my cloud workspace they are pre-installed.
 
     1. Install the relevant library with `pip install -U prefect-aws`
@@ -289,8 +290,7 @@ Ensure the role has read and write permissions to access the bucket.
     1. Create a  block via code or the Prefect UI and reference it as shown above.
     1. In addition to the block name, most users will need to fill in the  and  fields.
 
-Ensure the role has read and write permissions to access the container.
-
+Ensure the role has sufficient (read and write) permissions to access the container.
 
 === "GCP"
 
@@ -318,7 +318,7 @@ As shown above, Secret blocks for git-based storage can be created automatically
 
 ## Next steps
 
-You've seen where to store your flow code. 
+You've seen options for where to store your flow code. 
 
 We recommend using Docker-based storage or git-based storage for your production deployments.
 
