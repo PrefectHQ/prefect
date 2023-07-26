@@ -14,13 +14,6 @@ tags:
 ### Patterns in Prefect
 There are four common dataflow design patterns in Prefect. Each pattern offers different degrees and types of separation from related flows.
 
- - Conceptual separation is when a flow can be thought of as separate from another flow, even if it’s part of the same process.
-
- - Execution separation is when a flow can be executed separately from another flow.
-
- - Awareness separation is when a flow doesn’t have any direct reference to another flow, even if it’s related.
-
-
 
 ### Monoflow
 ![Monoflow diagram](/img/guides/monoflow.png)
