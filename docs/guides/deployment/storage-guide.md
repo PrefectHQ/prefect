@@ -54,7 +54,7 @@ Your Prefect workers will attempt to load your flow from:
 ```
 </div>
 
-When creating a production deployment you most likely want code to be capable of running on infrastructure other than your local machine. 
+When deploying a flow to production, you most likely want code to be capable of running on infrastructure other than your local machine. 
 The flow code storage options shown below are recommended for production deployments.
 
 ## Option 2: Git-based storage
