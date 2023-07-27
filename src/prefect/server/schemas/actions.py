@@ -339,7 +339,6 @@ class FlowRunCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.FlowRun)
     flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parameters: dict = FieldFrom(schemas.core.FlowRun)
     context: dict = FieldFrom(schemas.core.FlowRun)
@@ -351,6 +350,17 @@ class FlowRunCreate(ActionBaseModel):
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
+
+    # DEPRECATED
+
+    deployment_id: Optional[UUID] = Field(
+        None,
+        description=(
+            "DEPRECATED: The id of the deployment associated with this flow run, if"
+            " available."
+        ),
+        deprecated=True,
+    )
 
 
 @copy_model_fields
