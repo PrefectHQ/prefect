@@ -82,7 +82,7 @@ Would you like your workers to pull your flow code from its remote repository wh
 ```
 </div>
 
-In this example the git repository is hosted on GitHub. 
+In this example, the git repository is hosted on GitHub. 
 If you are using Bitbucket or GitLab, the URL will match your provider.
 If the repository is public, enter "n" and you are on your way.
 
