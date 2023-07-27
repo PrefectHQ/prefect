@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from prefect.server import schemas
 from prefect.server.schemas.filters import LogFilter
 
-NOW = pendulum.now()
+NOW = pendulum.now("UTC")
 
 
 async def test_filters_without_params_do_not_error():

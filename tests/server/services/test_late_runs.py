@@ -17,7 +17,7 @@ async def late_run(session, flow):
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now().subtract(minutes=1)
+                    scheduled_time=pendulum.now("UTC").subtract(minutes=1)
                 ),
             ),
         )
@@ -31,7 +31,7 @@ async def late_run_2(session, flow):
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now().subtract(minutes=1)
+                    scheduled_time=pendulum.now("UTC").subtract(minutes=1)
                 ),
             ),
         )
@@ -45,7 +45,7 @@ async def future_run(session, flow):
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now().add(minutes=1)
+                    scheduled_time=pendulum.now("UTC").add(minutes=1)
                 ),
             ),
         )
@@ -58,7 +58,7 @@ async def now_run(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Scheduled(scheduled_time=pendulum.now()),
+                state=schemas.states.Scheduled(scheduled_time=pendulum.now("UTC")),
             ),
         )
 

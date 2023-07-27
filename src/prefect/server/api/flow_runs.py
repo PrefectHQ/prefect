@@ -263,7 +263,7 @@ async def resume_flow_run(
     """
     Resume a paused flow run.
     """
-    now = pendulum.now()
+    now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
@@ -394,7 +394,7 @@ async def set_flow_run_state(
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    now = pendulum.now()
+    now = pendulum.now("UTC")
 
     # create the state
     async with db.session_context(

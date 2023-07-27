@@ -332,7 +332,7 @@ class TestGetRunsInWorkQueue:
         runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now(),
+            scheduled_before=pendulum.now("UTC"),
         )
         assert len(runs_wq1) == 1
 

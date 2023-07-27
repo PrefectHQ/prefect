@@ -92,7 +92,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now().subtract(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now("UTC").subtract(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -116,7 +116,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -148,7 +148,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
         )
 
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
@@ -168,7 +168,7 @@ class TestCopyScheduledTime:
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.PENDING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now().subtract(minutes=5)
+        scheduled_time = pendulum.now("UTC").subtract(minutes=5)
 
         ctx = await initialize_orchestration(
             session,
@@ -206,7 +206,7 @@ class TestCopyScheduledTime:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
         )
 
         scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
@@ -220,8 +220,8 @@ class TestCachingBackendLogic:
     @pytest.mark.parametrize(
         ["expiration", "expected_status", "expected_name"],
         [
-            (pendulum.now().subtract(days=1), SetStateStatus.ACCEPT, "Running"),
-            (pendulum.now().add(days=1), SetStateStatus.REJECT, "Cached"),
+            (pendulum.now("UTC").subtract(days=1), SetStateStatus.ACCEPT, "Running"),
+            (pendulum.now("UTC").add(days=1), SetStateStatus.REJECT, "Cached"),
             (None, SetStateStatus.REJECT, "Cached"),
         ],
         ids=["past", "future", "null"],
@@ -284,7 +284,7 @@ class TestCachingBackendLogic:
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.COMPLETED
         intended_transition = (initial_state_type, proposed_state_type)
-        expiration = pendulum.now().subtract(days=1)
+        expiration = pendulum.now("UTC").subtract(days=1)
 
         ctx1 = await initialize_orchestration(
             session,
@@ -367,7 +367,7 @@ class TestFlowRetryingRule:
         initialize_orchestration,
         monkeypatch,
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         monkeypatch.setattr("pendulum.now", lambda *args: now)
 
         failed_task_runs = [

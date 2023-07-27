@@ -92,7 +92,7 @@ def test_does_not_set_follows_not_tight_timing(
 ):
     destroyed_event = emit_event(
         event="planet.destroyed",
-        occurred=pendulum.now() - timedelta(minutes=10),
+        occurred=pendulum.now("UTC") - timedelta(minutes=10),
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
 

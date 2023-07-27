@@ -387,7 +387,7 @@ class TestTotalRunTimeEstimate:
     async def test_flow_run_estimated_run_time_matches_total_run_time(
         self, session, flow, db
     ):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -420,7 +420,7 @@ class TestTotalRunTimeEstimate:
     async def test_flow_run_estimated_run_time_includes_current_run(
         self, session, flow, db
     ):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -456,7 +456,7 @@ class TestTotalRunTimeEstimate:
     async def test_task_run_estimated_run_time_matches_total_run_time(
         self, session, flow_run, db
     ):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -492,7 +492,7 @@ class TestTotalRunTimeEstimate:
     async def test_task_run_estimated_run_time_includes_current_run(
         self, session, flow_run, db
     ):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -534,7 +534,7 @@ class TestTotalRunTimeEstimate:
         The estimated_run_time includes a .correlate() statement that ensures it can
         be used as a correlated subquery within other selects or joins.
         """
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -585,7 +585,7 @@ class TestTotalRunTimeEstimate:
 
 class TestExpectedStartTimeDelta:
     async def test_flow_run_lateness_when_scheduled(self, session, flow, db):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -610,7 +610,7 @@ class TestExpectedStartTimeDelta:
         )
 
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -642,7 +642,7 @@ class TestExpectedStartTimeDelta:
         )
 
     async def test_flow_run_lateness_when_running(self, session, flow, db):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -666,7 +666,7 @@ class TestExpectedStartTimeDelta:
         assert result.scalar() == pendulum.duration(seconds=5)
 
     async def test_flow_run_lateness_when_terminal(self, session, flow, db):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -690,7 +690,7 @@ class TestExpectedStartTimeDelta:
         assert result.scalar() == pendulum.duration(seconds=0)
 
     async def test_flow_run_lateness_is_zero_when_early(self, session, flow, db):
-        dt = pendulum.now().subtract(minutes=1)
+        dt = pendulum.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(

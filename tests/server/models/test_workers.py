@@ -721,7 +721,7 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.states.Scheduled(
-                            scheduled_time=pendulum.now().add(hours=i)
+                            scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -773,13 +773,13 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_before=pendulum.now()
+            session=session, scheduled_before=pendulum.now("UTC")
         )
         assert len(runs) == 18
 
     async def test_get_all_runs_scheduled_after(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_after=pendulum.now()
+            session=session, scheduled_after=pendulum.now("UTC")
         )
         assert len(runs) == 27
 

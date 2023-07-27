@@ -89,7 +89,7 @@ async def test_agent_with_work_queue(prefect_client, deployment):
         deployment.work_queue_name
     )
     work_queue_runs = await prefect_client.get_runs_in_work_queue(
-        work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
+        work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
     )
     work_queue_flow_run_ids = {run.id for run in work_queue_runs}
 
@@ -142,7 +142,7 @@ async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
         deployment.work_queue_name
     )
     work_queue_runs = await prefect_client.get_runs_in_work_queue(
-        work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
+        work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
     )
     work_queue_runs.sort(key=lambda run: run.next_scheduled_start_time)
     work_queue_flow_run_ids = [run.id for run in work_queue_runs]
@@ -921,7 +921,7 @@ async def test_agent_displays_message_on_work_queue_pause(
         await prefect_client.update_work_queue(work_queue.id, is_paused=True)
 
         # clear agent cache
-        agent._work_queue_cache_expiration = pendulum.now()
+        agent._work_queue_cache_expiration = pendulum.now("UTC")
 
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
@@ -971,7 +971,7 @@ async def test_agent_with_work_queue_and_work_pool(
     responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue_1.name],
-        scheduled_before=pendulum.now().add(seconds=10),
+        scheduled_before=pendulum.now("UTC").add(seconds=10),
     )
     work_queue_flow_run_ids = {response.flow_run.id for response in responses}
 
@@ -1036,7 +1036,7 @@ async def test_agent_with_work_pool(
     responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
-        scheduled_before=pendulum.now().add(seconds=10),
+        scheduled_before=pendulum.now("UTC").add(seconds=10),
     )
     work_queue_flow_run_ids = {response.flow_run.id for response in responses}
 
@@ -1100,7 +1100,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     responses = await prefect_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
-        scheduled_before=pendulum.now().add(seconds=10),
+        scheduled_before=pendulum.now("UTC").add(seconds=10),
     )
     work_queue_flow_run_ids = {response.flow_run.id for response in responses}
 

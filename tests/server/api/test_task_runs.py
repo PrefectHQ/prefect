@@ -79,7 +79,7 @@ class TestCreateTaskRun:
                 task_key="a",
                 state=schemas.actions.StateCreate(
                     type=schemas.states.StateType.COMPLETED,
-                    timestamp=pendulum.now().add(months=1),
+                    timestamp=pendulum.now("UTC").add(months=1),
                 ),
                 dynamic_key="0",
             ).dict(json_compatible=True),
@@ -90,7 +90,7 @@ class TestCreateTaskRun:
             session=session, task_run_id=response.json()["id"]
         )
         # the timestamp was overwritten
-        assert task_run.state.timestamp < pendulum.now()
+        assert task_run.state.timestamp < pendulum.now("UTC")
 
     async def test_raises_on_retry_delay_validation(self, flow_run, client, session):
         task_run_data = {
@@ -221,7 +221,7 @@ class TestReadTaskRuns:
         assert response.json() == []
 
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -386,13 +386,15 @@ class TestSetTaskRunState:
                 state=dict(
                     type="RUNNING",
                     name="Test State",
-                    timestamp=str(pendulum.now().add(months=1)),
+                    timestamp=str(pendulum.now("UTC").add(months=1)),
                 )
             ),
         )
         assert response.status_code == status.HTTP_201_CREATED
         state = schemas.states.State.parse_obj(response.json()["state"])
-        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
+        assert state.timestamp < pendulum.now(
+            "UTC"
+        ), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
@@ -470,8 +472,8 @@ class TestTaskRunHistory:
         response = await client.post(
             "/task_runs/history",
             json=dict(
-                history_start=str(pendulum.now()),
-                history_end=str(pendulum.now().add(days=1)),
+                history_start=str(pendulum.now("UTC")),
+                history_end=str(pendulum.now("UTC").add(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
