@@ -7,13 +7,8 @@ tags:
     - patterns
 ---
 
-
-
-
-
 ### Patterns in Prefect
 There are four common dataflow design patterns in Prefect. Each pattern offers different degrees and types of separation from related flows.
-
 
 ### Monoflow
 ![Monoflow diagram](/img/guides/monoflow.png)
@@ -93,25 +88,16 @@ Prefect flows can also start a run of another flow through a deployment—a spec
 
 This pattern is most useful when you want both conceptual and execution separation. The conceptual complexity is about the same as using a subflow, but the execution complexity is greater, because there’s separate infrastructure and processes to think about. Still, the complexity can be worth it, particularly when certain tasks need a certain type of infrastructure, like GPUs.
 
-TODO: Test flow name
-
 ```python
-from my_project.flows import calculate_average_commits
-from prefect.deployments import Deployment
+from prefect.deployments import run_deployment
 
 @flow
-def build_deployments(name):
-    deployment = Deployment.build_from_flow(
-    flow=name,
-    name=f"{name}-deployment", 
-    version=1, 
-    work_queue_name="default",
-    work_pool_name="default-agent-pool",
-)
-    deployment.apply()
+def run_all_deployments(list_of_deployment_names):
+    for deployment_name in list_of_deployment_names:
+        run_deployment(deployment_name)
 
 if __name__ == "__main__":
-    build_deployments(calculate_average_commits)
+    run_all_deployments(list_of_deployment_names)
 ```
 
 ### Event Triggered Flow
