@@ -30,7 +30,7 @@ search:
 
 When a deployment runs the execution environment needs access to the flow code. 
 Flow code is not stored in a Prefect server database instance or Prefect Cloud. 
-When creating a deployment, you have several flow code storage options.
+When deploying a flow, you have several flow code storage options.
 
 ## Option 1: Local storage
 
