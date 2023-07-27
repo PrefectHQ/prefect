@@ -58,7 +58,7 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
-                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+                state=states.Completed(timestamp=pendulum.now("UTC").add(months=1)),
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -67,7 +67,7 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         # the timestamp was overwritten
-        assert flow_run.state.timestamp < pendulum.now()
+        assert flow_run.state.timestamp < pendulum.now("UTC")
 
     async def test_create_flow_run_without_state_yields_default_pending(
         self, flow, client, session
@@ -534,7 +534,7 @@ class TestReadFlowRuns:
         assert response.json() == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -867,13 +867,15 @@ class TestSetFlowRunState:
                 state=dict(
                     type="RUNNING",
                     name="Test State",
-                    timestamp=str(pendulum.now().add(months=1)),
+                    timestamp=str(pendulum.now("UTC").add(months=1)),
                 )
             ),
         )
         assert response.status_code == status.HTTP_201_CREATED
         state = schemas.states.State.parse_obj(response.json()["state"])
-        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
+        assert state.timestamp < pendulum.now(
+            "UTC"
+        ), "The timestamp should be overwritten"
 
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session
@@ -885,7 +887,7 @@ class TestSetFlowRunState:
                     type=StateType.SCHEDULED,
                     name="Scheduled",
                     state_details=dict(
-                        scheduled_time=str(pendulum.now().add(months=1))
+                        scheduled_time=str(pendulum.now("UTC").add(months=1))
                     ),
                 )
             ),
@@ -1056,8 +1058,8 @@ class TestFlowRunHistory:
         response = await client.post(
             "/flow_runs/history",
             json=dict(
-                history_start=str(pendulum.now()),
-                history_end=str(pendulum.now().add(days=1)),
+                history_start=str(pendulum.now("UTC")),
+                history_end=str(pendulum.now("UTC").add(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
@@ -1074,7 +1076,7 @@ class TestFlowRunLateness:
     async def late_flow_runs(self, session, flow):
         flow_runs = []
         for i in range(5):
-            one_minute_ago = pendulum.now().subtract(minutes=1)
+            one_minute_ago = pendulum.now("UTC").subtract(minutes=1)
             flow_run = await models.flow_runs.create_flow_run(
                 session=session,
                 flow_run=schemas.core.FlowRun(
