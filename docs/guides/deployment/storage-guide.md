@@ -36,7 +36,7 @@ When creating a deployment, you have several flow code storage options.
 
 Local flow code storage is often used with a Local Subprocess work pool for initial experimentation. 
 
-To create a deployment with local storage and a Local Subprocess work pool do the following:
+To create a deployment with local storage and a Local Subprocess work pool, do the following:
 
 1. Run `prefect deploy` from the root of the directory containing your flow code.
 1. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment. 
