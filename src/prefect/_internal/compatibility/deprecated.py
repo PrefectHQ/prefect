@@ -55,8 +55,8 @@ def generate_deprecation_message(
 ):
     if not start_date and not end_date:
         raise ValueError(
-            "A start date is required if an end date is not provided. "
-            f"Suggested start date is {pendulum.now().format(DEPRECATED_DATEFMT)!r}"
+            "A start date is required if an end date is not provided. Suggested start"
+            f" date is {pendulum.now('UTC').format(DEPRECATED_DATEFMT)!r}"
         )
 
     if not end_date:
