@@ -353,7 +353,7 @@ class TestGetRunsInWorkQueue:
     ):
         response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(scheduled_before=pendulum.now().isoformat()),
+            json=dict(scheduled_before=pendulum.now("UTC").isoformat()),
         )
         runs_wq1 = pydantic.parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
@@ -550,7 +550,7 @@ class TestReadWorkQueueStatus:
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Late(
-                    scheduled_time=pendulum.now().subtract(minutes=60)
+                    scheduled_time=pendulum.now("UTC").subtract(minutes=60)
                 ),
                 work_queue_id=work_queue.id,
             ),

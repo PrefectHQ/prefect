@@ -130,7 +130,7 @@ async def create_deployment(
                     ),
                 )
 
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )

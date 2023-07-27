@@ -63,7 +63,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
 
     assert len(runs) == 3
     expected_dates = await deployment.schedule.get_dates(
-        service.max_runs, end=pendulum.now() + service.max_scheduled_time
+        service.max_runs, end=pendulum.now("UTC") + service.max_scheduled_time
     )
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
@@ -116,8 +116,8 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     for deployment in [d1, d2, d3]:
         dep_runs = await deployment.schedule.get_dates(
             service.min_runs,
-            start=pendulum.now(),
-            end=pendulum.now() + service.max_scheduled_time,
+            start=pendulum.now("UTC"),
+            end=pendulum.now("UTC") + service.max_scheduled_time,
         )
         expected_dates.update(dep_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
@@ -272,7 +272,7 @@ class TestRecentDeploymentsScheduler:
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)
-            .values(created=pendulum.now().subtract(hours=1))
+            .values(created=pendulum.now("UTC").subtract(hours=1))
         )
         await session.commit()
 
@@ -298,7 +298,7 @@ class TestRecentDeploymentsScheduler:
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)
-            .values(updated=pendulum.now().subtract(minutes=1))
+            .values(updated=pendulum.now("UTC").subtract(minutes=1))
         )
         await session.commit()
 

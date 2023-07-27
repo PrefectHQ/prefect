@@ -310,7 +310,7 @@ class RecentDeploymentsScheduler(Scheduler):
                 # second to run). Scheduling is idempotent so picking up schedules
                 # multiple times is not a concern.
                 db.Deployment.updated
-                >= pendulum.now().subtract(seconds=self.loop_seconds + 1),
+                >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
             )
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)

@@ -414,7 +414,7 @@ class ORMRun:
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
         if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now() - self.state_timestamp)
+            return self.total_run_time + (pendulum.now("UTC") - self.state_timestamp)
         else:
             return self.total_run_time
 

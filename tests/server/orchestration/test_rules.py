@@ -46,7 +46,7 @@ async def commit_task_run_state(
         state_type == states.StateType.SCHEDULED
         and "scheduled_time" not in state_details
     ):
-        state_details.update({"scheduled_time": pendulum.now()})
+        state_details.update({"scheduled_time": pendulum.now("UTC")})
 
     new_state = schemas.states.State(
         type=state_type,

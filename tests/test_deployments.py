@@ -959,7 +959,7 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        scheduled_time = pendulum.now()
+        scheduled_time = pendulum.now("UTC")
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             timeout=0,
@@ -973,7 +973,7 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
+        scheduled_time = pendulum.now("UTC") + pendulum.Duration(minutes=5)
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             scheduled_time=scheduled_time,
