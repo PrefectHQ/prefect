@@ -1,5 +1,29 @@
 # Prefect Release Notes
 
+## Release 2.11.1
+
+### Enhancements
+- Add `work_queue_name` field when creating a flow run for a deployment, enabling overriding of the queue setting on the deployment on a per-run basis — https://github.com/PrefectHQ/prefect/pull/10276
+- Prevent accidental credential logging on BindFailure by logging only a list of key names, but not the values — https://github.com/PrefectHQ/prefect/pull/10264
+- Allows task runs to explicitly return `Paused` states,  therefore pausing the flow run using the same settings — https://github.com/PrefectHQ/prefect/pull/10269
+
+### Experimental
+- Add a general use concurrency context manager — https://github.com/PrefectHQ/prefect/pull/10267
+- Add `rate_limit` function to block execution while acquiring slots — https://github.com/PrefectHQ/prefect/pull/10299
+
+### Documentation
+- Add redirect to quickstart page — https://github.com/PrefectHQ/prefect/pull/10292
+- Add missing quotation mark in docstring — https://github.com/PrefectHQ/prefect/pull/10286
+- Fix `run_deployment` docstring rendering — https://github.com/PrefectHQ/prefect/pull/10310
+- Fix type in deployment docs — https://github.com/PrefectHQ/prefect/pull/10303
+
+### Contributors
+- @Sche7 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10286
+- @LennyArdiles made their first contribution in https://github.com/PrefectHQ/prefect/pull/10264
+- @Akshat0410 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10303
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.0...preview
+
 ## Release 2.11.0
 
 ### Flow summary graphs and stats
