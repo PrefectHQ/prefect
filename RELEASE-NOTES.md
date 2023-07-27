@@ -7,6 +7,11 @@
 - Prevent accidental credential logging on BindFailure by logging only a list of key names, but not the values — https://github.com/PrefectHQ/prefect/pull/10264
 - Allow task runs to explicitly return `Paused` states,  therefore pausing the flow run using the same settings — https://github.com/PrefectHQ/prefect/pull/10269
 
+### Fixes
+- Hide links to work queues for push work pools — https://github.com/PrefectHQ/prefect-ui-library/pull/1603
+- Fix issue with Pause state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
+- Fix issue with flow run logs missing until after refresh — https://github.com/PrefectHQ/prefect-ui-library/pull/1594
+
 ### Experimental
 - Add a general use concurrency context manager — https://github.com/PrefectHQ/prefect/pull/10267
 - Add `rate_limit` function to block execution while acquiring slots — https://github.com/PrefectHQ/prefect/pull/10299
