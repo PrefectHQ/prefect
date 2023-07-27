@@ -5,7 +5,7 @@
 ### Enhancements
 - Add `work_queue_name` field when creating a flow run for a deployment, enabling the queue setting to be overridden on a per-run basis — https://github.com/PrefectHQ/prefect/pull/10276
 - Prevent accidental credential logging on BindFailure by logging only a list of key names, but not the values — https://github.com/PrefectHQ/prefect/pull/10264
-- Allows task runs to explicitly return `Paused` states,  therefore pausing the flow run using the same settings — https://github.com/PrefectHQ/prefect/pull/10269
+- Allow task runs to explicitly return `Paused` states,  therefore pausing the flow run using the same settings — https://github.com/PrefectHQ/prefect/pull/10269
 
 ### Experimental
 - Add a general use concurrency context manager — https://github.com/PrefectHQ/prefect/pull/10267
