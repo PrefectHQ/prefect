@@ -27,7 +27,7 @@
 - @LennyArdiles made their first contribution in https://github.com/PrefectHQ/prefect/pull/10264
 - @Akshat0410 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10303
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.0...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.0...2.11.1
 
 ## Release 2.11.0
 
