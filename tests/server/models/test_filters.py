@@ -193,7 +193,7 @@ async def data(flow_function, db):
             flow_run=core.FlowRun(
                 flow_id=f_3.id,
                 tags=["db", "red"],
-                state=states.Scheduled(scheduled_time=pendulum.now()),
+                state=states.Scheduled(scheduled_time=pendulum.now("UTC")),
             )
         )
 

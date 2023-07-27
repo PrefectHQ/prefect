@@ -30,7 +30,7 @@ def test_client_events_generate_an_id_by_default():
 
 def test_client_events_generate_occurred_by_default(start_of_test: DateTime):
     event = Event(event="hello", resource={"prefect.resource.id": "hello"})
-    assert start_of_test <= event.occurred <= pendulum.now()
+    assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
 
 def test_client_events_may_have_empty_related_resources():

@@ -220,7 +220,7 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
-    now = pendulum.now()
+    now = pendulum.now("UTC")
 
     # create the state
     async with db.session_context(

@@ -145,7 +145,7 @@ class TestCreateTaskRunState:
         trs = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
             task_policy=await provide_task_policy(),
         )
 
@@ -172,7 +172,7 @@ class TestCreateTaskRunState:
             trs = await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                 task_policy=await provide_task_policy(),
             )
 
@@ -208,7 +208,7 @@ class TestCreateTaskRunState:
                 trs = await models.task_runs.set_task_run_state(
                     session=session,
                     task_run_id=task_run.id,
-                    state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                    state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                     task_policy=await provide_task_policy(),
                     orchestration_parameters=await provide_task_orchestration_parameters(),
                 )

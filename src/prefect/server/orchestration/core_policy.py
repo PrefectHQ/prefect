@@ -454,7 +454,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
         # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
-        delay = scheduled_time - pendulum.now()
+        delay = scheduled_time - pendulum.now("UTC")
         delay_seconds = delay.in_seconds()
         delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
