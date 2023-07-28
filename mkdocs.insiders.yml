@@ -4,7 +4,7 @@ plugins:
     privacy:
         assets_include:
             - cdn.amplitude.com/*
-    social:
+    material/social:
         cards: !ENV [DOC_PROD, True]
         cards_layout_options:
             background_color: "#115AF4"
