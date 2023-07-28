@@ -198,7 +198,7 @@ class TestCreateFlowRunState:
         frs = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
             flow_policy=await provide_flow_policy(),
         )
 
@@ -225,7 +225,7 @@ class TestCreateFlowRunState:
             frs = await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                 flow_policy=await provide_flow_policy(),
             )
 
@@ -261,7 +261,7 @@ class TestCreateFlowRunState:
                 frs = await models.flow_runs.set_flow_run_state(
                     session=session,
                     flow_run_id=flow_run.id,
-                    state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                    state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                     flow_policy=await provide_flow_policy(),
                     orchestration_parameters=await provide_flow_orchestration_parameters(),
                 )

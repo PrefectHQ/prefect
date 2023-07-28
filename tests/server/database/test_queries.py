@@ -167,7 +167,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, fr_1, fr_2, fr_3
     ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            db=db, scheduled_before=pendulum.now().subtract(seconds=90)
+            db=db, scheduled_before=pendulum.now("UTC").subtract(seconds=90)
         )
         result = await session.execute(query)
         runs = result.all()
@@ -326,7 +326,7 @@ class TestGetRunsFromWorkQueueQuery:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.states.Scheduled(
-                            scheduled_time=pendulum.now().add(hours=i)
+                            scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
