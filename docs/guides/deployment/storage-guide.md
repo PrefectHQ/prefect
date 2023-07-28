@@ -60,7 +60,7 @@ The flow code storage options shown below are recommended for production deploym
 ## Option 2: Git-based storage
 
 Git-based version control platforms are popular locations for code storage. 
-This solution provides redundancy, version control, and easier collaboration.
+They provide redundancy, version control, and easier collaboration.
 
 [GitHub](https://github.com/) is the most popular cloud-based repository hosting provider. 
 [GitLab](https://www.gitlab.com) and [Bitbucket](https://bitbucket.org/) are other popular options. 
