@@ -3,13 +3,15 @@ from typing import Awaitable, Callable, List, Literal, Union
 from contextlib import contextmanager
 
 import httpx
+import pendulum
 
 from prefect import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.events import Event, RelatedResource, emit_event
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect.utilities.math import clamped_poisson_interval
+from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
+from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
 
 
 async def wait_for_successful_response(
@@ -20,8 +22,13 @@ async def wait_for_successful_response(
     **kwargs,
 ) -> httpx.Response:
     """Given a callable `fn`, call it with `*args` and `**kwargs` and retry on
-    `retryable_status_codes` until a 2xx status code is returned. Uses an
-    exponential backoff with a max of `max_retry_seconds` seconds."""
+    `retryable_status_codes` until a 2xx status code is returned.
+
+    When retrying a request it will first look for a `Retry-After` header and
+    use that value, if that fails it'll fall back to an exponential backoff
+    with a max of `max_retry_seconds` seconds."""
+
+    jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
 
     try_count = 0
     while True:
@@ -29,13 +36,18 @@ async def wait_for_successful_response(
         try_count += 1
         try:
             response = await fn(*args, **kwargs)
-        except Exception as exc:
+        except httpx.HTTPStatusError as exc:
             if exc.response.status_code in retryable_status_codes:
-                # TODO: This should handle a `Retry-After` header instead of
-                # always using a clamped exponential backoff.
-                retry_seconds = clamped_poisson_interval(
-                    min(2**try_count, max_retry_seconds)
-                )
+                try:
+                    retry_after = float(exc.response.headers["Retry-After"])
+                    retry_seconds = bounded_poisson_interval(
+                        retry_after, retry_after * (1.0 + jitter_factor)
+                    )
+                except Exception:
+                    retry_seconds = clamped_poisson_interval(
+                        min(2**try_count, max_retry_seconds)
+                    )
+
                 await asyncio.sleep(retry_seconds)
             else:
                 raise exc
@@ -60,10 +72,12 @@ async def acquire_concurrency_slots(
 
 
 async def release_concurrency_slots(
-    names: List[str], slots: int
+    names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:
-        response = await client.release_concurrency_slots(names=names, slots=slots)
+        response = await client.release_concurrency_slots(
+            names=names, slots=slots, occupancy_seconds=occupancy_seconds
+        )
         return _response_to_minimal_concurrency_limit_response(response)
 
 
@@ -121,10 +135,16 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
         event = emit_concurrency_event("acquired", limit, limits, occupy)
         concurrency_limit_events[limit.id] = event
 
+    acquisition_time = pendulum.now("UTC")
+
     try:
         yield
     finally:
-        call_async_function(release_concurrency_slots, names, occupy)
+        occupancy_seconds: float = (
+            pendulum.now("UTC") - acquisition_time
+        ).total_seconds()
+
+        call_async_function(release_concurrency_slots, names, occupy, occupancy_seconds)
         for limit in limits:
             emit_concurrency_event(
                 "released", limit, limits, occupy, concurrency_limit_events[limit.id]
@@ -132,9 +152,9 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
 
 
 def rate_limit(names: Union[str, List[str]], occupy: int = 1):
-    """Block execution until `occupy` number of slots of the concurrency limits
-    given in `names` are aquired. Requires that all given concurrency limits
-    have slot decay.
+    """Block execution until an `occupy` number of slots of the concurrency
+    limits given in `names` are acquired. Requires that all given concurrency
+    limits have a slot decay.
 
     Args:
         names: The names of the concurrency limits to acquire slots from.
