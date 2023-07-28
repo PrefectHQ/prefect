@@ -75,6 +75,9 @@ theme:
           toggle:
               icon: material/weather-night
               name: Switch to light mode
+validation:
+    absolute_links: ignore
+    unrecognized_links: ignore
 plugins:
     mike:
         canonical_version: latest
