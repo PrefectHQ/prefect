@@ -148,10 +148,7 @@ nav:
                 - Artifacts: concepts/artifacts.md
                 - States: concepts/states.md
                 - Blocks: concepts/blocks.md
-                - Variables: concepts/variables.md
                 - Task Runners: concepts/task-runners.md
-                - Runtime Context: concepts/runtime-context.md
-                - Profiles & Configuration: concepts/settings.md
           - Deploy:
                 - Deployments: concepts/deployments.md
                 - Deployment Management: concepts/deployments-ux.md
@@ -160,7 +157,6 @@ nav:
                 - Filesystems: concepts/filesystems.md
                 - Infrastructure: concepts/infrastructure.md
                 - Schedules: concepts/schedules.md
-                - Logging: concepts/logs.md
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
@@ -172,28 +168,32 @@ nav:
                 - Service Accounts: cloud/users/service-accounts.md
                 - Single Sign-on (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
-          - Events: cloud/events.md
-          - Webhooks: cloud/webhooks.md
-          - Automations: cloud/automations.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Host:
           - host/index.md
     - Guides:
           - guides/index.md
-          - Testing: guides/testing.md
-          - Dask & Ray: guides/dask-ray-task-runners.md
-          - Troubleshooting: guides/troubleshooting.md
           - Deployment:
+                - Cloud Run and ECS Push Work Pools: guides/push-work-pools.md
                 - Docker: guides/deployment/docker.md
                 - Azure Container Instance: guides/deployment/aci.md
                 - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
-                - Developing a New Worker Type: guides/deployment/developing-a-new-worker-type.md
-                - Running flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
+                - Develop a New Worker Type: guides/deployment/developing-a-new-worker-type.md
+                - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
+          - Events: guides/events.md
+          - Automations: guides/automations.md
+          - Logging: guides/logging.md
+          - Runtime Context: guides/runtime-context.md
+          - Profiles & Configuration: guides/settings.md
+          - Variables: guides/variables.md
+          - Webhooks: guides/webhooks.md
+          - Testing: guides/testing.md
+          - Dask & Ray: guides/dask-ray-task-runners.md
+          - Troubleshooting: guides/troubleshooting.md
           - Recipes: recipes/recipes.md
-          - Migration Guide: guides/migration-guide.md
+          - Migration: guides/migration-guide.md
           - State Change Hooks: guides/state-change-hooks.md
-          - Cloud Run and ECS Push Work Pools: guides/push-work-pools.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md

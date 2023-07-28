@@ -375,8 +375,43 @@ to = "/api-ref/prefect/deployments-ux/"
 status = 301
 
 [[redirects]]
-from = "/guides/cloud-run-push-work-pools.md"
-to = "/guides/push-work-pools.md"
+from = "/guides/cloud-run-push-work-pools/"
+to = "/guides/push-work-pools/"
+status = 301
+
+[[redirects]]
+from = "/concepts/logs/"
+to = "/guides/logs/"
+status = 301
+
+[[redirects]]
+from = "/concepts/runtime-context/"
+to = "/guides/runtime-context/"
+status = 301
+
+[[redirects]]
+from = "/concepts/settings/"
+to = "/guides/settings/"
+status = 301
+
+[[redirects]]
+from = "/concepts/variables/"
+to = "/guides/variables/"
+status = 301
+
+[[redirects]]
+from = "/cloud/webhooks/"
+to = "/guides/webhooks/"
+status = 301
+
+[[redirects]]
+from = "/cloud/events/"
+to = "/guides/events/"
+status = 301
+
+[[redirects]]
+from = "/cloud/automations/"
+to = "/guides/automations/"
 status = 301
 
 [[headers]]
