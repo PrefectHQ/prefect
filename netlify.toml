@@ -406,12 +406,12 @@ status = 301
 
 [[redirects]]
 from = "/cloud/events/"
-to = "/guides/events/"
+to = "/concepts/events/"
 status = 301
 
 [[redirects]]
 from = "/cloud/automations/"
-to = "/guides/automations/"
+to = "/concepts/automations/"
 status = 301
 
 [[headers]]

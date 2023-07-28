@@ -157,6 +157,8 @@ nav:
                 - Filesystems: concepts/filesystems.md
                 - Infrastructure: concepts/infrastructure.md
                 - Schedules: concepts/schedules.md
+                - Events: concepts/events.md
+                - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
           - Workspaces: cloud/workspaces.md
@@ -181,8 +183,6 @@ nav:
                 - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
                 - Develop a New Worker Type: guides/deployment/developing-a-new-worker-type.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
-          - Events: guides/events.md
-          - Automations: guides/automations.md
           - Logging: guides/logging.md
           - Runtime Context: guides/runtime-context.md
           - Profiles & Configuration: guides/settings.md
