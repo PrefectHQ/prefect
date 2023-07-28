@@ -8,7 +8,7 @@ ipython; python_version > '3.8'
 jinja2
 mkdocs == 1.4.3
 mkdocs-gen-files
-mkdocs-material == 9.1.19 
+mkdocs-material == 9.1.18
 mkdocstrings-python
 mike
 mock; python_version < '3.8'
