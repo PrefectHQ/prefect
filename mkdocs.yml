@@ -175,8 +175,6 @@ nav:
                 - Audit Log: cloud/users/audit-log.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
-    - Host:
-          - host/index.md
     - Guides:
           - guides/index.md
           - Deployment:
