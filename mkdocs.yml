@@ -180,23 +180,23 @@ nav:
     - Guides:
           - guides/index.md
           - Deployment:
-                - Cloud Run and ECS Push Work Pools: guides/push-work-pools.md
                 - Docker: guides/deployment/docker.md
-                - Azure Container Instance: guides/deployment/aci.md
                 - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
-                - Develop a New Worker Type: guides/deployment/developing-a-new-worker-type.md
+                - Cloud Run and ECS Push Work Pools: guides/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
-          - Logging: guides/logging.md
-          - Runtime Context: guides/runtime-context.md
+                - Azure Container Instance: guides/deployment/aci.md
+                - Custom Workers: guides/deployment/developing-a-new-worker-type.md
           - Profiles & Configuration: guides/settings.md
+          - Logging: guides/logging.md
+          - Testing: guides/testing.md
+          - Troubleshooting: guides/troubleshooting.md
+          - Runtime Context: guides/runtime-context.md
           - Variables: guides/variables.md
           - Webhooks: guides/webhooks.md
-          - Testing: guides/testing.md
-          - Dask & Ray: guides/dask-ray-task-runners.md
-          - Troubleshooting: guides/troubleshooting.md
-          - Recipes: recipes/recipes.md
-          - Migration: guides/migration-guide.md
           - State Change Hooks: guides/state-change-hooks.md
+          - Dask & Ray: guides/dask-ray-task-runners.md
+          - Migration: guides/migration-guide.md
+          - Recipes: recipes/recipes.md
     - Integrations:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
