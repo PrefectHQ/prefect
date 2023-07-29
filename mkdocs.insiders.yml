@@ -1,5 +1,6 @@
 INHERIT: mkdocs.yml
 plugins:
+    meta:
     privacy:
         assets_include:
             - cdn.amplitude.com/*
@@ -8,3 +9,4 @@ plugins:
         cards_layout_options:
             background_color: "#115AF4"
     typeset:
+w

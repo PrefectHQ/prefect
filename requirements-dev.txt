@@ -6,9 +6,9 @@ flaky
 ipython == 8.12.*; python_version == '3.8'
 ipython; python_version > '3.8'
 jinja2
-mkdocs == 1.4.3
+mkdocs
 mkdocs-gen-files
-mkdocs-material == 9.1.18
+mkdocs-material
 mkdocstrings-python
 mike
 mock; python_version < '3.8'
