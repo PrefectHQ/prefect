@@ -107,18 +107,17 @@ Creating access tokens differs for each provider.
     Under *Your Profile->Developer Settings->Personal access tokens->Fine-grained token* choose *Generate New Token* and fill in the required fields. 
     Under *Repository access* choose *Only select repositories* and grant the token permissions for *Contents*.
 
-=== "GitLab"
-
-    We recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
-
-    In your repository in the GitLab UI, select *Settings->Repository->Project Access Tokens* and check *read_repository* under *Select scopes*.
-
-
 === "Bitbucket"
 
     We recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
     
     You can create a Repository Access Token with Scopes->Repositories->Read. 
+
+=== "GitLab"
+
+    We recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
+
+    In your repository in the GitLab UI, select *Settings->Repository->Project Access Tokens* and check *read_repository* under *Select scopes*.
 
 If you want to configure a Secret block ahead of time for use when deploying a `prefect.yaml` file, create the block via code or the Prefect UI and reference it like this:
 
