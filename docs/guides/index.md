@@ -21,7 +21,7 @@ This section of the documentation contains guides for common workflows and use c
 | [ECS](https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs) |  Run flows on AWS ECS. |
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy workflows with ACI. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute serverless flows on ECS, ACI, or Cloud Run without running a worker. | 
-| [Logs](/guides/logs/) the information you need. |
+| [Logs](/guides/logs/) | Get the information you need. |
 | [Testing](/guides/testing/) | Easily test your workflows. |
 | [Troubleshooting](/guides/troubleshooting/) | For the times everything doesn't go according to plan. |
 | [Runtime context](/guides/runtime-context/) | Use information about currently running flows in your flow code.  |
