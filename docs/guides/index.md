@@ -9,9 +9,13 @@ search:
   boost: 2
 ---
 
+# Guides
+
+This section of the documentation contains guides for common workflows and use cases. 
+
 | Keyword                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Profiles & Settings](/guides/settings/) | Learn how to configure Prefect and save your settings. |
+| [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
 | [Docker](/guides/deployment/docker/) | Deploy workflows with Docker containers. |
 | [Kubernetes]() | Deploy flows on Kubernetes. |
 | [ECS]() |  Run flows on AWS ECS. |
