@@ -414,6 +414,11 @@ from = "/cloud/automations/"
 to = "/concepts/automations/"
 status = 301
 
+[[redirects]]
+from = "/host/"
+to = "/guides/host/"
+status = 301
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
