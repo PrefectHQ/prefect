@@ -5,6 +5,8 @@ title: Guides
 tags:
     - guides
     - how to
+hide:
+  - toc
 search:
   boost: 2
 ---
