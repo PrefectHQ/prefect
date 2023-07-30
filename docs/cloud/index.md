@@ -73,7 +73,7 @@ When you first log into Prefect Cloud and create your workspace, it will most li
 
 ## Events
 
-Prefect Cloud allows you to see your [events](https://docs.prefect.io/2.10.13/cloud/events/). 
+Prefect Cloud allows you to see your [events](/cloud/events/). 
 ![Prefect UI](/img/ui/event-feed.png)
 
 
