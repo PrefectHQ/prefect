@@ -869,6 +869,20 @@ def test_task_run_logger_with_flow(task_run):
     assert logger.extra["flow_name"] == "foo"
 
 
+def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
+    @flow(name="foo")
+    def test_flow():
+        pass
+
+    with FlowRunContext.construct(flow_run=flow_run, flow=test_flow):
+        logger = task_run_logger(task_run)
+        assert (
+            logger.extra["flow_run_id"] == str(task_run.flow_run_id) == str(flow_run.id)
+        )
+        assert logger.extra["flow_run_name"] == flow_run.name
+        assert logger.extra["flow_name"] == test_flow.name == "foo"
+
+
 def test_task_run_logger_with_kwargs(task_run):
     logger = task_run_logger(task_run, foo="test", task_run_name="bar")
     assert logger.extra["foo"] == "test"
