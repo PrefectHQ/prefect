@@ -29,7 +29,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Testing](/guides/testing/) | Easily test your workflows. |
 | [Troubleshooting](/guides/troubleshooting/) | For the times everything doesn't go according to plan. |
 | [Runtime context](/guides/runtime-context/) | Use information about currently running flows in your flow code.  |
-| [Variables](/guides/variables/) | Save small bits of configuration. | 
+| [Variables](/guides/variables/) | Store and retrieve configuration data. | 
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks like Dask and Ray. |
