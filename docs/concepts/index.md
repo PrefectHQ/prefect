@@ -37,5 +37,7 @@ search:
 | __[Infrastructure](/concepts/infrastructure)__           | [Blocks](/concepts/blocks/) that specify infrastructure for flow runs created by the deployment.   |
 | __[Schedules](/concepts/schedules)__                     | Tell the Prefect API how to create new flow runs for you automatically on a specified cadence.     |
 | __[Logging](/concepts/logs)__                            | Log a variety of useful information about your flow and task runs on the server.                   |
+| __[Events](/concepts/events)__                     | Observe activity across your stack.     |
+| __[Automations](/concepts/automations)__                            |    Configure actions that Prefect executes automatically based on trigger conditions.                |
 
-Features specific to [Prefect Cloud](/cloud/) are in their own subheading.
+Many features specific to [Prefect Cloud](/cloud/) are in their own subheading.
