@@ -34,7 +34,7 @@ This section of the documentation contains guides for common workflows and use c
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Parallelize your code with task runners. |
 | [Hosting](/guides/host/) | Host your own Prefect Server. |
-| [Migration Guide](/guides/migration-guide/) | Learn how to migrate from Prefect 1 to Prefect 2. |
+| [Migration Guide](/guides/migration-guide/) | Migrate from Prefect 1 to Prefect 2. |
 | [Prefect Recipes](../recipes/recipes/) |  See common workflows. |
 
 !!! tip "Need help?"
