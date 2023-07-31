@@ -28,11 +28,12 @@ This section of the documentation contains guides for common workflows and use c
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Testing](/guides/testing/) | Easily test your workflows. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
-| [Runtime context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
+| [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. | 
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
+| [Moving Data](guides/moving-data.md) | Move data to and from cloud providers.  | 
 | [Hosting](/guides/host/) | Host your own Prefect Server. |
 | [Migration Guide](/guides/migration-guide/) | Migrate from Prefect 1 to Prefect 2. |
 | [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
