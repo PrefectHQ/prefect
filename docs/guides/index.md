@@ -27,7 +27,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Testing](/guides/testing/) | Easily test your workflows. |
-| [Troubleshooting](/guides/troubleshooting/) | For the times everything doesn't go according to plan. |
+| [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
 | [Runtime context](/guides/runtime-context/) | Use information about currently running flows in your flow code.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. | 
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
