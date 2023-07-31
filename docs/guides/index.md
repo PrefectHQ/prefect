@@ -35,7 +35,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks like Dask and Ray. |
 | [Hosting](/guides/host/) | Host your own Prefect Server. |
 | [Migration Guide](/guides/migration-guide/) | Migrate from Prefect 1 to Prefect 2. |
-| [Prefect Recipes](../recipes/recipes/) |  See common workflows. |
+| [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 !!! tip "Need help?"
     Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
