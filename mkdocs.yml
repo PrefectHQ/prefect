@@ -181,12 +181,12 @@ nav:
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
                 - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
-                - Serverless Push Work Pools: guides/push-work-pools.md
+                - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
           - Profiles & Configuration: guides/settings.md
-          - Logging: guides/logging.md
+          - Logging: guides/logs.md
           - Testing: guides/testing.md
           - Troubleshooting: guides/troubleshooting.md
           - Runtime Context: guides/runtime-context.md

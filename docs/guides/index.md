@@ -17,7 +17,7 @@ This section of the documentation contains guides for common workflows and use c
 
 | Keyword                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Storage](/guides/storage/) | Store your flow code for deployment runs. |
+| [Storage](/guides/deployment/storage-guide/) | Store your flow code for deployment runs. |
 | [Docker](/guides/deployment/docker/) | Deploy workflows with Docker containers. |
 | [Kubernetes](/guides/deployment/helm-worker/) | Deploy flows on Kubernetes. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute serverless flows on ECS, ACI, or Cloud Run without running a worker. | 
