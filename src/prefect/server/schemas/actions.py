@@ -339,7 +339,6 @@ class FlowRunCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.FlowRun)
     flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parameters: dict = FieldFrom(schemas.core.FlowRun)
     context: dict = FieldFrom(schemas.core.FlowRun)
@@ -348,6 +347,17 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+
+    # DEPRECATED
+
+    deployment_id: Optional[UUID] = Field(
+        None,
+        description=(
+            "DEPRECATED: The id of the deployment associated with this flow run, if"
+            " available."
+        ),
+        deprecated=True,
+    )
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
@@ -370,6 +380,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

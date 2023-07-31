@@ -88,6 +88,12 @@ class TestCreateWorkPool:
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
+    async def test_create_work_pool_with_empty_name(self, client, name):
+        response = await client.post("/work_pools/", json=dict(name=name))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "name cannot be empty" in response.json()["detail"]
+
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
         response = await client.post(
@@ -591,7 +597,7 @@ class TestWorkerProcess:
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 0
 
-        dt = pendulum.now()
+        dt = pendulum.now("UTC")
         response = await client.post(
             f"/work_pools/{work_pool.name}/workers/heartbeat",
             json=dict(name="test-worker"),
@@ -742,7 +748,7 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.states.Scheduled(
-                            scheduled_time=pendulum.now().add(hours=i)
+                            scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -835,7 +841,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_before=str(pendulum.now())),
+            json=dict(scheduled_before=str(pendulum.now("UTC"))),
         )
 
         data = pydantic.parse_obj_as(
@@ -846,7 +852,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_after(self, client, work_pools):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_after=str(pendulum.now())),
+            json=dict(scheduled_after=str(pendulum.now("UTC"))),
         )
 
         data = pydantic.parse_obj_as(
@@ -858,8 +864,8 @@ class TestGetScheduledRuns:
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
-                scheduled_before=str(pendulum.now().subtract(hours=1)),
-                scheduled_after=str(pendulum.now()),
+                scheduled_before=str(pendulum.now("UTC").subtract(hours=1)),
+                scheduled_after=str(pendulum.now("UTC")),
             ),
         )
 
@@ -871,7 +877,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_single_work_queue(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
@@ -903,7 +909,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_multiple_work_queues(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
@@ -934,7 +940,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_full_work_pool(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
         )

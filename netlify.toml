@@ -19,6 +19,11 @@ publish = "site"
 # moved page redirects #
 
 [[redirects]]
+from = "/tutorial/first-steps/"
+to = "/#prefect-quickstart"
+status = 301
+
+[[redirects]]
 from = "/collections/overview/"
 to = "/integrations/catalog/"
 status = 301
@@ -369,6 +374,50 @@ from = "/api-ref/prefect/projects/"
 to = "/api-ref/prefect/deployments-ux/"
 status = 301
 
+[[redirects]]
+from = "/guides/cloud-run-push-work-pools/"
+to = "/guides/push-work-pools/"
+status = 301
+
+[[redirects]]
+from = "/concepts/logs/"
+to = "/guides/logs/"
+status = 301
+
+[[redirects]]
+from = "/concepts/runtime-context/"
+to = "/guides/runtime-context/"
+status = 301
+
+[[redirects]]
+from = "/concepts/settings/"
+to = "/guides/settings/"
+status = 301
+
+[[redirects]]
+from = "/concepts/variables/"
+to = "/guides/variables/"
+status = 301
+
+[[redirects]]
+from = "/cloud/webhooks/"
+to = "/guides/webhooks/"
+status = 301
+
+[[redirects]]
+from = "/cloud/events/"
+to = "/concepts/events/"
+status = 301
+
+[[redirects]]
+from = "/cloud/automations/"
+to = "/concepts/automations/"
+status = 301
+
+[[redirects]]
+from = "/host/"
+to = "/guides/host/"
+status = 301
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.

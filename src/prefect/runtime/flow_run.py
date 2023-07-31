@@ -10,6 +10,13 @@ Available attributes:
     - `id`: the flow run's unique ID
     - `tags`: the flow run's set of tags
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
+    - `name`: the name of the flow run
+    - `flow_name`: the name of the flow
+    - `parameters`: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values explicitly passed for the run
+    - `parent_flow_run_id`: the ID of the flow run that triggered this run, if any
+    - `parent_deployment_id`: the ID of the deployment that triggered this run, if any
+
 """
 import os
 from typing import Any, Dict, List, Optional
@@ -21,7 +28,16 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 
-__all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name", "parameters"]
+__all__ = [
+    "id",
+    "tags",
+    "scheduled_start_time",
+    "name",
+    "flow_name",
+    "parameters",
+    "parent_flow_run_id",
+    "parent_deployment_id",
+]
 
 
 type_cast = {
@@ -81,6 +97,11 @@ def __dir__() -> List[str]:
 async def _get_flow_run(flow_run_id):
     async with get_client() as client:
         return await client.read_flow_run(flow_run_id)
+
+
+async def _get_task_run(task_run_id):
+    async with get_client() as client:
+        return await client.read_task_run(task_run_id)
 
 
 async def _get_flow_from_run(flow_run_id):
@@ -176,6 +197,38 @@ def get_parameters() -> Dict[str, Any]:
         return {}
 
 
+def get_parent_flow_run_id() -> Optional[str]:
+    flow_run_ctx = FlowRunContext.get()
+    run_id = get_id()
+    if flow_run_ctx is not None:
+        parent_task_run_id = flow_run_ctx.flow_run.parent_task_run_id
+    elif run_id is not None:
+        flow_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
+        parent_task_run_id = flow_run.parent_task_run_id
+    else:
+        parent_task_run_id = None
+
+    if parent_task_run_id is not None:
+        parent_task_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_task_run, parent_task_run_id)
+        ).result()
+        return parent_task_run.flow_run_id
+    return None
+
+
+def get_parent_deployment_id() -> Dict[str, Any]:
+    parent_flow_run_id = get_parent_flow_run_id()
+    if parent_flow_run_id is None:
+        return None
+
+    parent_flow_run = from_sync.call_soon_in_loop_thread(
+        create_call(_get_flow_run, parent_flow_run_id)
+    ).result()
+    return parent_flow_run.deployment_id if parent_flow_run else None
+
+
 FIELDS = {
     "id": get_id,
     "tags": get_tags,
@@ -183,4 +236,6 @@ FIELDS = {
     "name": get_name,
     "flow_name": get_flow_name,
     "parameters": get_parameters,
+    "parent_flow_run_id": get_parent_flow_run_id,
+    "parent_deployment_id": get_parent_deployment_id,
 }

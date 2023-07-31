@@ -16,7 +16,7 @@ async def deployment_name(deployment, prefect_client):
 
 @pytest.fixture
 def frozen_now(monkeypatch):
-    now = pendulum.now()
+    now = pendulum.now("UTC")
     monkeypatch.setattr("pendulum.now", lambda *_: now)
     yield now
 

@@ -11,6 +11,7 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
 from copy import deepcopy
+import os
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Tuple
@@ -89,6 +90,7 @@ async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
     inputs = apply_values(inputs, upstream_outputs)
     inputs = await resolve_block_document_references(inputs)
     inputs = await resolve_variables(inputs)
+    inputs = apply_values(inputs, os.environ)
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     result = await from_async.call_soon_in_new_thread(
         Call.new(step_func, **inputs)

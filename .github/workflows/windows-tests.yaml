@@ -1,16 +1,11 @@
 name: Windows tests
 
-env:
-  # enable colored output
-  # https://github.com/pytest-dev/pytest/issues/7443
-  PY_COLORS: 1
-
 on:
+  workflow_dispatch: {}
   schedule:
     - cron: '0 16 * * *'  # every day at 4 p.m. UTC / 9 a.m. PDT
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   run-tests-sqlite:
@@ -18,27 +13,28 @@ jobs:
 
     strategy:
       matrix:
-        # We only test Windows against 3.9 currently.
         python-version:
           - "3.9"
+          - "3.10"
 
       fail-fast: false
+
+    permissions:
+      contents: read
 
     runs-on: windows-latest
     timeout-minutes: 45
 
-    steps:
-      - name: Display current test matrix
-        run: echo '${{ toJSON(matrix) }}'
+    env:
+      # enable colored output
+      # https://github.com/pytest-dev/pytest/issues/7443
+      PY_COLORS: 1
 
+    steps:
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
           fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        if: ${{ matrix.build-docker-images }}
-        uses: docker/setup-buildx-action@v2
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -50,7 +46,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install--upgrade --upgrade-strategy eager -e .[dev]
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Run tests
         run: |

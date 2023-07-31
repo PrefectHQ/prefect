@@ -18,7 +18,7 @@ Events power several features in Prefect Cloud, including flow run logs, audit l
 
 Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
 
-Events enable observability into your data stack via the [event feed](/ui/events/), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
+Events enable observability into your data stack via the [event feed](/ui/events/#event-feed), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
 
 ![Prefect UI](/img/ui/event-feed.png)
 
@@ -67,7 +67,7 @@ def some_function(name: str="kiki") -> None:
 some_function()
 ```
 
-Prefect Cloud offers [programmable webhooks](/cloud/webhooks/) to recieve HTTP requests from other systems and translate them into events within your workspace.  Webhooks can emit [pre-defined static events](/cloud/webhooks/#static-webhook-events), dynamic events that [use portions of the incoming HTTP request](/cloud/webhooks/#dynamic-webhook-events), or events derived from [CloudEvents](http://localhost:8000/cloud/webhooks/#accepting-cloudevents).
+Prefect Cloud offers [programmable webhooks](/guides/webhooks/) to receive HTTP requests from other systems and translate them into events within your workspace.  Webhooks can emit [pre-defined static events](/guides/webhooks/#static-webhook-events), dynamic events that [use portions of the incoming HTTP request](/guides/webhooks/#dynamic-webhook-events), or events derived from [CloudEvents](/guides/webhooks/#accepting-cloudevents).
 
 Events emitted from any source will appear in the [event feed](/ui/events/), where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
 

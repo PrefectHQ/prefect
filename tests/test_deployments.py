@@ -689,6 +689,23 @@ class TestDeploymentApply:
                     create_route.calls[0].request.content
                 ) == trigger.as_automation().dict(json_compatible=True)
 
+    async def test_deployment_apply_with_dict_parameter(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep is not None
+
 
 class TestRunDeployment:
     @pytest.mark.parametrize(
@@ -942,7 +959,7 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        scheduled_time = pendulum.now()
+        scheduled_time = pendulum.now("UTC")
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             timeout=0,
@@ -956,7 +973,7 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
+        scheduled_time = pendulum.now("UTC") + pendulum.Duration(minutes=5)
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             scheduled_time=scheduled_time,

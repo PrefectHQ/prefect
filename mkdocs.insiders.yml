@@ -3,9 +3,9 @@ plugins:
     meta:
     privacy:
         assets_include:
-          - cdn.amplitude.com/*
+            - cdn.amplitude.com/*
     social:
         cards: !ENV [DOC_PROD, True]
-        cards_color:
-            fill: "#115AF4"
+        cards_layout_options:
+            background_color: "#115AF4"
     typeset:
