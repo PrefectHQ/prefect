@@ -25,7 +25,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. | 
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
-| [Logging](/guides/logs/) | Get the information you need. |
+| [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
 | [Testing](/guides/testing/) | Easily test your workflows. |
 | [Troubleshooting](/guides/troubleshooting/) | For the times everything doesn't go according to plan. |
 | [Runtime context](/guides/runtime-context/) | Use information about currently running flows in your flow code.  |
