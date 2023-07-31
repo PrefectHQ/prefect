@@ -22,7 +22,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Kubernetes](/guides/deployment/helm-worker/) | Deploy flows on Kubernetes. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute flows on serverless infrastructure like AWS ECS, Azure Container Instances, or Google Cloud Run without a worker. | 
 | [ECS](https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs) |  Run flows on AWS ECS. |
-| [Azure Container Instances](/guides/deployment/aci/) |  Deploy workflows with ACI. |
+| [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. | 
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
 | [Logging](/guides/logs/) | Get the information you need. |
