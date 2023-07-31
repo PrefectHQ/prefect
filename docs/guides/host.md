@@ -1,6 +1,5 @@
 ---
 description: Hosting Prefect Sever
-icon: octicons/server-24
 tags:
     - UI
     - dashboard

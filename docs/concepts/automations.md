@@ -32,7 +32,7 @@ The button next to the toggle provides commands to copy the automation ID, edit 
 
 Select the name of an automation to view **Details** about it and relevant **Events**.
 
-![Viewing details and events that triggered an automation in Prefect Cloud.](/img/ui/automation-detail-and-events.png)
+![Viewing details and events that triggered an automation in Prefect Cloud.](/img/ui/automations-detail-tab.png)
 
 ## Create an automation
 
