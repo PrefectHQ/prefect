@@ -164,11 +164,11 @@ nav:
                 - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
+          - Cloud Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
                 - cloud/users/index.md
-                - Cloud Quickstart: cloud/cloud-quickstart.md
                 - Roles (RBAC): cloud/users/roles.md
                 - API Keys: cloud/users/api-keys.md
                 - Service Accounts: cloud/users/service-accounts.md
