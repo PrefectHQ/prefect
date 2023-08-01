@@ -11,7 +11,7 @@
 - Move some concepts and cloud pages to guides section — https://github.com/PrefectHQ/prefect/pull/10328
 
 ### Deprecations
-- Deprecate FlowRunCreate.deployment_id — https://github.com/PrefectHQ/prefect/pull/10324
+- Deprecate `FlowRunCreate.deployment_id` — https://github.com/PrefectHQ/prefect/pull/10324
 
 ### Contributors
 - @psofiterol made their first contribution in https://github.com/PrefectHQ/prefect/pull/10320
