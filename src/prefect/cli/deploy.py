@@ -1191,6 +1191,10 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
 
 
 def _extract_variable(variable: str) -> Dict[str, Any]:
+    """
+    Extracts a variable from a string. Variables can be in the format
+    key=value or a JSON object.
+    """
     try:
         key, value = variable.split("=", 1)
     except ValueError:
@@ -1202,9 +1206,6 @@ def _extract_variable(variable: str) -> Dict[str, Any]:
         # try to parse as a JSON object
         return dict(json.loads(variable))
     except (ValueError, TypeError) as e:
-        import ipdb
-
-        ipdb.set_trace()
         raise ValueError(
             f'Could not parse variable: "{variable}". Please ensure variables are'
             " either in the format `key=value` or are strings containing a valid JSON"
