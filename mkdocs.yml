@@ -164,7 +164,7 @@ nav:
                 - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
-          - Cloud Quickstart: cloud/cloud-quickstart.md
+          - Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
