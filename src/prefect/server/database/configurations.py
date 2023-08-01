@@ -14,6 +14,8 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
+    PREFECT_SQLALCHEMY_POOL_SIZE,
+    PREFECT_SQLALCHEMY_MAX_OVERFLOW,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
@@ -37,6 +39,8 @@ class BaseDatabaseConfiguration(ABC):
         echo: bool = None,
         timeout: float = None,
         connection_timeout: float = None,
+        sqlalchemy_pool_size: int = None,
+        sqlalchemy_max_overflow: int = None,
     ):
         self.connection_url = connection_url
         self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
@@ -44,6 +48,8 @@ class BaseDatabaseConfiguration(ABC):
         self.connection_timeout = (
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
+        self.sqlalchemy_pool_size = sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
+        self.sqlalchemy_max_overflow = sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -121,6 +127,12 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if connect_args:
                 connect_args["server_settings"] = {"jit": "off"}
                 kwargs["connect_args"] = connect_args
+
+            if self.sqlalchemy_pool_size is not None:
+                kwargs["pool_size"] = self.sqlalchemy_pool_size
+
+            if self.sqlalchemy_max_overflow is not None:
+                kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
 

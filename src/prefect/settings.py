@@ -826,6 +826,28 @@ The following options are available:
 - "ignore": Do not log a warning message or raise an error.
 """
 
+PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
+    int,
+    default=None,
+)
+"""
+When creating a SQLAlchemy engine to connect to PostgreSQL, this value will be passed as the pool_size argument.
+
+If None the pool_size argument will not be passed to the engine; in this case SQLAlchemy will (currently anyway)
+default it to 5.
+"""
+
+PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
+    int,
+    default=None,
+)
+"""
+When creating a SQLAlchemy engine to connect to PostgreSQL, this value will be passed as the max_overflow argument.
+
+If None the max_overflow argument will not be passed to the engine; in this case SQLAlchemy will (currently anyway)
+default it to 10.
+"""
+
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
