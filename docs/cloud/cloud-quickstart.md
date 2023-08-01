@@ -8,8 +8,11 @@ tags:
     - workspaces
     - tutorial
     - getting started
+hide:
+  - toc
 search:
   boost: 2
+
 ---
 
 # Getting Started with Prefect Cloud <span class="badge cloud"></span>
