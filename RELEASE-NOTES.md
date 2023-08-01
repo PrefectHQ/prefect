@@ -3,7 +3,7 @@
 ## Release 2.11.2
 
 ### Enhancements
-- Make all calls to `pendulum.now()` explicitly in "UTC" — https://github.com/PrefectHQ/prefect/pull/10320
+- Explicitly set all calls to `pendulum.now()` to "UTC" — https://github.com/PrefectHQ/prefect/pull/10320
 
 ### Documentation
 - Add guide for specifying storage for deployments — https://github.com/PrefectHQ/prefect/pull/10150
