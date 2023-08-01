@@ -1190,6 +1190,28 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         return []
 
 
+def _extract_variable(variable: str) -> Dict[str, Any]:
+    try:
+        key, value = variable.split("=", 1)
+    except ValueError:
+        pass
+    else:
+        return {key: value}
+
+    try:
+        # try to parse as a JSON object
+        return dict(json.loads(variable))
+    except (ValueError, TypeError) as e:
+        import ipdb
+
+        ipdb.set_trace()
+        raise ValueError(
+            f'Could not parse variable: "{variable}". Please ensure variables are'
+            " either in the format `key=value` or are strings containing a valid JSON"
+            " object."
+        ) from e
+
+
 def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
     """
     Applies CLI options to a deploy config. CLI options take
@@ -1231,8 +1253,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 deploy_config["work_pool"]["name"] = cli_value
             elif cli_option == "variables":
                 for variable in cli_value or []:
-                    key, value = variable.split("=", 1)
-                    variable_overrides[key] = value
+                    variable_overrides.update(**_extract_variable(variable))
                 if not isinstance(deploy_config["work_pool"].get("variables"), dict):
                     deploy_config["work_pool"]["job_variables"] = {}
                 deploy_config["work_pool"]["job_variables"].update(variable_overrides)
