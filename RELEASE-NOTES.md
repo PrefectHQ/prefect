@@ -1,5 +1,23 @@
 # Prefect Release Notes
 
+## Release 2.11.2
+
+### Enhancements
+- Explicitly set all calls to `pendulum.now()` to "UTC" — https://github.com/PrefectHQ/prefect/pull/10320
+
+### Documentation
+- Add guide for specifying storage for deployments — https://github.com/PrefectHQ/prefect/pull/10150
+- Add ACI push work pool guide — https://github.com/PrefectHQ/prefect/pull/10323
+- Move some concepts and cloud pages to guides section — https://github.com/PrefectHQ/prefect/pull/10328
+
+### Deprecations
+- Deprecate `FlowRunCreate.deployment_id` — https://github.com/PrefectHQ/prefect/pull/10324
+
+### Contributors
+- @psofiterol made their first contribution in https://github.com/PrefectHQ/prefect/pull/10320
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.1...2.11.2
+
 ## Release 2.11.1
 
 ### Enhancements
