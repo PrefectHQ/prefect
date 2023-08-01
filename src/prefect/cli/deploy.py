@@ -185,9 +185,11 @@ async def deploy(
     ci: bool = typer.Option(
         False,
         "--ci",
+        "--no-flag",
         help=(
-            "Run this command in CI mode. This will disable interactive prompts and"
-            " will error if any required arguments are not provided."
+            "DEPRECATED:'--ci flag' is deprecated use '--no-flag' instead. Run this"
+            " command in CI mode. This will disable interactive prompts and will error"
+            " if any required arguments are not provided."
         ),
     ),
 ):
