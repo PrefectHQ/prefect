@@ -419,6 +419,12 @@ from = "/host/"
 to = "/guides/host/"
 status = 301
 
+[[redirects]]
+from = "/concepts/deployments-ux/"
+to = "/concepts/deployments/"
+status = 301
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
