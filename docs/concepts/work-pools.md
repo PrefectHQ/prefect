@@ -15,8 +15,6 @@ search:
 
 # Work Pools &  Workers
 
-![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
-
 Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, depending on your configuration.
 
 ## Work pool overview

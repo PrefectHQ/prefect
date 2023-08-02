@@ -147,7 +147,7 @@ nav:
           - Flows: concepts/flows.md
           - Tasks: concepts/tasks.md
           - Deployments: concepts/deployments.md
-          - Work Pools, Workers & Agents: concepts/work-pools.md
+          - Work Pools & Workers: concepts/work-pools.md
           - Schedules: concepts/schedules.md
           - Results: concepts/results.md
           - Artifacts: concepts/artifacts.md
