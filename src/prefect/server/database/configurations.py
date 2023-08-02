@@ -48,8 +48,12 @@ class BaseDatabaseConfiguration(ABC):
         self.connection_timeout = (
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
-        self.sqlalchemy_pool_size = sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
-        self.sqlalchemy_max_overflow = sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+        self.sqlalchemy_pool_size = (
+            sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
+        )
+        self.sqlalchemy_max_overflow = (
+            sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+        )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
