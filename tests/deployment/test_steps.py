@@ -24,6 +24,13 @@ async def variables(prefect_client: PrefectClient):
     )
 
 
+@pytest.fixture(scope="session")
+def set_dummy_env_var():
+    import os
+
+    os.environ["DUMMY_ENV_VAR"] = "dummy"
+
+
 class TestRunStep:
     async def test_run_step_runs_importable_functions(self):
         output = await run_step(
@@ -514,18 +521,50 @@ class TestRunShellScript:
         assert out == ""
         assert err.strip() == "Error Message"
 
-    async def test_run_shell_script_with_env(self, capsys):
-        script = "bash -c 'echo $TEST_ENV_VAR'"
+    @pytest.mark.parametrize(
+        "script,expected",
+        [
+            ("bash -c 'echo $TEST_ENV_VAR'", "Test Value"),
+            ("echo $TEST_ENV_VAR", "$TEST_ENV_VAR"),
+        ],
+    )
+    async def test_run_shell_script_with_env(self, script, expected, capsys):
         result = await run_shell_script(
             script, env={"TEST_ENV_VAR": "Test Value"}, stream_output=True
         )
-        assert result["stdout"] == "Test Value"
+        assert result["stdout"] == expected
         assert result["stderr"] == ""
 
         # Validate the output was streamed to the console
         out, err = capsys.readouterr()
-        assert out.strip() == "Test Value"
+        assert out.strip() == expected
         assert err == ""
+
+    @pytest.mark.parametrize(
+        "script",
+        [
+            "echo $DUMMY_ENV_VAR",
+            "bash -c 'echo $DUMMY_ENV_VAR'",
+        ],
+    )
+    async def test_run_shell_script_expand_env(self, script, capsys, set_dummy_env_var):
+        result = await run_shell_script(
+            script,
+            expand_env_vars=True,
+            stream_output=True,
+        )
+
+        assert result["stdout"] == "dummy"
+        assert result["stderr"] == ""
+
+    async def test_run_shell_script_no_expand_env(self, capsys, set_dummy_env_var):
+        result = await run_shell_script(
+            "echo $DUMMY_ENV_VAR",
+            stream_output=True,
+        )
+
+        assert result["stdout"] == "$DUMMY_ENV_VAR"
+        assert result["stderr"] == ""
 
     async def test_run_shell_script_no_output(self, capsys):
         result = await run_shell_script("echo Hello World", stream_output=False)
