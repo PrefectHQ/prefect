@@ -355,7 +355,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_filters_by_task_run_start_time(
         self, flow_run, session
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -628,7 +628,7 @@ class TestReadTaskRuns:
         assert {result_1[0].id, result_2[0].id} == {task_run_1.id, task_run_2.id}
 
     async def test_read_task_runs_applies_sort(self, flow_run, session):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(

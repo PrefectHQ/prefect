@@ -549,7 +549,7 @@ class TestReadFlowRuns:
         assert len(result) == 0
 
     async def test_read_flow_runs_filters_by_start_time(self, flow, session):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -648,7 +648,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_filters_by_next_scheduled_start_time(
         self, flow, session
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -717,7 +717,7 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_3.id}
 
     async def test_read_flow_runs_filters_by_expected_start_time(self, flow, session):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1069,7 +1069,7 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_2.id}
 
     async def test_read_flow_runs_applies_sort(self, flow, session):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(

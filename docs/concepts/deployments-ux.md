@@ -320,7 +320,7 @@ As an example, consider the following `prefect.yaml` file:
 ```yaml
 build:
 - prefect_docker.deployments.steps.build_docker_image:
-    id: build-image`
+    id: build-image
     requires: prefect-docker>=0.3.0
     image_name: my-repo/my-image
     tag: my-tag
