@@ -15,7 +15,7 @@ search:
   boost: 2
 ---
 
-# Deployments - Block Based
+# Block Based Deployments
 
 We encourage you to check out the new [deployment experience](/concepts/deployments/) with guided command line prompts and convenient CI/CD with `prefect.yaml` files.
 
