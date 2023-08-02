@@ -253,6 +253,19 @@ build:
         dockerfile: auto
 ```
 
+!!! warning "Provided environment variables are not expanded by default"
+    To expand environment variables in your shell script, set `expand_env_vars: true` in your `run_shell_script` step. For example:
+
+    ```yaml
+    - prefect.deployments.steps.run_shell_script:
+        id: get-user
+        script: echo $USER
+        stream_output: true
+        expand_env_vars: true
+    ```
+
+    Without `expand_env_vars: true`, the above step would return a literal string `$USER` instead of the current user.
+
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
 Below is an example of installing dependencies from a `requirements.txt` file after cloning:
