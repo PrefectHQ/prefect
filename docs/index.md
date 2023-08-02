@@ -163,7 +163,7 @@ Local flow run execution is great for development and testing, but to [schedule 
 
 !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
 
-When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Select the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional [schedule](/concepts/schedules/), create a [work pool](/tutorial/deployments/#why-work-pools-and-workers), optionally configure [remote flow code storage](/concepts/deployments-ux/#the-pull-action), and more!
+When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Select the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional [schedule](/concepts/schedules/), create a [work pool](/tutorial/deployments/#why-work-pools-and-workers), optionally configure [remote flow code storage](/concepts/deployments/#the-pull-action), and more!
 
 <div class="terminal">
 ```bash
