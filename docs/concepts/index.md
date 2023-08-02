@@ -5,6 +5,8 @@ tags:
     - concepts
     - features
     - overview
+hide:
+  - toc
 search:
   boost: 2
 ---
