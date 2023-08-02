@@ -157,10 +157,10 @@ nav:
           - Events: concepts/events.md
           - Automations: concepts/automations.md
           - Block and Agent-Based Deployments:
-                - Deployments: deployments-block-based.md
-                - Infrastructure: infrastructure.md
-                - Storage: storage.md
-                - Agents: agents.md
+                - Deployments: concepts/deployments-block-based.md
+                - Infrastructure: concepts/infrastructure.md
+                - Storage: concepts/storage.md
+                - Agents: concepts/agents.md
     - Cloud:
           - cloud/index.md
           - Quickstart: cloud/cloud-quickstart.md
