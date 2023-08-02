@@ -4879,16 +4879,19 @@ class TestDeployDockerBuildSteps:
 
 
 class TestDeployInfraOverrides:
-    async def test_uses_infra_overrides(self, project_dir, prefect_client):
+    @pytest.fixture
+    async def work_pool(self, prefect_client):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
+
+    async def test_uses_infra_overrides(self, project_dir, work_pool, prefect_client):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
                 " 1.0.0 -v env=prod -t foo-bar --variable"
-                ' \'{"resources":{"limits":"cpu"}}\''
+                ' \'{"resources":{"limits":{"cpu": 1}}}\''
             ),
             expected_code=0,
             expected_output_contains=[
@@ -4906,8 +4909,48 @@ class TestDeployInfraOverrides:
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {
             "env": "prod",
-            "resources": {"limits": "cpu"},
+            "resources": {"limits": {"cpu": 1}},
         }
+
+    async def test_rejects_json_strings(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable 'my-variable'"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
+
+    async def test_rejects_json_arrays(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable ['my-variable']"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
+
+    async def test_rejects_invalid_json(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable "
+                ' \'{"resources":{"limits":{"cpu"}\''
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")

@@ -1203,7 +1203,9 @@ def _extract_variable(variable: str) -> Dict[str, Any]:
         return {key: value}
 
     try:
-        # try to parse as a JSON object
+        # Only key=value strings and JSON objexcts are valid inputs for
+        # variables, not arrays or strings, so we attempt to convert the parsed
+        # object to a dict.
         return dict(json.loads(variable))
     except (ValueError, TypeError) as e:
         raise ValueError(
