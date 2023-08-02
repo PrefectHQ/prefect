@@ -53,7 +53,7 @@ flowchart LR
     end
 
     A --> D
-    D --> E("<div style='margin: 5px 10px 5px 5px;'>Agent</div>"):::red
+    D --> E("<div style='margin: 5px 10px 5px 5px;'>Worker</div>"):::red
     B -.-> E
     A -.-> B
     E -.-> G
