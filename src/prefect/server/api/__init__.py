@@ -7,6 +7,7 @@ from . import (
     block_types,
     collections,
     concurrency_limits,
+    concurrency_limits_v2,
     dependencies,
     deployments,
     flow_run_notification_policies,

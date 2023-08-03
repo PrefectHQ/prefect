@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Create Concurrency Limit V2 table
+SQLite: `5b0bd3b41a23`
+Postgres: `5f623ddbf7fe`
+
 # Migrate Artifact data to Artifact Collection
 SQLite: `2dbcec43c857`
 Postgres: `15f5083c16bd`

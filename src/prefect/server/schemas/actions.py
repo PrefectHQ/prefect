@@ -400,6 +400,30 @@ class ConcurrencyLimitCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class ConcurrencyLimitV2Create(ActionBaseModel):
+    """Data used by the Prefect REST API to create a v2 concurrency limit."""
+
+    active: bool = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: str = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: float = FieldFrom(schemas.core.ConcurrencyLimitV2)
+
+
+@copy_model_fields
+class ConcurrencyLimitV2Update(ActionBaseModel):
+    """Data used by the Prefect REST API to update a v2 concurrency limit."""
+
+    active: Optional[bool] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: Optional[str] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: Optional[float] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+
+
+@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
