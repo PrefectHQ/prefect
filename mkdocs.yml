@@ -162,7 +162,6 @@ nav:
           - State Change Hooks: guides/state-change-hooks.md
           - Dask & Ray: guides/dask-ray-task-runners.md
           - Hosting: guides/host.md
-          - Migration: guides/migration-guide.md
           - Recipes: recipes/recipes.md
     - Concepts:
           - concepts/index.md
