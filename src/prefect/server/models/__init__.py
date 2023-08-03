@@ -6,6 +6,7 @@ from . import (
     block_schemas,
     block_types,
     concurrency_limits,
+    concurrency_limits_v2,
     configuration,
     deployments,
     flow_run_notification_policies,

@@ -967,6 +967,20 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
+class ORMConcurrencyLimitV2:
+    active = sa.Column(sa.Boolean, nullable=False, default=True)
+    name = sa.Column(sa.String, nullable=False)
+    limit = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(sa.Integer, nullable=False)
+    denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
+
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
 class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
     slug = sa.Column(sa.String, nullable=False)
@@ -1362,6 +1376,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
         work_pool_mixin=ORMWorkPool,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
@@ -1414,6 +1429,7 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            concurrency_limit_v2_mixin=concurrency_limit_v2_mixin,
             work_pool_mixin=work_pool_mixin,
             worker_mixin=worker_mixin,
             work_queue_mixin=work_queue_mixin,
@@ -1460,6 +1476,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
         work_pool_mixin=ORMWorkPool,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
@@ -1515,6 +1532,9 @@ class BaseORMConfiguration(ABC):
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
             pass
 
+        class ConcurrencyLimitV2(concurrency_limit_v2_mixin, self.Base):
+            pass
+
         class WorkPool(work_pool_mixin, self.Base):
             pass
 
@@ -1566,6 +1586,7 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.ConcurrencyLimitV2 = ConcurrencyLimitV2
         self.WorkPool = WorkPool
         self.Worker = Worker
         self.WorkQueue = WorkQueue
