@@ -33,8 +33,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
-| [Hosting](/guides/host/) | Host your own Prefect Server. |
-| [Migration Guide](/guides/migration-guide/) | Migrate from Prefect 1 to Prefect 2. |
+| [Hosting](/guides/host/) | Host your own Prefect server instance. |
 | [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 !!! tip "Need help?"
