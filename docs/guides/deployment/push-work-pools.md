@@ -6,6 +6,7 @@ tags:
     - Cloud Run
     - AWS ECS
     - Azure Container Instance
+    - ACI
 search:
   boost: 2
 ---
@@ -61,13 +62,11 @@ In this guide you will:
     2. Click on "Access control (IAM)" and then "Role assignments".
     3. Search for the app registration and select it. Give it a role that has sufficient privileges to create, run, and delete ACI container groups.
 
-    
-
-## Work Pool Configuration
+## Work pool configuration
 
 Our push work pool will store information about what type of infrastructure we're running on, what default values to provide to compute jobs, and other important execution environment parameters. Because our push work pool needs to integrate securely with your serverless infrastructure, we need to start by storing our credentials in Prefect Cloud, which we'll do by making a block.
 
-### Creating a Credentials Block
+### Creating a Credentials block
 
 === "Google Cloud Run"
 
@@ -83,7 +82,7 @@ Our push work pool will store information about what type of infrastructure we'r
     
     Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
     
-    For use in a push work pool, this block must have the region and cluster name filled out, in addiiton to access key and access key secret.
+    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
 
     Provide any other optional information and create your block.
 
@@ -95,7 +94,7 @@ Our push work pool will store information about what type of infrastructure we'r
 
     Provide any other optional information and create your block.
 
-### Create Push Work Pool
+### Create push work pool
 
 Now navigate to work pools and click create to start configuring your push work pool by selecting a push option in the infrastructure type step.
 
@@ -124,7 +123,7 @@ Deployment details are described in the deployments [concept section](/concepts/
 
 Deploying your flow to the `my-push-pool` work pool will ensure that runs that are ready for execution will be submitted immediately, without the need for a worker to poll for them.
 
-## Putting it all Together
+## Putting it all together
 
 With your deployment created, navigate to its detail page and create a new flow run. You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your serverless infrastructure, created a job, ran the job, and began reporting on its execution.
 
