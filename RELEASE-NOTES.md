@@ -2,6 +2,21 @@
 
 ## Release 2.11.3
 
+## Support for expanding environment variables in `run_shell_script` step
+
+You can now pass environment variables in the `run_shell_script` step in your `prefect.yaml` by setting `expand_env_vars: true`. Previously, you would need to wrap the script in `bash -c` to expand environment variables. 
+
+For example, if you have a script that uses the environment variable `$USER`, you can pass it to the script like so:
+```yaml
+pull:
+    - prefect.deployments.steps.run_shell_script:
+        script: |
+            echo "User: $USER"
+            echo "Home Directory: $HOME"
+        stream_output: true
+        expand_env_vars: true
+```
+
 ### Enhancements
 - Expand environment variables in deployment `run_shell_script` step — https://github.com/PrefectHQ/prefect/pull/10198
 - Change language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
