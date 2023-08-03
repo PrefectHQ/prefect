@@ -1,5 +1,24 @@
 # Prefect Release Notes
 
+## Release 2.11.3
+
+### Enhancements
+- Expand environment variables in deployment `run_shell_script` step — https://github.com/PrefectHQ/prefect/pull/10198
+- Changes language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
+
+### Experimental
+- Port concurrency limit v2 API and modeling from Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/10363
+
+### Documentation
+- Add Prefect Cloud quickstart to navigation menu — https://github.com/PrefectHQ/prefect/pull/10350
+- Fix typo in deployments documentation — https://github.com/PrefectHQ/prefect/pull/10353
+- Reorganize concepts pages — https://github.com/PrefectHQ/prefect/pull/10359
+
+### Contributors
+- @AmanSal1
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.2...2.11.3
+
 ## Release 2.11.2
 
 ### Enhancements
