@@ -46,7 +46,7 @@
 
 ### Fixes
 - Hide links to work queues for push work pools — https://github.com/PrefectHQ/prefect-ui-library/pull/1603
-- Fix issue with Pause state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
+- Fix issue with `Pause` state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
 - Fix issue with flow run logs missing until after refresh — https://github.com/PrefectHQ/prefect-ui-library/pull/1594
 
 ### Experimental
@@ -69,7 +69,7 @@
 ## Release 2.11.0
 
 ### Flow summary graphs and stats
-Each flow page now includes graphs of it's recent flow runs, task runs, and (in prefect Cloud) related events, as well as summary statistics!
+Each flow page now includes graphs of its recent flow runs, task runs, and (in Prefect Cloud) related events, as well as summary statistics!
 
 <img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
 
@@ -102,7 +102,7 @@ For implementation details, see the following pull requests:
 - Add Deployment Quickstart — https://github.com/PrefectHQ/prefect/pull/9985
 - Add guide for setting up a push work pool — https://github.com/PrefectHQ/prefect/pull/10248
 - Add guide for deploying a flow using Docker — https://github.com/PrefectHQ/prefect/pull/10252
-- Edit install and quick start pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
+- Edit install and quickstart pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
 - Update automations screenshots — https://github.com/PrefectHQ/prefect/pull/10245
 - Fix typos on Deployment Management page — https://github.com/PrefectHQ/prefect/pull/10241
 - Fix flow retries example — https://github.com/PrefectHQ/prefect/pull/10233
@@ -112,7 +112,7 @@ For implementation details, see the following pull requests:
 - @dbentall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10258
 - @mesejo
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...2.11.0
 
 ## Release 2.10.21
 
