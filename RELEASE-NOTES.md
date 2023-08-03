@@ -4,7 +4,7 @@
 
 ### Enhancements
 - Expand environment variables in deployment `run_shell_script` step — https://github.com/PrefectHQ/prefect/pull/10198
-- Changes language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
+- Change language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
 
 ### Experimental
 - Port concurrency limit v2 API and modeling from Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/10363
