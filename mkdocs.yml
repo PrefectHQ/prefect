@@ -177,6 +177,7 @@ nav:
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
           - Automations: concepts/automations.md
+          - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
