@@ -17,8 +17,10 @@ pull:
         expand_env_vars: true
 ```
 
+For implementation details, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/10198
+
 ### Enhancements
-- Expand environment variables in deployment `run_shell_script` step — https://github.com/PrefectHQ/prefect/pull/10198
 - Change language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
 
 ### Experimental
