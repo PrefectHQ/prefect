@@ -1,9 +1,8 @@
 ---
-description: Prefect work pools route deployment flow runs to agents. Prefect workers and agents poll work pools for new runs to execute.
+description: Prefect work pools route deployment flow runs to workers. Prefect workers poll work pools for new runs to execute.
 tags:
     - work pools
     - workers
-    - agents
     - orchestration
     - flow runs
     - deployments
@@ -14,18 +13,16 @@ search:
   boost: 2
 ---
 
-# Work Pools, Workers, and Agents
-
-![flow-deployment-end-to-end](/img/concepts/flow-deployment-end-to-end.png)
+# Work Pools &  Workers
 
 Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, depending on your configuration.
 
 ## Work pool overview
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [agents](#agent-overview) or [workers](#worker-overview) to poll the work pool for flow runs to execute. Push work pools can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](#agent-overview)) to poll the work pool for flow runs to execute. Push work pools can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
 
 !!! tip "Work pools are like pub/sub topics"
-    It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) agents through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
+    It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) workers through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
 
 In addition, users can control aspects of work pool behavior, like how many runs the pool allows to be run concurrently or pausing delivery entirely. These options can be modified at any time, and any workers requesting work for a specific pool will only see matching flow runs.
 
@@ -200,7 +197,7 @@ $ prefect work-pool preview 'test-pool' --hours 12
 
 ### Pausing and deleting work pools
 
-A work pool can be paused at any time to stop the delivery of work to agents. Agents will not receive any work when polling a paused pool.
+A work pool can be paused at any time to stop the delivery of work to workers. Workers will not receive any work when polling a paused pool.
 
 To pause a work pool through the Prefect CLI, use the `prefect work-pool pause` command:
 
@@ -247,7 +244,7 @@ If new flow runs are received on the "critical" queue while flow runs are still 
 
 ### Local debugging
 
-As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
+As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect worker start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
 
 ## Worker overview
 
@@ -354,86 +351,6 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 | <span class="no-wrap">`if-not-present`<span> | Install the required package if it is not already installed. |
 | `never` | Never install the required package. |
 | `prompt` | Prompt the user to choose whether to install the required package. This is the default install policy. If `prefect worker start` is run non-interactively, the `prompt` install policy will behave the same as `never`. |
-
-## Agent overview
-
-Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs.
-
-Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
-
-It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
-
-### Agent options
-
-Agents are configured to pull work from one or more work pool queues. If the agent references a work queue that doesn't exist, it will be created automatically.
-
-Configuration parameters you can specify when starting an agent include:
-
-| Option                                            | Description                                                                                                                                                                                  |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--api`                                           | The API URL for the Prefect server. Default is the value of `PREFECT_API_URL`.                                                                                                               |
-| `--hide-welcome`                                  | Do not display the startup ASCII art for the agent process.                                                                                                                                  |
-| `--limit`                                         | Maximum number of flow runs to start simultaneously. [default: None]                                                                                                                         |
-| `--match`, `-m`                                   | Dynamically matches work queue names with the specified prefix for the agent to pull from,for example `dev-` will match all work queues with a name that starts with `dev-`. [default: None] |
-| `--pool`, `-p`                                    | A work pool name for the agent to pull from. [default: None]                                                                                                                                 |
-| <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`.                                                   |
-| `--run-once`                                      | Only run agent polling once. By default, the agent runs forever. [default: no-run-once]                                                                                                      |
-| `--work-queue`, `-q`                              | One or more work queue names for the agent to pull from. [default: None]                                                                                                                     |
-
-You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
-
-!!! tip "Prefect must be installed in execution environments"
-    Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
-
-!!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY` settings for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
-
-    If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
-
-### Starting an agent
-
-Use the `prefect agent start` CLI command to start an agent. You must pass at least one work pool name or match string that the agent will poll for work. If the work pool does not exist, it will be created.
-
-<div class="terminal">
-```bash
-$ prefect agent start -p [work pool name]
-```
-</div>
-
-For example:
-
-<div class="terminal">
-```bash
-$ prefect agent start -p "my-pool"
-Starting agent with ephemeral API...
-  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
- |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
-
-Agent started! Looking for work from work pool 'my-pool'...
-```
-</div>
-
-In this case, Prefect automatically created a new `my-queue` work queue.
-
-By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
-
-In addition, agents can match multiple queues in a work pool by providing a `--match` string instead of specifying all of the queues. The agent will poll every queue with a name that starts with the given string. New queues matching this prefix will be found by the agent without needing to restart it.
-
-For example:
-
-<div class="terminal">
-```bash
-$ prefect agent start --match "foo-"
-```
-</div>
-
-This example will poll every work queue that starts with "foo-".
-
-### Configuring prefetch
-
-By default, the agent begins submission of flow runs a short time (10 seconds) before they are scheduled to run. This allows time for the infrastructure to be created, so the flow run can start on time. In some cases, infrastructure will take longer than this to actually start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_AGENT_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start exactly on time.
 
 ### Additional resources
 

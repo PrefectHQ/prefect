@@ -186,8 +186,10 @@ async def deploy(
         False,
         "--ci",
         help=(
-            "Run this command in CI mode. This will disable interactive prompts and"
-            " will error if any required arguments are not provided."
+            "DEPRECATED: Please use the global '--no-prompt' flag instead: 'prefect"
+            " --no-prompt deploy'.\n\nRun this command in CI mode. This will disable"
+            " interactive prompts and will error if any required arguments are not"
+            " provided."
         ),
     ),
 ):
