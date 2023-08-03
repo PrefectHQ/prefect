@@ -200,6 +200,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.ConcurrencyLimit
 
     @property
+    def ConcurrencyLimitV2(self):
+        """A v2 concurrency model"""
+        return self.orm.ConcurrencyLimitV2
+
+    @property
     def WorkQueue(self):
         """A work queue model"""
         return self.orm.WorkQueue
