@@ -207,13 +207,13 @@ You've seen:
 To learn more, try our [tutorial](/tutorial) and [guides](/guides), or go deeper with [concepts](/concepts).
 
 !!! tip "Need help?"
-    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=dpcs)!
+    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
 
 ---
 
 ## Community
 
-- Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
+- Join over 26,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect)
 
 ---

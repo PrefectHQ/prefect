@@ -37,4 +37,4 @@ This section of the documentation contains guides for common workflows and use c
 | [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 !!! tip "Need help?"
-    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
+    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
