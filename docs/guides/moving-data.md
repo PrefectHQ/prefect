@@ -247,6 +247,10 @@ Use your block to read data from your cloud provider inside a flow
     from prefect import task, flow
     from prefect_aws import S3Bucket
 
+    my_bucket = S3Bucket(name="my-bucket")
+    my_bucket.load()
+    
+
     ```
 
 === "Azure"
@@ -261,7 +265,7 @@ Use your block to read data from your cloud provider inside a flow
     ```python
     from prefect import task, flow
     from prefect_gcp import GoogleCloudStorage
-    
+
     ```
 
 
