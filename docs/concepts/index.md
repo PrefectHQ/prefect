@@ -28,6 +28,7 @@ search:
 | __[Blocks](/concepts/blocks)__                     | Prefect primitives that enable the storage of configuration and provide a UI interface.                                     |
 | __[Task Runners](/concepts/task-runners)__         | Enable you to engage specific executors for Prefect tasks, such as concurrent, parallel, or distributed execution of tasks. |
 | __[Automations](/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.                |
+| __[Filesystems](/concepts/filesystems)__           | Blocks that allow you to read and write data from paths.   |
 |  Block and Agent-Based Deployments:                |    |
 | __[Block-based Deployments](/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
 | __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
