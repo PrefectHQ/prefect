@@ -144,26 +144,26 @@ nav:
           - Deploying Flows: tutorial/deployments.md
     - Concepts:
           - concepts/index.md
-          - Develop:
-                - Flows: concepts/flows.md
-                - Tasks: concepts/tasks.md
-                - Results: concepts/results.md
-                - Artifacts: concepts/artifacts.md
-                - States: concepts/states.md
-                - Blocks: concepts/blocks.md
-                - Task Runners: concepts/task-runners.md
-          - Deploy:
-                - Deployments: concepts/deployments.md
-                - Deployment Management: concepts/deployments-ux.md
-                - Work Pools, Workers & Agents: concepts/work-pools.md
-                - Storage: concepts/storage.md
-                - Filesystems: concepts/filesystems.md
+          - Flows: concepts/flows.md
+          - Tasks: concepts/tasks.md
+          - Deployments: concepts/deployments.md
+          - Work Pools & Workers: concepts/work-pools.md
+          - Schedules: concepts/schedules.md
+          - Results: concepts/results.md
+          - Artifacts: concepts/artifacts.md
+          - States: concepts/states.md
+          - Blocks: concepts/blocks.md
+          - Task Runners: concepts/task-runners.md
+          - Events: concepts/events.md
+          - Automations: concepts/automations.md
+          - Block and Agent-Based Deployments:
+                - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
-                - Schedules: concepts/schedules.md
-                - Events: concepts/events.md
-                - Automations: concepts/automations.md
+                - Storage: concepts/storage.md
+                - Agents: concepts/agents.md
     - Cloud:
           - cloud/index.md
+          - Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
