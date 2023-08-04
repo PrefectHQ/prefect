@@ -101,6 +101,26 @@ async def start(
         case_sensitive=False,
     ),
 ):
+    async def _check_work_pool_paused(work_pool_name: str) -> bool:
+        try:
+            async with get_client() as client:
+                work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+            return work_pool.is_paused
+        except ObjectNotFound:
+            typer.secho(
+                f"Work pool {work_pool_name!r} does not exist.", fg=typer.colors.RED
+            )
+            return False
+
+    is_paused = await _check_work_pool_paused(work_pool_name)
+
+    if is_paused:
+        typer.secho(
+            f"The work pool {work_pool_name!r} is currently paused.",
+            fg=typer.colors.YELLOW,
+        )
+        raise typer.Abort("Worker cannot be started as the work pool is paused.")
+
     """
     Start a worker process to poll a work pool for flow runs.
     """
