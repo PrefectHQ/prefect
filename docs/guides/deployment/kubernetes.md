@@ -58,7 +58,7 @@ Besides a cluster, the other critical resource we'll need is a container registr
 
     # Login to ECR
     # Replace the region and account ID with your own values
-    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+    aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
     ```
 
 <!-- === "GCP"
