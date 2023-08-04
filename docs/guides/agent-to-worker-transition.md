@@ -37,7 +37,7 @@
 
 4. **Managing multiple deployments:**
     
-    Its easier than before to create and/or update many deployments en mass through a `prefect.yaml` file.
+    Create and/or update many deployments en mass through a `prefect.yaml` file.
 
 
 ### **What stays the same**:
