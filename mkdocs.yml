@@ -179,6 +179,7 @@ nav:
           - Automations: concepts/automations.md
           - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
+                - Transitioning from Agents to Workers: guides/agent-to-worker-transition.md
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
