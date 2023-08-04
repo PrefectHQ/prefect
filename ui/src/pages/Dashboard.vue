@@ -36,7 +36,9 @@
     FlowRunsPageEmptyState,
     useWorkspaceApi,
     subscriptionIntervalKey,
-    mapper
+    mapper,
+    TaskRunsFilter,
+    Getter
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { secondsInHour, secondsToMilliseconds } from 'date-fns'
@@ -61,7 +63,7 @@
     tags: tags.value,
   }))
 
-  const tasksFilter = computed(() => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter'))
+  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter')
 </script>
 
 <style>
