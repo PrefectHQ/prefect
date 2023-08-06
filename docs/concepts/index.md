@@ -28,7 +28,7 @@ search:
 | __[Automations](/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.                |
 | __[Filesystems](/concepts/filesystems)__           | Blocks that allow you to read and write data from paths.   |
 
-|  Block and Agent-Based Deployments:                | Description   |
+|  Block and Agent-Based Deployments                 | Description   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | __[Block-based Deployments](/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
 | __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
