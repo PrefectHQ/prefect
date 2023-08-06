@@ -13,8 +13,6 @@ search:
 
 # Explore Prefect concepts
 
-## Develop
-
 | Keyword                                            | Description                                                                                                                 |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | __[Flows](/concepts/flows)__                       | A Prefect workflow, modeled as a Python function.                                                                           |
@@ -31,6 +29,7 @@ search:
 | __[Filesystems](/concepts/filesystems)__           | Blocks that allow you to read and write data from paths.   |
 
 |  Block and Agent-Based Deployments:                | Description   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | __[Block-based Deployments](/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
 | __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
