@@ -18,12 +18,12 @@ search:
 
 # How to move data to and from cloud providers
 
-A common task in data engineering is to send data to cloud-based storage and retrieve data from that storage. In this guide you'll learn how to use Prefect to move your data to and from AWS, Azure, and GCP blob storage.
+Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering. In this guide you'll learn how to use Prefect to move your data to and from AWS, Azure, and GCP blob storage.
 
 ## Prerequisites 
 - Prefect [installed](/getting-started/installation/)
 - Authenticated with [Prefect Cloud](/cloud/cloud-quickstart/) (or self-hosted [Prefect server](/guides/host/) instance)
-- An account for the cloud provider you want to use (e.g. [AWS](https://aws.amazon.com/))
+- A cloud provider account (e.g. [AWS](https://aws.amazon.com/))
 
 ## Install relevant Prefect integration library
 In the CLI, install the Prefect integration library for your cloud provider:
@@ -72,90 +72,29 @@ You should see a message in the CLI that several block types were registered.
 ## Create a storage bucket
 Create a storage bucket in your cloud provider account.
 
-=== "AWS"
-     You can use the AWS CLI or the AWS UI to create a bucket:
-
-    ```bash 
-    TK
-    aws s3 mb s3://my-bucket-name
-    ```
-
-=== "Azure"
-    You can use the Azure CLI or the Azure UI to create a bucket:
-
-    ```bash
-    TK
-    ```
-
-=== "GCP"
-    You can use the GCP CLI or the GCP UI to create a bucket:
-
-    ```bash
-    TK
-    ```
-
-## Cloud provider credentials
 Ensure the bucket is publicly accessible or that you have the appropriate permissions to fetch data from and write data to it. 
 
-=== "AWS"
-
-    When you create the bucket, use a role with the appropriate permissions. The user will need to be able to read from and write to the bucket.
-
-    You can also use the AWS CLI to create a user with the appropriate permissions:
-
-    ```bash
-    aws iam create-user --user-name my-user-name
-    ```
-
-    ```bash
-    aws iam attach-user-policy --user-name my-user-name --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
-    ```
-
-    ```bash
-    aws iam create-access-key --user-name my-user-name
-    ```
-
-    ```bash
-    aws configure --profile my-user-name
-    ```
-
-    ```bash
-    aws s3 mb s3://my-bucket-name
-    ```
-
-    ```bash
-    aws s3 ls
-    ```
-
-    ```bash
-    aws s3 cp my-file.txt s3://my-bucket-name
-    ```
-
-    ```bash
-    aws s3 ls s3://my-bucket-name
-    ```
-
-    ```bash
-    aws s3 rm s3://my-bucket-name/my-file.txt
-    ```
-
-    ```bash
-    aws s3 rb s3://my-bucket-name
-    ```
-
-    ```
 ## Create a credentials block 
-If you need to be authenticated to read or write ot storage you can use the Prefect UI or code to create a credentials block for your cloud provider. In this example we'll use Python code:
+If you need to be authenticated to read or write to your storage bucket, use the Prefect UI or Python code to create a credentials block for your cloud provider. In this example we'll use Python code. Reminder, don't store credential values in public locations (e.g. public repositories).
 
 === "AWS"
+
     ```python
-    from prefect_aws import AWSCredentials
+    from prefect_aws import AwsCredentials
+
+    my_aws_creds = AwsCredentials(
+        aws_access_key_id="123abc",
+        aws_secret_access_key="ab123",
+    )
+    my_aws_creds.save(name="my-aws-creds-block", overwrite=True)
 
     ```
 ## Create a storage block
 Create a block for your cloud provider using Python code or the UI. In this example we'll use Python code:
 
 === "AWS"
+
+    Note the S3Bucket block is not the same as the S3 block that ships with Prefect. The S3Bucket block we use in this example is part of the prefect-aws library and provides additional functionality. 
 
     ```python
     from prefect_aws import S3Bucket
@@ -179,8 +118,16 @@ Create a block for your cloud provider using Python code or the UI. In this exam
 
 === "GCP"
 
+    Note the GcsBucket block is not the same as the GCS block that ships with Prefect. The GcsBucket block is part of the prefect-gcp library and provides additional functionality. We'll use it here.
+
     ```python
-    from prefect_gcp import GoogleCloudStorage
+    from prefect_gcp.cloud_storage import GcsBucket
+
+    gcsbucket = GcsBucket(
+        bucket="my-bucket-name",
+    )
+
+    gcsbucket.save()
 
     ```
 
@@ -188,31 +135,15 @@ Run the code to create the block. You should see a message in the CLI that the b
 
 
 ## Write data
-Use your block inside a flow to write data to your cloud provider.
+Use your new block inside a flow to write data to your cloud provider.
 
 === "AWS"
 
     ```python
-    from prefect import task, flow
+    from prefect import flow
     from prefect_aws import S3Bucket
 
-    @task
-    def extract():
-        return [1, 2, 3]
 
-    @task
-    def transform(data):
-        return [i + 1 for i in data]
-
-    @task
-    def load(data):
-        print("Here's your data: {}".format(data))
-
-    @flow(log_prints=True)
-    def main():
-        e = extract()
-        t = transform(e)
-        l = load(t)
 
     if __name__ == "__main__":
         main()
@@ -230,10 +161,20 @@ Use your block inside a flow to write data to your cloud provider.
 === "GCP"
 
     ```python
-
-    from prefect import task, flow
+    from prefect import flow
     from prefect_gcp import GoogleCloudStorage
 
+
+    @flow()
+    def upload_to_gcs():
+        """Flow function to upload data"""
+        path = Path(f"my_path_to/my_file.parquet")
+        gcs_block = GcsBucket.load("my-gcs-bucket")
+        gcs_block.upload_from_path(from_path=path, to_path=path)
+
+
+    if __name__ == "__main__":
+        upload_to_gcs()
     ```
 
 ## Read data   
