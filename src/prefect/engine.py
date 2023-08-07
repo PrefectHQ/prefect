@@ -1264,6 +1264,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
         elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+        # Expressions inside quotes should not be traversed
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
