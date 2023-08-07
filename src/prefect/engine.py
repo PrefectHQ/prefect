@@ -1396,6 +1396,7 @@ async def create_task_run_then_submit(
         wait_for=wait_for,
         task_runner=task_runner,
     )
+
     future._submitted.set()
 
 
