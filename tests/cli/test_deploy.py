@@ -1885,6 +1885,41 @@ class TestProjectDeploy:
         )
         assert deployment.schedule is None
 
+    @pytest.mark.parametrize("build_value", [None, {}])
+    @pytest.mark.usefixtures("project_dir", "interactive_console")
+    async def test_deploy_does_not_prompt_build_docker_image_when_empty_build_action_prefect_yaml(
+        self, build_value, work_pool, prefect_client
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "build": build_value,
+                "schedule": {},
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+            expected_output_does_not_contain="Would you like to build a Docker image?",
+        )
+
+        assert await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
