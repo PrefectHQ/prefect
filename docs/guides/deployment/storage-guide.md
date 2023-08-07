@@ -111,7 +111,9 @@ Creating access tokens differs for each provider.
 
     We recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
     
-    You can create a Repository Access Token with Scopes->Repositories->Read. 
+    You can create a Repository Access Token with Scopes->Repositories->Read.
+
+    Bitbucket requires you prepend the token string with `x-token-auth:` So the full string looks like `x-token-auth:abc_123_this_is_my_token`. 
 
 === "GitLab"
 
