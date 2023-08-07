@@ -88,8 +88,7 @@ A deployment additionally enables you to:
 - Upload flow files to a defined storage location for retrieval at run time.
 - Specify run time infrastructure for flow runs, such as Docker or Kubernetes configuration.
 
-
-# Managing Deployments
+## Managing Deployments
 
 You can manage your deployments with a `prefect.yaml` file that describes how to prepare one or more [flow deployments](/concepts/deployments/). At a high level, you simply add the following file to your working directory:
 
@@ -99,8 +98,6 @@ You can initialize your deployment configuration, which creates the `prefect.yam
 
 !!! tip "Deployment configuration recipes"
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `prefect.yaml` file; run `prefect init` to be prompted with available recipes in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your working directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
-
-## The Prefect YAML file
 
 The `prefect.yaml` file contains deployment configuration for deployments created from this file, default instructions for how to build and push any necessary code artifacts (such as Docker images), and default instructions for pulling a deployment in remote execution environments (e.g., cloning a GitHub repository).
 
@@ -229,7 +226,7 @@ Once you've confirmed that these fields are set to their desired values, this st
 
     Note that the `id` field is used in the `run_shell_script` step so that its output can be referenced in the next step.
 
-#### The Push Action
+### The Push Action
 
 The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this code repository to arbitrary remote locations.
 
@@ -276,7 +273,7 @@ push:
 
 Anytime you run `prefect deploy`, this `push` section will be executed upon successful completion of your `build` section. For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
-#### The Pull Action
+### The Pull Action
 
 The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing your flows for a deployment run.  These instructions will be executed each time a deployment created within this folder is run via a worker.
 
@@ -307,7 +304,7 @@ pull:
         access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
 ```
 
-#### Utility Steps
+### Utility Steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
 - `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. This is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
@@ -431,13 +428,10 @@ So long as our `build` steps produce fields called `image_name` and `image_tag`,
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
 
     For an example, [check out the deployments tutorial](/guides/deployment/docker/).
-
-
 ### Deployment Configurations
 
 Each `prefect.yaml` file can have multiple deployment configurations that control the behavior of created deployments. These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
-
-#### Working With Multiple Deployments
+### Working With Multiple Deployments
 
 Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
 
@@ -511,9 +505,7 @@ $ prefect deploy --all
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
 
     To provide overrides to a deployment via the CLI, you must deploy that deployment individually.
-
-
-#### Reusing Configuration Across Deployments
+### Reusing Configuration Across Deployments
 
 Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
 
@@ -583,8 +575,8 @@ In the above example, we are using YAML aliases to reuse work pool, schedule, an
 - `deployment-1` and `deployment-3` are using the same schedule
 - `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` field to use a custom Dockerfile
 
-### Deployment Declaration Reference
-#### Deployment Fields
+## Deployment Declaration Reference
+### Deployment Fields
 
 Below are fields that can be added to each deployment declaration.
 
@@ -601,7 +593,7 @@ Below are fields that can be added to each deployment declaration.
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
-#### Schedule Fields
+### Schedule Fields
 
 Below are fields that can be added to a deployment declaration's `schedule` section.
 
@@ -616,7 +608,7 @@ Below are fields that can be added to a deployment declaration's `schedule` sect
 
 For more information about schedules, see the [Schedules](/concepts/schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section) concept doc.
 
-#### Work Pool Fields
+### Work Pool Fields
 
 Below are fields that can be added to a deployment declaration's `work_pool` section.
 
@@ -625,7 +617,6 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool will be used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
-
 ## Deployment mechanics
 
 Anytime you run `prefect deploy`, the following actions are taken in order:
@@ -638,7 +629,6 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 
 !!! tip "Deployment Instruction Overrides"
     The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections above them in `prefect.yaml`.
-
 
 Anytime a step is run, the following actions are taken in order:
 
