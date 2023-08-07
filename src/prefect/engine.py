@@ -1374,9 +1374,6 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
-    import time
-
-    s = time.time()
     task_run = await create_task_run(
         task=task,
         name=task_run_name,
@@ -1386,12 +1383,10 @@ async def create_task_run_then_submit(
         wait_for=wait_for,
         extra_task_inputs=extra_task_inputs,
     )
-    e = time.time()
-    print("Create Task Run: ", e - s)
 
     # Attach the task run to the future to support `get_state` operations
     future.task_run = task_run
-    s = time.time()
+
     await submit_task_run(
         task=task,
         future=future,
@@ -1401,8 +1396,6 @@ async def create_task_run_then_submit(
         wait_for=wait_for,
         task_runner=task_runner,
     )
-    e = time.time()
-    print("Submit Task Run: ", e - s)
     future._submitted.set()
 
 
@@ -1415,26 +1408,16 @@ async def create_task_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> TaskRun:
-    import time
-
-    s = time.time()
-
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
-    e = time.time()
 
-    print("Collect Task Run Inputs: ", e - s)
-
-    s = time.time()
     # Join extra task inputs
     for k, extras in extra_task_inputs.items():
         task_inputs[k] = task_inputs[k].union(extras)
-    e = time.time()
-    print("Join Extra Task Inputs: ", e - s)
+
     logger = get_run_logger(flow_run_context)
 
-    s = time.time()
     task_run = await flow_run_context.client.create_task_run(
         task=task,
         name=name,
@@ -1444,8 +1427,6 @@ async def create_task_run(
         extra_tags=TagsContext.get().current_tags,
         task_inputs=task_inputs,
     )
-    e = time.time()
-    print("api call to create task run: ", e - s)
 
     logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
