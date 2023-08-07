@@ -451,9 +451,7 @@ async def _run_single_deploy(
 
     update_work_pool_image = False
 
-    build_step_set_to_null = (
-        True if "build" in deploy_config and deploy_config["build"] is None else False
-    )
+    build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
 
     if is_interactive() and not docker_build_step_exists and not build_step_set_to_null:
         work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
