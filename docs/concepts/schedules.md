@@ -122,7 +122,7 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
 
 ## Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployent YAML file.
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployment YAML file.
 
 ```yaml
 schedule:
