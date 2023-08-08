@@ -1,5 +1,7 @@
 # How to Upgrade from Agents to Workers
 
+Upgrading from agents to workers opens the door to a host of enhanced features. It's important to understand that some of these features are interconnected. For instance, to define your deployments in a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file, you must [create a Work Pool](/concepts/work-pools/#work-pool-configuration) and [start a worker](/concepts/work-pools/#starting-a-worker). This guide provides a comprehensive overview of the changes you'll encounter when upgrading from agents to workers.
+
 ## Enhancements
 
 **Agents to Workers**
@@ -25,9 +27,9 @@
 
 1. **Command to build deployments:** 
     
-    `prefect deployment build <entrypoint>` --> [`prefect deploy`](/concepts/deployments/#deployment-mechanics) 
+    `prefect deployment build <entrypoint>` --> [`prefect deploy`](/concepts/deployments/#deployment-declaration-reference) 
     
-    Prefect will now automatically detect flows in your repo and provide a [wizard](#step-5-deploy-the-flow) 🧙 to guide you through setting required attributes for your deployments.
+    Prefect will now automatically detect flows in your repo and provide a [wizard](/#step-5-deploy-the-flow) 🧙 to guide you through setting required attributes for your deployments.
 
 2. **Configuring remote flow code storage:** 
     
