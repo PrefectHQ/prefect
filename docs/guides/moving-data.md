@@ -37,7 +37,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
 === "Azure"
 
     ```bash
-     pip install prefect-azure
+     pip install adlfs
     ```
 
 === "GCP"
@@ -54,12 +54,12 @@ Register the new block types from the installed library with Prefect Cloud (or w
     ```bash
     prefect block register -m prefect_aws  
     ```
+    
+    You should see a message in the CLI that several block types were registered.
 
 === "Azure"
 
-    ```bash
-    prefect block register -m prefect_azure
-    ```
+    A Prefect integration library isn't necessary for Azure blob storage if you provide your credentials as part of the Azure block creation, so no blocks need to be registered.
 
 === "GCP"
 
@@ -67,7 +67,7 @@ Register the new block types from the installed library with Prefect Cloud (or w
     prefect block register -m prefect_gcp
     ```
 
-You should see a message in the CLI that several block types were registered.
+    You should see a message in the CLI that several block types were registered.
 
 ## Create a storage bucket
 Create a storage bucket in your cloud provider account.
@@ -89,6 +89,24 @@ If you need to be authenticated to read or write to your storage bucket, use the
     my_aws_creds.save(name="my-aws-creds-block", overwrite=True)
 
     ```
+
+=== "Azure"
+
+    A credentials block isn't necessary for Azure blob storage if you provide your credentials as part of the Azure block creation.
+
+=== "GCP"
+
+    ```python
+    from prefect import task
+    from prefect_gcp import GCPCredentials
+
+    my_gcp_creds = GCPCredentials(
+        service_account_key_path="my-service-account-key-path",
+    )
+    my_gcp_creds.save(name="my-gcp-creds-block", overwrite=True)
+
+    ```
+
 ## Create a storage block
 Create a block for your cloud provider using Python code or the UI. In this example we'll use Python code:
 
@@ -102,17 +120,22 @@ Create a block for your cloud provider using Python code or the UI. In this exam
     s3bucket = S3Bucket.create(
         name="my-bucket",
         credentials=AWSCredentials(name="my-aws-credentials"),
-        bucket="my-bucket-name",
     )
 
-    s3bucket.save()
+    s3bucket.save(overwrite=True)
     ```
 
 === "Azure"
 
     ```python
-    from prefect_azure import AzureBlobStorage
+    from prefect import task
+    from prefect.filesystems import Azure
 
+    azure_storage = Azure(
+        
+       
+    )
+    my_azure_creds.save(name="my-azure-creds-block", overwrite=True)
 
     ```
 
@@ -123,12 +146,8 @@ Create a block for your cloud provider using Python code or the UI. In this exam
     ```python
     from prefect_gcp.cloud_storage import GcsBucket
 
-    gcsbucket = GcsBucket(
-        bucket="my-bucket-name",
-    )
-
+    gcsbucket = GcsBucket(bucket="my-bucket-name")
     gcsbucket.save()
-
     ```
 
 Run the code to create the block. You should see a message in the CLI that the block was created.
@@ -140,38 +159,51 @@ Use your new block inside a flow to write data to your cloud provider.
 === "AWS"
 
     ```python
+    from pathlib import Path
     from prefect import flow
-    from prefect_aws import S3Bucket
+    from prefect_aws.s3 import S3Bucket
 
-
+    @flow()
+    def upload_to_s3():
+        """Flow function to upload data"""
+        path = Path("my_path_to/my_file.parquet")
+        aws_block = S3Bucket.load("my-aws-bucket")
+        aws_block.upload_from_path(from_path=path, to_path=path)
 
     if __name__ == "__main__":
-        main()
+        upload_to_s3()
     ```
 
 
 === "Azure"
 
     ```python
-    from prefect import task, flow
-    from prefect_azure import AzureBlobStorage
+    from prefect import flow
+    from prefect.filesystems import Azure
 
+    @flow()
+    def upload_to_azure():
+        """Flow function to upload data"""
+        az_block = Azure.load("azure-demo")
+        az_block.put_directory(local_path="my_path_to/my_file.parquet", to_path="my_path_to/my_file.parquet")
+
+    if __name__ == "__main__":
+        upload_to_azure()
     ```
 
 === "GCP"
 
     ```python
+    from pathlib import Path
     from prefect import flow
-    from prefect_gcp import GoogleCloudStorage
-
+    from prefect_gcp.cloud_storage import GcsBucket
 
     @flow()
     def upload_to_gcs():
         """Flow function to upload data"""
-        path = Path(f"my_path_to/my_file.parquet")
+        path = Path("my_path_to/my_file.parquet")
         gcs_block = GcsBucket.load("my-gcs-bucket")
         gcs_block.upload_from_path(from_path=path, to_path=path)
-
 
     if __name__ == "__main__":
         upload_to_gcs()
@@ -185,11 +217,11 @@ Use your block to read data from your cloud provider inside a flow
 
     ```python
 
-    from prefect import task, flow
+    from prefect import flow
     from prefect_aws import S3Bucket
 
-    my_bucket = S3Bucket(name="my-bucket")
-    my_bucket.load()
+    s3_block = S3Bucket(name="my-bucket")
+    gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
     
 
     ```
@@ -197,18 +229,18 @@ Use your block to read data from your cloud provider inside a flow
 === "Azure"
 
     ```python
-    from prefect import task, flow
-    from prefect_azure import AzureBlobStorage
+    from prefect import flow
+    
     ```
 
 === "GCP"
 
     ```python
-    from prefect import task, flow
-    from prefect_gcp import GoogleCloudStorage
+    from prefect import flow
+    from prefect_gcp.cloud_storage import GcsBucket
 
+    gcs_block = GcsBucket.load("zoom-gcs")
+    gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
     ```
 
-
-
-You've seen how to use Prefect and cloud providers to read and write data!
+You've seen how to use Prefect to read from and write data to cloud providers!
