@@ -341,7 +341,7 @@ class Deployment(BaseModel):
 
         # if infrastructure is baked as a pre-saved block, then
         # editing its fields will not update anything
-        if self.infrastructure._block_document_id:
+        if self.infrastructure is not None and self.infrastructure._block_document_id:
             return editable_fields
         else:
             return editable_fields + ["infrastructure"]
@@ -448,7 +448,7 @@ class Deployment(BaseModel):
             "The path to the flow's manifest file, relative to the chosen storage."
         ),
     )
-    infrastructure: Infrastructure = Field(default_factory=Process)
+    infrastructure: Optional[Infrastructure] = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
@@ -554,7 +554,7 @@ class Deployment(BaseModel):
                 block = await Block.load(f"{block_slug}/{block_doc_name}")
                 data["infrastructure"] = block
 
-            return cls(**data)
+        return cls(**data)
 
     @sync_compatible
     async def load(self) -> bool:
@@ -689,13 +689,17 @@ class Deployment(BaseModel):
             # prep IDs
             flow_id = await client.create_flow_from_name(self.flow_name)
 
-            infrastructure_document_id = self.infrastructure._block_document_id
-            if not infrastructure_document_id:
-                # if not building off a block, will create an anonymous block
-                self.infrastructure = self.infrastructure.copy()
-                infrastructure_document_id = await self.infrastructure._save(
-                    is_anonymous=True,
-                )
+            if self.infrastructure is not None:
+                infrastructure_document_id = self.infrastructure._block_document_id
+
+                if not infrastructure_document_id:
+                    # if not building off a block, will create an anonymous block
+                    self.infrastructure = self.infrastructure.copy()
+                    infrastructure_document_id = await self.infrastructure._save(
+                        is_anonymous=True,
+                    )
+            else:
+                infrastructure_document_id = None
 
             if upload:
                 await self.upload_to_storage()
