@@ -118,6 +118,10 @@ class TestDeploymentBasicInterface:
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
 
+    def test_deployment_infrastructure_can_be_set_to_none(self):
+        d = Deployment(name="foo", infrastructure=None)
+        assert d.infrastructure is None
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
@@ -446,9 +450,12 @@ class TestDeploymentBuild:
 
 
 class TestYAML:
-    def test_deployment_yaml_roundtrip(self, tmp_path):
+    @pytest.mark.parametrize(
+        "infrastructure",
+        [Process(), None],
+    )
+    def test_deployment_yaml_roundtrip(self, infrastructure, tmp_path):
         storage = LocalFileSystem(basepath=".")
-        infrastructure = Process()
 
         d = Deployment(
             name="yaml",
@@ -472,11 +479,14 @@ class TestYAML:
         "is_schedule_active",
         [True, False, None],
     )
+    @pytest.mark.parametrize(
+        "infrastructure",
+        [Process(), None],
+    )
     def test_deployment_yaml_roundtrip_for_schedule_active(
-        self, tmp_path, is_schedule_active
+        self, tmp_path, is_schedule_active, infrastructure
     ):
         storage = LocalFileSystem(basepath=".")
-        infrastructure = Process()
 
         d = Deployment(
             name="yaml",
@@ -494,7 +504,13 @@ class TestYAML:
         assert new_d.name == "yaml"
         assert new_d.is_schedule_active == is_schedule_active
 
-    async def test_deployment_yaml_roundtrip_handles_secret_values(self, tmp_path):
+    @pytest.mark.parametrize(
+        "infrastructure",
+        [Process(), None],
+    )
+    async def test_deployment_yaml_roundtrip_handles_secret_values(
+        self, tmp_path, infrastructure
+    ):
         storage = S3(
             bucket_path="unreal",
             aws_access_key_id="fake",
@@ -503,7 +519,6 @@ class TestYAML:
 
         # save so that secret values are persisted somewhere
         await storage.save("test-me-with-secrets")
-        infrastructure = Process()
 
         d = Deployment(
             name="yaml",
@@ -642,13 +657,18 @@ class TestDeploymentApply:
         dep = await prefect_client.read_deployment(dep_id)
         assert dep.is_schedule_active == expected
 
+    @pytest.mark.parametrize(
+        "infrastructure",
+        [Process(), None],
+    )
     async def test_deployment_apply_syncs_triggers(
         self,
         patch_import,
         tmp_path,
+        infrastructure,
     ):
-        infrastructure = Process()
-        await infrastructure._save(is_anonymous=True)
+        if infrastructure is not None:
+            await infrastructure._save(is_anonymous=True)
 
         trigger = DeploymentTrigger()
 
