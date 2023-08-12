@@ -422,7 +422,7 @@ deployments:
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
-So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
+So long as our `build` steps produce fields called `image` and `tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
