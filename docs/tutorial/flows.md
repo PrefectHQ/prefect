@@ -33,7 +33,7 @@ def get_repo_info():
     response = httpx.get(url)
     response.raise_for_status()
     repo = response.json()
-    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print("PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -69,7 +69,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response = httpx.get(url)
     response.raise_for_status()
     repo = response.json()
-    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print("PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -94,7 +94,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response.raise_for_status()
     repo = response.json()
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -132,7 +132,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response.raise_for_status()
     repo = response.json()
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
 
