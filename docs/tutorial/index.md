@@ -49,3 +49,7 @@ Just bring your Python code, sprinkle in a few decorators, and go!
 ### Reference Material
 If you've never used Prefect before, check out the [core concepts docs](/concepts/).
 Many of these concepts will be introduced in the tutorial, however, the concept docs provide a more comprehensive overview of each concept.
+
+## [Next: Flows](/tutorial/flows/)
+
+Get started with learning how to create your first Prefect Flow.
