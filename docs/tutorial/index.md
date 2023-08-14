@@ -25,7 +25,6 @@ By the end of this tutorial you will have:
 3. [Created a Work Pool](/tutorial/deployments/)
 4. [Deployed a Worker](/tutorial/deployments/)
 5. [Deployed the Flow](/tutorial/deployments/)
-6. [Run the Flow on the Worker](/tutorial/deployments/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
@@ -45,3 +44,7 @@ Prefect orchestrates workflows — it simplifies the creation, scheduling, and m
 Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
 Just bring your Python code, sprinkle in a few decorators, and go!
+
+## [Next: Flows](/tutorial/flows/)
+
+Get started with learning how to create your first Prefect Flow.
