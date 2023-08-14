@@ -14,7 +14,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 - Work pools expose a [base job template](/concepts/work-pools/#base-job-template) that enables an unprecedented level of customization and governance over workers in that pool.
 - New [push work pools](/guides/deployment/push-work-pools/) (beta) allow for flow execution without the need to host a worker.
 
-**New `prefect.yaml` file for managing multiple deployments**
+### New `prefect.yaml` file for managing multiple deployments
 
 - Its easier than before to define many multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 - Prefect provides [deployment actions](/concepts/deployments/#deployment-actions) that allow you to automatically build images for your flows.
