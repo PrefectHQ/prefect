@@ -11,7 +11,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 **Infra Blocks to Work Pools**
 
-- Work pools expose [`job_configuration`](/concepts/work-pools/#base-job-template) that enable an unprecedented level of customization and governance.
+- Work pools expose a [base job template](/concepts/work-pools/#base-job-template) that enables an unprecedented level of customization and governance over workers in that pool.
 - New [push work pools](/guides/deployment/push-work-pools/) (beta) allow for flow execution without the need to host a worker.
 
 **New `prefect.yaml` file for managing multiple deployments**
