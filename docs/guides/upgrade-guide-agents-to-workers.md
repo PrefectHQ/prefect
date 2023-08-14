@@ -6,7 +6,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 **Agents to Workers**
 
-- Improved visibility into the status of the worker such as when workers were started and when they last polled.
+- Improved visibility into the status of each worker, including when a worker was started and when it last polled.
 - Better handling of race conditions for high availability use cases.
 
 **Infra Blocks to Work Pools**
