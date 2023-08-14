@@ -33,7 +33,7 @@ def get_repo_info():
     response = httpx.get(url)
     response.raise_for_status()
     repo = response.json()
-    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print("PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -58,7 +58,7 @@ Forks 🍴 : 1245
 
 As with any Python function, you can pass arguments to a flow. The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters). Prefect will automatically perform type conversion by using any provided type hints. Let's make the repository a parameter:
 
-```python hl_lines="6"
+```python hl_lines="6 7"
 import httpx
 from prefect import flow
 
@@ -69,7 +69,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response = httpx.get(url)
     response.raise_for_status()
     repo = response.json()
-    print(f"PrefectHQ/prefect repository statistics 🤓:")
+    print("PrefectHQ/prefect repository statistics 🤓:")
     print(f"Stars 🌠 : {repo['stargazers_count']}")
     print(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -94,7 +94,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response.raise_for_status()
     repo = response.json()
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -120,7 +120,7 @@ Prefect can also capture `print` statements as info logs by specifying `log_prin
 ## Retries
 
 So far our script works, but in the future, the GitHub API may be temporarily unavailable or rate limited. [Retries](/concepts/flows/#flow-settings) help make our script more resilient. Let's add a retry functionality to our example above:
-```python hl_lines="7"
+```python hl_lines="5"
 import httpx
 from prefect import flow, get_run_logger
 
@@ -132,7 +132,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     response.raise_for_status()
     repo = response.json()
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
 

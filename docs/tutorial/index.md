@@ -25,7 +25,6 @@ By the end of this tutorial you will have:
 3. [Created a Work Pool](/tutorial/deployments/)
 4. [Deployed a Worker](/tutorial/deployments/)
 5. [Deployed the Flow](/tutorial/deployments/)
-6. [Run the Flow on the Worker](/tutorial/deployments/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
@@ -49,3 +48,7 @@ Just bring your Python code, sprinkle in a few decorators, and go!
 ### Reference Material
 If you've never used Prefect before, check out the [core concepts docs](/concepts/).
 Many of these concepts will be introduced in the tutorial, however, the concept docs provide a more comprehensive overview of each concept.
+
+## [Next: Flows](/tutorial/flows/)
+
+Get started with learning how to create your first Prefect Flow.
