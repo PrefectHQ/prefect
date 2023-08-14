@@ -72,6 +72,10 @@ If you have a deployment with a storage block and infra block, here's how to qui
 
 2. [Start a worker](/concepts/work-pools/#starting-a-worker) to poll this work pool. You should see the command to start the worker as soon as you save your new work pool. 
 
+    ```
+    prefect worker start -p [work pool name]
+    ```
+
     !!! Tip "Process for starting a worker is very similar to the process for starting an agent"
         Notice the command to start a worker is very similar to the command to start an agent. If you previously used terraform, a helm chart, or other infrastructure-as-code method to start an agent, you should be able to continue using it for a worker, provided the word `agent` is changed to `worker`.
 
