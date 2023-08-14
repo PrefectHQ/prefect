@@ -179,7 +179,7 @@ nav:
           - Automations: concepts/automations.md
           - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
-                - Upgrading from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
+                - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
