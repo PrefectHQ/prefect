@@ -23,7 +23,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 ----------
 
-## What's changing
+## What's different
 
 1. **Command to build deployments:** 
     
