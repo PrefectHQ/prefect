@@ -2257,13 +2257,17 @@ async def test_collect_task_run_inputs_respects_quote(
     # Regression test for https://github.com/PrefectHQ/prefect/pull/10370
     # This test patches the original `visit_collection` functional call in
     # `collect_task_run_inputs` and the recursive call inside `visit_collection`
-    # separately. Using `quote` should now keep recursive calls from happening,
-    # as we no longer introspect the input if annotated.
+    # separately.
 
     await collect_task_run_inputs([{"a": 1}, {"b": 2}, {"c": 3}])
     assert mock_outer_visit_collection.call_count == 1
     assert mock_recursive_visit_collection.call_count == 9
 
+    mock_outer_visit_collection.reset_mock()
+    mock_recursive_visit_collection.reset_mock()
+
+    # Using `quote` should now keep recursive calls from happening,
+    # as we no longer introspect the input if annotated.
     await collect_task_run_inputs(quote([{"a": 1}, {"b": 2}, {"c": 3}]))
-    assert mock_outer_visit_collection.call_count == 2
-    assert mock_recursive_visit_collection.call_count == 9
+    assert mock_outer_visit_collection.call_count == 1
+    assert mock_recursive_visit_collection.call_count == 0
