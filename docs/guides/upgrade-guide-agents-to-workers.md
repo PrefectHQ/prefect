@@ -1,6 +1,6 @@
 # How to Upgrade from Agents to Workers
 
-Upgrading from agents to workers opens the door to a host of enhanced features. It's important to understand that some of these features are interconnected. For instance, to define your deployments in a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file, you must [create a Work Pool](/concepts/work-pools/#work-pool-configuration) and [start a worker](/concepts/work-pools/#starting-a-worker). This guide provides a comprehensive overview of the changes you'll encounter when upgrading from agents to workers.
+Upgrading from agents to workers significantly enhances the experience of deploying flows, especially with regards to specifying its infrastructure and runtime environment. This guide provides an overview of the differences between agents to workers and describes how to upgrade.
 
 ## Enhancements
 
