@@ -45,7 +45,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 4. **Managing multiple deployments:**
     
-    Create and/or update many deployments en mass through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
+    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 
 
 ## What's the same
