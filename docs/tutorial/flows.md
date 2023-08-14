@@ -23,7 +23,7 @@ tags:
 
 The simplest way get started with Prefect is to import and annotate your Python function with the `@flow` decorator. The script below fetches statistics about the main Prefect repository. Let's turn it into a Prefect flow:
 
-```python hl_lines="2 5"
+```python hl_lines="2 4"
 import httpx
 from prefect import flow
 
