@@ -47,7 +47,7 @@ def get_url(url: str, params: dict = None):
 def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     repo = get_url(f"https://api.github.com/repos/{repo_name}")
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
 
@@ -133,7 +133,7 @@ def get_repo_info(
     issues = get_open_issues(repo_name, repo["open_issues_count"])
     issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
     logger = get_run_logger()
-    logger.info(f"PrefectHQ/prefect repository statistics 🤓:")
+    logger.info("PrefectHQ/prefect repository statistics 🤓:")
     logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
     logger.info(f"Forks 🍴 : {repo['forks_count']}")
     logger.info(f"Average open issues per user 💌 : {issues_per_user:.2f}")
