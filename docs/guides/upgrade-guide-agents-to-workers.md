@@ -16,7 +16,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 ### New `prefect.yaml` file for managing multiple deployments
 
-- Its easier than before to define many multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
+- More easily define many multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 - Prefect provides [deployment actions](/concepts/deployments/#deployment-actions) that allow you to automatically build images for your flows.
 - [Templating](/concepts/deployments/#templating-options) enables [dryer deployment definitions](/concepts/deployments/#reusing-configuration-across-deployments).
 - You get a [wizard now](/#step-5-deploy-the-flow)! 🧙
