@@ -45,7 +45,3 @@ Prefect orchestrates workflows — it simplifies the creation, scheduling, and m
 Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
 Just bring your Python code, sprinkle in a few decorators, and go!
-
-### Reference Material
-If you've never used Prefect before, check out the [core concepts docs](/concepts/).
-Many of these concepts will be introduced in the tutorial, however, the concept docs provide a more comprehensive overview of each concept.
