@@ -4,7 +4,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 ## Enhancements
 
-**Agents to Workers**
+### Agents to workers
 
 - Improved visibility into the status of each worker, including when a worker was started and when it last polled.
 - Better handling of race conditions for high availability use cases.
