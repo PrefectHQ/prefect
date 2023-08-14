@@ -48,7 +48,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
     Create and/or update many deployments en mass through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 
 
-## What stays the same
+## What's the same
 
 - Storage blocks can be set as the pull action in a `prefect.yaml` file.
 - Infra blocks have similar configuration fields as typed work pools.
