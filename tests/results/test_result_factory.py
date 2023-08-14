@@ -91,14 +91,14 @@ def test_root_flow_default_remote_storage():
     with temporary_settings(
         {
             PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "s3://my-bucket/folder/",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "s3://test-bucket/subdir",
         }
     ):
         result_factory = foo()
 
     assert_blocks_equal(
         result_factory.storage_block,
-        RemoteFileSystem(basepath="s3://my-bucket/folder/"),
+        RemoteFileSystem(basepath="s3://test-bucket/subdir"),
     )
 
 
