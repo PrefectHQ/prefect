@@ -67,7 +67,7 @@ If you have a deployment with a storage block and infra block, here's how to qui
 
 1. [Create a work pool](/concepts/work-pools/#work-pool-configuration) of type that matches whichever run-infrastructure block you are currently using. 
 
-    1. Any work pool infrastructure type aside from `Prefect Agent` should work.
+    1. Any work pool infrastructure type other than `Prefect Agent` will work.
     2. Referencing the configurations you've set on the infrastructure block, set similar flow run infrastructure configurations on the work pool.
 
 2. [Start a worker](/concepts/work-pools/#starting-a-worker) to poll this work pool. You should see the command to start the worker as soon as you save your new work pool. 
