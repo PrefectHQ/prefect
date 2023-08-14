@@ -9,7 +9,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 - Improved visibility into the status of each worker, including when a worker was started and when it last polled.
 - Better handling of race conditions for high availability use cases.
 
-**Agent Infra Blocks to Work Pools**
+### Agent infrastructure blocks to work pools
 
 - Work pools expose a [base job template](/concepts/work-pools/#base-job-template) that enables an unprecedented level of customization and governance over workers in that pool.
 - New [push work pools](/guides/deployment/push-work-pools/) (beta) allow for flow execution without the need to host a worker.
