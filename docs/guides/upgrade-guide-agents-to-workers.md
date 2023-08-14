@@ -65,7 +65,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 If you have a deployment with a storage block and infra block, here's how to quickly upgrade it to use Prefect's new features:
 
-1. [Create a work pool](/concepts/work-pools/#work-pool-configuration) of type that matches whichever run-infrastructure block you are currently using. 
+1. [Create a work pool](/concepts/work-pools/#work-pool-configuration) of the same type as the infrastructure block you are currently using.
 
     1. Any work pool infrastructure type other than `Prefect Agent` will work.
     2. Referencing the configurations you've set on the infrastructure block, set similar flow run infrastructure configurations on the work pool.
