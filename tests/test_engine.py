@@ -5,7 +5,7 @@ import time
 from contextlib import contextmanager
 import threading
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import anyio
@@ -23,6 +23,7 @@ from prefect.engine import (
     API_HEALTHCHECKS,
     begin_flow_run,
     check_api_reachable,
+    collect_task_run_inputs,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
@@ -2243,3 +2244,30 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
         " the same flow."
         in caplog.text
     )
+
+
+@patch(
+    "prefect.utilities.collections.visit_collection",
+    wraps=prefect.utilities.collections.visit_collection,
+)
+@patch("prefect.engine.visit_collection", wraps=prefect.engine.visit_collection)
+async def test_collect_task_run_inputs_respects_quote(
+    mock_outer_visit_collection, mock_recursive_visit_collection
+):
+    # Regression test for https://github.com/PrefectHQ/prefect/pull/10370
+    # This test patches the original `visit_collection` functional call in
+    # `collect_task_run_inputs` and the recursive call inside `visit_collection`
+    # separately.
+
+    await collect_task_run_inputs([{"a": 1}, {"b": 2}, {"c": 3}])
+    assert mock_outer_visit_collection.call_count == 1
+    assert mock_recursive_visit_collection.call_count == 9
+
+    mock_outer_visit_collection.reset_mock()
+    mock_recursive_visit_collection.reset_mock()
+
+    # Using `quote` should now keep recursive calls from happening,
+    # as we no longer introspect the input if annotated.
+    await collect_task_run_inputs(quote([{"a": 1}, {"b": 2}, {"c": 3}]))
+    assert mock_outer_visit_collection.call_count == 1
+    assert mock_recursive_visit_collection.call_count == 0
