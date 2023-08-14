@@ -1,6 +1,6 @@
 # How to Upgrade from Agents to Workers
 
-Upgrading from agents to workers significantly enhances the experience of deploying flows, especially with regards to specifying its infrastructure and runtime environment. This guide provides an overview of the differences between agents to workers and describes how to upgrade.
+Upgrading from agents to workers significantly enhances the experience of deploying flows, especially with regards to specifying its infrastructure and runtime environment. This guide provides an overview of the differences between agents and workers and describes how to upgrade.
 
 ## Enhancements
 
