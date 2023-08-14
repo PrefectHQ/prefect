@@ -41,7 +41,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
     
     run-infrastructure blocks --> [typed work pool](/concepts/work-pools/#worker-types) 
     
-    Infra config is now set on the typed Work Pool.
+    Infra config is now set on the typed work pool.
 
 4. **Managing multiple deployments:**
     
