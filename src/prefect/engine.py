@@ -94,6 +94,7 @@ from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
 
+import graphviz
 import anyio
 import pendulum
 from anyio import start_blocking_portal
@@ -388,9 +389,7 @@ async def create_then_begin_flow_run(
                     name = id_to_name[dependency["id"]]
                     edges.append((name, task_run["name"]))
 
-        import graphviz
-
-        g = graphviz.Digraph("G", filename="hello.gv")
+        g = graphviz.Digraph("G", filename=f"{flow.name}")
         for edge in edges:
             g.edge(*edge)
 
