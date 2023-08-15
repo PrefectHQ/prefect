@@ -27,6 +27,7 @@ from typing import (
     cast,
     overload,
 )
+import anyio
 
 import pydantic
 from fastapi.encoders import jsonable_encoder
@@ -48,6 +49,8 @@ from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
@@ -588,6 +591,55 @@ class Flow(Generic[P, R]):
             wait_for=wait_for,
             return_type="state",
         )
+
+    async def serve(
+        self, work_pool_name: str = "ad-hoc", deployment_name: str = "ad-hoc"
+    ):
+        """
+        Make a flow runnable via the Prefect API.
+        """
+        from prefect.workers.process import AdHocWorker
+
+        from prefect.utilities.services import critical_service_loop
+
+        ad_hoc_work_queue_name = f"{self.name}-{deployment_name}"
+        async with AdHocWorker(
+            work_pool_name=work_pool_name, work_queues=[ad_hoc_work_queue_name]
+        ) as worker:
+            async with anyio.create_task_group() as tg:
+                # wait for an initial heartbeat to configure the worker
+                await worker.sync_with_backend()
+                flow_id = await worker._client.create_flow_from_name(self.name)
+                worker.set_flow_id(flow_id)
+                worker.set_flow(self)
+
+                await worker._client.create_deployment(
+                    flow_id=flow_id,
+                    name=deployment_name,
+                    work_queue_name=ad_hoc_work_queue_name,
+                    work_pool_name=work_pool_name,
+                    tags=["ad-hoc"],
+                    parameter_openapi_schema=parameter_schema(self).dict(),
+                )
+
+                # schedule the scheduled flow run polling loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.sync_with_backend,
+                        interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
 
 
 @overload

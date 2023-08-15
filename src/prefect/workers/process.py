@@ -26,7 +26,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
+import threading
+from typing import TYPE_CHECKING, Any, Coroutine, Dict, List, Optional, Tuple
 
 import anyio
 import anyio.abc
@@ -43,6 +44,10 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+
+from prefect.client.schemas.responses import WorkerFlowRunResponse
+
+from prefect.engine import begin_flow_run
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow
@@ -278,3 +283,75 @@ class ProcessWorker(BaseWorker):
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
+
+
+class AdHocWorkerResult(BaseWorkerResult):
+    """Contains information about the final state of a ad hoc worker run"""
+
+
+class AdHocWorker(BaseWorker):
+    type = "ad-hoc"
+
+    def __init__(
+        self,
+        work_pool_name: str,
+        work_queues: Optional[List[str]] = None,
+        name: Optional[str] = None,
+        prefetch_seconds: Optional[float] = None,
+        create_pool_if_not_found: bool = True,
+        limit: Optional[int] = None,
+    ):
+        super().__init__(
+            work_pool_name=work_pool_name,
+            work_queues=work_queues,
+            name=name,
+            prefetch_seconds=prefetch_seconds,
+            create_pool_if_not_found=create_pool_if_not_found,
+            limit=limit,
+        )
+        self._flow_id = None
+        self._flow = None
+
+    def set_flow_id(self, flow_id: str) -> None:
+        self._flow_id = flow_id
+
+    def set_flow(self, flow) -> None:
+        self._flow = flow
+
+    async def _get_scheduled_flow_runs(
+        self,
+    ) -> Coroutine[Any, Any, List[WorkerFlowRunResponse]]:
+        if self._flow_id is None:
+            raise ValueError(
+                "Flow ID must be set before calling _get_scheduled_flow_runs."
+            )
+        scheduled_flow_runs = await super()._get_scheduled_flow_runs()
+        return [
+            response
+            for response in scheduled_flow_runs
+            if response.flow_run.flow_id == self._flow_id
+        ]
+
+    async def run(
+        self,
+        flow_run: FlowRun,
+        configuration: BaseJobConfiguration,
+        task_status=None,
+    ) -> Coroutine[Any, Any, BaseWorkerResult]:
+        if self._flow is None:
+            raise ValueError("Flow must be set before calling run.")
+
+        task_status.started()
+
+        state = await begin_flow_run(
+            flow=self._flow,
+            flow_run=flow_run,
+            parameters=flow_run.parameters,
+            client=self._client,
+            user_thread=threading.current_thread(),
+        )
+
+        if state.is_completed():
+            return AdHocWorkerResult(identifier=str(flow_run.id), status_code=0)
+        else:
+            return AdHocWorkerResult(identifier=str(flow_run.id), status_code=1)
