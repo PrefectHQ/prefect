@@ -204,7 +204,6 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        viz_mode_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -974,7 +973,6 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    viz_mode_value: Optional[Any] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1104,7 +1102,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                viz_mode_value=viz_mode_value,
             ),
         )
     else:
@@ -1132,6 +1129,5 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                viz_mode_value=viz_mode_value,
             ),
         )
