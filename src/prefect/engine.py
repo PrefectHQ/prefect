@@ -1733,10 +1733,14 @@ async def orchestrate_task_run(
                         "Beginning execution...", extra={"state_message": True}
                     )
 
-                call = from_async.call_soon_in_new_thread(
-                    create_call(task.fn, *args, **kwargs), timeout=task.timeout_seconds
-                )
-                result = await call.aresult()
+                if prefect.settings.PREFECT_VIZ_MODE:
+                    result = task.viz_mode_value
+                else:
+                    call = from_async.call_soon_in_new_thread(
+                        create_call(task.fn, *args, **kwargs),
+                        timeout=task.timeout_seconds,
+                    )
+                    result = await call.aresult()
 
             except (CancelledError, asyncio.CancelledError) as exc:
                 if not call.timedout():

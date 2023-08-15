@@ -204,6 +204,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_mode_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -331,6 +332,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.viz_mode_value = viz_mode_value
 
     def with_options(
         self,
@@ -973,6 +975,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_mode_value: Optional[Any] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1028,6 +1031,7 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_mode_value: An optional value to use for viz_mode.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1102,6 +1106,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_mode_value=viz_mode_value,
             ),
         )
     else:
@@ -1129,5 +1134,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_mode_value=viz_mode_value,
             ),
         )
