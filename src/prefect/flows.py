@@ -155,6 +155,7 @@ class Flow(Generic[P, R]):
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        visualize: bool = False,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
@@ -280,6 +281,7 @@ class Flow(Generic[P, R]):
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
         self.on_crashed = on_crashed
+        self.visualize = visualize
 
     def with_options(
         self,
@@ -645,6 +647,7 @@ def flow(
         List[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    visualize: bool = False,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -706,6 +709,7 @@ def flow(
         on_crashed: An optional list of functions to call when the flow run crashes. Each
             function should accept three arguments: the flow, the flow run, and the
             final state of the flow run.
+        visualize: whether to visualize the flow run locally after running it
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -768,6 +772,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                visualize=visualize,
             ),
         )
     else:
@@ -793,6 +798,7 @@ def flow(
                 on_failure=on_failure,
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
+                visualize=visualize,
             ),
         )
 

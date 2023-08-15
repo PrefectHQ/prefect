@@ -178,6 +178,18 @@ def prefect_test_harness():
             yield
 
 
+@contextmanager
+def viz_mode():
+    with prefect.settings.temporary_settings(
+        updates={
+            prefect.settings.PREFECT_VIZ_MODE: True,
+            prefect.settings.PREFECT_LOGGING_LEVEL: "CRITICAL",
+        }
+    ):
+        with prefect_test_harness():
+            yield
+
+
 async def get_most_recent_flow_run(client: PrefectClient = None):
     if client is None:
         client = get_client()

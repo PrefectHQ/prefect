@@ -338,6 +338,11 @@ class PrefectClient:
         """
         return await self._client.get("/hello")
 
+    async def graph(self, flow_run_id: UUID) -> list[dict]:
+        res = await self._client.get(f"flow_runs/{flow_run_id}/graph")
+        res.raise_for_status()
+        return res.json()
+
     async def create_flow(self, flow: "FlowObject") -> UUID:
         """
         Create a flow in the Prefect API.

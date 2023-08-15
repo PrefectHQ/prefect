@@ -153,6 +153,7 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_VIZ_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -370,11 +371,32 @@ async def create_then_begin_flow_run(
         )
 
     if return_type == "state":
-        return state
+        res = state
     elif return_type == "result":
-        return await state.result(fetch=True)
+        res = await state.result(fetch=True)
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
+
+    if PREFECT_VIZ_MODE:
+        task_runs = await client.graph(flow_run.id)
+
+        id_to_name = {task_run["id"]: task_run["name"] for task_run in task_runs}
+        edges = []
+        for task_run in task_runs:
+            for dependency in task_run["upstream_dependencies"]:
+                if dependency["input_type"] == "task_run":
+                    name = id_to_name[dependency["id"]]
+                    edges.append((name, task_run["name"]))
+
+        import graphviz
+
+        g = graphviz.Digraph("G", filename="hello.gv")
+        for edge in edges:
+            g.edge(*edge)
+
+        g.view()
+
+    return res
 
 
 @inject_client

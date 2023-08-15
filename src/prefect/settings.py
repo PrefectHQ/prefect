@@ -495,6 +495,11 @@ PREFECT_CLI_WRAP_LINES = Setting(
 in CLI output. If `False`, output will not be wrapped. Defaults to `True`.
 """
 
+PREFECT_VIZ_MODE = Setting(
+    bool,
+    default=False,
+)
+
 PREFECT_TEST_MODE = Setting(
     bool,
     default=False,
