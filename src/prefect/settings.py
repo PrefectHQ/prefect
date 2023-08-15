@@ -499,6 +499,10 @@ PREFECT_VIZ_MODE = Setting(
     bool,
     default=False,
 )
+"""Facilitates running in Visualizer mode. Defaults to `False`.
+When true, flows run against a temporary db, are not persisted, and save
+a local visualization of the task run dependency graph.
+"""
 
 PREFECT_TEST_MODE = Setting(
     bool,

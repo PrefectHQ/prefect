@@ -7,12 +7,12 @@ from prefect.client.orchestration import PrefectClient
 
 
 @inject_client
-async def task_run_dependencies_graph(
+async def task_run_dependency_graph(
     flow_run_id: UUID,
     client: "PrefectClient" = None,
 ) -> graphviz.Digraph:
     """
-    Return a graphviz graph of the task run dependencies for a flow run.
+    Return a directional graph of the task run dependencies for a flow run.
     """
     task_runs = await client.graph(flow_run_id)
 

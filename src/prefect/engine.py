@@ -190,7 +190,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
-from prefect.utilities.visualization import task_run_dependencies_graph
+from prefect.utilities.visualization import task_run_dependency_graph
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -558,9 +558,7 @@ async def begin_flow_run(
 
     # Generate a local visualization of the flow run if enabled
     if PREFECT_VIZ_MODE:
-        graph = await task_run_dependencies_graph(
-            flow_run_id=flow_run.id, client=client
-        )
+        graph = await task_run_dependency_graph(flow_run_id=flow_run.id, client=client)
         logger.info(f"Saving visualization to {flow.name}.png")
         graph.render(flow.name, view=True, cleanup=True, format="png")
 
