@@ -204,6 +204,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        mock_return_val: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -331,6 +332,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.mock_return_val = mock_return_val
 
     def with_options(
         self,
@@ -530,14 +532,21 @@ class Task(Generic[P, R]):
 
         return_type = "state" if return_state else "result"
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            task_runner=SequentialTaskRunner(),
-            return_type=return_type,
-            mapped=False,
-        )
+        from prefect.utilities.visualization import get_task_run_tracker, track_task_run
+
+        task_run_tracker = get_task_run_tracker()
+
+        if task_run_tracker:
+            return track_task_run(self.name, parameters, self.mock_return_val)
+        else:
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                task_runner=SequentialTaskRunner(),
+                return_type=return_type,
+                mapped=False,
+            )
 
     @overload
     def _run(
@@ -727,14 +736,21 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,  # Use the flow's task runner
-            mapped=False,
-        )
+        from prefect.utilities.visualization import get_task_run_tracker, track_task_run
+
+        task_run_tracker = get_task_run_tracker()
+
+        if task_run_tracker:
+            return track_task_run(self.name, parameters, self.mock_return_val)
+        else:
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,  # Use the flow's task runner
+                mapped=False,
+            )
 
     @overload
     def map(
@@ -973,6 +989,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    mock_return_val: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1077,6 +1094,7 @@ def task(
         >>> def my_task():
         >>>     return "hello"
     """
+
     if __fn:
         return cast(
             Task[P, R],
@@ -1102,6 +1120,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                mock_return_val=mock_return_val,
             ),
         )
     else:
@@ -1129,5 +1148,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                mock_return_val=mock_return_val,
             ),
         )

@@ -589,6 +589,20 @@ class Flow(Generic[P, R]):
             return_type="state",
         )
 
+    def visualize(self):
+        from prefect.utilities.visualization import TaskRunTracker
+
+        try:
+            with TaskRunTracker() as tracker:
+                self.fn()
+                tracker.visualize()
+        except Exception:
+            raise ValueError(
+                "SOMEHTING WENT WRONG! MAKE SURE YOU HAVE ALL YOUR CODE IN TASKS OR"
+                " FLOWS! OR MARVIN WILL COME FOR YOU!)"
+            )
+            # doesnt support working directly with results
+
 
 @overload
 def flow(__fn: Callable[P, R]) -> Flow[P, R]:
