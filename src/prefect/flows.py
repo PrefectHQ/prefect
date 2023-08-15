@@ -62,7 +62,11 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
-
+from prefect.utilities.visualization import (
+    TaskRunTracker,
+    visualize_task_dependencies,
+    FlowVisualizationError,
+)
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -590,18 +594,17 @@ class Flow(Generic[P, R]):
         )
 
     def visualize(self):
-        from prefect.utilities.visualization import TaskRunTracker
-
         try:
             with TaskRunTracker() as tracker:
                 self.fn()
-                tracker.visualize()
+                visualize_task_dependencies(self.name, tracker)
         except Exception:
-            raise ValueError(
-                "SOMEHTING WENT WRONG! MAKE SURE YOU HAVE ALL YOUR CODE IN TASKS OR"
-                " FLOWS! OR MARVIN WILL COME FOR YOU!)"
+            raise FlowVisualizationError(
+                "Something went wrong while building the flow's visualization."
+                " `flow.visualize()` only works for flows where task return values are"
+                " not interacted with inside of the flow directly. Task return values"
+                " must be passed to other tasks."
             )
-            # doesnt support working directly with results
 
 
 @overload

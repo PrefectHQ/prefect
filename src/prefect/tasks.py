@@ -204,7 +204,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        mock_return_val: Optional[Any] = None,
+        mock_return: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -332,7 +332,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
-        self.mock_return_val = mock_return_val
+        self.mock_return = mock_return
 
     def with_options(
         self,
@@ -537,7 +537,7 @@ class Task(Generic[P, R]):
         task_run_tracker = get_task_run_tracker()
 
         if task_run_tracker:
-            return track_task_run(self.name, parameters, self.mock_return_val)
+            return track_task_run(self.name, parameters, self.mock_return)
         else:
             return enter_task_run_engine(
                 self,
@@ -741,7 +741,7 @@ class Task(Generic[P, R]):
         task_run_tracker = get_task_run_tracker()
 
         if task_run_tracker:
-            return track_task_run(self.name, parameters, self.mock_return_val)
+            return track_task_run(self.name, parameters, self.mock_return)
         else:
             return enter_task_run_engine(
                 self,
@@ -989,7 +989,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    mock_return_val: Any = None,
+    mock_return: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1120,7 +1120,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                mock_return_val=mock_return_val,
+                mock_return=mock_return,
             ),
         )
     else:
@@ -1148,6 +1148,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                mock_return_val=mock_return_val,
+                mock_return=mock_return,
             ),
         )
