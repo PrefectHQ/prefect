@@ -18,6 +18,6 @@ jobs:
           close-pr-message: "This pull request was closed because it has been stale for 14 days with no activity. If this pull request is important or you have more to add feel free to re-open it."
           days-before-pr-stale: 60
           days-before-close: 14
-          exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted"
+          exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted,needs:product feedback"
           ascending: true # https://github.com/actions/stale#ascending
           operations-per-run: 500
