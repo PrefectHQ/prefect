@@ -1,10 +1,13 @@
 import asyncio
-from typing import Awaitable, Callable, List, Literal, Union
-from contextlib import contextmanager
+from uuid import UUID
+from functools import wraps
+from typing import Awaitable, Callable, Dict, List, Literal, Optional, Union
+from contextlib import asynccontextmanager, contextmanager
 
 import httpx
 import pendulum
 
+from prefect._internal.concurrency.threads import in_global_loop
 from prefect import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.events import Event, RelatedResource, emit_event
@@ -29,8 +32,8 @@ async def wait_for_successful_response(
     with a max of `max_retry_seconds` seconds."""
 
     jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
-
     try_count = 0
+
     while True:
         retry_seconds = None
         try_count += 1
@@ -47,8 +50,7 @@ async def wait_for_successful_response(
                     retry_seconds = clamped_poisson_interval(
                         min(2**try_count, max_retry_seconds)
                     )
-
-                await asyncio.sleep(retry_seconds)
+                await asyncio.sleep(int(retry_seconds))
             else:
                 raise exc
         else:
@@ -81,7 +83,87 @@ async def release_concurrency_slots(
         return _response_to_minimal_concurrency_limit_response(response)
 
 
-def emit_concurrency_event(
+@asynccontextmanager
+async def aconcurrency(names: Union[str, List[str]], occupy: int = 1):
+    names = names if isinstance(names, list) else [names]
+
+    limits = await acquire_concurrency_slots(names, occupy)
+    acquisition_time = pendulum.now("UTC")
+    emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
+
+    try:
+        yield
+    finally:
+        occupancy_seconds: float = (
+            pendulum.now("UTC") - acquisition_time
+        ).total_seconds()
+        await release_concurrency_slots(names, occupy, occupancy_seconds)
+        _emit_concurrency_release_events(limits, occupy, emitted_events)
+
+
+@contextmanager
+def concurrency(names: Union[str, List[str]], occupy: int = 1):
+    names = names if isinstance(names, list) else [names]
+
+    limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
+        acquire_concurrency_slots, names, occupy
+    )
+    acquisition_time = pendulum.now("UTC")
+    emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
+
+    try:
+        yield
+    finally:
+        occupancy_seconds: float = (
+            pendulum.now("UTC") - acquisition_time
+        ).total_seconds()
+        _call_async_function_from_sync(
+            release_concurrency_slots, names, occupy, occupancy_seconds
+        )
+        _emit_concurrency_release_events(limits, occupy, emitted_events)
+
+
+async def arate_limit(names: Union[str, List[str]], occupy: int = 1):
+    """Block execution until an `occupy` number of slots of the concurrency
+    limits given in `names` are acquired. Requires that all given concurrency
+    limits have a slot decay.
+
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and holf from each limit.
+    """
+    names = names if isinstance(names, list) else [names]
+    limits = await acquire_concurrency_slots(names, occupy, mode="rate_limit")
+    _emit_concurrency_acquisition_events(limits, occupy)
+
+
+def rate_limit(names: Union[str, List[str]], occupy: int = 1):
+    """Block execution until an `occupy` number of slots of the concurrency
+    limits given in `names` are acquired. Requires that all given concurrency
+    limits have a slot decay.
+
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and holf from each limit.
+    """
+    names = names if isinstance(names, list) else [names]
+    limits = _call_async_function_from_sync(
+        acquire_concurrency_slots, names, occupy, mode="rate_limit"
+    )
+    _emit_concurrency_acquisition_events(limits, occupy)
+
+
+def _call_async_function_from_sync(fn, *args, **kwargs):
+    loop = get_running_loop()
+    call = create_call(fn, *args, **kwargs)
+
+    if loop is not None:
+        return from_sync.call_soon_in_loop_thread(call).result()
+    else:
+        return call()
+
+
+def _emit_concurrency_event(
     phase: Union[Literal["acquired"], Literal["released"]],
     primary_limit: MinimalConcurrencyLimitResponse,
     related_limits: List[MinimalConcurrencyLimitResponse],
@@ -99,87 +181,40 @@ def emit_concurrency_event(
         RelatedResource(
             __root__={
                 "prefect.resource.id": f"prefect.concurrency-limit.{limit.id}",
-                "prefect.resource.role": "concurrency_limit",
+                "prefect.resource.role": "concurrency-limit",
             }
         )
         for limit in related_limits
+        if limit.id != primary_limit.id
     ]
 
-    event = emit_event(
+    return emit_event(
         f"prefect.concurrency-limit.{phase}",
         resource=resource,
         related=related,
         follows=follows,
     )
-    return event
 
 
-@contextmanager
-def concurrency(names: Union[str, List[str]], occupy: int = 1):
-    """A context manager to acquire, hold, and release concurrency slots of the
-    concurrency limits given in `names`.
-
-    Args:
-        names: The names of the concurrency limits to acquire slots from.
-        occupy: The number of slots to acquire and holf from each limit.
-    """
-
-    if isinstance(names, str):
-        names = [names]
-
-    limits = call_async_function(acquire_concurrency_slots, names, occupy)
-
-    concurrency_limit_events = {}
-
+def _emit_concurrency_acquisition_events(
+    limits: List[MinimalConcurrencyLimitResponse],
+    occupy: int,
+) -> Dict[UUID, Optional[Event]]:
+    events = {}
     for limit in limits:
-        event = emit_concurrency_event("acquired", limit, limits, occupy)
-        concurrency_limit_events[limit.id] = event
+        event = _emit_concurrency_event("acquired", limit, limits, occupy)
+        events[limit.id] = event
 
-    acquisition_time = pendulum.now("UTC")
-
-    try:
-        yield
-    finally:
-        occupancy_seconds: float = (
-            pendulum.now("UTC") - acquisition_time
-        ).total_seconds()
-
-        call_async_function(release_concurrency_slots, names, occupy, occupancy_seconds)
-        for limit in limits:
-            emit_concurrency_event(
-                "released", limit, limits, occupy, concurrency_limit_events[limit.id]
-            )
+    return events
 
 
-def rate_limit(names: Union[str, List[str]], occupy: int = 1):
-    """Block execution until an `occupy` number of slots of the concurrency
-    limits given in `names` are acquired. Requires that all given concurrency
-    limits have a slot decay.
-
-    Args:
-        names: The names of the concurrency limits to acquire slots from.
-        occupy: The number of slots to acquire and holf from each limit.
-    """
-
-    if isinstance(names, str):
-        names = [names]
-
-    limits = call_async_function(
-        acquire_concurrency_slots, names, occupy, mode="rate_limit"
-    )
-
+def _emit_concurrency_release_events(
+    limits: List[MinimalConcurrencyLimitResponse],
+    occupy: int,
+    events: Dict[UUID, Optional[Event]],
+):
     for limit in limits:
-        emit_concurrency_event("acquired", limit, limits, occupy)
-
-
-def call_async_function(fn, *args, **kwargs):
-    loop = get_running_loop()
-    call = create_call(fn, *args, **kwargs)
-
-    if loop is not None:
-        return from_sync.call_soon_in_loop_thread(call).result()
-    else:
-        return call()
+        _emit_concurrency_event("released", limit, limits, occupy, events[limit.id])
 
 
 def _response_to_minimal_concurrency_limit_response(
