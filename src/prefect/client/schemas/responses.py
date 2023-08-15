@@ -232,3 +232,16 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
+
+
+class DependencyResultResponse(PrefectBaseModel):
+    id: UUID
+    name: str
+    upstream_dependencies: List[objects.TaskRunResult]
+    state: objects.State
+    expected_start_time: Optional[datetime.datetime]
+    start_time: Optional[datetime.datetime]
+    end_time: Optional[datetime.datetime]
+    total_run_time: Optional[datetime.timedelta]
+    estimated_run_time: Optional[datetime.timedelta]
+    untrackable_result: bool

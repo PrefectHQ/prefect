@@ -78,6 +78,7 @@ from prefect.client.schemas.objects import (
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
+    DependencyResultResponse,
     DeploymentResponse,
     WorkerFlowRunResponse,
 )
@@ -337,11 +338,6 @@ class PrefectClient:
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
-
-    async def graph(self, flow_run_id: UUID) -> list[dict]:
-        res = await self._client.get(f"flow_runs/{flow_run_id}/graph")
-        res.raise_for_status()
-        return res.json()
 
     async def create_flow(self, flow: "FlowObject") -> UUID:
         """
@@ -2557,6 +2553,13 @@ class PrefectClient:
             "/v2/concurrency_limits/decrement",
             json={"names": names, "slots": slots},
         )
+
+    async def graph(self, flow_run_id: UUID) -> List[DependencyResultResponse]:
+        """
+        Sends a GET request to /flow_runs/{flow_run_id}/graph
+        """
+        res = await self._client.get(f"flow_runs/{flow_run_id}/graph")
+        return pydantic.parse_obj_as(List[DependencyResultResponse], res.json())
 
     async def __aenter__(self):
         """

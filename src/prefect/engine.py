@@ -94,7 +94,7 @@ from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
 
-import graphviz
+
 import anyio
 import pendulum
 from anyio import start_blocking_portal
@@ -190,6 +190,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
+from prefect.utilities.visualization import task_run_dependencies_graph
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -378,23 +379,6 @@ async def create_then_begin_flow_run(
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
-    if PREFECT_VIZ_MODE:
-        task_runs = await client.graph(flow_run.id)
-
-        id_to_name = {task_run["id"]: task_run["name"] for task_run in task_runs}
-        edges = []
-        for task_run in task_runs:
-            for dependency in task_run["upstream_dependencies"]:
-                if dependency["input_type"] == "task_run":
-                    name = id_to_name[dependency["id"]]
-                    edges.append((name, task_run["name"]))
-
-        g = graphviz.Digraph("G", filename=f"{flow.name}")
-        for edge in edges:
-            g.edge(*edge)
-
-        g.view()
-
     return res
 
 
@@ -573,6 +557,14 @@ async def begin_flow_run(
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
     await APILogHandler.aflush()
+
+    # Generate a local visualization of the flow run if enabled
+    if PREFECT_VIZ_MODE:
+        graph = await task_run_dependencies_graph(
+            flow_run_id=flow_run.id, client=client
+        )
+        logger.info(f"Saving visualization to {flow.name}.png")
+        graph.render(flow.name, view=True, cleanup=True, format="png")
 
     return terminal_state
 
