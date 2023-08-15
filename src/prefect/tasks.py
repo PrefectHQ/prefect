@@ -46,6 +46,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.visualization import get_task_run_tracker, track_task_run
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -532,21 +533,18 @@ class Task(Generic[P, R]):
 
         return_type = "state" if return_state else "result"
 
-        from prefect.utilities.visualization import get_task_run_tracker, track_task_run
-
         task_run_tracker = get_task_run_tracker()
-
         if task_run_tracker:
             return track_task_run(self.name, parameters, self.mock_return)
-        else:
-            return enter_task_run_engine(
-                self,
-                parameters=parameters,
-                wait_for=wait_for,
-                task_runner=SequentialTaskRunner(),
-                return_type=return_type,
-                mapped=False,
-            )
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            task_runner=SequentialTaskRunner(),
+            return_type=return_type,
+            mapped=False,
+        )
 
     @overload
     def _run(
@@ -736,21 +734,19 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
-        from prefect.utilities.visualization import get_task_run_tracker, track_task_run
-
         task_run_tracker = get_task_run_tracker()
 
         if task_run_tracker:
             return track_task_run(self.name, parameters, self.mock_return)
-        else:
-            return enter_task_run_engine(
-                self,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=None,  # Use the flow's task runner
-                mapped=False,
-            )
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+            task_runner=None,  # Use the flow's task runner
+            mapped=False,
+        )
 
     @overload
     def map(
