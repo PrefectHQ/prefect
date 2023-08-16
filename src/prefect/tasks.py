@@ -46,7 +46,11 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
-from prefect.utilities.visualization import get_task_run_tracker, track_task_run
+from prefect.utilities.visualization import (
+    get_task_viz_tracker,
+    track_viz_task,
+    FlowVisualizationError,
+)
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -538,19 +542,11 @@ class Task(Generic[P, R]):
 
         return_type = "state" if return_state else "result"
 
-        task_run_tracker = get_task_run_tracker()
+        task_run_tracker = get_task_viz_tracker()
         if task_run_tracker:
-            if self.isasync:
-                from prefect._internal.concurrency.api import from_async
-                from functools import partial
-
-                return from_async.wait_for_call_in_loop_thread(
-                    partial(
-                        track_task_run, self.name, parameters, self.viz_return_value
-                    )
-                )
-            else:
-                return track_task_run(self.name, parameters, self.viz_return_value)
+            return track_viz_task(
+                self.isasync, self.name, parameters, self.viz_return_value
+            )
 
         return enter_task_run_engine(
             self,
@@ -749,20 +745,11 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
-        task_run_tracker = get_task_run_tracker()
-
-        if task_run_tracker:
-            if self.isasync:
-                from prefect._internal.concurrency.api import from_async
-                from functools import partial
-
-                return from_async.wait_for_call_in_loop_thread(
-                    partial(
-                        track_task_run, self.name, parameters, self.viz_return_value
-                    )
-                )
-            else:
-                return track_task_run(self.name, parameters, self.viz_return_value)
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise FlowVisualizationError(
+                "`task.submit()` is not currently supported by `flow.visualize()`"
+            )
 
         return enter_task_run_engine(
             self,
@@ -935,19 +922,11 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
 
-        task_run_tracker = get_task_run_tracker()
-        if task_run_tracker:
-            if self.isasync:
-                from prefect._internal.concurrency.api import from_async
-                from functools import partial
-
-                return from_async.wait_for_call_in_loop_thread(
-                    partial(
-                        track_task_run, self.name, parameters, self.viz_return_value
-                    )
-                )
-            else:
-                return track_task_run(self.name, parameters, self.viz_return_value)
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise FlowVisualizationError(
+                "`task.map()` is not currently supported by `flow.visualize()`"
+            )
 
         return enter_task_run_engine(
             self,

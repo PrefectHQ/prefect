@@ -64,7 +64,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 from prefect.utilities.visualization import (
-    TaskRunTracker,
+    TaskVizTracker,
     build_task_dependencies,
     visualize_task_dependencies,
     FlowVisualizationError,
@@ -598,7 +598,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def visualize(self):
         try:
-            with TaskRunTracker() as tracker:
+            with TaskVizTracker() as tracker:
                 if self.isasync:
                     await self.fn()
                 else:
@@ -609,9 +609,9 @@ class Flow(Generic[P, R]):
         except Exception:
             raise FlowVisualizationError(
                 "Something went wrong while building the flow's visualization."
-                " `flow.visualize()` only works for flows where task return values are"
-                " not interacted with inside of the flow directly. Task return values"
-                " must be passed to other tasks."
+                " If you're interacting with the return value of a task directly"
+                " inside of your flow,  you must set a set a `viz_return_value`,"
+                " for example `@task(viz_return_value=[1, 2, 3])`."
             )
 
 
