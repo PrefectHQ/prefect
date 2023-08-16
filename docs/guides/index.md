@@ -21,7 +21,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Docker](/guides/deployment/docker/) | Deploy flows with Docker containers. |
 | [Kubernetes](/guides/deployment/helm-worker/) | Deploy flows on Kubernetes. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute flows on serverless infrastructure like AWS ECS, Azure Container Instances, or Google Cloud Run without a worker. | 
-| [ECS](https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs) |  Run flows on AWS ECS. |
+| [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. | 
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
@@ -33,9 +33,8 @@ This section of the documentation contains guides for common workflows and use c
 | [Webhooks](/guides/webhooks/) | Receive, observe, and react to events from other systems. |
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
-| [Hosting](/guides/host/) | Host your own Prefect Server. |
-| [Migration Guide](/guides/migration-guide/) | Migrate from Prefect 1 to Prefect 2. |
+| [Hosting](/guides/host/) | Host your own Prefect server instance. |
 | [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 !!! tip "Need help?"
-    Get your questions answered with a Prefect product advocate by [Booking A Rubber Duck](https://calendly.com/prefect-experts/prefect-product-advocates)!
+    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)

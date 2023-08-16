@@ -186,8 +186,10 @@ async def deploy(
         False,
         "--ci",
         help=(
-            "Run this command in CI mode. This will disable interactive prompts and"
-            " will error if any required arguments are not provided."
+            "DEPRECATED: Please use the global '--no-prompt' flag instead: 'prefect"
+            " --no-prompt deploy'.\n\nRun this command in CI mode. This will disable"
+            " interactive prompts and will error if any required arguments are not"
+            " provided."
         ),
     ),
 ):
@@ -449,7 +451,9 @@ async def _run_single_deploy(
 
     update_work_pool_image = False
 
-    if is_interactive() and not docker_build_step_exists:
+    build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
+
+    if is_interactive() and not docker_build_step_exists and not build_step_set_to_null:
         work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
         docker_based_infrastructure = "image" in work_pool.base_job_template.get(
             "variables", {}

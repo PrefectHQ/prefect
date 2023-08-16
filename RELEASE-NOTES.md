@@ -1,5 +1,59 @@
 # Prefect Release Notes
 
+## Release 2.11.3
+
+## Enhanced support for environment variables in `run_shell_script` step
+
+Previously, to expand environment variables in the `run_shell_script` step, you had to enclose your scripts in `bash -c`. We have optimized this process by introducing a new field: `expand_env_vars`. By setting this field to `true`, you can easily pass environment variables to your script.
+
+Consider the following example where the script utilizes the `$USER` environment variable:
+```yaml
+pull:
+    - prefect.deployments.steps.run_shell_script:
+        script: |
+            echo "User: $USER"
+            echo "Home Directory: $HOME"
+        stream_output: true
+        expand_env_vars: true
+```
+
+For implementation details, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/10198
+
+### Enhancements
+- Change language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
+
+### Experimental
+- Port concurrency limit v2 API and modeling from Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/10363
+
+### Documentation
+- Add Prefect Cloud quickstart to navigation menu — https://github.com/PrefectHQ/prefect/pull/10350
+- Fix typo in deployments documentation — https://github.com/PrefectHQ/prefect/pull/10353
+- Reorganize concepts pages — https://github.com/PrefectHQ/prefect/pull/10359
+
+### Contributors
+- @AmanSal1
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.2...2.11.3
+
+## Release 2.11.2
+
+### Enhancements
+- Explicitly set all calls to `pendulum.now()` to "UTC" — https://github.com/PrefectHQ/prefect/pull/10320
+
+### Documentation
+- Add guide for specifying storage for deployments — https://github.com/PrefectHQ/prefect/pull/10150
+- Add ACI push work pool guide — https://github.com/PrefectHQ/prefect/pull/10323
+- Move some concepts and cloud pages to guides section — https://github.com/PrefectHQ/prefect/pull/10328
+
+### Deprecations
+- Deprecate `FlowRunCreate.deployment_id` — https://github.com/PrefectHQ/prefect/pull/10324
+
+### Contributors
+- @psofiterol made their first contribution in https://github.com/PrefectHQ/prefect/pull/10320
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.1...2.11.2
+
 ## Release 2.11.1
 
 ### Enhancements
@@ -9,7 +63,7 @@
 
 ### Fixes
 - Hide links to work queues for push work pools — https://github.com/PrefectHQ/prefect-ui-library/pull/1603
-- Fix issue with Pause state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
+- Fix issue with `Pause` state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
 - Fix issue with flow run logs missing until after refresh — https://github.com/PrefectHQ/prefect-ui-library/pull/1594
 
 ### Experimental
@@ -32,7 +86,7 @@
 ## Release 2.11.0
 
 ### Flow summary graphs and stats
-Each flow page now includes graphs of it's recent flow runs, task runs, and (in prefect Cloud) related events, as well as summary statistics!
+Each flow page now includes graphs of its recent flow runs, task runs, and (in Prefect Cloud) related events, as well as summary statistics!
 
 <img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
 
@@ -65,7 +119,7 @@ For implementation details, see the following pull requests:
 - Add Deployment Quickstart — https://github.com/PrefectHQ/prefect/pull/9985
 - Add guide for setting up a push work pool — https://github.com/PrefectHQ/prefect/pull/10248
 - Add guide for deploying a flow using Docker — https://github.com/PrefectHQ/prefect/pull/10252
-- Edit install and quick start pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
+- Edit install and quickstart pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
 - Update automations screenshots — https://github.com/PrefectHQ/prefect/pull/10245
 - Fix typos on Deployment Management page — https://github.com/PrefectHQ/prefect/pull/10241
 - Fix flow retries example — https://github.com/PrefectHQ/prefect/pull/10233
@@ -75,7 +129,7 @@ For implementation details, see the following pull requests:
 - @dbentall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10258
 - @mesejo
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...2.11.0
 
 ## Release 2.10.21
 

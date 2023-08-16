@@ -120,6 +120,13 @@ To enable communication via proxies, simply set the `HTTPS_PROXY` and `SSL_CERT_
 
 See the [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696) topic in Prefect Discourse for examples of proxy configuration.
 
+URLs that should be whitelisted for outbound-communication in a secure environment include the UI, the API, Authentication, and the current OCSP server:  
+
+- app.prefect.cloud
+- api.prefect.cloud
+- auth.workos.com
+- ocsp.pki.goog/s/gts1d4/OxYEb8XcYmo
+
 ## Prefect Cloud access via API
 
 If the Prefect Cloud API key, environment variable settings, or account login for your execution environment are not configured correctly, you may experience errors or unexpected flow run results when using Prefect CLI commands, running flows, or observing flow run results in Prefect Cloud.

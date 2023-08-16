@@ -9,15 +9,13 @@ jobs:
     steps:
       - uses: actions/stale@v8
         with:
-          stale-issue-message: "This issue is stale because it has been open 30 days with no activity. To keep this issue open remove stale label or comment."
-          stale-issue-label: "status:stale"
-          close-issue-message: "This issue was closed because it has been stale for 14 days with no activity. If this issue is important or you have more to add feel free to re-open it."
-          days-before-stale: 30
-          stale-pr-message: "This pull request is stale because it has been open 60 days with no activity. To keep this pull request open remove stale label or comment."
+          days-before-stale: -1
+          days-before-close: -1
+          stale-pr-message: "This pull request is stale because it has been open 14 days with no activity. To keep this pull request open remove stale label or comment."
           stale-pr-label: "status:stale"
           close-pr-message: "This pull request was closed because it has been stale for 14 days with no activity. If this pull request is important or you have more to add feel free to re-open it."
-          days-before-pr-stale: 60
-          days-before-close: 14
-          exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted"
+          days-before-pr-stale: 14
+          days-before-pr-close: 14
+          exempt-issue-labels: "needs:attention,needs:triage,blocked"
           ascending: true # https://github.com/actions/stale#ascending
           operations-per-run: 500
