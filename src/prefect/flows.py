@@ -597,13 +597,13 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    async def visualize(self):
+    async def visualize(self, *args, **kwargs):
         try:
             with TaskVizTracker() as tracker:
                 if self.isasync:
-                    await self.fn()
+                    await self.fn(*args, **kwargs)
                 else:
-                    self.fn()
+                    self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
                 visualize_task_dependencies(graph, self.name)
