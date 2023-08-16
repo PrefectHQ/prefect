@@ -25,7 +25,7 @@ This guide provides an overview of the differences between agents and workers. I
 - More easily define many multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 - Prefect provides [deployment actions](/concepts/deployments/#deployment-actions) that allow you to automatically build images for your flows.
 - [Templating](/concepts/deployments/#templating-options) enables [dryer deployment definitions](/concepts/deployments/#reusing-configuration-across-deployments).
-- You can use a [wizard now](/#step-5-deploy-the-flow)! 🧙
+- You can use a deployment creation [wizard now](/#step-5-deploy-the-flow)! 🧙
 
 ----------
 
@@ -84,9 +84,13 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     prefect worker start -p <work pool name>
     ```
 
-3. [Deploy your flow](/concepts/deployments/#deployment-mechanics):
+3. [Deploy your flow](/#step-5-deploy-the-flow) guided by the deployment creation wizard:
     ```bash
     prefect deploy
     ```
+
+    !!! Note "For step 4, select `y` on last prompt to save the configuration for the deployment."
+        Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#deployment-declaration-reference) for this repo. 
+
 4. In your `prefect.yaml` file, configure a [pull action](/guides/deployment/storage-guide/) referencing whatever configuration you used as your storage block.
 
