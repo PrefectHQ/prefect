@@ -154,7 +154,6 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_VIZ_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -190,7 +189,6 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 from prefect.utilities.text import truncated_to
-from prefect.utilities.visualization import task_run_dependency_graph
 
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
@@ -557,10 +555,6 @@ async def begin_flow_run(
     await APILogHandler.aflush()
 
     # Generate a local visualization of the flow run if enabled
-    if PREFECT_VIZ_MODE:
-        graph = await task_run_dependency_graph(flow_run_id=flow_run.id, client=client)
-        logger.info(f"Saving visualization to {flow.name}.png")
-        graph.render(flow.name, view=True, cleanup=True, format="png")
 
     return terminal_state
 
@@ -1734,7 +1728,30 @@ async def orchestrate_task_run(
                     )
 
                 if prefect.settings.PREFECT_VIZ_MODE:
-                    result = task.viz_mode_value
+
+                    class VizModeDummyResultException(Exception):
+                        pass
+
+                    class VizModeDummyResult:
+                        def __getattr__(self, name):
+                            raise VizModeDummyResultException(
+                                "Can't call methods on a viz mode dummy result. Trying"
+                                " passing adding a `viz_mode_value` to your task"
+                            )
+
+                        def __iter__(self):
+                            raise VizModeDummyResultException(
+                                "Can't iter on a viz mode dummy result. Trying passing"
+                                " adding a `viz_mode_value` to your task"
+                            )
+
+                        def result(self):
+                            return self
+
+                        def wait_for(self):
+                            return self
+
+                    result = task.viz_mode_value or VizModeDummyResult()
                 else:
                     call = from_async.call_soon_in_new_thread(
                         create_call(task.fn, *args, **kwargs),
