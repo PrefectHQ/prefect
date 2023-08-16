@@ -205,7 +205,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        mock_return: Optional[Any] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -338,7 +338,7 @@ class Task(Generic[P, R]):
         #   (see prefect.engine.UNTRACKABLE_TYPES). A user might think the
         #   visualization is broken because they're inclined to supply low numbers
         #   but we can't visualize those
-        self.mock_return = mock_return
+        self.viz_return_value = viz_return_value
 
     def with_options(
         self,
@@ -545,10 +545,12 @@ class Task(Generic[P, R]):
                 from functools import partial
 
                 return from_async.wait_for_call_in_loop_thread(
-                    partial(track_task_run, self.name, parameters, self.mock_return)
+                    partial(
+                        track_task_run, self.name, parameters, self.viz_return_value
+                    )
                 )
             else:
-                return track_task_run(self.name, parameters, self.mock_return)
+                return track_task_run(self.name, parameters, self.viz_return_value)
 
         return enter_task_run_engine(
             self,
@@ -755,10 +757,12 @@ class Task(Generic[P, R]):
                 from functools import partial
 
                 return from_async.wait_for_call_in_loop_thread(
-                    partial(track_task_run, self.name, parameters, self.mock_return)
+                    partial(
+                        track_task_run, self.name, parameters, self.viz_return_value
+                    )
                 )
             else:
-                return track_task_run(self.name, parameters, self.mock_return)
+                return track_task_run(self.name, parameters, self.viz_return_value)
 
         return enter_task_run_engine(
             self,
@@ -938,10 +942,12 @@ class Task(Generic[P, R]):
                 from functools import partial
 
                 return from_async.wait_for_call_in_loop_thread(
-                    partial(track_task_run, self.name, parameters, self.mock_return)
+                    partial(
+                        track_task_run, self.name, parameters, self.viz_return_value
+                    )
                 )
             else:
-                return track_task_run(self.name, parameters, self.mock_return)
+                return track_task_run(self.name, parameters, self.viz_return_value)
 
         return enter_task_run_engine(
             self,
@@ -1018,7 +1024,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    mock_return: Any = None,
+    viz_return_value: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1149,7 +1155,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                mock_return=mock_return,
+                viz_return_value=viz_return_value,
             ),
         )
     else:
@@ -1177,6 +1183,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                mock_return=mock_return,
+                viz_return_value=viz_return_value,
             ),
         )

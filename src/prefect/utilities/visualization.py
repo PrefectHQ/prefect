@@ -14,7 +14,7 @@ def get_task_run_tracker():
     return TaskRunTrackerState.current
 
 
-def track_task_run(task_name, parameters, mock_return=None):
+def track_task_run(task_name, parameters, viz_return_value=None):
     task_run_tracker = get_task_run_tracker()
     if task_run_tracker:
         upstream_tasks = []
@@ -33,11 +33,11 @@ def track_task_run(task_name, parameters, mock_return=None):
         )
         task_run_tracker.add_trackable_task(trackable_task)
 
-        if mock_return:
-            task_run_tracker.link_mock_return_to_trackable_task(
-                mock_return, trackable_task
+        if viz_return_value:
+            task_run_tracker.link_viz_return_value_to_trackable_task(
+                viz_return_value, trackable_task
             )
-            return mock_return
+            return viz_return_value
 
         return trackable_task
 
@@ -47,13 +47,9 @@ class TrackableTask:
         self,
         name: str,
         upstream_tasks: list["TrackableTask"],
-        mapped_length: int = None,
     ):
         self.name = name
         self.upstream_tasks = upstream_tasks
-
-    # def result(self):
-    #     return self
 
 
 class TaskRunTracker:
@@ -78,8 +74,8 @@ class TaskRunTracker:
     def __exit__(self, exc_type, exc_val, exc_tb):
         TaskRunTrackerState.current = None
 
-    def link_mock_return_to_trackable_task(
-        self, mock_return: Any, trackable_task: TrackableTask
+    def link_viz_return_value_to_trackable_task(
+        self, viz_return_value: Any, trackable_task: TrackableTask
     ) -> None:
         from prefect.utilities.collections import visit_collection
         from prefect.engine import UNTRACKABLE_TYPES
@@ -95,7 +91,7 @@ class TaskRunTracker:
                 return
             self.object_id_to_task[id(obj)] = trackable_task
 
-        visit_collection(expr=mock_return, visit_fn=link_if_trackable, max_depth=1)
+        visit_collection(expr=viz_return_value, visit_fn=link_if_trackable, max_depth=1)
 
 
 def visualize_task_dependencies(flow_run_name: str, task_run_tracker: TaskRunTracker):
