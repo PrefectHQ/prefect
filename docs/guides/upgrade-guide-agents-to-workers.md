@@ -54,7 +54,7 @@ This guide provides an overview of the differences between agents and workers. I
     Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file.
 
 
-## What's the same
+## What's similar
 
 - Storage blocks can be set as the pull action in a `prefect.yaml` file.
 - Infrastructure blocks have similar configuration fields as typed work pools.
