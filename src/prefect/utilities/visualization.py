@@ -21,13 +21,24 @@ def track_task_run(task_name, parameters, mock_return=None):
         for k, v in parameters.items():
             if isinstance(v, TrackableTask):
                 upstream_tasks.append(v)
+            # if it's an object that we've already seen,
+            # we can use the object id to find if there is a trackable task
+            # if so, add it to the upstream tasks
+            elif id(v) in task_run_tracker.object_id_to_task:
+                upstream_tasks.append(task_run_tracker.object_id_to_task[id(v)])
 
         trackable_task = TrackableTask(
             name=task_name,
             upstream_tasks=upstream_tasks,
-            value=mock_return,
         )
         task_run_tracker.add_trackable_task(trackable_task)
+
+        if mock_return:
+            task_run_tracker.link_mock_return_to_trackable_task(
+                mock_return, trackable_task
+            )
+            return mock_return
+
         return trackable_task
 
 
@@ -36,34 +47,16 @@ class TrackableTask:
         self,
         name: str,
         upstream_tasks: list["TrackableTask"],
-        value: Any = None,
     ):
         self.name = name
         self.upstream_tasks = upstream_tasks
-        self.value = value
-
-    def __iter__(self):
-        if not self.value:
-            raise ValueError(
-                "Task needs a mock return value e.x. `@task(mock_return=[1, 2, 3])`."
-            )
-        else:
-            try:
-                iter(self.value)
-            except TypeError:
-                raise TypeError(
-                    "Task needs an iterable mock return value e.x."
-                    " `@task(mock_return=[1, 2, 3])`."
-                )
-            else:
-                for value in self.value:
-                    yield value
 
 
 class TaskRunTracker:
     def __init__(self):
         self.tasks = []
         self.dynamic_task_counter = {}
+        self.object_id_to_task = {}
 
     def add_trackable_task(self, task):
         if task.name not in self.dynamic_task_counter:
@@ -80,6 +73,25 @@ class TaskRunTracker:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         TaskRunTrackerState.current = None
+
+    def link_mock_return_to_trackable_task(
+        self, mock_return: Any, trackable_task: TrackableTask
+    ) -> None:
+        from prefect.utilities.collections import visit_collection
+        from prefect.engine import UNTRACKABLE_TYPES
+
+        def link_if_trackable(obj: Any) -> None:
+            """
+            We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+            because they are singletons.
+            """
+            if (type(obj) in UNTRACKABLE_TYPES) or (
+                isinstance(obj, int) and (-5 <= obj <= 256)
+            ):
+                return
+            self.object_id_to_task[id(obj)] = trackable_task
+
+        visit_collection(expr=mock_return, visit_fn=link_if_trackable, max_depth=1)
 
 
 def visualize_task_dependencies(flow_run_name: str, task_run_tracker: TaskRunTracker):
