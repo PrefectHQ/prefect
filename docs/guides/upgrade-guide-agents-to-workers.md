@@ -85,12 +85,17 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     ```
 
 3. [Deploy your flow](/#step-5-deploy-the-flow) guided by the deployment creation wizard:
+
+    !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
+        With agents you might have had multiple `deloyment.yaml` files, but under the worker patter, each repo will have a single `prefect.yaml` located at the root of the repo that [lists each deployment in the one file](/concepts/deployments/#working-with-multiple-deployments).
+
     ```bash
     prefect deploy
     ```
 
     !!! Note "For step 4, select `y` on last prompt to save the configuration for the deployment."
-        Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#deployment-declaration-reference) for this repo. 
+        Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#working-with-multiple-deployments) for this repo. 
 
 4. In your `prefect.yaml` file, configure a [pull action](/guides/deployment/storage-guide/) referencing whatever configuration you used as your storage block.
+5. Continue to create more [deployments](/concepts/deployments/#deployment-declaration-reference) that use workers by either adding them to the `deployments` list in the `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
 
