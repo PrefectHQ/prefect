@@ -4,7 +4,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 
 A worker is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
 
-Accordingly, workers are not a drop in replacement for agents. **Using workers requires deploying flows differently.** In particular, deploying a flow with an worker does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
+Accordingly, workers are not a drop-in replacement for agents. **Using workers requires deploying flows differently.** In particular, deploying a flow with a worker does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
 
 This guide provides an overview of the differences between agents and workers. It also describes how to upgrade from agents to workers in just a few quick steps.
 
