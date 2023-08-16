@@ -10,6 +10,10 @@ class FlowVisualizationError(Exception):
     pass
 
 
+class VisualizationUnsupportedError(Exception):
+    pass
+
+
 class TaskVizTrackerState:
     current = None
 

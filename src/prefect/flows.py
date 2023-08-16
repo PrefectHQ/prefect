@@ -68,6 +68,7 @@ from prefect.utilities.visualization import (
     build_task_dependencies,
     visualize_task_dependencies,
     FlowVisualizationError,
+    VisualizationUnsupportedError,
 )
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -606,6 +607,8 @@ class Flow(Generic[P, R]):
 
                 graph = build_task_dependencies(tracker)
                 visualize_task_dependencies(graph, self.name)
+        except VisualizationUnsupportedError:
+            raise
         except Exception:
             raise FlowVisualizationError(
                 "Something went wrong building the flow's visualization."

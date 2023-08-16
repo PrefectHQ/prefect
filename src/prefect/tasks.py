@@ -49,7 +49,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.visualization import (
     get_task_viz_tracker,
     track_viz_task,
-    FlowVisualizationError,
+    VisualizationUnsupportedError,
 )
 
 if TYPE_CHECKING:
@@ -369,6 +369,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -403,6 +404,7 @@ class Task(Generic[P, R]):
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
+            viz_return_value: An optional value to return when the task dependency tree is visualized.
 
         Returns:
             A new `Task` instance.
@@ -490,6 +492,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            viz_return_value=viz_return_value or self.viz_return_value,
         )
 
     @overload
@@ -743,7 +746,7 @@ class Task(Generic[P, R]):
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
-            raise FlowVisualizationError(
+            raise VisualizationUnsupportedError(
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
@@ -920,7 +923,7 @@ class Task(Generic[P, R]):
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
-            raise FlowVisualizationError(
+            raise VisualizationUnsupportedError(
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 

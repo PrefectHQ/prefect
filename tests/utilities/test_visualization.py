@@ -1,10 +1,14 @@
 import pytest
+
 from unittest.mock import Mock
+
+from prefect import flow, task
 from prefect.utilities.visualization import (
     TaskVizTracker,
     VizTask,
     _track_viz_task,
     get_task_viz_tracker,
+    VisualizationUnsupportedError,
 )
 
 
@@ -134,3 +138,29 @@ class TestTrackTaskRun:
             assert len(tracker.object_id_to_task) == 1
             assert tracker.tasks[1].name == "my_task-0"
             assert tracker.tasks[1].upstream_tasks == [tracker.tasks[0]]
+
+
+async def test_flow_visualize_doesnt_support_task_map():
+    @task
+    def add_one(n):
+        return n + 1
+
+    @flow
+    def add_flow():
+        add_one.map([1, 2, 3])
+
+    with pytest.raises(VisualizationUnsupportedError, match="task.map()"):
+        await add_flow.visualize()
+
+
+async def test_flow_visualize_doesnt_support_task_submit():
+    @task
+    def add_one(n):
+        return n + 1
+
+    @flow
+    def add_flow():
+        add_one.submit(1)
+
+    with pytest.raises(VisualizationUnsupportedError, match="task.submit()"):
+        await add_flow.visualize()
