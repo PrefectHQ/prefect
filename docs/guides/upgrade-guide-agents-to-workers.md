@@ -83,7 +83,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     ```
 
     !!! Tip "Process for starting a worker is very similar to the process for starting an agent"
-        Notice the command to start a worker is very similar to the command to start an agent. If you previously used terraform, a helm chart, or other infrastructure-as-code method to start an agent, you should be able to continue using it for a worker, provided the word `agent` is changed to `worker`.
+        Notice the command to start a worker is very similar to the command to start an agent. If you previously used terraform, a helm chart, or other infrastructure-as-code methods to start an agent, you should be able to continue using it for a worker, provided all uses of `agent` are changed to `worker`.
 
 3. [Deploy your flow](/concepts/deployments/#deployment-mechanics):
     ```bash
