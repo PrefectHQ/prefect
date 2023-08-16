@@ -69,7 +69,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 ## How to upgrade quickly
 
-If you have existing deployments that use infrastructure blocks, you can quickly upgrade them to be compatible with workers by:
+If you have existing deployments that use infrastructure blocks, you can quickly upgrade them to be compatible with workers by following these steps:
 
 1. [Create a work pool](/concepts/work-pools/#work-pool-configuration) of the same type as the infrastructure block you are currently using.
 
