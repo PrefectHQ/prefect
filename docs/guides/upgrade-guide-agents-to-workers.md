@@ -18,7 +18,7 @@ This guide provides an overview of the differences between agents and workers. I
 ### Agent infrastructure blocks to work pools
 
 - Work pools expose a [base job template](/concepts/work-pools/#base-job-template) that enables an unprecedented level of customization and governance over workers in that pool.
-- [Push work pools](/guides/deployment/push-work-pools/) allow for flow execution without the need to host a worker.
+- [Push work pools](/guides/deployment/push-work-pools/) allow for flow execution without the need to host a worker at all.
 
 ### New `prefect.yaml` file for managing multiple deployments
 
