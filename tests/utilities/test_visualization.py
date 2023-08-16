@@ -243,104 +243,104 @@ def flow_with_untrackable_task_result():
     sync_task_b(res)
 
 
-@pytest.mark.parametrize(
-    "test_flow",
-    [
-        simple_sync_flow,
-        simple_async_flow_with_async_tasks,
-        simple_async_flow_with_sync_tasks,
-        async_flow_with_subflow,
-        flow_with_task_interaction,
-        flow_with_mixed_tasks,
-        flow_with_untrackable_task_result,
-        flow_with_flow_params,
-    ],
-)
-def test_visualize_does_not_raise(test_flow, monkeypatch):
-    monkeypatch.setattr(
-        "prefect.flows.visualize_task_dependencies", MagicMock(return_value=None)
-    )
-
-    test_flow.visualize()
-
-
-@pytest.mark.parametrize(
-    "test_flow, expected_nodes",
-    [
-        (
+class TestFlowVisualise:
+    @pytest.mark.parametrize(
+        "test_flow",
+        [
             simple_sync_flow,
-            {
-                '\t"sync_task_b-0"\n',
-                '\t"sync_task_a-0"\n',
-                '\t"sync_task_a-0" -> "sync_task_b-0"\n',
-            },
-        ),
-        (
             simple_async_flow_with_async_tasks,
-            {
-                '\t"async_task_a-0"\n',
-                '\t"async_task_b-0"\n',
-                '\t"async_task_a-0" -> "async_task_b-0"\n',
-            },
-        ),
-        (
             simple_async_flow_with_sync_tasks,
-            {
-                '\t"sync_task_a-0"\n',
-                '\t"sync_task_b-0"\n',
-                '\t"sync_task_a-0" -> "sync_task_b-0"\n',
-            },
-        ),
-        (
             async_flow_with_subflow,
-            {
-                '\t"sync_task_a-0" -> "sync_task_b-0"\n',
-                '\t"sync_task_b-0"\n',
-                '\t"simple-async-flow-with-sync-tasks-0"\n',
-                '\t"sync_task_a-0"\n',
-            },
-        ),
-        (
             flow_with_task_interaction,
-            {
-                '\t"sync_task_a-0"\n',
-                '\t"sync_task_b-0"\n',
-            },
-        ),
-        (
             flow_with_mixed_tasks,
-            {
-                '\t"sync_task_a-0"\n',
-                '\t"async_task_b-0"\n',
-                '\t"sync_task_a-1"\n',
-                '\t"sync_task_a-0" -> "async_task_b-0"\n',
-            },
-        ),
-        (
             flow_with_untrackable_task_result,
-            {
-                '\t"untrackable_task_result-0"\n',
-                '\t"sync_task_b-0"\n',
-            },
-        ),
-        (
             flow_with_flow_params,
-            {
-                '\t"sync_task_a-0"\n',
-                '\t"sync_task_b-0"\n',
-            },
-        ),
-    ],
-)
-def test_visualize_graph_contents(test_flow, expected_nodes, monkeypatch):
-    mock_visualize = MagicMock(return_value=None)
-    monkeypatch.setattr("prefect.flows.visualize_task_dependencies", mock_visualize)
+        ],
+    )
+    def test_visualize_does_not_raise(self, test_flow, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.flows.visualize_task_dependencies", MagicMock(return_value=None)
+        )
 
-    test_flow.visualize()
-    graph = mock_visualize.call_args[0][0]
+        test_flow.visualize()
 
-    actual_nodes = set(graph.body)
+    @pytest.mark.parametrize(
+        "test_flow, expected_nodes",
+        [
+            (
+                simple_sync_flow,
+                {
+                    '\t"sync_task_b-0"\n',
+                    '\t"sync_task_a-0"\n',
+                    '\t"sync_task_a-0" -> "sync_task_b-0"\n',
+                },
+            ),
+            (
+                simple_async_flow_with_async_tasks,
+                {
+                    '\t"async_task_a-0"\n',
+                    '\t"async_task_b-0"\n',
+                    '\t"async_task_a-0" -> "async_task_b-0"\n',
+                },
+            ),
+            (
+                simple_async_flow_with_sync_tasks,
+                {
+                    '\t"sync_task_a-0"\n',
+                    '\t"sync_task_b-0"\n',
+                    '\t"sync_task_a-0" -> "sync_task_b-0"\n',
+                },
+            ),
+            (
+                async_flow_with_subflow,
+                {
+                    '\t"sync_task_a-0" -> "sync_task_b-0"\n',
+                    '\t"sync_task_b-0"\n',
+                    '\t"simple-async-flow-with-sync-tasks-0"\n',
+                    '\t"sync_task_a-0"\n',
+                },
+            ),
+            (
+                flow_with_task_interaction,
+                {
+                    '\t"sync_task_a-0"\n',
+                    '\t"sync_task_b-0"\n',
+                },
+            ),
+            (
+                flow_with_mixed_tasks,
+                {
+                    '\t"sync_task_a-0"\n',
+                    '\t"async_task_b-0"\n',
+                    '\t"sync_task_a-1"\n',
+                    '\t"sync_task_a-0" -> "async_task_b-0"\n',
+                },
+            ),
+            (
+                flow_with_untrackable_task_result,
+                {
+                    '\t"untrackable_task_result-0"\n',
+                    '\t"sync_task_b-0"\n',
+                },
+            ),
+            (
+                flow_with_flow_params,
+                {
+                    '\t"sync_task_a-0"\n',
+                    '\t"sync_task_b-0"\n',
+                },
+            ),
+        ],
+    )
+    def test_visualize_graph_contents(self, test_flow, expected_nodes, monkeypatch):
+        mock_visualize = MagicMock(return_value=None)
+        monkeypatch.setattr("prefect.flows.visualize_task_dependencies", mock_visualize)
 
-    assert (
-        actual_nodes == expected_nodes
-    ), f"Expected nodes {expected_nodes} but found {actual_nodes}"
+        test_flow.visualize()
+        graph = mock_visualize.call_args[0][0]
+
+        actual_nodes = set(graph.body)
+
+        assert (
+            actual_nodes == expected_nodes
+        ), f"Expected nodes {expected_nodes} but found {actual_nodes}"
