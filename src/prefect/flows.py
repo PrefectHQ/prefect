@@ -68,6 +68,8 @@ from prefect.utilities.visualization import (
     build_task_dependencies,
     visualize_task_dependencies,
     FlowVisualizationError,
+    get_task_viz_tracker,
+    track_viz_task,
     VisualizationUnsupportedError,
 )
 
@@ -543,6 +545,12 @@ class Flow(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return_type = "state" if return_state else "result"
+
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            # this is a subflow, for now return a single task and do not go further
+            # we can add support for exploring subflows for tasks in the future.
+            return track_viz_task(self.isasync, self.name, parameters)
 
         return enter_flow_run_engine_from_flow_call(
             self,
