@@ -1,10 +1,12 @@
 # How to Upgrade from Agents to Workers
 
-Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. This guide provides an overview of the differences between agents and workers. It also describes how to upgrade from agents to workers in just a few quick steps.
+Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. 
 
 A worker is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, they poll a work pool for submitted flow runs that are scheduled to start. Like infrastructure blocks, they are typed - they work with only one kind of infrastructure and they specify the configuration of that infrastructure.
 
-Accordingly, workers are not a drop in replacement for agents. Using workers requires deploying flows differently. In particular, deploying a flow with an agent does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
+Accordingly, workers are not a drop in replacement for agents. **Using workers requires deploying flows differently.** In particular, deploying a flow with an worker does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
+
+This guide provides an overview of the differences between agents and workers. It also describes how to upgrade from agents to workers in just a few quick steps.
 
 ## Enhancements
 
@@ -65,7 +67,7 @@ Accordingly, workers are not a drop in replacement for agents. Using workers req
     `prefect agent start <work pool>` --> `prefect worker start <work pool>`
 
 
-## How to get started quickly
+## How to upgrade quickly
 
 If you have existing deployments that use infrastructure blocks, you can quickly upgrade them to be compatible with workers by:
 
