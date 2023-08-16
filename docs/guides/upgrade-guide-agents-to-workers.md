@@ -41,7 +41,7 @@ This guide provides an overview of the differences between agents and workers. I
     
     storage blocks --> [pull action](/concepts/deployments/#the-pull-action)
     
-    Though you can still use an existing [storage block as your pull action](/guides/deployment/storage-guide/)!
+    And you can still use an existing [storage block as your pull action](/guides/deployment/storage-guide/)!  The more general pull steps specification allows for explicit customization of the job that defines each run (for example, by adding an additional step that sets a working directory).
 
 3. **Configuring flow run infrastructure:** 
     
