@@ -89,5 +89,5 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     ```bash
     prefect deploy
     ```
-4. In your prefect.yaml file, configure a [pull action](/guides/deployment/storage-guide/) referencing whatever configuration you used as your storage block.
+4. In your `prefect.yaml` file, configure a [pull action](/guides/deployment/storage-guide/) referencing whatever configuration you used as your storage block.
 
