@@ -51,7 +51,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 4. **Managing multiple deployments:**
     
-    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
+    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file.
 
 
 ## What's the same
