@@ -55,7 +55,7 @@ async def simple_async_flow_with_sync_tasks():
 
 @flow
 async def async_flow_with_subflow():
-    a = await async_task_a()
+    a = sync_task_a()
     await simple_async_flow_with_sync_tasks()
     sync_task_b(a)
 
@@ -131,10 +131,10 @@ def test_visualize_does_not_raise(test_flow, monkeypatch):
         (
             async_flow_with_subflow,
             {
-                '\t"async_task_a-0"\n',
-                '\t"simple_async_flow_with_sync_tasks-0"\n',
+                '\t"sync_task_a-0" -> "sync_task_b-0"\n',
                 '\t"sync_task_b-0"\n',
-                '\t"async_task_a-0" -> "sync_task_b-0"\n',
+                '\t"simple-async-flow-with-sync-tasks-0"\n',
+                '\t"sync_task_a-0"\n',
             },
         ),
         (
