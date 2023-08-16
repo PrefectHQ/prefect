@@ -266,7 +266,7 @@ class TaskRunCreate(ActionBaseModel):
     )
 
     name: str = FieldFrom(objects.TaskRun)
-    flow_run_id: UUID = FieldFrom(objects.TaskRun)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.TaskRun)
     task_key: str = FieldFrom(objects.TaskRun)
     dynamic_key: str = FieldFrom(objects.TaskRun)
     cache_key: Optional[str] = FieldFrom(objects.TaskRun)
@@ -446,7 +446,7 @@ class LogCreate(ActionBaseModel):
     level: int = FieldFrom(objects.Log)
     message: str = FieldFrom(objects.Log)
     timestamp: objects.DateTimeTZ = FieldFrom(objects.Log)
-    flow_run_id: UUID = FieldFrom(objects.Log)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.Log)
     task_run_id: Optional[UUID] = FieldFrom(objects.Log)
 
 

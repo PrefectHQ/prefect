@@ -86,7 +86,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow.retries:
+    if flow and flow.retries:
         return True
     return False
 
@@ -213,24 +213,30 @@ class ResultFactory(pydantic.BaseModel):
 
         ctx = FlowRunContext.get()
         if not ctx:
-            raise MissingContextError(
-                "A flow run context is required to create a result factory for a task."
-            )
+            # TODO: figure this bit out
+            # raise MissingContextError(
+            #     "A flow run context is required to create a result factory for a task."
+            # )
+            result_storage = None
+            result_serializer = None
+            persist_result = False
+        
+        else:
 
-        result_storage = task.result_storage or ctx.result_factory.storage_block
-        result_serializer = task.result_serializer or ctx.result_factory.serializer
-        persist_result = (
-            task.persist_result
-            if task.persist_result is not None
-            else
-            # !! Tasks persist their result by default if their parent flow uses a
-            #    feature that requires it or the task uses a feature that requires it
-            (
-                flow_features_require_child_result_persistence(ctx.flow)
-                or task_features_require_result_persistence(task)
-                or get_default_persist_setting()
+            result_storage = task.result_storage or ctx.result_factory.storage_block
+            result_serializer = task.result_serializer or ctx.result_factory.serializer
+            persist_result = (
+                task.persist_result
+                if task.persist_result is not None
+                else
+                # !! Tasks persist their result by default if their parent flow uses a
+                #    feature that requires it or the task uses a feature that requires it
+                (
+                    flow_features_require_child_result_persistence(ctx.flow)
+                    or task_features_require_result_persistence(task)
+                    or get_default_persist_setting()
+                )
             )
-        )
         cache_result_in_memory = task.cache_result_in_memory
 
         return await cls.from_settings(

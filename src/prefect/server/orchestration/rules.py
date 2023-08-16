@@ -430,7 +430,8 @@ class TaskOrchestrationContext(OrchestrationContext):
                 state_result_artifact.task_run_id = self.run.id
 
                 flow_run = await self.flow_run()
-                state_result_artifact.flow_run_id = flow_run.id
+                if flow_run:
+                    state_result_artifact.flow_run_id = flow_run.id
 
                 await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id

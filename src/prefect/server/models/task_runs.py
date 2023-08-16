@@ -48,34 +48,61 @@ async def create_task_run(
     now = pendulum.now("UTC")
 
     # if a dynamic key exists, we need to guard against conflicts
-    insert_stmt = (
-        (await db.insert(db.TaskRun))
-        .values(
-            created=now,
-            **task_run.dict(
-                shallow=True, exclude={"state", "created"}, exclude_unset=True
-            ),
-        )
-        .on_conflict_do_nothing(
-            index_elements=db.task_run_unique_upsert_columns,
-        )
-    )
-    await session.execute(insert_stmt)
-
-    query = (
-        sa.select(db.TaskRun)
-        .where(
-            sa.and_(
-                db.TaskRun.flow_run_id == task_run.flow_run_id,
-                db.TaskRun.task_key == task_run.task_key,
-                db.TaskRun.dynamic_key == task_run.dynamic_key,
+    if task_run.flow_run_id:
+        insert_stmt = (
+            (await db.insert(db.TaskRun))
+            .values(
+                created=now,
+                **task_run.dict(
+                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                ),
+            )
+            .on_conflict_do_nothing(
+                index_elements=db.task_run_unique_upsert_columns,
             )
         )
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    model = result.scalar()
+        await session.execute(insert_stmt)
+
+        query = (
+            sa.select(db.TaskRun)
+            .where(
+                sa.and_(
+                    db.TaskRun.flow_run_id == task_run.flow_run_id,
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        result = await session.execute(query)
+        model = result.scalar()
+    else:
+        insert_stmt = (
+            (await db.insert(db.TaskRun))
+            .values(
+                created=now,
+                **task_run.dict(
+                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                ),
+            )
+        )
+        await session.execute(insert_stmt)
+
+        query = (
+            sa.select(db.TaskRun)
+            .where(
+                sa.and_(
+                    db.TaskRun.flow_run_id == task_run.flow_run_id,
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        result = await session.execute(query)
+        model = result.scalar()
 
     if model.created == now and task_run.state:
         await models.task_runs.set_task_run_state(

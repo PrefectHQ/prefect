@@ -299,7 +299,7 @@ class TaskRunCreate(ActionBaseModel):
     )
 
     name: str = FieldFrom(schemas.core.TaskRun)
-    flow_run_id: UUID = FieldFrom(schemas.core.TaskRun)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.TaskRun)
     task_key: str = FieldFrom(schemas.core.TaskRun)
     dynamic_key: str = FieldFrom(schemas.core.TaskRun)
     cache_key: Optional[str] = FieldFrom(schemas.core.TaskRun)
@@ -519,7 +519,7 @@ class LogCreate(ActionBaseModel):
     level: int = FieldFrom(schemas.core.Log)
     message: str = FieldFrom(schemas.core.Log)
     timestamp: schemas.core.DateTimeTZ = FieldFrom(schemas.core.Log)
-    flow_run_id: UUID = FieldFrom(schemas.core.Log)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
 
 

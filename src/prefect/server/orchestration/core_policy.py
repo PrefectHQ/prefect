@@ -600,12 +600,13 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
         if self.flow_run:
             context.run.flow_run_run_count = self.flow_run.run_count
         else:
-            raise ObjectNotFoundError(
-                (
-                    "Unable to read flow run associated with task run:"
-                    f" {context.run.id}, this flow run might have been deleted"
-                ),
-            )
+            pass
+            # raise ObjectNotFoundError(
+            #     (
+            #         "Unable to read flow run associated with task run:"
+            #         f" {context.run.id}, this flow run might have been deleted"
+            #     ),
+            # )
 
 
 class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
@@ -654,9 +655,10 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         # Change the name of the state to retrying if its a flow run retry
         if proposed_state.is_running():
             self.flow_run = await context.flow_run()
-            flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
-            if flow_retrying:
-                await self.rename_state("Retrying")
+            if self.flow_run:
+                flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
+                if flow_retrying:
+                    await self.rename_state("Retrying")
 
     async def cleanup(
         self,
@@ -799,23 +801,24 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         flow_run = await context.flow_run()
-        if flow_run.state is None:
-            await self.abort_transition(
-                reason="The enclosing flow must be running to begin task execution."
-            )
-        elif flow_run.state.type == StateType.PAUSED:
-            await self.reject_transition(
-                state=states.Paused(name="NotReady"),
-                reason=(
-                    "The flow is paused, new tasks can execute after resuming flow"
-                    f" run: {flow_run.id}."
-                ),
-            )
-        elif not flow_run.state.type == StateType.RUNNING:
-            # task runners should abort task run execution
-            await self.abort_transition(
-                reason="The enclosing flow must be running to begin task execution.",
-            )
+        if flow_run:
+            if flow_run.state is None:
+                await self.abort_transition(
+                    reason="The enclosing flow must be running to begin task execution."
+                )
+            elif flow_run.state.type == StateType.PAUSED:
+                await self.reject_transition(
+                    state=states.Paused(name="NotReady"),
+                    reason=(
+                        "The flow is paused, new tasks can execute after resuming flow"
+                        f" run: {flow_run.id}."
+                    ),
+                )
+            elif not flow_run.state.type == StateType.RUNNING:
+                # task runners should abort task run execution
+                await self.abort_transition(
+                    reason="The enclosing flow must be running to begin task execution.",
+                )
 
 
 class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):

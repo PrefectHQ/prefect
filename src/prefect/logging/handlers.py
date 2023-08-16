@@ -208,6 +208,9 @@ class APILogHandler(logging.Handler):
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
+        # Lazy fix for now
+        if flow_run_id in ('None', '<unknown>'):
+            flow_run_id = None
         log = LogCreate(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,

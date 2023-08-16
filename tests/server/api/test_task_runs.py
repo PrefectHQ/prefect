@@ -28,6 +28,36 @@ class TestCreateTaskRun:
         )
         assert task_run.flow_run_id == flow_run.id
 
+    async def test_create_task_run_without_flow_run_id(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": None,
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["flow_run_id"] == None
+        assert response.json()["id"]
+        assert response.json()["name"] == "my-cool-task-run-name"
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        assert task_run.flow_run_id == None
+
+        # Posting the same data twice should result in a different task run, right?
+        task_run_data = {
+            "flow_run_id": None,
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+        }
+        response_2 = await client.post("/task_runs/", json=task_run_data)
+        assert response_2.status_code == status.HTTP_201_CREATED
+        assert response.json()["id"] != response_2.json()["id"]
+
+
     async def test_create_task_run_gracefully_upserts(self, flow_run, client):
         # create a task run
         task_run_data = {

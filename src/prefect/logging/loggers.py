@@ -163,16 +163,21 @@ def flow_run_logger(
 
     If the context is available, see `run_logger` instead.
     """
+    if flow_run:
+        extra = {
+            "flow_run_name": flow_run.name,
+            "flow_run_id": str(flow_run.id),
+            "flow_name": flow.name if flow else "<unknown>",
+        }
+    else:
+        extra = {
+            "flow_run_name": "<unknown>",
+            "flow_run_id": "<unknown>",
+            "flow_name": "<unknown>",
+        }
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
-        extra={
-            **{
-                "flow_run_name": flow_run.name,
-                "flow_run_id": str(flow_run.id),
-                "flow_name": flow.name if flow else "<unknown>",
-            },
-            **kwargs,
-        },
+        extra=extra,
     )
 
 
