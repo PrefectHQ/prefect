@@ -54,7 +54,7 @@ Accordingly, workers are not a drop in replacement for agents. Using workers req
 ## What's the same
 
 - Storage blocks can be set as the pull action in a `prefect.yaml` file.
-- Infra blocks have similar configuration fields as typed work pools.
+- Infrastructure blocks have similar configuration fields as typed work pools.
 - Deployment-level infra-overrides operate in much the same way. 
 
     `infra_override` -> [`job_variable`](/concepts/deployments/#work-pool-fields)
