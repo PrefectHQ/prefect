@@ -65,6 +65,7 @@ from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 from prefect.utilities.visualization import (
     TaskRunTracker,
+    build_task_dependencies,
     visualize_task_dependencies,
     FlowVisualizationError,
 )
@@ -602,7 +603,9 @@ class Flow(Generic[P, R]):
                     await self.fn()
                 else:
                     self.fn()
-                visualize_task_dependencies(self.name, tracker)
+
+                graph = build_task_dependencies(tracker)
+                visualize_task_dependencies(graph, self.name)
         except Exception:
             raise FlowVisualizationError(
                 "Something went wrong while building the flow's visualization."

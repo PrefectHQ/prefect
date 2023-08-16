@@ -91,10 +91,14 @@ class TaskRunTracker:
         self.object_id_to_task[id(viz_return_value)] = trackable_task
 
 
-def visualize_task_dependencies(flow_run_name: str, task_run_tracker: TaskRunTracker):
+def build_task_dependencies(task_run_tracker: TaskRunTracker):
     g = graphviz.Digraph()
     for task in task_run_tracker.tasks:
         g.node(task.name)
         for upstream in task.upstream_tasks:
             g.edge(upstream.name, task.name)
-    g.render(filename=flow_run_name, view=True, format="png")
+    return g
+
+
+def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
+    graph.render(filename=flow_run_name, view=True, format="png")
