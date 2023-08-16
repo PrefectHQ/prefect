@@ -173,6 +173,7 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -337,11 +338,6 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
-
-        #  TODO validate mock return? there are types we can't track
-        #   (see prefect.engine.UNTRACKABLE_TYPES). A user might think the
-        #   visualization is broken because they're inclined to supply low numbers
-        #   but we can't visualize those
         self.viz_return_value = viz_return_value
 
     def with_options(

@@ -24,6 +24,7 @@ def track_viz_task(
     parameters: dict,
     viz_return_value: Optional[Any] = None,
 ):
+    """Return a result if sync otherwise return a coroutine that returns the result"""
     if is_async:
         return from_async.wait_for_call_in_loop_thread(
             partial(_track_viz_task, task_name, parameters, viz_return_value)
@@ -32,7 +33,11 @@ def track_viz_task(
         return _track_viz_task(task_name, parameters, viz_return_value)
 
 
-def _track_viz_task(task_name, parameters, viz_return_value=None) -> Any:
+def _track_viz_task(
+    task_name,
+    parameters,
+    viz_return_value=None,
+) -> Any:
     task_run_tracker = get_task_viz_tracker()
     if task_run_tracker:
         upstream_tasks = []
