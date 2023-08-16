@@ -608,10 +608,10 @@ class Flow(Generic[P, R]):
                 visualize_task_dependencies(graph, self.name)
         except Exception:
             raise FlowVisualizationError(
-                "Something went wrong while building the flow's visualization."
-                " If you're interacting with the return value of a task directly"
-                " inside of your flow,  you must set a set a `viz_return_value`,"
-                " for example `@task(viz_return_value=[1, 2, 3])`."
+                "Something went wrong building the flow's visualization."
+                " If you're interacting with the return value of a task"
+                " directly inside of your flow, you must set a set a `viz_return_value`"
+                ", for example `@task(viz_return_value=[1, 2, 3])`."
             )
 
 
