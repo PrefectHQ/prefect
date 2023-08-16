@@ -67,7 +67,7 @@ Accordingly, workers are not a drop in replacement for agents. Using workers req
 
 ## How to get started quickly
 
-If you have a deployment with a storage block and infra block, here's how to quickly upgrade it to use Prefect's new features:
+If you have existing deployments that use infrastructure blocks, you can quickly upgrade them to be compatible with workers by:
 
 1. [Create a work pool](/concepts/work-pools/#work-pool-configuration) of the same type as the infrastructure block you are currently using.
 
