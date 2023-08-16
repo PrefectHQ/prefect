@@ -39,7 +39,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 2. **Configuring remote flow code storage:** 
     
-    storage blocs --> [pull action](/concepts/deployments/#the-pull-action)
+    storage blocks --> [pull action](/concepts/deployments/#the-pull-action)
     
     Though you can still use an existing [storage block as your pull action](/guides/deployment/storage-guide/)!
 
