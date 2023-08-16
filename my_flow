@@ -1,0 +1,7 @@
+digraph {
+	"get_nums-0"
+	"square_nums-0"
+	"get_nums-0" -> "square_nums-0"
+	"print_nums-0"
+	"square_nums-0" -> "print_nums-0"
+}
