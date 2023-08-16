@@ -652,9 +652,9 @@ class BaseWorker(abc.ABC):
                 work_pool = await self._client.create_work_pool(
                     work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
                 )
-                self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
+                self._logger.info(f"Work pool {self._work_pool_name!r} created.")
             else:
-                self._logger.warning(f"Worker pool {self._work_pool_name!r} not found!")
+                self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
                 return
 
         # if the remote config type changes (or if it's being loaded for the
