@@ -47,7 +47,7 @@ This guide provides an overview of the differences between agents and workers. I
     
     run-infrastructure blocks --> [typed work pool](/concepts/work-pools/#worker-types) 
     
-    Infra config is now set on the typed work pool.
+    Default infra config is now set on the typed work pool, and can be overwritten by both individual deployments or individual runs.
 
 4. **Managing multiple deployments:**
     
