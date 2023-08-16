@@ -1,4 +1,5 @@
-from typing import Any
+from typing import Any, Optional
+
 import graphviz
 
 
@@ -46,10 +47,10 @@ class TrackableTask:
     def __init__(
         self,
         name: str,
-        upstream_tasks: list["TrackableTask"],
+        upstream_tasks: Optional[list["TrackableTask"]] = None,
     ):
         self.name = name
-        self.upstream_tasks = upstream_tasks
+        self.upstream_tasks = upstream_tasks if upstream_tasks else []
 
 
 class TaskRunTracker:
@@ -58,7 +59,7 @@ class TaskRunTracker:
         self.dynamic_task_counter = {}
         self.object_id_to_task = {}
 
-    def add_trackable_task(self, task):
+    def add_trackable_task(self, task: TrackableTask):
         if task.name not in self.dynamic_task_counter:
             self.dynamic_task_counter[task.name] = 0
         else:
@@ -77,21 +78,17 @@ class TaskRunTracker:
     def link_viz_return_value_to_trackable_task(
         self, viz_return_value: Any, trackable_task: TrackableTask
     ) -> None:
-        from prefect.utilities.collections import visit_collection
+        """
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
         from prefect.engine import UNTRACKABLE_TYPES
 
-        def link_if_trackable(obj: Any) -> None:
-            """
-            We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
-            because they are singletons.
-            """
-            if (type(obj) in UNTRACKABLE_TYPES) or (
-                isinstance(obj, int) and (-5 <= obj <= 256)
-            ):
-                return
-            self.object_id_to_task[id(obj)] = trackable_task
-
-        visit_collection(expr=viz_return_value, visit_fn=link_if_trackable, max_depth=1)
+        if (type(viz_return_value) in UNTRACKABLE_TYPES) or (
+            isinstance(viz_return_value, int) and (-5 <= viz_return_value <= 256)
+        ):
+            return
+        self.object_id_to_task[id(viz_return_value)] = trackable_task
 
 
 def visualize_task_dependencies(flow_run_name: str, task_run_tracker: TaskRunTracker):
