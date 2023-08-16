@@ -64,7 +64,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 - The process for starting an agent and [starting a worker](/concepts/work-pools/#starting-a-worker) in your environment are virtually identical.
     
-    `prefect agent start <work pool>` --> `prefect worker start <work pool>`
+    `prefect agent start --pool <work pool name>` --> `prefect worker start --pool <work pool name>`
 
     !!! Tip "If you use infrastructure-as-code"
         Notice the command to start a worker is very similar to the command to start an agent. If you previously used terraform, a [helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker), or other infrastructure-as-code methods to start an agent, you should be able to continue using it for a worker, provided all uses of `agent` are changed to `worker`.
