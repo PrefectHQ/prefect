@@ -111,6 +111,58 @@ def test_visualize_does_not_raise(test_flow, monkeypatch):
                 '\t"sync_task_a-0" -> "sync_task_b-0"\n',
             },
         ),
+        (
+            simple_async_flow_with_async_tasks,
+            {
+                '\t"async_task_a-0"\n',
+                '\t"async_task_b-0"\n',
+                '\t"async_task_a-0" -> "async_task_b-0"\n',
+            },
+        ),
+        (
+            simple_async_flow_with_sync_tasks,
+            {
+                '\t"sync_task_a-0"\n',
+                '\t"sync_task_b-0"\n',
+                '\t"sync_task_a-0" -> "sync_task_b-0"\n',
+            },
+        ),
+        # (
+        #     async_flow_with_subflow,
+        #     {
+        #        todo - waiting on support for subflows
+        #     },
+        # ),
+        (
+            flow_with_task_interaction,
+            {
+                '\t"sync_task_a-0"\n',
+                '\t"sync_task_b-0"\n',
+            },
+        ),
+        (
+            flow_with_mixed_tasks,
+            {
+                '\t"sync_task_a-0"\n',
+                '\t"async_task_b-0"\n',
+                '\t"sync_task_a-1"\n',
+                '\t"sync_task_a-0" -> "async_task_b-0"\n',
+            },
+        ),
+        (
+            flow_with_untrackable_task_result,
+            {
+                '\t"untrackable_task_result-0"\n',
+                '\t"sync_task_b-0"\n',
+            },
+        ),
+        (
+            flow_with_flow_params,
+            {
+                '\t"sync_task_a-0"\n',
+                '\t"sync_task_b-0"\n',
+            },
+        ),
     ],
 )
 def test_visualize_graph_contents(test_flow, expected_nodes, monkeypatch):
