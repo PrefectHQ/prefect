@@ -333,6 +333,11 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+
+        #  TODO validate mock return? there are types we can't track
+        #   (see prefect.engine.UNTRACKABLE_TYPES). A user might think the
+        #   visualization is broken because they're inclined to supply low numbers
+        #   but we can't visualize those
         self.mock_return = mock_return
 
     def with_options(
@@ -535,7 +540,15 @@ class Task(Generic[P, R]):
 
         task_run_tracker = get_task_run_tracker()
         if task_run_tracker:
-            return track_task_run(self.name, parameters, self.mock_return)
+            if self.isasync:
+                from prefect._internal.concurrency.api import from_async
+                from functools import partial
+
+                return from_async.wait_for_call_in_loop_thread(
+                    partial(track_task_run, self.name, parameters, self.mock_return)
+                )
+            else:
+                return track_task_run(self.name, parameters, self.mock_return)
 
         return enter_task_run_engine(
             self,
@@ -737,7 +750,15 @@ class Task(Generic[P, R]):
         task_run_tracker = get_task_run_tracker()
 
         if task_run_tracker:
-            return track_task_run(self.name, parameters, self.mock_return)
+            if self.isasync:
+                from prefect._internal.concurrency.api import from_async
+                from functools import partial
+
+                return from_async.wait_for_call_in_loop_thread(
+                    partial(track_task_run, self.name, parameters, self.mock_return)
+                )
+            else:
+                return track_task_run(self.name, parameters, self.mock_return)
 
         return enter_task_run_engine(
             self,
@@ -909,6 +930,18 @@ class Task(Generic[P, R]):
         # since they should not be mapped over
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
+
+        task_run_tracker = get_task_run_tracker()
+        if task_run_tracker:
+            if self.isasync:
+                from prefect._internal.concurrency.api import from_async
+                from functools import partial
+
+                return from_async.wait_for_call_in_loop_thread(
+                    partial(track_task_run, self.name, parameters, self.mock_return)
+                )
+            else:
+                return track_task_run(self.name, parameters, self.mock_return)
 
         return enter_task_run_engine(
             self,

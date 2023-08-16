@@ -37,6 +37,7 @@ from prefect._internal.schemas.validators import raise_on_name_with_banned_chara
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import PrefectObjectRegistry, registry_from_script
+
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -52,7 +53,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import is_async_fn
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
@@ -593,10 +594,14 @@ class Flow(Generic[P, R]):
             return_type="state",
         )
 
-    def visualize(self):
+    @sync_compatible
+    async def visualize(self):
         try:
             with TaskRunTracker() as tracker:
-                self.fn()
+                if self.isasync:
+                    await self.fn()
+                else:
+                    self.fn()
                 visualize_task_dependencies(self.name, tracker)
         except Exception:
             raise FlowVisualizationError(

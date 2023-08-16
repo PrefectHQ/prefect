@@ -47,9 +47,13 @@ class TrackableTask:
         self,
         name: str,
         upstream_tasks: list["TrackableTask"],
+        mapped_length: int = None,
     ):
         self.name = name
         self.upstream_tasks = upstream_tasks
+
+    # def result(self):
+    #     return self
 
 
 class TaskRunTracker:
