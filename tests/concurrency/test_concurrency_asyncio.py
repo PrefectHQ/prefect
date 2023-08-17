@@ -96,13 +96,16 @@ async def test_concurrency_emits_events(
     asserting_events_worker: EventsWorker,
     reset_worker_events,
 ):
+    executed = False
+
     async def resource_heavy():
+        nonlocal executed
         async with concurrency(["test", "other"], occupy=1):
-            pass
+            executed = True
 
     await resource_heavy()
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 4  # 2 acquire, 2 release
 
@@ -251,7 +254,7 @@ async def test_rate_limit_emits_events(
 
     await resource_heavy()
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 2
 
