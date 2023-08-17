@@ -253,7 +253,9 @@ Hello Marvin!
 
 ## Visualizing Flow Structure <span class="badge experimental"></span>
 
-You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code. 
+You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
+
+!!!To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from http://www.graphviz.org/download/. And note: just installing the `graphviz` python package is not sufficient.
 
 ```python
 from prefect import flow, task
@@ -278,33 +280,31 @@ def hello_world(name="world"):
 hello_world.visualize()
 ```
 
-![a simple flow visualized with the .visualize() method](/img/orchestration/hello-flow-viz.png)
+![A simple flow visualized with the .visualize() method](/img/orchestration/hello-flow-viz.png)
 
 In some cases, such as dynamic workflows with loops or if/else control flow, Prefect is unable to automatically produce a schematic. In this case, you can provide tasks with mock return values for use in the `visualize()` call.
 
 ```python
-from prefect import task, flow
-
-@task(vis_return_value=["123a","456b", "789c"]) # necessary to produce a schematic without actually running the flow code
-def get_api_data(query):
-    ...
-    return [record["id"] for value in response]
+from prefect import flow, task
+@task(viz_return_value=[4])
+def get_list():
+    return [1, 2, 3]
 
 @task
-def score_api_data(record_id):
-    ...
-    return score
+def append_one(n):
+    return n.append(6)
 
 @flow
-def get_and_score_api_data():
-    records = get_api_data()
-    for record_id in records: # we use the viz_return value we provided above when we call visualize()
-        if isinstance(record_id, str):
-            score_api_data(record)
+def viz_return_value_tracked():
+    l = get_list()
+    for num in range(3):
+        l.append(5)
+        append_one()
 
+viz_return_value_tracked.visualize()
 ```
 
-image
+![A flow with return values visualized with the .visualize() method](/img/orchestration/viz-return-value-tracked.png)
 
 ## Composing flows
 
