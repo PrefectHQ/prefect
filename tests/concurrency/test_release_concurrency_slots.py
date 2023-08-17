@@ -3,7 +3,7 @@ from unittest import mock
 import uuid
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.concurrency import release_concurrency_slots
+from prefect.concurrency.asyncio import release_concurrency_slots
 
 
 async def test_calls_release_client_method():

@@ -2,7 +2,7 @@ import pytest
 from unittest import mock
 from httpx import HTTPStatusError, Request, Response
 
-from prefect.concurrency import wait_for_successful_response
+from prefect.concurrency.asyncio import wait_for_successful_response
 from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
 from prefect.testing.utilities import AsyncMock
 
@@ -39,9 +39,9 @@ async def test_retries_failed_call_exponential_backoff():
     requester.side_effect = responses
 
     with mock.patch(
-        "prefect.concurrency.clamped_poisson_interval"
+        "prefect.concurrency.asyncio.clamped_poisson_interval"
     ) as clamped_poisson_interval:
-        with mock.patch("prefect.concurrency.asyncio.sleep") as sleep:
+        with mock.patch("prefect.concurrency.asyncio.asyncio.sleep") as sleep:
             clamped_poisson_interval.side_effect = [2, 4]
 
             result = await wait_for_successful_response(
@@ -72,9 +72,9 @@ async def test_retries_failed_call_exponential_backoff_max_seconds():
     requester.side_effect = responses
 
     with mock.patch(
-        "prefect.concurrency.clamped_poisson_interval"
+        "prefect.concurrency.asyncio.clamped_poisson_interval"
     ) as clamped_poisson_interval:
-        with mock.patch("prefect.concurrency.asyncio.sleep"):
+        with mock.patch("prefect.concurrency.asyncio.asyncio.sleep"):
             clamped_poisson_interval.side_effect = [2, 4]
 
             result = await wait_for_successful_response(requester, max_retry_seconds=3)
@@ -101,9 +101,9 @@ async def test_retries_failed_call_retry_after_header():
     requester.side_effect = responses
 
     with mock.patch(
-        "prefect.concurrency.bounded_poisson_interval"
+        "prefect.concurrency.asyncio.bounded_poisson_interval"
     ) as bounded_poisson_interval:
-        with mock.patch("prefect.concurrency.asyncio.sleep") as sleep:
+        with mock.patch("prefect.concurrency.asyncio.asyncio.sleep") as sleep:
             bounded_poisson_interval.side_effect = [2.0]
 
             result = await wait_for_successful_response(requester)
