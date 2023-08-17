@@ -10,6 +10,12 @@ A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/c
 We've written [a handy guide](https://github.com/PrefectHQ/prefect/pull/10365) that describes how to upgrade from agents to workers in just a few quick steps.
 
 ### Visualize your flow before running it
+Until now, the only way to produce a visual schematic of your flow has been to run it. Some flows, though, are time consuming or expensive to run. Now, you can get a quick sense of the structure of your flow using the `.visualize()` method. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
+
+![viz-return-value-tracked](https://github.com/PrefectHQ/prefect/assets/3407835/325ef46e-82ce-4400-93d2-b3110c805116)
+
+
+See the [flows documentation](https://docs.prefect.io/latest/concepts/flows/#visualizing-flow-structure) or the [pull request](https://github.com/PrefectHQ/prefect/pull/10417) for more information.
 
 ### Enhancements
 - Update `prefect deploy` to skip building docker image prompt if `build` key explicitly set to null in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10371
