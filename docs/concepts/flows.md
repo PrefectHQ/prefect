@@ -251,6 +251,61 @@ Hello Marvin!
 ```
 </div>
 
+## Visualizing Flow Structure <span class="badge experimental"></span>
+
+You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
+
+!!! warning "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from http://www.graphviz.org/download/. And note: just installing the `graphviz` python package is not sufficient."
+
+```python
+from prefect import flow, task
+
+@task(name="Print Hello")
+def print_hello(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@task(name="Print Hello Again")
+def print_hello_again(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@flow(name="Hello Flow")
+def hello_world(name="world"):
+    message = print_hello(name)
+    message2 = print_hello_again(message)
+
+hello_world.visualize()
+```
+
+![A simple flow visualized with the .visualize() method](/img/orchestration/hello-flow-viz.png)
+
+Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or if/else control flow. In this case, you can provide tasks with mock return values for use in the `visualize()` call.
+
+```python
+from prefect import flow, task
+@task(viz_return_value=[4])
+def get_list():
+    return [1, 2, 3]
+
+@task
+def append_one(n):
+    return n.append(6)
+
+@flow
+def viz_return_value_tracked():
+    l = get_list()
+    for num in range(3):
+        l.append(5)
+        append_one()
+
+viz_return_value_tracked.visualize()
+```
+
+![A flow with return values visualized with the .visualize() method](/img/orchestration/viz-return-value-tracked.png)
+
 ## Composing flows
 
 A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
