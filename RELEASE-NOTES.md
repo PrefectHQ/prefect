@@ -1,5 +1,48 @@
 # Prefect Release Notes
 
+## Release 2.11.4
+
+### Guide to upgrade from agents to workers
+Upgrading to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. 
+
+A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
+
+We've written [a handy guide](https://github.com/PrefectHQ/prefect/pull/10365) that describes how to upgrade from agents to workers in just a few quick steps.
+
+### Visualize your flow before running it
+
+### Enhancements
+- Update `prefect deploy` to skip building docker image prompt if `build` key explicitly set to null in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10371
+- Handle spot instance eviction in Kubernetes Infrastructure Block — https://github.com/PrefectHQ/prefect/pull/10426
+
+### Fixes
+- Reduce wait time between tasks by adding a clause to the visiting function to raise if it encounters a quote annotation — https://github.com/PrefectHQ/prefect/pull/10370
+- Enable dashboard filters to update with each polling interval so the 24h time span constantly updates — https://github.com/PrefectHQ/prefect/pull/10327
+- Resolve issue with validation of templated variables in base job template of work pool — https://github.com/PrefectHQ/prefect/pull/10385
+- Update CLI to refer to a "work pool" instead of a "worker pool" — https://github.com/PrefectHQ/prefect/pull/10309
+
+### Documentation
+- Elevate Guides in navigation and remove migration guide — https://github.com/PrefectHQ/prefect/pull/10361
+- Update notes about community support — https://github.com/PrefectHQ/prefect/pull/10322
+- Update concepts page to clean up table and remove unneccessary header — https://github.com/PrefectHQ/prefect/pull/10374
+- Improve headings on deployments concept page — https://github.com/PrefectHQ/prefect/pull/10366
+- Update the storage guide for Bitbucket to add `x-token-auth` — https://github.com/PrefectHQ/prefect/pull/10379
+- Add Planetary Computer collection — https://github.com/PrefectHQ/prefect/pull/10387
+- Highlight `@flow` decorator instead of function in tutorial — https://github.com/PrefectHQ/prefect/pull/10401
+- Update tutorial summary list — https://github.com/PrefectHQ/prefect/pull/10403
+- Update Cloud connection guide to include whitelisting URLs — https://github.com/PrefectHQ/prefect/pull/10418
+- Update code snippets and highlighting in tutorial — https://github.com/PrefectHQ/prefect/pull/10391
+- Remove "Reference Material" section from tutorial — https://github.com/PrefectHQ/prefect/pull/10402
+- Fix typo in schedules concept page — https://github.com/PrefectHQ/prefect/pull/10378
+- Fix typo on artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10380
+
+### Contributors
+- @shahrukhx01 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10378
+- @giorgiobasile
+- @marwan116
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.3...2.11.4
+
 ## Release 2.11.3
 
 ## Enhanced support for environment variables in `run_shell_script` step
