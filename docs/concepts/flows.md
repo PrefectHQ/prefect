@@ -273,9 +273,9 @@ def print_hello_again(name):
 @flow(name="Hello Flow")
 def hello_world(name="world"):
     message = print_hello(name)
-    message = print_hello_again(name)
+    message2 = print_hello_again(message)
 
-hello_world("Marvin").visualize()
+hello_world.visualize()
 ```
 
 image
