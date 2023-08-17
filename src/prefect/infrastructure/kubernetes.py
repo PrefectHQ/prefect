@@ -707,7 +707,7 @@ class KubernetesJob(Infrastructure):
                         watch.stop()
                         break
 
-        with self._get_core_client(client) as core_client:
+        with self.get_client() as core_client:
             # Get all pods for the job
             pods = core_client.list_namespaced_pod(
                 namespace=self.namespace, label_selector=f"job-name={job_name}"
