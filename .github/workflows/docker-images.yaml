@@ -8,9 +8,7 @@ on:
     types: [released, prereleased]
   # On each commit merged into main, push sha and branch patterns to prefect-dev
   push:
-    tags:
-      - '**'
-        #    branches: main
+    branches: main
   # On workflow_dispatch, push sha and branch patterns to prefect-dev
   workflow_dispatch:
 
@@ -18,7 +16,7 @@ jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: 'prod'
+    environment: ${{ ( github.event_name == 'release' && 'prod' ) || 'dev' }}
     strategy:
       matrix:
         flavor:
@@ -57,7 +55,7 @@ jobs:
         id: metadata-dev
         uses: docker/metadata-action@v4
         # do not generate the development tags on release events
-        if: false #${{ github.event_name != 'release' }}
+        if: ${{ github.event_name != 'release' }}
         with:
           images: prefecthq/prefect-dev
           tags: |
@@ -80,16 +78,16 @@ jobs:
         id: metadata-prod
         uses: docker/metadata-action@v4
         # only generate the production tags on release events
-        if: true #${{ github.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' }}
         with:
           images: prefecthq/prefect
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
           # push `latest` and `X` tags only when the release is marked as latest
           tags: |
             type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
-            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=true
-            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=true
-            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' }}
+            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false }}
+            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
           flavor: |
             latest=false
 
