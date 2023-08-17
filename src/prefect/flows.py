@@ -65,6 +65,7 @@ from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 from prefect.utilities.visualization import (
     GraphvizExecutableNotFoundError,
+    GraphvizImportError,
     TaskVizTracker,
     build_task_dependencies,
     visualize_task_dependencies,
@@ -621,17 +622,16 @@ class Flow(Generic[P, R]):
 
                 visualize_task_dependencies(graph, self.name)
 
+        except GraphvizImportError:
+            raise
         except GraphvizExecutableNotFoundError:  # Catch the custom error
             raise
         except VisualizationUnsupportedError:
             raise
+        except FlowVisualizationError:
+            raise
         except Exception:
-            raise FlowVisualizationError(
-                "Something went wrong building the flow's visualization."
-                " If you're interacting with the return value of a task"
-                " directly inside of your flow, you must set a set a `viz_return_value`"
-                ", for example `@task(viz_return_value=[1, 2, 3])`."
-            )
+            raise
 
 
 @overload

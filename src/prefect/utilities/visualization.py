@@ -18,6 +18,10 @@ class TaskVizTrackerState:
     current = None
 
 
+class GraphvizImportError(Exception):
+    pass
+
+
 class GraphvizExecutableNotFoundError(Exception):
     pass
 
@@ -122,12 +126,22 @@ class TaskVizTracker:
 
 
 def build_task_dependencies(task_run_tracker: TaskVizTracker):
-    g = graphviz.Digraph()
-    for task in task_run_tracker.tasks:
-        g.node(task.name)
-        for upstream in task.upstream_tasks:
-            g.edge(upstream.name, task.name)
-    return g
+    try:
+        g = graphviz.Digraph()
+        for task in task_run_tracker.tasks:
+            g.node(task.name)
+            for upstream in task.upstream_tasks:
+                g.edge(upstream.name, task.name)
+        return g
+    except ImportError as exc:
+        raise GraphvizImportError from exc
+    except Exception:
+        FlowVisualizationError(
+            "Something went wrong building the flow's visualization."
+            " If you're interacting with the return value of a task"
+            " directly inside of your flow, you must set a set a `viz_return_value`"
+            ", for example `@task(viz_return_value=[1, 2, 3])`."
+        )
 
 
 def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
@@ -141,3 +155,10 @@ def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
             "sufficient."
         )
         raise GraphvizExecutableNotFoundError(msg) from exc
+    except Exception:
+        FlowVisualizationError(
+            "Something went wrong building the flow's visualization."
+            " If you're interacting with the return value of a task"
+            " directly inside of your flow, you must set a set a `viz_return_value`"
+            ", for example `@task(viz_return_value=[1, 2, 3])`."
+        )
