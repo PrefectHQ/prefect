@@ -12,7 +12,7 @@ search:
 
 # Running flows with Kubernetes
 
-This guide will walk you through running your flows on Kubernetes. One big advantage of Kubernetes is that most major cloud providers have a managed offering. This means you can leverage the ecosystem of your preferred cloud provider while still maintaining portability. Though much of the guide is general to all cloud providers, there differences, especially when it comes to container registries and access management. We'll focus on the big three: Amazon Elastic Kubernetes Service (EKS), Google Kubernetes Engine (GKE), Azure Kubernetes Service (AKS).
+This guide will walk you through running your flows on Kubernetes. Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management. We'll focus on the big three: Amazon Elastic Kubernetes Service (EKS), Google Kubernetes Engine (GKE), Azure Kubernetes Service (AKS).
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Before we begin, there are a few pre-requisites:
 3. [Install](/getting-started/installation/) Python and Prefect
 
 !!! Note "Administrator Access"
-    Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. Admin access is only necessary during the initial setup and can be downgraded after. Consult with your friendly neighborhood DevOps professional.
+    Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. Admin access is only necessary during the initial setup and can be downgraded after. 
 
 ## Create a cluster
 
@@ -69,15 +69,15 @@ Besides a cluster, the other critical resource we'll need is a container registr
 
 ## Create a work pool
 
-Now let's switch over to Prefect Cloud where we'll create a new work pool. Hit the plus button on the work pools page and choose Kubernetes from the list of options. On the next page set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times. You may also want to set a custom namespace, such as `prefect`. Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions. Finally, leave the image field blank as we'll override that in each deployment.
+Now let's switch over to Prefect Cloud, where we'll create a new work pool. Hit the plus button on the work pools page and choose Kubernetes from the list of options. On the next page, set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times. You may also want to set a custom namespace, such as `prefect`. Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions. Finally, leave the image field blank as we'll override that in each deployment.
 
 ## Deploy a worker using Helm
 
-With our cluster and work pool created, it's time to deploy a worker which will eventually take our flows and run them as Kubernetes jobs. The best way to deploy a worker is using Helm. Follow [this guide](/guides/deployment/helm-worker/) and then come back here. Go ahead, we'll wait.
+With our cluster and work pool created, it's time to deploy a worker, which will take our flows and run them as Kubernetes jobs. The best way to deploy a worker is using Helm. Follow [this guide](/guides/deployment/helm-worker/) and then come back here.
 
 ## Define a flow
 
-We need a flow to run, so let's start simple with a flow that just logs a message. In a directory named `flows`, create a file named `hello.py` with the following contents:
+Let's start simple with a flow that just logs a message. In a directory named `flows`, create a file named `hello.py` with the following contents:
 
 ```py
 from prefect import flow, get_run_logger, tags
@@ -151,7 +151,7 @@ deployments:
   work_pool: *common_work_pool
 ```
 
-We define two deployments of the `hello` flow: `default` and `arthur`. Note that by specifying `dockerfile: auto`, Prefect will automatically create a dockerfile that installs any `requirements.txt` and copies over the current directory. You can of course pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `dockerfile: path/to/Dockerfile`. Also note that we are specifically building for the `linux/amd64` platform. This is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
+We define two deployments of the `hello` flow: `default` and `arthur`. Note that by specifying `dockerfile: auto`, Prefect will automatically create a dockerfile that installs any `requirements.txt` and copies over the current directory. You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `dockerfile: path/to/Dockerfile`. Also note that we are specifically building for the `linux/amd64` platform. This is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
 
 !!! note "Deployment specific build, push, and pull"
     The build, push, and pull steps can be overridden for each deployment. This allows for more custom behavior, such as specifying a different image for each deployment.
