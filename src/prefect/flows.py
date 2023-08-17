@@ -64,6 +64,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
 from prefect.utilities.visualization import (
+    GraphvizExecutableNotFoundError,
     TaskVizTracker,
     build_task_dependencies,
     visualize_task_dependencies,
@@ -617,7 +618,11 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
+
                 visualize_task_dependencies(graph, self.name)
+
+        except GraphvizExecutableNotFoundError:  # Catch the custom error
+            raise
         except VisualizationUnsupportedError:
             raise
         except Exception:

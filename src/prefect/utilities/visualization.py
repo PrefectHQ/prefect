@@ -18,6 +18,10 @@ class TaskVizTrackerState:
     current = None
 
 
+class GraphvizExecutableNotFoundError(Exception):
+    pass
+
+
 def get_task_viz_tracker():
     return TaskVizTrackerState.current
 
@@ -127,4 +131,13 @@ def build_task_dependencies(task_run_tracker: TaskVizTracker):
 
 
 def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
-    graph.render(filename=flow_run_name, view=True, format="png")
+    try:
+        graph.render(filename=flow_run_name, view=True, format="png", cleanup=True)
+    except graphviz.backend.ExecutableNotFound as exc:
+        msg = (
+            "It appears you do not have Graphviz installed, or it is not on your "
+            "PATH. Please install Graphviz from http://www.graphviz.org/download/. "
+            "Note: Just installing the `graphviz` python package is not "
+            "sufficient."
+        )
+        raise GraphvizExecutableNotFoundError(msg) from exc
