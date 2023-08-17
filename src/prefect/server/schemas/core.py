@@ -1104,7 +1104,9 @@ class WorkPool(ORMBaseModel):
             # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
             # convert to json string to handle nested objects and lists
             found_variables = find_placeholders(json.dumps(template))
-            template_variables = {placeholder.name for placeholder in found_variables}
+            template_variables.update(
+                {placeholder.name for placeholder in found_variables}
+            )
 
         provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):

@@ -62,15 +62,6 @@ pytest tests/test_flows.py
 !!! tip "Building the Prefect UI"
     If you intend to run a local Prefect server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
-!!! note "Windows support is under development"
-    Support for Prefect on Windows is a work in progress.
-
-    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI.
-
-    Currently, we cannot guarantee that the tooling for developing Prefect itself in a Windows environment is fully functional.
-
-
-
 ## Prefect Code of Conduct
 
 ### Our Pledge
