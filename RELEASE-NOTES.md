@@ -14,7 +14,6 @@ Until now, the only way to produce a visual schematic of your flow has been to r
 
 ![viz-return-value-tracked](https://github.com/PrefectHQ/prefect/assets/3407835/325ef46e-82ce-4400-93d2-b3110c805116)
 
-
 See the [flows documentation](https://docs.prefect.io/latest/concepts/flows/#visualizing-flow-structure) or the [pull request](https://github.com/PrefectHQ/prefect/pull/10417) for more information.
 
 ### Enhancements
