@@ -611,6 +611,15 @@ class Flow(Generic[P, R]):
     @sync_compatible
     @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
     async def visualize(self, *args, **kwargs):
+        """
+        Generates a graphviz object representing the current flow. In IPython notebooks,
+        it's rendered inline, otherwise in a new window as a PNG.
+
+        Raises:
+            - ImportError: If `graphviz` isn't installed.
+            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
         try:
             with TaskVizTracker() as tracker:
                 if self.isasync:
@@ -624,7 +633,7 @@ class Flow(Generic[P, R]):
 
         except GraphvizImportError:
             raise
-        except GraphvizExecutableNotFoundError:  # Catch the custom error
+        except GraphvizExecutableNotFoundError:
             raise
         except VisualizationUnsupportedError:
             raise
