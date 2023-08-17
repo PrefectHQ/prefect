@@ -299,7 +299,7 @@ def viz_return_value_tracked():
     l = get_list()
     for num in range(3):
         l.append(5)
-        append_one()
+        append_one(l)
 
 viz_return_value_tracked.visualize()
 ```
