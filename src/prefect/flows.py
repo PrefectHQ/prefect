@@ -37,6 +37,7 @@ from prefect._internal.schemas.validators import raise_on_name_with_banned_chara
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import PrefectObjectRegistry, registry_from_script
+
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -48,11 +49,12 @@ from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import is_async_fn
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
@@ -62,7 +64,19 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
+from prefect.utilities.visualization import (
+    GraphvizExecutableNotFoundError,
+    GraphvizImportError,
+    TaskVizTracker,
+    build_task_dependencies,
+    visualize_task_dependencies,
+    FlowVisualizationError,
+    get_task_viz_tracker,
+    track_viz_task,
+    VisualizationUnsupportedError,
+)
 
+from prefect._internal.compatibility.experimental import experimental
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -537,6 +551,12 @@ class Flow(Generic[P, R]):
 
         return_type = "state" if return_state else "result"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            # this is a subflow, for now return a single task and do not go further
+            # we can add support for exploring subflows for tasks in the future.
+            return track_viz_task(self.isasync, self.name, parameters)
+
         return enter_flow_run_engine_from_flow_call(
             self,
             parameters,
@@ -588,6 +608,56 @@ class Flow(Generic[P, R]):
             wait_for=wait_for,
             return_type="state",
         )
+
+    @sync_compatible
+    @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
+    async def visualize(self, *args, **kwargs):
+        """
+        Generates a graphviz object representing the current flow. In IPython notebooks,
+        it's rendered inline, otherwise in a new window as a PNG.
+
+        Raises:
+            - ImportError: If `graphviz` isn't installed.
+            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        if not PREFECT_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.visualize()` will execute code inside of your flow that is not"
+                " decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    await self.fn(*args, **kwargs)
+                else:
+                    self.fn(*args, **kwargs)
+
+                graph = build_task_dependencies(tracker)
+
+                visualize_task_dependencies(graph, self.name)
+
+        except GraphvizImportError:
+            raise
+        except GraphvizExecutableNotFoundError:
+            raise
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
+            # Copy traceback information from the original exception
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
 
 
 @overload

@@ -1205,6 +1205,11 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect visualize is used.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
