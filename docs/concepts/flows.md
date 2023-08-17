@@ -257,7 +257,7 @@ You can get a quick sense of the structure of your flow using the `.visualize()`
 
 !!! warning "Functions and code not inside of @flows or @tasks will still be run when calling `.visualize()`. This may have unintended consequences. Place your code into tasks to avoid unintended execution."
 
-!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from http://www.graphviz.org/download/. And note: just installing the `graphviz` python package is not sufficient."
+!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). And note: just installing the `graphviz` python package is not sufficient."
 
 ```python
 from prefect import flow, task
