@@ -255,7 +255,9 @@ Hello Marvin!
 
 You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
 
-!!! warning "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from http://www.graphviz.org/download/. And note: just installing the `graphviz` python package is not sufficient."
+!!! warning "Functions and code not inside of flows or tasks will still be run when calling `.visualize()`. This may have unintended consequences. Place your code into tasks to avoid unintended execution."
+
+!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). And note: just installing the `graphviz` python package is not sufficient."
 
 ```python
 from prefect import flow, task
@@ -299,7 +301,7 @@ def viz_return_value_tracked():
     l = get_list()
     for num in range(3):
         l.append(5)
-        append_one()
+        append_one(l)
 
 viz_return_value_tracked.visualize()
 ```
