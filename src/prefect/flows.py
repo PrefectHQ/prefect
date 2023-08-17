@@ -73,6 +73,8 @@ from prefect.utilities.visualization import (
     VisualizationUnsupportedError,
 )
 
+from prefect._internal.compatibility.experimental import experimental
+
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
@@ -605,6 +607,7 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
+    @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
     async def visualize(self, *args, **kwargs):
         try:
             with TaskVizTracker() as tracker:
