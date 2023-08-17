@@ -253,7 +253,7 @@ Hello Marvin!
 
 ## Visualizing Flow Structure <span class="badge experimental"></span>
 
-You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code. Note: any code not in a flow or task will be executed.
+You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
 
 !!! warning "Functions and code not inside of @flows or @tasks will still be run when calling .visualize(). This may have unintended consequences."
 
