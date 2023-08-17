@@ -7,7 +7,7 @@ Upgrading to workers significantly enhances the experience of deploying flows. I
 
 A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
 
-We've written [a handy guide](https://github.com/PrefectHQ/prefect/pull/10365) that describes how to upgrade from agents to workers in just a few quick steps.
+We've written [a handy guide](https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/) that describes how to upgrade from agents to workers in just a few quick steps.
 
 ### Visualize your flow before running it
 Until now, the only way to produce a visual schematic of your flow has been to run it. Some flows, though, are time consuming or expensive to run. Now, you can get a quick sense of the structure of your flow using the `.visualize()` method. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
