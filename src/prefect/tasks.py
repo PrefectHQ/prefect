@@ -970,6 +970,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -1058,6 +1059,7 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
