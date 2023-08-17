@@ -278,7 +278,7 @@ def hello_world(name="world"):
 hello_world.visualize()
 ```
 
-image
+![a simple flow visualized with the .visualize() method](/img/orchestration/hello-flow-viz.png)
 
 In some cases, such as dynamic workflows with loops or if/else control flow, Prefect is unable to automatically produce a schematic. In this case, you can provide tasks with mock return values for use in the `visualize()` call.
 
