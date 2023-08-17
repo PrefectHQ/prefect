@@ -1,3 +1,6 @@
+"""
+Utilities for working with Flow.visualize()
+"""
 from functools import partial
 from typing import Any, List, Optional
 
@@ -126,6 +129,24 @@ class TaskVizTracker:
 
 
 def build_task_dependencies(task_run_tracker: TaskVizTracker):
+    """
+    Constructs a Graphviz directed graph object that represents the dependencies
+    between tasks in the given TaskVizTracker.
+
+    Parameters:
+    - task_run_tracker (TaskVizTracker): An object containing tasks and their
+      dependencies.
+
+    Returns:
+    - graphviz.Digraph: A directed graph object depicting the relationships and
+      dependencies between tasks.
+
+    Raises:
+    - GraphvizImportError: If there's an ImportError related to graphviz.
+    - FlowVisualizationError: If there's any other error during the visualization
+      process or if return values of tasks are directly accessed without
+      specifying a `viz_return_value`.
+    """
     try:
         g = graphviz.Digraph()
         for task in task_run_tracker.tasks:
@@ -145,6 +166,22 @@ def build_task_dependencies(task_run_tracker: TaskVizTracker):
 
 
 def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
+    """
+    Renders and displays a Graphviz directed graph representing task dependencies.
+
+    The graph is rendered in PNG format and saved with the name specified by
+    flow_run_name. After rendering, the visualization is opened and displayed.
+
+    Parameters:
+    - graph (graphviz.Digraph): The directed graph object to visualize.
+    - flow_run_name (str): The name to use when saving the rendered graph image.
+
+    Raises:
+    - GraphvizExecutableNotFoundError: If Graphviz isn't found on the system.
+    - FlowVisualizationError: If there's any other error during the visualization
+      process or if return values of tasks are directly accessed without
+      specifying a `viz_return_value`.
+    """
     try:
         graph.render(filename=flow_run_name, view=True, format="png", cleanup=True)
     except graphviz.backend.ExecutableNotFound as exc:
