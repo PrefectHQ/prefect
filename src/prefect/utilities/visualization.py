@@ -136,7 +136,7 @@ def build_task_dependencies(task_run_tracker: TaskVizTracker):
     except ImportError as exc:
         raise GraphvizImportError from exc
     except Exception:
-        FlowVisualizationError(
+        raise FlowVisualizationError(
             "Something went wrong building the flow's visualization."
             " If you're interacting with the return value of a task"
             " directly inside of your flow, you must set a set a `viz_return_value`"
@@ -156,7 +156,7 @@ def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
         )
         raise GraphvizExecutableNotFoundError(msg) from exc
     except Exception:
-        FlowVisualizationError(
+        raise FlowVisualizationError(
             "Something went wrong building the flow's visualization."
             " If you're interacting with the return value of a task"
             " directly inside of your flow, you must set a set a `viz_return_value`"
