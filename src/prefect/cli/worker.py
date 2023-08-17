@@ -101,8 +101,8 @@ async def start(
         case_sensitive=False,
     ),
 ):
-    """ "
-    Checks if a work-pool is paused or not
+    """
+    Start a worker process to poll a work pool for flow runs.
     """
 
     is_paused = await _check_work_pool_paused(work_pool_name)
@@ -115,9 +115,6 @@ async def start(
             style="yellow",
         )
 
-    """
-    Start a worker process to poll a work pool for flow runs.
-    """
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
     if worker_cls is None:
         exit_with_error(
@@ -201,9 +198,6 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
             return work_pool.is_paused
     except ObjectNotFound:
-        typer.secho(
-            f"Work pool {work_pool_name!r} does not exist.", fg=typer.colors.RED
-        )
         return False
 
 
@@ -269,6 +263,9 @@ async def _get_worker_class(
 
     if worker_type is None:
         worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
+
+    if worker_type == "prefect-agent":
+        return None
 
     if install_policy == InstallPolicy.ALWAYS:
         package = await _find_package_for_worker_type(worker_type)
