@@ -11,6 +11,15 @@ from prefect.utilities.visualization import (
     VisualizationUnsupportedError,
 )
 
+from prefect.settings import PREFECT_EXPERIMENTAL_WARN_VISUALIZE, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def disable_warn_visualize():
+    """Disable the warning that is printed when a flow is visualized"""
+    with temporary_settings({PREFECT_EXPERIMENTAL_WARN_VISUALIZE: 0}):
+        yield
+
 
 class TestTaskVizTracker:
     async def test_get_task_run_tracker(self):

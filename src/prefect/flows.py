@@ -49,6 +49,7 @@ from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
@@ -620,6 +621,12 @@ class Flow(Generic[P, R]):
             - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
+        if not PREFECT_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.visualize()` will execute code inside of your flow that is not"
+                " decorated with `@task` or `@flow`."
+            )
+
         try:
             with TaskVizTracker() as tracker:
                 if self.isasync:
@@ -639,8 +646,18 @@ class Flow(Generic[P, R]):
             raise
         except FlowVisualizationError:
             raise
-        except Exception:
-            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
+            # Copy traceback information from the original exception
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
 
 
 @overload
