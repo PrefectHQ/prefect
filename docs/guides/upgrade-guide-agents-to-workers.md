@@ -87,7 +87,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 3. [Deploy your flow](/#step-5-deploy-the-flow) guided by the deployment creation wizard:
 
     !!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
-        With agents you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains a [list of each deployment](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
+        With agents you might have had multiple `deployment.yaml` files, but under worker deployment patterns, each repo will have a single `prefect.yaml` file located at the **root** of the repo that contains [deployment configuration](/concepts/deployments/#working-with-multiple-deployments) for all flows in that repo.
 
     ```bash
     prefect deploy
