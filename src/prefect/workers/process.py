@@ -19,6 +19,7 @@ checkout out the [Prefect docs](/concepts/work-pools/).
 """
 import asyncio
 import contextlib
+from functools import partial
 import os
 import signal
 import socket
@@ -26,12 +27,13 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
+import threading
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field, validator
+from pydantic import BaseModel, Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -43,9 +45,26 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+from prefect.flows import Flow
+
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
+
+from prefect.events.schemas import DeploymentTrigger
+
+from prefect.utilities.services import critical_service_loop
+
+from prefect.settings import (
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_QUERY_SECONDS,
+)
+
+from prefect.engine import begin_flow_run
+
+from prefect.utilities.callables import parameter_schema
+
+from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow
     from prefect.client.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
@@ -123,6 +142,30 @@ class ProcessVariables(BaseVariables):
     )
 
 
+class DeployConfig(BaseModel):
+    class Config:
+        arbitrary_types_allowed = True
+
+    flow: Flow = Field(..., description="The flow to serve")
+    name: str = Field(default="in-memory", description="The name of the deployment.")
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the deployment."
+    )
+    version: Optional[str] = Field(
+        default=None, description="An optional version for the deployment."
+    )
+    schedule: Optional[SCHEDULE_TYPES] = None
+    tags: List[str] = Field(
+        default_factory=list,
+        description="One of more tags to apply to this deployment.",
+    )
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    triggers: List[DeploymentTrigger] = Field(
+        default_factory=list,
+        description="The triggers that should cause this deployment to run.",
+    )
+
+
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
@@ -142,12 +185,87 @@ class ProcessWorker(BaseWorker):
     )
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
 
+    @sync_compatible
+    async def serve(self, flows: List[Union[Flow[Any, Any], DeployConfig]]):
+        self._flows = flows
+        print(f"Starting worker serving {len(self._flows)} flows")
+        async with self:
+            async with anyio.create_task_group() as tg:
+                # wait for an initial heartbeat to configure the worker
+                await self.sync_with_backend()
+
+                # create deployments for each flow
+                for flow in self._flows:
+                    if isinstance(flow, Flow):
+                        flow = DeployConfig(flow=flow)
+                    await self.create_deployment_for_flow(flow)
+
+                # schedule the scheduled flow run polling loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=self.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        run_once=False,
+                        printer=print,
+                        jitter_range=0.3,
+                    )
+                )
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=self.sync_with_backend,
+                        interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                        run_once=False,
+                        printer=print,
+                        jitter_range=0.3,
+                    )
+                )
+
+    async def create_deployment_for_flow(self, served_flow_config: DeployConfig):
+        print(f"Serving flow {served_flow_config.flow.name}")
+        flow_id = await self._client.create_flow_from_name(served_flow_config.flow.name)
+        self._flow_map[flow_id] = served_flow_config.flow
+
+        in_memory_work_queue_name = f"served-{served_flow_config.flow.name}"
+        self._work_queues.update([in_memory_work_queue_name])
+
+        await self._client.create_deployment(
+            flow_id=flow_id,
+            name=served_flow_config.name,
+            work_queue_name=in_memory_work_queue_name,
+            work_pool_name=self._work_pool_name,
+            tags=["served", *served_flow_config.tags],
+            parameter_openapi_schema=parameter_schema(served_flow_config.flow).dict(),
+            parameters=served_flow_config.parameters,
+            schedule=served_flow_config.schedule,
+        )
+
     async def run(
         self,
         flow_run: FlowRun,
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
+        flow = self._flow_map[flow_run.flow_id]
+        if flow:
+            flow = self._flow_map[flow_run.flow_id]
+            task_status.started()
+
+            state = await begin_flow_run(
+                flow=flow,
+                flow_run=flow_run,
+                parameters=flow_run.parameters,
+                client=self._client,
+                user_thread=threading.current_thread(),
+            )
+
+            if state.is_completed():
+                return ProcessWorkerResult(identifier=str(flow_run.id), status_code=0)
+            else:
+                return ProcessWorkerResult(identifier=str(flow_run.id), status_code=1)
+
         command = configuration.command
         if not command:
             command = f"{sys.executable} -m prefect.engine"

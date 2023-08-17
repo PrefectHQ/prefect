@@ -364,6 +364,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._flow_map = {}
 
     @classmethod
     def get_documentation_url(cls) -> str:
