@@ -10,7 +10,7 @@ on:
   push:
     tags:
       - '**'
-    branches: main
+        #    branches: main
   # On workflow_dispatch, push sha and branch patterns to prefect-dev
   workflow_dispatch:
 
