@@ -368,6 +368,36 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def check_for_misconfigured_api_url(api_url):
+    misconfigured_mappings = {
+        "app.prefect.cloud": (
+            "Warning: Your PREFECT_API_URL points to app.prefect.cloud. Did you mean"
+            " api.prefect.cloud?"
+        ),
+        "account/": (
+            "Warning: Your PREFECT_API_URL uses */account/* but should use */accounts/*"
+        ),
+        "workspace/": (
+            "Warning: Your PREFECT_API_URL uses */workspace/* but should use"
+            " */workspaces/*"
+        ),
+    }
+    warnings_list = []
+
+    for misconfig, warning in misconfigured_mappings.items():
+        if misconfig in api_url:
+            warnings_list.append(warning)
+
+    # If any warnings were found, add an example to the list
+    if warnings_list:
+        example = (
+            'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+        )
+        warnings_list.append(example)
+
+    return warnings_list if warnings_list else None
+
+
 def default_database_connection_url(settings, value):
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 

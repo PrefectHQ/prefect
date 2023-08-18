@@ -13,6 +13,8 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 
+from prefect.settings import check_for_misconfigured_api_url
+
 help_message = """
     Commands for interacting with Prefect settings.
 """
@@ -68,6 +70,12 @@ def set_(settings: List[str]):
             app.console.print(
                 f"[yellow]{prefect.settings.SETTING_VARIABLES[setting].deprecated_message}."
             )
+        if setting == "PREFECT_API_URL":
+            warnings = check_for_misconfigured_api_url(value)
+
+            if warnings:
+                for warning in warnings:
+                    app.console.print(f"[yellow]{warning}")
 
     exit_with_success(f"Updated profile {new_profile.name!r}.")
 
