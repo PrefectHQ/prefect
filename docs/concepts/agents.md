@@ -7,7 +7,11 @@ search:
   boost: 2
 ---
 
-# Agents 
+# Agents
+
+!!! note "Workers are reccomended"
+    Agents are part of the block-based deployment model. [Work Pools and Workers](/concepts/work-pools/) simplify the specification of each flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
+
 ## Agent overview
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs.

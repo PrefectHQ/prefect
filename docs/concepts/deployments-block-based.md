@@ -17,6 +17,9 @@ search:
 
 # Block Based Deployments
 
+!!! note "Workers are reccomended"
+    This page is about the block-based deployment model. The [Work Pools and Workers](/concepts/work-pools/) based [deployment model](/concepts/deployments/) simplifies the specification of flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
+
 We encourage you to check out the new [deployment experience](/concepts/deployments/) with guided command line prompts and convenient CI/CD with `prefect.yaml` files.
 
 With remote storage blocks, you can package not only your flow code script but also any supporting files, including your custom modules, SQL scripts and any configuration files needed in your project.
