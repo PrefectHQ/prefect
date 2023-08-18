@@ -30,6 +30,7 @@ search:
 
 |  Block and Agent-Based Deployments                 | Description   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| __[Agents to Workers](/guides/upgrade-guide-agents-to-workers)__    | How to Upgrade from Agents to Workers.   |
 | __[Block-based Deployments](/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
 | __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
