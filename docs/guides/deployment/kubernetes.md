@@ -12,7 +12,7 @@ search:
 
 # Running flows with Kubernetes
 
-This guide will walk you through running your flows on Kubernetes. Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management. We'll focus on the big three: Amazon Elastic Kubernetes Service (EKS), Google Kubernetes Engine (GKE), Azure Kubernetes Service (AKS).
+This guide will walk you through running your flows on Kubernetes. Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management. We'll focus on Amazon Elastic Kubernetes Service (EKS).
 
 ## Prerequisites
 
