@@ -8,14 +8,14 @@ required_inputs:
 build: null
 
 push: 
-  - prefect_gcp.deployment.steps.push_to_gcs:
+  - prefect_gcp.deployments.steps.push_to_gcs:
       id: "push_code"
       requires: "prefect-gcp>=0.4.3"
       bucket: "{{ bucket }}" 
       folder: "{{ name }}"
 
 pull:
-  - prefect_gcp.deployment.steps.pull_from_gcs:
+  - prefect_gcp.deployments.steps.pull_from_gcs:
       id: "pull_code"
       requires: "prefect-gcp>=0.4.3"
       bucket: "{{ push_code.bucket }}"
