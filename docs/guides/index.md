@@ -19,8 +19,9 @@ This section of the documentation contains guides for common workflows and use c
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Docker](/guides/deployment/docker/) | Deploy flows with Docker containers. |
-| [Kubernetes](/guides/deployment/helm-worker/) | Deploy flows on Kubernetes. |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
+| [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
+| [Kubernetes](/guides/deployment/helm-worker/) | Deploy a Prefect worker on Kubernetes using Helm. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute flows on serverless infrastructure like AWS ECS, Azure Container Instances, or Google Cloud Run without a worker. | 
 | [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
