@@ -10,9 +10,11 @@ search:
   boost: 2
 ---
 
-# Running flows with Kubernetes
+# Running flows with Kubernetes and a Kubernetes worker
 
-This guide will walk you through running your flows on Kubernetes. Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management. We'll focus on Amazon Elastic Kubernetes Service (EKS).
+This guide will walk you through running your flows on Kubernetes. 
+Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management. 
+We'll focus on Amazon Elastic Kubernetes Service (EKS).
 
 ## Prerequisites
 
@@ -21,9 +23,12 @@ Before we begin, there are a few pre-requisites:
 1. A Prefect Cloud account
 2. A cloud provider (AWS, GCP, or Azure) account
 3. [Install](/getting-started/installation/) Python and Prefect
+4. Helm: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
+5. Kubernetes CLI (kubectl): [https://kubernetes.io/docs/tasks/tools/install-kubectl/](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
 !!! Note "Administrator Access"
-    Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. Admin access is only necessary during the initial setup and can be downgraded after. 
+    Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. 
+    Admin access is only necessary during the initial setup and can be downgraded after. 
 
 ## Create a cluster
 
@@ -46,7 +51,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 ## Create a container registry
 
-Besides a cluster, the other critical resource we'll need is a container registry. This is also not strictly required, but in most cases you'll want to use custom images and/or have more control over where images are stored. If you already have one, skip ahead to the next section.
+Besides a cluster, the other critical resource we'll need is a container registry. 
+A registry is not strictly required, but in most cases you'll want to use custom images and/or have more control over where images are stored. 
+If you already have a registry, skip ahead to the next section.
 
 === "AWS"
 
@@ -69,15 +76,118 @@ Besides a cluster, the other critical resource we'll need is a container registr
 
 ## Create a work pool
 
-Now let's switch over to Prefect Cloud, where we'll create a new work pool. Hit the plus button on the work pools page and choose Kubernetes from the list of options. On the next page, set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times. You may also want to set a custom namespace, such as `prefect`. Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions. Finally, leave the image field blank as we'll override that in each deployment.
+Now let's switch over to Prefect Cloud, where we'll create a new work pool. 
+Hit the plus button on the work pools page and choose Kubernetes from the list of options. 
+On the next page, set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times. 
+You may also want to set a custom namespace, such as `prefect`. 
+Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions. 
+Finally, leave the image field blank as we'll override that in each deployment.
 
 ## Deploy a worker using Helm
 
-With our cluster and work pool created, it's time to deploy a worker, which will take our flows and run them as Kubernetes jobs. The best way to deploy a worker is using Helm. Follow [this guide](/guides/deployment/helm-worker/) and then come back here.
+With our cluster and work pool created, it's time to deploy a worker, which will take our flows and run them as Kubernetes jobs. 
+The best way to deploy a worker is using the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker). 
+
+### Step 1: Add Prefect Helm repository
+
+Add the Prefect Helm repository to your Helm client:
+
+<div class="terminal">
+```bash
+helm repo add prefect https://prefecthq.github.io/prefect-helm
+helm repo update
+```
+</div>
+
+### Step 2: Create a namespace for Prefect worker
+
+Create a new namespace in your Kubernetes cluster to deploy the Prefect worker:
+
+<div class="terminal">
+```bash
+kubectl create namespace prefect
+```
+</div>
+
+### Step 3: Create a Kubernetes secret for the Prefect API key
+
+Create a file named `api-key.yaml` with the following contents:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prefect-api-key
+  namespace: prefect
+type: Opaque
+data:
+  key:  <base64-encoded-api-key>
+```
+
+Replace `<base64-encoded-api-key>` with your Prefect Cloud API key encoded in base64. 
+The helm chart looks for a secret of this name and schema, this can be overridden in the `values.yaml`.
+
+You can use the following command to generate the base64-encoded value:
+
+<div class="terminal">
+```bash
+echo -n "your-prefect-cloud-api-key" | base64
+```
+</div>
+
+Apply the `api-key.yaml` file to create the Kubernetes secret:
+
+<div class="terminal">
+```bash
+kubectl apply -f api-key.yaml
+```
+</div>
+
+### Step 4: Configure Prefect worker values
+
+Create a `values.yaml` file to customize the Prefect worker configuration. 
+Add the following contents to the file:
+
+```yaml
+worker:
+  cloudApiConfig:
+    accountId: <target account ID>
+    workspaceId: <target workspace ID>
+  config:
+    workPool: <target work pool name>
+```
+
+These settings will ensure that the worker connects to the proper account, workspace, and work pool. 
+
+View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. 
+For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here.
+
+### Step 5: Install Prefect worker using Helm
+
+Now you can install the Prefect worker using the Helm chart with your custom `values.yaml` file:
+
+<div class="terminal">
+```bash
+helm install prefect-worker prefect/prefect-worker \
+  --namespace=prefect \
+  -f values.yaml
+```
+</div>
+
+### Step 6: Verify Deployment
+
+Check the status of your Prefect worker deployment:
+
+<div class="terminal">
+```bash
+kubectl get pods -n prefect
+```
+</div>
 
 ## Define a flow
 
-Let's start simple with a flow that just logs a message. In a directory named `flows`, create a file named `hello.py` with the following contents:
+Let's start simple with a flow that just logs a message. 
+In a directory named `flows`, create a file named `hello.py` with the following contents:
 
 ```py
 from prefect import flow, get_run_logger, tags
@@ -92,11 +202,15 @@ if __name__ == "__main__":
         hello()
 ```
 
-You can run the flow locally with `python hello.py` to verify that it works. Note that we use the `tags` context manager to tag the flow run as `local`. This is not required, but does add some helpful metadata.
+You can run the flow locally with `python hello.py` to verify that it works. 
+Note that we use the `tags` context manager to tag the flow run as `local`. 
+This step is not required, but does add some helpful metadata.
 
 ## Define a deployment
 
-The [`prefect.yaml`](/concepts/deployments/#managing-deployments) file gets used by the `prefect deploy` command to actually deploy our flows. As a part of that process it will also build and push our image. Create a new file named `prefect.yaml` with the following contents:
+The [`prefect.yaml`](/concepts/deployments/#managing-deployments) file gets used by the `prefect deploy` command to actually deploy our flows. 
+As a part of that process it will also build and push our image. 
+Create a new file named `prefect.yaml` with the following contents:
 
 ```yaml
 # Generic metadata about this project
@@ -151,7 +265,11 @@ deployments:
   work_pool: *common_work_pool
 ```
 
-We define two deployments of the `hello` flow: `default` and `arthur`. Note that by specifying `dockerfile: auto`, Prefect will automatically create a dockerfile that installs any `requirements.txt` and copies over the current directory. You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `dockerfile: path/to/Dockerfile`. Also note that we are specifically building for the `linux/amd64` platform. This is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
+We define two deployments of the `hello` flow: `default` and `arthur`. 
+Note that by specifying `dockerfile: auto`, Prefect will automatically create a dockerfile that installs any `requirements.txt` and copies over the current directory. 
+You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `dockerfile: path/to/Dockerfile`. 
+Also note that we are specifically building for the `linux/amd64` platform. 
+This specification is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
 
 !!! note "Deployment specific build, push, and pull"
     The build, push, and pull steps can be overridden for each deployment. This allows for more custom behavior, such as specifying a different image for each deployment.
