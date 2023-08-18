@@ -1,5 +1,5 @@
 import asyncio
-from typing import Awaitable, Callable, List, Literal, Union
+from typing import Awaitable, Callable, List, Literal, Optional, Union
 from contextlib import asynccontextmanager
 
 import httpx
@@ -18,8 +18,8 @@ from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
 async def wait_for_successful_response(
     fn: Callable[..., Awaitable[httpx.Response]],
     *args,
-    max_retry_seconds=30,
-    retryable_status_codes=[429, 502, 503],
+    max_retry_seconds: int = 30,
+    retryable_status_codes: Optional[List[int]] = None,
     **kwargs,
 ) -> httpx.Response:
     """Given a callable `fn`, call it with `*args` and `**kwargs` and retry on
@@ -31,6 +31,8 @@ async def wait_for_successful_response(
 
     jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
     try_count = 0
+
+    retryable_status_codes = retryable_status_codes or [429, 502, 503]
 
     while True:
         retry_seconds = None
