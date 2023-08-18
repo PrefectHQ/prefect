@@ -1,6 +1,6 @@
 name: 📝 Suggest a change to documentation
 description: Propose edits, enhancements, or fixes to Prefect documentation
-labels: ["docs", "status:triage"]
+labels: ["docs", "needs:triage"]
 body:
   - type: checkboxes
     id: checks
