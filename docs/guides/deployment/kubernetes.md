@@ -88,7 +88,7 @@ Finally, leave the image field blank as we'll override that in each deployment.
 With our cluster and work pool created, it's time to deploy a worker, which will take our flows and run them as Kubernetes jobs. 
 The best way to deploy a worker is using the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker). 
 
-### Step 1: Add Prefect Helm repository
+### Add the Prefect Helm repository
 
 Add the Prefect Helm repository to your Helm client:
 
