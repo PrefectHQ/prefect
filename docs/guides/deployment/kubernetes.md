@@ -92,22 +92,18 @@ The best way to deploy a worker is using the [Prefect Helm Chart](https://github
 
 Add the Prefect Helm repository to your Helm client:
 
-<div class="terminal">
 ```bash
 helm repo add prefect https://prefecthq.github.io/prefect-helm
 helm repo update
 ```
-</div>
 
 ### Create a namespace
 
 Create a new namespace in your Kubernetes cluster to deploy the Prefect worker:
 
-<div class="terminal">
 ```bash
 kubectl create namespace prefect
 ```
-</div>
 
 ### Create a Kubernetes secret for the Prefect API key
 
@@ -129,19 +125,15 @@ The helm chart looks for a secret of this name and schema, this can be overridde
 
 You can use the following command to generate the base64-encoded value:
 
-<div class="terminal">
 ```bash
 echo -n "your-prefect-cloud-api-key" | base64
 ```
-</div>
 
 Apply the `api-key.yaml` file to create the Kubernetes secret:
 
-<div class="terminal">
 ```bash
 kubectl apply -f api-key.yaml
 ```
-</div>
 
 ### Configure Helm chart values
 
@@ -166,23 +158,19 @@ For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspa
 
 Now you can install the Prefect worker using the Helm chart with your custom `values.yaml` file:
 
-<div class="terminal">
 ```bash
 helm install prefect-worker prefect/prefect-worker \
   --namespace=prefect \
   -f values.yaml
 ```
-</div>
 
 ### Verify Deployment
 
 Check the status of your Prefect worker deployment:
 
-<div class="terminal">
 ```bash
 kubectl get pods -n prefect
 ```
-</div>
 
 ## Define a flow
 
@@ -291,7 +279,7 @@ flows
 └── requirements.txt
 ```
 
-### Tagging images with a Git SHA
+### Tag images with a Git SHA
 
 If your code is stored in a GitHub repository, it's good practice to tag your images with the Git SHA of the code used to build it. This can be done in the `prefect.yaml` file with a few minor modifications. Let's use the `run_shell_script` command to grab the SHA and pass it to the `tag` parameter of `build_docker_image`:
 
