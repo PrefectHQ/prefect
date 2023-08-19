@@ -23,8 +23,8 @@ Before we begin, there are a few pre-requisites:
 1. A Prefect Cloud account
 2. A cloud provider (AWS, GCP, or Azure) account
 3. [Install](/getting-started/installation/) Python and Prefect
-4. Helm: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
-5. Kubernetes CLI (kubectl): [https://kubernetes.io/docs/tasks/tools/install-kubectl/](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+4. Install [Helm](https://helm.sh/docs/intro/install/)
+5. Install the [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
 !!! Note "Administrator Access"
     Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider. 
