@@ -99,7 +99,7 @@ helm repo update
 ```
 </div>
 
-### Step 2: Create a namespace for Prefect worker
+### Create a namespace
 
 Create a new namespace in your Kubernetes cluster to deploy the Prefect worker:
 
