@@ -174,7 +174,7 @@ helm install prefect-worker prefect/prefect-worker \
 ```
 </div>
 
-### Step 6: Verify Deployment
+### Verify Deployment
 
 Check the status of your Prefect worker deployment:
 
