@@ -143,7 +143,7 @@ kubectl apply -f api-key.yaml
 ```
 </div>
 
-### Step 4: Configure Prefect worker values
+### Configure Helm chart values
 
 Create a `values.yaml` file to customize the Prefect worker configuration. 
 Add the following contents to the file:
