@@ -162,7 +162,7 @@ These settings will ensure that the worker connects to the proper account, works
 View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. 
 For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here.
 
-### Step 5: Install Prefect worker using Helm
+### Create a Helm release
 
 Now you can install the Prefect worker using the Helm chart with your custom `values.yaml` file:
 
