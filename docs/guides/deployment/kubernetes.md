@@ -109,7 +109,7 @@ kubectl create namespace prefect
 ```
 </div>
 
-### Step 3: Create a Kubernetes secret for the Prefect API key
+### Create a Kubernetes secret for the Prefect API key
 
 Create a file named `api-key.yaml` with the following contents:
 
