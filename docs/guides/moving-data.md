@@ -110,7 +110,7 @@ Below we'll use Python code to create a credentials block for the cloud provider
 === "Azure"
 
     Azure blob storage doesn't require a separate credentials block, the connection string can encode the credentials information directly. 
-    In the next section we'll see it in action. 
+    In the next section we'll see this in action. 
 
 === "GCP"
 
@@ -152,7 +152,7 @@ In this example we'll use Python code.
 
     Note that the AzureBlobStorageCredentials block is not the same as the Azure block that ships with Prefect. 
     The AzureBlobStorageCredentials block we use in this example is part of the prefect-azure library and provides additional functionality. 
-    
+
     ```python
     from prefect_azure import AzureBlobStorageCredentials
 
@@ -205,17 +205,22 @@ Use your new block inside a flow to write data to your cloud provider.
     ```
 
 === "Azure"
-    TK - probably switch to prefect-azure way
 
     ```python
     from prefect import flow
-    from prefect.filesystems import Azure
+    from prefect_azure import AzureBlobStorageCredentials
+    from prefect_azure.blob_storage import blob_storage_upload
 
-    @flow()
     def upload_to_azure():
         """Flow function to upload data"""
-        az_block = Azure.load("azure-demo")
-        az_block.put_directory(local_path="my_path_to/my_file.parquet", to_path="my_path_to/my_file.parquet")
+        blob_storage_credentials = AzureBlobStorageCredentials.load(name="my-azure-block")
+
+        with open("my_path_to/my_file.parquet", "rb") as f: 
+            blob = blob_storage_upload(
+                data=f.read(),
+                blob="my_path_to/my_file.parquet", 
+                blob_storage_credentials=blob_storage_credentials,
+            )
 
     if __name__ == "__main__":
         upload_to_azure()
@@ -250,19 +255,34 @@ Use your block to read data from your cloud provider inside a flow.
     from prefect import flow
     from prefect_aws import S3Bucket
 
-    s3_block = S3Bucket(name="my-bucket")
-    gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
-    
+    @flow
+    def download_from_s3():
+        """Flow function to download data"""
+        s3_block = S3Bucket.load("my-aws-bucket")
+        s3_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
 
+    if __name__ == "__main__":
+        download_from_s3()
     ```
 
 === "Azure"
 
     ```python
     from prefect import flow
+    from prefect_azure import AzureBlobStorageCredentials
+    from prefect_azure.blob_storage import blob_storage_download
 
-    TK - probably switch to prefect-azure way
-    
+    @flow
+    def download_from_azure():
+        """Flow function to download data"""
+        blob_storage_credentials = AzureBlobStorageCredentials.load(name="my-azure-block")
+        blob_storage_download(
+            blob="my_path_to/my_file.parquet", 
+            blob_storage_credentials=blob_storage_credentials,
+        )
+
+    if __name__ == "__main__":
+        download_from_azure()
     ```
 
 === "GCP"
@@ -271,11 +291,14 @@ Use your block to read data from your cloud provider inside a flow.
     from prefect import flow
     from prefect_gcp.cloud_storage import GcsBucket
 
+
     gcs_block = GcsBucket.load("zoom-gcs")
     gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
     ```
 
-The storage blocks we used contain additional convenience methods.
-Check out the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), or[prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs and learn about additional blocks for interacting with other cloud services.
+In this guide we've seen how to use Prefect to read data from and write data to cloud providers!
 
-We've seen how to use Prefect to read data from and write data to cloud providers!
+## Next steps
+
+Check out the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), and [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
+Each library also contains blocks for interacting with other cloud services.
