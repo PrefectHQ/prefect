@@ -19,7 +19,7 @@ search:
 # How to move data to and from cloud providers
 
 Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering.
-In this guide you'll learn how to use Prefect to move your data to and from AWS, Azure, and GCP blob storage.
+In this guide we'll learn how to use Prefect to move data to and from AWS, Azure, and GCP blob storage.
 
 ## Prerequisites
 
@@ -58,8 +58,6 @@ Register the new block types from the installed library with Prefect Cloud (or w
     ```bash
     prefect block register -m prefect_aws  
     ```
-    
-    You should see a message in the CLI that several block types were registered.
 
 === "Azure"
 
@@ -73,19 +71,27 @@ Register the new block types from the installed library with Prefect Cloud (or w
     prefect block register -m prefect_gcp
     ```
 
-    You should see a message in the CLI that several block types were registered.
+You should see a message in the CLI that several block types were registered.
 
 ## Create a storage bucket
 
-Create a storage bucket in your cloud provider account.
-
-Ensure the bucket is publicly accessible or that you have the appropriate permissions to fetch data from and write data to it.
+Create a storage bucket in the cloud provider account.
+Ensure the bucket is publicly accessible or that create a user or service account with the appropriate permissions to fetch and write data.
 
 ## Create a credentials block
 
-If your bucket is private and you need to be authenticated to read or write to your storage bucket, use the Prefect UI or Python code to create a credentials block for your cloud provider.
-In this example we'll use Python code.
-Reminder, don't store credential values in public locations such as public git repositories.
+If the bucket is private there are two options to authenticate:
+
+1. Use a worker that is authenticated at deployment run time.
+2. Create a block with configuration details and reference it when the storage block is created.
+
+A credentials block specific to the cloud provider or a secret block can be created via the Prefect UI or Python code.
+
+Below we'll use Python code to create a credentials block for the cloud provider.
+
+!!! Warning "Credentials safety"
+
+    Reminder, don't store credential values in public locations such as public git platform repositories.
 
 === "AWS"
 
@@ -99,16 +105,12 @@ Reminder, don't store credential values in public locations such as public git r
     my_aws_creds.save(name="my-aws-creds-block", overwrite=True)
     ```
 
+     Run the code to create the block. We should see a message that the block was created.
+
 === "Azure"
 
-    ```python
-    from prefect_azure import AzureBlobStorageCredentials
-
-    my_azure_creds = AzureBlobStorageCredentials(
-    TK
-    )
-    my_azure_creds.save(name="my-azure-creds-block", overwrite=True)
-    ```
+    Azure blob storage doesn't require a separate credentials block, the connection string can encode the credentials information directly. 
+    In the next section we'll see it in action. 
 
 === "GCP"
 
@@ -122,55 +124,63 @@ Reminder, don't store credential values in public locations such as public git r
     my_gcp_creds.save(name="my-gcp-creds-block", overwrite=True)
     ```
 
+    Run the code to create the block. We should see a message that the block was created.
+
 ## Create a storage block
 
-Create a block for your cloud provider using Python code or the UI.
-In this example we'll use Python code:
+Let's create a block for cloud provider using Python code or the UI.
+In this example we'll use Python code.
 
 === "AWS"
 
-    Note the S3Bucket block is not the same as the S3 block that ships with Prefect. 
+    Note that the S3Bucket block is not the same as the S3 block that ships with Prefect. 
     The S3Bucket block we use in this example is part of the prefect-aws library and provides additional functionality. 
+
+    We'll reference the credentials block created above.
 
     ```python
     from prefect_aws import S3Bucket
 
-    s3bucket = S3Bucket.create(credentials=AWSCredentials(name="my-aws-credentials"))
-
+    s3bucket = S3Bucket.create(
+        bucket="my-bucket-name",
+        credentials="my-aws-creds-block"
+        )
     s3bucket.save(name="my_s3_bucket_block", overwrite=True)
     ```
 
 === "Azure"
 
-    TK - probably switch to prefect-azure way
+    Note that the AzureBlobStorageCredentials block is not the same as the Azure block that ships with Prefect. 
+    The AzureBlobStorageCredentials block we use in this example is part of the prefect-azure library and provides additional functionality. 
     
-
     ```python
-    from prefect import task
-    from prefect.filesystems import Azure
+    from prefect_azure import AzureBlobStorageCredentials
 
-    azure_storage = Azure(
-
-       
+    azure_storage = AzureBlobStorageCredentials(
+        connection_string="my-connection-string",
     )
-    azure_storage.save(name="my-azure-creds-block", overwrite=True)
-
+    azure_storage.save(name="my-azure-block", overwrite=True)
     ```
 
 === "GCP"
 
-    Note the GcsBucket block is not the same as the GCS block that ships with Prefect. 
+    Note that the GcsBucket block is not the same as the GCS block that ships with Prefect. 
     The GcsBucket block is part of the prefect-gcp library and provides additional functionality. 
     We'll use it here.
+
+    We'll reference the credentials block created above.
 
     ```python
     from prefect_gcp.cloud_storage import GcsBucket
 
-    gcsbucket = GcsBucket(bucket="my-bucket-name")
+    gcsbucket = GcsBucket(
+        bucket="my-bucket-name", 
+        credentials="my-gcp-creds-block"
+        )
     gcsbucket.save()
     ```
 
-Run the code to create the block. You should see a message in the CLI that the block was created.
+Run the code to create the block. We should see a message that the block was created.
 
 ## Write data
 
@@ -265,7 +275,7 @@ Use your block to read data from your cloud provider inside a flow.
     gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
     ```
 
-Additional convenience methods exist for the S3Bucket and GcsBucket blocks.
-See the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), or[prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs and learn about additional blocks for interacting with other cloud services.
+The storage blocks we used contain additional convenience methods.
+Check out the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), or[prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs and learn about additional blocks for interacting with other cloud services.
 
-You've seen how to use Prefect to read from and write data to cloud providers!
+We've seen how to use Prefect to read data from and write data to cloud providers!
