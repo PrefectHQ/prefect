@@ -18,15 +18,17 @@ search:
 
 # How to move data to and from cloud providers
 
-Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering. 
+Sending data to cloud-based storage and retrieving data from that storage is a common task in data engineering.
 In this guide you'll learn how to use Prefect to move your data to and from AWS, Azure, and GCP blob storage.
 
-## Prerequisites 
+## Prerequisites
+
 - Prefect [installed](/getting-started/installation/)
 - Authenticated with [Prefect Cloud](/cloud/cloud-quickstart/) (or self-hosted [Prefect server](/guides/host/) instance)
 - A cloud provider account (e.g. [AWS](https://aws.amazon.com/))
 
 ## Install relevant Prefect integration library
+
 In the CLI, install the Prefect integration library for your cloud provider:
 
 === "AWS"
@@ -38,7 +40,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
 === "Azure"
 
     ```bash
-     pip install adlfs
+     pip install prefect-azure
     ```
 
 === "GCP"
@@ -48,6 +50,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
     ```
 
 ## Register the block types
+
 Register the new block types from the installed library with Prefect Cloud (or with your self-hosted Prefect server instance):
 
 === "AWS"
@@ -60,10 +63,9 @@ Register the new block types from the installed library with Prefect Cloud (or w
 
 === "Azure"
 
-    TK - probably switch to prefect-azure way
-    
-
-    A Prefect integration library isn't necessary for Azure blob storage if you provide your credentials as part of the Azure block creation, so no blocks need to be registered.
+    ```bash
+    prefect block register -m prefect_azure 
+    ```
 
 === "GCP"
 
@@ -74,14 +76,16 @@ Register the new block types from the installed library with Prefect Cloud (or w
     You should see a message in the CLI that several block types were registered.
 
 ## Create a storage bucket
+
 Create a storage bucket in your cloud provider account.
 
-Ensure the bucket is publicly accessible or that you have the appropriate permissions to fetch data from and write data to it. 
+Ensure the bucket is publicly accessible or that you have the appropriate permissions to fetch data from and write data to it.
 
-## Create a credentials block 
-If you need to be authenticated to read or write to your storage bucket, use the Prefect UI or Python code to create a credentials block for your cloud provider. 
-In this example we'll use Python code. 
-Reminder, don't store credential values in public locations (e.g. public repositories).
+## Create a credentials block
+
+If your bucket is private and you need to be authenticated to read or write to your storage bucket, use the Prefect UI or Python code to create a credentials block for your cloud provider.
+In this example we'll use Python code.
+Reminder, don't store credential values in public locations such as public git repositories.
 
 === "AWS"
 
@@ -93,15 +97,18 @@ Reminder, don't store credential values in public locations (e.g. public reposit
         aws_secret_access_key="ab123",
     )
     my_aws_creds.save(name="my-aws-creds-block", overwrite=True)
-
     ```
 
 === "Azure"
 
-    TK - probably switch to prefect-azure way
-    
+    ```python
+    from prefect_azure import AzureBlobStorageCredentials
 
-    A credentials block isn't necessary for Azure blob storage if you provide your credentials as part of the Azure block creation.
+    my_azure_creds = AzureBlobStorageCredentials(
+    TK
+    )
+    my_azure_creds.save(name="my-azure-creds-block", overwrite=True)
+    ```
 
 === "GCP"
 
@@ -113,11 +120,11 @@ Reminder, don't store credential values in public locations (e.g. public reposit
         service_account_key_path="my-service-account-key-path",
     )
     my_gcp_creds.save(name="my-gcp-creds-block", overwrite=True)
-
     ```
 
 ## Create a storage block
-Create a block for your cloud provider using Python code or the UI. 
+
+Create a block for your cloud provider using Python code or the UI.
 In this example we'll use Python code:
 
 === "AWS"
@@ -165,8 +172,8 @@ In this example we'll use Python code:
 
 Run the code to create the block. You should see a message in the CLI that the block was created.
 
-
 ## Write data
+
 Use your new block inside a flow to write data to your cloud provider.
 
 === "AWS"
@@ -187,10 +194,8 @@ Use your new block inside a flow to write data to your cloud provider.
         upload_to_s3()
     ```
 
-
 === "Azure"
     TK - probably switch to prefect-azure way
-    
 
     ```python
     from prefect import flow
@@ -224,8 +229,8 @@ Use your new block inside a flow to write data to your cloud provider.
         upload_to_gcs()
     ```
 
-## Read data   
- 
+## Read data
+
 Use your block to read data from your cloud provider inside a flow.
 
 === "AWS"
@@ -260,7 +265,7 @@ Use your block to read data from your cloud provider inside a flow.
     gcs_block.get_directory(from_path="my_path_to/my_file.parquet", local_path="my_path_to/my_file.parquet")
     ```
 
-Additional convenience methods exist for the S3Bucket and GcsBucket blocks. 
+Additional convenience methods exist for the S3Bucket and GcsBucket blocks.
 See the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), or[prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs and learn about additional blocks for interacting with other cloud services.
 
 You've seen how to use Prefect to read from and write data to cloud providers!
