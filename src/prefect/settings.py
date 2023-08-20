@@ -42,6 +42,7 @@ dependent on the value of other settings or perform other dynamic effects.
 import logging
 import os
 import string
+from urllib.parse import urlparse
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -387,10 +388,6 @@ def warn_on_misconfigured_api_url(settings, values):
                 "Warning: Your PREFECT_API_URL uses */workspace/* but should use"
                 " */workspaces/*"
             ),
-            "cloud/account": (
-                "Warning: Your PREFECT_API_URL uses */cloud/account but should use"
-                " cloud/api/accounts"
-            ),
         }
 
         misconfigured_url = False
@@ -399,6 +396,14 @@ def warn_on_misconfigured_api_url(settings, values):
             if misconfig in api_url_value:
                 misconfigured_url = True
                 warnings.warn(warning)
+
+        # Check if '/api' is after the base URL
+        parsed_url = urlparse(api_url_value)
+        if parsed_url.path and not parsed_url.path.startswith("/api"):
+            misconfigured_url = True
+            warnings.warn(
+                "Warning: Your PREFECT_API_URL should have '/api' after the base URL."
+            )
 
         # If any warnings were found, add an example
         if misconfigured_url:
