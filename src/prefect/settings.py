@@ -368,34 +368,46 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
-def check_for_misconfigured_api_url(api_url):
-    misconfigured_mappings = {
-        "app.prefect.cloud": (
-            "Warning: Your PREFECT_API_URL points to app.prefect.cloud. Did you mean"
-            " api.prefect.cloud?"
-        ),
-        "account/": (
-            "Warning: Your PREFECT_API_URL uses */account/* but should use */accounts/*"
-        ),
-        "workspace/": (
-            "Warning: Your PREFECT_API_URL uses */workspace/* but should use"
-            " */workspaces/*"
-        ),
-    }
-    warnings_list = []
+def warn_on_misconfigured_api_url(settings, values):
+    """
+    Validator for settings warning if the API URL is misconfigured.
+    """
+    api_url_value = PREFECT_API_URL.value_from(settings, bypass_callback=True)
+    if api_url_value is not None:
+        misconfigured_mappings = {
+            "app.prefect.cloud": (
+                "Warning: Your PREFECT_API_URL points to app.prefect.cloud. Did you"
+                " mean api.prefect.cloud?"
+            ),
+            "account/": (
+                "Warning: Your PREFECT_API_URL uses */account/* but should use"
+                " */accounts/*"
+            ),
+            "workspace/": (
+                "Warning: Your PREFECT_API_URL uses */workspace/* but should use"
+                " */workspaces/*"
+            ),
+            "cloud/account": (
+                "Warning: Your PREFECT_API_URL uses */cloud/account but should use"
+                " cloud/api/accounts"
+            ),
+        }
 
-    for misconfig, warning in misconfigured_mappings.items():
-        if misconfig in api_url:
-            warnings_list.append(warning)
+        misconfigured_url = False
 
-    # If any warnings were found, add an example to the list
-    if warnings_list:
-        example = (
-            'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
-        )
-        warnings_list.append(example)
+        for misconfig, warning in misconfigured_mappings.items():
+            if misconfig in api_url_value:
+                misconfigured_url = True
+                warnings.warn(warning)
 
-    return warnings_list if warnings_list else None
+        # If any warnings were found, add an example
+        if misconfigured_url:
+            example = (
+                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            )
+            warnings.warn(example)
+
+    return values
 
 
 def default_database_connection_url(settings, value):
@@ -563,6 +575,7 @@ This is recommended only during development, e.g. when using self-signed certifi
 PREFECT_API_URL = Setting(
     str,
     default=None,
+    value_callback=warn_on_misconfigured_api_url,
 )
 """
 If provided, the URL of a hosted Prefect API. Defaults to `None`.
