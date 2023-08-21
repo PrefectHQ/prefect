@@ -96,7 +96,7 @@ def create_default_prefect_yaml(
     with prefect_file.open(mode="w") as f:
         # write header
         f.write(
-            "# Welcome to your prefect.yaml file! You can you this file for storing and"
+            "# Welcome to your prefect.yaml file! You can use this file for storing and"
             " managing\n# configuration for deploying your flows. We recommend"
             " committing this file to source\n# control along with your flow code.\n\n"
         )
