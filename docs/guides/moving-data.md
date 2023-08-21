@@ -295,7 +295,8 @@ Use your block to read data from your cloud provider inside a flow.
             name="my-azure-creds-block"
         )
         blob_storage_download(
-            blob="my_path_to/my_file.parquet", 
+            blob="my_path_to/my_file.parquet",
+            container="my_container",
             blob_storage_credentials=blob_storage_credentials,
         )
 
