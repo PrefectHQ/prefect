@@ -457,7 +457,7 @@ def create_app(
             async with session:
                 await run_block_auto_registration(session=session)
         except Exception as exc:
-            logger.warn(f"Error occurred during block auto-registration: {exc!r}")
+            logger.warning(f"Error occurred during block auto-registration: {exc!r}")
 
     async def start_services():
         """Start additional services when the Prefect REST API starts up."""
