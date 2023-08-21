@@ -1,11 +1,8 @@
-from typing import Generator
-
 import pendulum
 import pytest
 
 from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
-from prefect.events.worker import EventsWorker
 
 
 @pytest.fixture(autouse=True)
@@ -56,21 +53,3 @@ def example_event_5() -> Event:
         event="delectable.things.happened",
         resource={"prefect.resource.id": "something-valuable"},
     )
-
-
-@pytest.fixture
-def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
-    worker = EventsWorker.instance(AssertingEventsClient)
-    # Always yield the asserting worker when new instances are retrieved
-    monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
-    try:
-        yield worker
-    finally:
-        worker.drain()
-
-
-@pytest.fixture
-def reset_worker_events(asserting_events_worker: EventsWorker):
-    yield
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-    asserting_events_worker._client.events = []
