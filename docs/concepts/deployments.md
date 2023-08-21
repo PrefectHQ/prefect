@@ -617,6 +617,7 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool will be used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
+
 ## Deployment mechanics
 
 Anytime you run `prefect deploy`, the following actions are taken in order:
