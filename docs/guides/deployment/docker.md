@@ -83,7 +83,7 @@ tag: latest
 This will create a `prefect.yaml` file for us populated with some fields. By default, it will look like this:
 
 ```yaml
-# Welcome to your prefect.yaml file! You can you this file for storing and managing
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
 # configuration for deploying your flows. We recommend committing this file to source
 # control along with your flow code.
 
