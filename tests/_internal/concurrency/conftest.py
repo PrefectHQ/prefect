@@ -1,8 +1,9 @@
 import threading
 import time
-from prefect._internal.concurrency.inspection import stack_for_threads
 
 import pytest
+
+from prefect._internal.concurrency.inspection import stack_for_threads
 
 
 @pytest.fixture(autouse=True)

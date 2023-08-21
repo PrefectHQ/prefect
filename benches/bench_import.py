@@ -1,4 +1,5 @@
 import subprocess
+
 from pytest_benchmark.fixture import BenchmarkFixture
 
 

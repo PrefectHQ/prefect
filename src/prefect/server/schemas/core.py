@@ -11,9 +11,9 @@ from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.server.database
-from prefect.server.schemas import states, schedules
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
