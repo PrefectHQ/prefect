@@ -385,12 +385,12 @@ class TestFlowWithOptions:
     @pytest.mark.parametrize(
         "name, match",
         [
-            (1, "Expected string for 'name'; got int instead."),
+            (1, "Expected string for flow parameter 'name'; got int instead."),
             (
                 get_flow_run_name,
                 (
-                    "Expected string for 'name'; got function instead. Perhaps you"
-                    " meant to call it?"
+                    "Expected string for flow parameter 'name'; got function instead."
+                    " Perhaps you meant to call it?"
                 ),
             ),
         ],

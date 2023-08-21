@@ -172,7 +172,7 @@ class Flow(Generic[P, R]):
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
-                "Expected string for 'name'; got {} instead. {}".format(
+                "Expected string for flow parameter 'name'; got {} instead. {}".format(
                     type(name).__name__,
                     (
                         "Perhaps you meant to call it? e.g."
