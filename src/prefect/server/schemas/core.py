@@ -597,6 +597,30 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
+class ConcurrencyLimitV2(ORMBaseModel):
+    """An ORM representation of a v2 concurrency limit."""
+
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: str = Field(default=..., description="The name of the concurrency limit.")
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=0, description="The number of active slots.")
+    denied_slots: int = Field(default=0, description="The number of denied slots.")
+    slot_decay_per_second: float = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+    avg_slot_occupancy_seconds: float = Field(
+        default=2.0, description="The average amount of time a slot is occupied."
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_with_banned_characters(v)
+        return v
+
+
 class BlockType(ORMBaseModel):
     """An ORM representation of a block type"""
 
@@ -1080,7 +1104,9 @@ class WorkPool(ORMBaseModel):
             # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
             # convert to json string to handle nested objects and lists
             found_variables = find_placeholders(json.dumps(template))
-            template_variables = {placeholder.name for placeholder in found_variables}
+            template_variables.update(
+                {placeholder.name for placeholder in found_variables}
+            )
 
         provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):

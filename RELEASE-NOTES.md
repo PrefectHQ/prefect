@@ -1,5 +1,89 @@
 # Prefect Release Notes
 
+## Release 2.11.4
+
+### Guide to upgrade from agents to workers
+Upgrading to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. 
+
+A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
+
+We've written [a handy guide](https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/) that describes how to upgrade from agents to workers in just a few quick steps.
+
+### Visualize your flow before running it
+Until now, the only way to produce a visual schematic of a flow has been to run it and view the corresponding flow run page in the Prefect UI. Some flows, though, are time consuming or expensive to run. Now, you can get a quick sense of the structure of your flow using the `.visualize()` method. Calling this method will attempt to locally produce an image of the flow's schematic diagram without running the flow's code.
+
+![viz-return-value-tracked](https://github.com/PrefectHQ/prefect/assets/3407835/325ef46e-82ce-4400-93d2-b3110c805116)
+
+See the [flows documentation](https://docs.prefect.io/latest/concepts/flows/#visualizing-flow-structure) or the [pull request](https://github.com/PrefectHQ/prefect/pull/10417) for more information.
+
+### Enhancements
+- Update `prefect deploy` to skip building docker image prompt if `build` key explicitly set to null in `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10371
+- Handle spot instance eviction in Kubernetes Infrastructure Block — https://github.com/PrefectHQ/prefect/pull/10426
+
+### Fixes
+- Reduce wait time between tasks by adding a clause to the visiting function to raise if it encounters a quote annotation — https://github.com/PrefectHQ/prefect/pull/10370
+- Enable dashboard filters to update with each polling interval so the 24h time span constantly updates — https://github.com/PrefectHQ/prefect/pull/10327
+- Resolve issue with validation of templated variables in base job template of work pool — https://github.com/PrefectHQ/prefect/pull/10385
+- Update CLI to refer to a "work pool" instead of a "worker pool" — https://github.com/PrefectHQ/prefect/pull/10309
+
+### Documentation
+- Elevate Guides in navigation and remove migration guide — https://github.com/PrefectHQ/prefect/pull/10361
+- Update notes about community support — https://github.com/PrefectHQ/prefect/pull/10322
+- Update concepts page to clean up table and remove unneccessary header — https://github.com/PrefectHQ/prefect/pull/10374
+- Improve headings on deployments concept page — https://github.com/PrefectHQ/prefect/pull/10366
+- Update the storage guide for Bitbucket to add `x-token-auth` — https://github.com/PrefectHQ/prefect/pull/10379
+- Add Planetary Computer collection — https://github.com/PrefectHQ/prefect/pull/10387
+- Highlight `@flow` decorator instead of function in tutorial — https://github.com/PrefectHQ/prefect/pull/10401
+- Update tutorial summary list — https://github.com/PrefectHQ/prefect/pull/10403
+- Update Cloud connection guide to include whitelisting URLs — https://github.com/PrefectHQ/prefect/pull/10418
+- Update code snippets and highlighting in tutorial — https://github.com/PrefectHQ/prefect/pull/10391
+- Remove "Reference Material" section from tutorial — https://github.com/PrefectHQ/prefect/pull/10402
+- Fix typo in schedules concept page — https://github.com/PrefectHQ/prefect/pull/10378
+- Fix typo on artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10380
+
+### Contributors
+- @shahrukhx01 made their first contribution in https://github.com/PrefectHQ/prefect/pull/10378
+- @giorgiobasile
+- @marwan116
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.3...2.11.4
+
+## Release 2.11.3
+
+## Enhanced support for environment variables in `run_shell_script` step
+
+Previously, to expand environment variables in the `run_shell_script` step, you had to enclose your scripts in `bash -c`. We have optimized this process by introducing a new field: `expand_env_vars`. By setting this field to `true`, you can easily pass environment variables to your script.
+
+Consider the following example where the script utilizes the `$USER` environment variable:
+```yaml
+pull:
+    - prefect.deployments.steps.run_shell_script:
+        script: |
+            echo "User: $USER"
+            echo "Home Directory: $HOME"
+        stream_output: true
+        expand_env_vars: true
+```
+
+For implementation details, see the following pull request:
+- https://github.com/PrefectHQ/prefect/pull/10198
+
+### Enhancements
+- Change language for `--ci` option in `prefect deploy --help`. — https://github.com/PrefectHQ/prefect/pull/10347
+
+### Experimental
+- Port concurrency limit v2 API and modeling from Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/10363
+
+### Documentation
+- Add Prefect Cloud quickstart to navigation menu — https://github.com/PrefectHQ/prefect/pull/10350
+- Fix typo in deployments documentation — https://github.com/PrefectHQ/prefect/pull/10353
+- Reorganize concepts pages — https://github.com/PrefectHQ/prefect/pull/10359
+
+### Contributors
+- @AmanSal1
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.2...2.11.3
+
 ## Release 2.11.2
 
 ### Enhancements
@@ -27,7 +111,7 @@
 
 ### Fixes
 - Hide links to work queues for push work pools — https://github.com/PrefectHQ/prefect-ui-library/pull/1603
-- Fix issue with Pause state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
+- Fix issue with `Pause` state fields — https://github.com/PrefectHQ/prefect-ui-library/pull/1606
 - Fix issue with flow run logs missing until after refresh — https://github.com/PrefectHQ/prefect-ui-library/pull/1594
 
 ### Experimental
@@ -50,7 +134,7 @@
 ## Release 2.11.0
 
 ### Flow summary graphs and stats
-Each flow page now includes graphs of it's recent flow runs, task runs, and (in prefect Cloud) related events, as well as summary statistics!
+Each flow page now includes graphs of its recent flow runs, task runs, and (in Prefect Cloud) related events, as well as summary statistics!
 
 <img width="1373" alt="Screenshot 2023-07-20 at 3 42 51 PM" src="https://github.com/PrefectHQ/prefect/assets/3407835/5a914db7-7373-4396-8515-272201bbbfa1">
 
@@ -83,7 +167,7 @@ For implementation details, see the following pull requests:
 - Add Deployment Quickstart — https://github.com/PrefectHQ/prefect/pull/9985
 - Add guide for setting up a push work pool — https://github.com/PrefectHQ/prefect/pull/10248
 - Add guide for deploying a flow using Docker — https://github.com/PrefectHQ/prefect/pull/10252
-- Edit install and quick start pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
+- Edit install and quickstart pages for clarity — https://github.com/PrefectHQ/prefect/pull/10231
 - Update automations screenshots — https://github.com/PrefectHQ/prefect/pull/10245
 - Fix typos on Deployment Management page — https://github.com/PrefectHQ/prefect/pull/10241
 - Fix flow retries example — https://github.com/PrefectHQ/prefect/pull/10233
@@ -93,7 +177,7 @@ For implementation details, see the following pull requests:
 - @dbentall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10258
 - @mesejo
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.21...2.11.0
 
 ## Release 2.10.21
 
