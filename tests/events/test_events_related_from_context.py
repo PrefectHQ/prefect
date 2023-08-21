@@ -8,8 +8,8 @@ from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
 from prefect.events.related import (
     MAX_CACHE_SIZE,
-    related_resources_from_run_context,
     _get_and_cache_related_object,
+    related_resources_from_run_context,
 )
 from prefect.events.schemas import RelatedResource
 from prefect.states import Running

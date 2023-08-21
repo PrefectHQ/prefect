@@ -5,12 +5,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.client import PrefectClient
+from prefect.exceptions import FailedRun
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.states import Completed, Failed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
-from prefect.exceptions import FailedRun
 
 mock_client = MagicMock(spec=PrefectClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]

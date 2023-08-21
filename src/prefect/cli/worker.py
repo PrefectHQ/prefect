@@ -1,18 +1,21 @@
-from functools import partial
-from typing import List, Optional, Type
-from enum import Enum
-
 import os
 import sys
-import anyio
 import threading
+from enum import Enum
+from functools import partial
+from typing import List, Optional, Type
+
+import anyio
 import typer
 
+from prefect.cli._prompts import confirm
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
+from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
+from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -23,11 +26,6 @@ from prefect.utilities.processutils import run_process, setup_signal_handlers_wo
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
-from prefect.plugins import load_prefect_collections
-
-from prefect.client.collections import get_collections_metadata_client
-from prefect.cli._prompts import confirm
-
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."

@@ -3,9 +3,9 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
+import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
-import prefect.server.schemas as schemas
 
 
 def greatest(db, clamped_value, sql_value):

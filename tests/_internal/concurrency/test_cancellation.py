@@ -9,10 +9,10 @@ import anyio
 import pytest
 
 from prefect._internal.concurrency.cancellation import (
-    CancelledError,
     AlarmCancelScope,
-    WatcherThreadCancelScope,
     AsyncCancelScope,
+    CancelledError,
+    WatcherThreadCancelScope,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,

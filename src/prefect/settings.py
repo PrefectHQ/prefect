@@ -42,7 +42,6 @@ dependent on the value of other settings or perform other dynamic effects.
 import logging
 import os
 import string
-from urllib.parse import urlparse
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -62,6 +61,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 
 import pydantic
 import toml

@@ -1,17 +1,17 @@
-from pathlib import Path
 import sys
 import warnings
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect.testing.utilities import AsyncMock, MagicMock
+from pathlib import Path
 from unittest.mock import ANY
+
 import pytest
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments.steps import run_step
-
-from prefect.deployments.steps.utility import run_shell_script
 from prefect.deployments.steps.core import StepExecutionError, run_steps
+from prefect.deployments.steps.utility import run_shell_script
+from prefect.testing.utilities import AsyncMock, MagicMock
 
 
 @pytest.fixture

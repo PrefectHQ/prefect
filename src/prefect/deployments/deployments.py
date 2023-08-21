@@ -25,6 +25,7 @@ from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     BlockMissingCapabilities,
@@ -41,8 +42,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
-
-from prefect.deployments.steps.core import run_steps
 
 
 @sync_compatible

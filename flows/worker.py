@@ -1,8 +1,10 @@
 import os
-import prefect
 import subprocess
 import sys
+
 from packaging.version import Version
+
+import prefect
 
 
 # Checks to make sure that collections are loaded prior to attempting to start a worker

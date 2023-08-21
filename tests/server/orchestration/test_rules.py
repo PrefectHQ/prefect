@@ -1,12 +1,12 @@
 import contextlib
 import random
-import sqlalchemy.exc
+import sqlite3
 from itertools import product
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-import sqlite3
+import sqlalchemy.exc
 
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import provide_database_interface

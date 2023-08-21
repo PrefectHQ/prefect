@@ -10,25 +10,23 @@ Whenever a step is run, the following actions are taken:
 - The step's function is called with the resolved inputs
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
-from copy import deepcopy
 import os
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional, Tuple
 import warnings
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Tuple
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
+from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,
     resolve_variables,
 )
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-
-from prefect.settings import PREFECT_DEBUG_MODE
-
-from prefect.logging.loggers import get_logger
 
 RESERVED_KEYWORDS = {"id", "requires"}
 

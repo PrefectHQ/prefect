@@ -16,9 +16,9 @@ from typing_extensions import Self
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
-    PREFECT_CLIENT_MAX_RETRIES,
 )
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 

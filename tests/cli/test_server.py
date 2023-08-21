@@ -1,8 +1,8 @@
+import sys
 from typing import List
 from unittest.mock import ANY
 
 import pytest
-import sys
 
 import prefect
 import prefect.cli.server

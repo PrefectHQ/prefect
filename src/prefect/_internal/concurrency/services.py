@@ -10,11 +10,11 @@ from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Unio
 
 from typing_extensions import Self
 
+from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.cancellation import get_deadline, get_timeout
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
-from prefect._internal.concurrency.cancellation import get_deadline, get_timeout
-from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 

@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock
 
+from prefect.client.cloud import CloudClient
 from prefect.client.collections import (
     get_collections_metadata_client,
 )
-from prefect.client.cloud import CloudClient
 from prefect.client.orchestration import PrefectClient, ServerType
 
 

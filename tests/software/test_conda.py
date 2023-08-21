@@ -1,6 +1,6 @@
+import os
 import subprocess
 from contextlib import nullcontext
-import os
 from textwrap import dedent
 from unittest.mock import MagicMock
 

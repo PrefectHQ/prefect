@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, Type, TypeVar, Uni
 
 from prefect.client.utilities import inject_client
 from prefect.utilities.annotations import NotSet
-
 from prefect.utilities.collections import get_from_dict
 
 if TYPE_CHECKING:

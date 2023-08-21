@@ -2,22 +2,22 @@
 Utilities for cancellation in synchronous and asynchronous contexts.
 """
 
+import abc
 import asyncio
 import contextlib
 import ctypes
-import os
-import abc
 import math
+import os
 import signal
-import anyio
 import sys
 import threading
 import time
-from typing import Callable, Optional, Type, Dict
+from typing import Callable, Dict, Optional, Type
 
+import anyio
 
-from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency import logger
+from prefect._internal.concurrency.event_loop import get_running_loop
 
 _THREAD_SHIELDS: Dict[threading.Thread, "ThreadShield"] = {}
 _THREAD_SHIELDS_LOCK = threading.Lock()

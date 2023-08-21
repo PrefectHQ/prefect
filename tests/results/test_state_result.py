@@ -2,10 +2,11 @@
 Generic tests for `State.result`
 """
 
-from prefect.exceptions import UnfinishedRun
-from prefect.states import State, StateType
-from prefect.results import UnpersistedResult
 import pytest
+
+from prefect.exceptions import UnfinishedRun
+from prefect.results import UnpersistedResult
+from prefect.states import State, StateType
 
 
 @pytest.mark.parametrize(

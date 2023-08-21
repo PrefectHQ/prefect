@@ -13,7 +13,6 @@ from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.utilities.asyncutils import sync_compatible
 
-
 INVALID_TABLE_TYPE_ERROR = (
     "`create_table_artifact` requires a `table` argument of type `dict[list]` or"
     " `list[dict]`."

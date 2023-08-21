@@ -1,5 +1,6 @@
-import pytest
 import os
+
+import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas

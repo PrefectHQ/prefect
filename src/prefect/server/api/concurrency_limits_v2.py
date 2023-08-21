@@ -9,8 +9,8 @@ from prefect.server.api.dependencies import LimitBody
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions
-from prefect.server.utilities.server import PrefectRouter
 from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"])
 

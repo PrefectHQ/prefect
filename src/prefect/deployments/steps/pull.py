@@ -6,10 +6,10 @@ import subprocess
 import sys
 import urllib.parse
 from typing import Optional
-from prefect._internal.compatibility.deprecated import deprecated_callable
 
-from prefect.logging.loggers import get_logger
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
+from prefect.logging.loggers import get_logger
 
 deployment_logger = get_logger("deployment")
 

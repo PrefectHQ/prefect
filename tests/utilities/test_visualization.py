@@ -1,17 +1,16 @@
+from unittest.mock import MagicMock, Mock
+
 import pytest
 
-from unittest.mock import Mock, MagicMock
-
 from prefect import flow, task
+from prefect.settings import PREFECT_EXPERIMENTAL_WARN_VISUALIZE, temporary_settings
 from prefect.utilities.visualization import (
     TaskVizTracker,
+    VisualizationUnsupportedError,
     VizTask,
     _track_viz_task,
     get_task_viz_tracker,
-    VisualizationUnsupportedError,
 )
-
-from prefect.settings import PREFECT_EXPERIMENTAL_WARN_VISUALIZE, temporary_settings
 
 
 @pytest.fixture(autouse=True)

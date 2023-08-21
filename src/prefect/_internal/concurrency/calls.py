@@ -10,25 +10,24 @@ import contextvars
 import dataclasses
 import inspect
 import threading
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
-
-from typing_extensions import ParamSpec
-
-from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.cancellation import (
-    CancelledError,
-    cancel_async_at,
-    get_deadline,
-    cancel_sync_at,
-)
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
     FINISHED,
     RUNNING,
 )
-from prefect._internal.concurrency import logger
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
+from typing_extensions import ParamSpec
+
+from prefect._internal.concurrency import logger
+from prefect._internal.concurrency.cancellation import (
+    CancelledError,
+    cancel_async_at,
+    cancel_sync_at,
+    get_deadline,
+)
+from prefect._internal.concurrency.event_loop import get_running_loop
 
 T = TypeVar("T")
 P = ParamSpec("P")

@@ -1,13 +1,14 @@
 import pytest
 import rich
+import typer
 from typer.testing import CliRunner
 
+from prefect.cli.root import app as APP
+from prefect.cli.root import is_interactive
 from prefect.settings import (
     PREFECT_CLI_PROMPT,
     temporary_settings,
 )
-import typer
-from prefect.cli.root import app as APP, is_interactive
 
 
 @pytest.fixture

@@ -15,7 +15,6 @@ from prefect.server.schemas.core import BlockDocument, BlockType
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.slugify import slugify
 
-
 CODE_EXAMPLE = dedent(
     """\
         ```python

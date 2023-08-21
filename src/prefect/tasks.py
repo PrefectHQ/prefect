@@ -47,9 +47,9 @@ from prefect.utilities.callables import (
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.visualization import (
+    VisualizationUnsupportedError,
     get_task_viz_tracker,
     track_viz_task,
-    VisualizationUnsupportedError,
 )
 
 if TYPE_CHECKING:

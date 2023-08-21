@@ -1,6 +1,4 @@
 import pytest
-
-from prefect import flow
 from tests.generic_tasks import (
     add_one,
     async_multiply_by_two,
@@ -8,6 +6,8 @@ from tests.generic_tasks import (
     sleep,
     subtract_ten,
 )
+
+from prefect import flow
 
 
 @pytest.mark.skip(reason="This test takes multiple minutes")
