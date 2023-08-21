@@ -116,7 +116,7 @@ Below we'll use Python code to create a credentials block for our cloud provider
 
 === "Azure"
 
-     ```python
+    ```python
     import os
     from prefect_azure import AzureBlobStorageCredentials
 
