@@ -396,7 +396,7 @@ def warn_on_misconfigured_api_url(values):
         parsed_url = urlparse(api_url)
         if parsed_url.path and not parsed_url.path.startswith("/api"):
             warnings_list.append(
-                "`PREFECT_API_URL` should have '/api' after the base URL."
+                "`PREFECT_API_URL` should have `/api` after the base URL."
             )
 
         if warnings_list:
