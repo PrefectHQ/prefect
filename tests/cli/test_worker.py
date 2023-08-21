@@ -7,26 +7,23 @@ from unittest.mock import ANY
 import anyio
 import httpx
 import pytest
+import readchar
+import respx
+from typer import Exit
 
 import prefect
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    temporary_settings,
     get_current_settings,
+    temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
-from prefect.settings import PREFECT_API_URL
-
-from prefect.client.schemas.actions import WorkPoolCreate
-import readchar
-import respx
-
-from typer import Exit
-
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 

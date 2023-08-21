@@ -14,10 +14,10 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
+    CrashedRun,
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
-    CrashedRun,
 )
 from prefect.flows import flow
 from prefect.server import models

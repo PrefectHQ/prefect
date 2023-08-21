@@ -2,8 +2,8 @@
 Command line interface for working with Prefect
 """
 import os
-import textwrap
 import sys
+import textwrap
 from functools import partial
 
 import anyio

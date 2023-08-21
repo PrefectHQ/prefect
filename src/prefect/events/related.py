@@ -1,5 +1,4 @@
 import asyncio
-import pendulum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,6 +13,8 @@ from typing import (
     Union,
 )
 from uuid import UUID
+
+import pendulum
 from pendulum.datetime import DateTime
 
 from .schemas import RelatedResource

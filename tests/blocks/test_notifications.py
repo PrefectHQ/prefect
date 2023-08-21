@@ -1,7 +1,7 @@
+import urllib
 from importlib import reload
 from typing import Type
 from unittest.mock import patch
-import urllib
 
 import cloudpickle
 import pytest
@@ -9,14 +9,14 @@ import respx
 
 import prefect
 from prefect.blocks.notifications import (
+    PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
+    CustomWebhookNotificationBlock,
     MattermostWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
-    PREFECT_NOTIFY_TYPE_DEFAULT,
-    TwilioSMS,
-    CustomWebhookNotificationBlock,
     SendgridEmail,
+    TwilioSMS,
 )
 from prefect.testing.utilities import AsyncMock
 
