@@ -1,8 +1,8 @@
-from fastapi import FastAPI, APIRouter, status
-from fastapi.responses import JSONResponse
-
 from typing import Union
+
 import uvicorn
+from fastapi import APIRouter, FastAPI, status
+from fastapi.responses import JSONResponse
 
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker

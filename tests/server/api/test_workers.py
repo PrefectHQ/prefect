@@ -6,9 +6,9 @@ import pytest
 from fastapi import status
 
 import prefect
-from prefect.server import models, schemas
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
+from prefect.server import models, schemas
 
 RESERVED_POOL_NAMES = [
     "Prefect",

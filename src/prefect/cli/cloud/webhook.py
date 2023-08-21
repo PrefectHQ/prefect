@@ -2,17 +2,18 @@
 Command line interface for working with webhooks
 """
 
-import typer
-from typing import List, Dict
+from typing import Dict, List
 from uuid import UUID
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli.cloud import cloud_app, confirm_logged_in
-from prefect.client.cloud import get_cloud_client
-from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app
-from prefect.settings import PREFECT_API_URL
+import typer
 from rich.table import Table
+
+from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
+from prefect.cli.cloud import cloud_app, confirm_logged_in
+from prefect.cli.root import app
+from prefect.client.cloud import get_cloud_client
+from prefect.settings import PREFECT_API_URL
 
 webhook_app = PrefectTyper(
     name="webhook", help="Commands for interacting with Prefect Cloud Webhooks"

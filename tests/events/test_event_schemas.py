@@ -7,6 +7,7 @@ import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
 
+from prefect.events.actions import RunDeployment
 from prefect.events.schemas import (
     Automation,
     DeploymentTrigger,
@@ -17,7 +18,6 @@ from prefect.events.schemas import (
     ResourceTrigger,
     Trigger,
 )
-from prefect.events.actions import RunDeployment
 
 
 def test_client_events_generate_an_id_by_default():

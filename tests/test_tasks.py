@@ -2,7 +2,6 @@ import datetime
 import inspect
 import time
 import warnings
-import regex as re
 from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -10,6 +9,7 @@ from uuid import UUID
 
 import anyio
 import pytest
+import regex as re
 
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block

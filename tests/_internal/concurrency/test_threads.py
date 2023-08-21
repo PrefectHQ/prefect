@@ -1,7 +1,8 @@
+import concurrent.futures
 from unittest.mock import MagicMock, call
 
 import pytest
-import concurrent.futures
+
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import EventLoopThread, WorkerThread
 from prefect.testing.utilities import AsyncMock

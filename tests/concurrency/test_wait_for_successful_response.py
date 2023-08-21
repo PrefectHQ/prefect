@@ -1,5 +1,6 @@
-import pytest
 from unittest import mock
+
+import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.concurrency.asyncio import wait_for_successful_response

@@ -1,10 +1,10 @@
 import sqlite3
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
-from functools import partial
-from typing import Dict, Hashable, Tuple, Optional
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from functools import partial
+from typing import Dict, Hashable, Optional, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -16,7 +16,6 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
-
 
 SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
     "SQLITE_BEGIN_MODE", default=None

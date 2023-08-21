@@ -2,10 +2,10 @@ import json
 import logging
 import sys
 import time
-from io import StringIO
 import uuid
 from contextlib import nullcontext
 from functools import partial
+from io import StringIO
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -19,12 +19,12 @@ import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.infrastructure import Process
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,

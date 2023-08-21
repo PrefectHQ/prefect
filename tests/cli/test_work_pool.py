@@ -1,12 +1,13 @@
 import sys
+
 import httpx
 import pytest
 import readchar
 from typer import Exit
 
-from prefect.exceptions import ObjectNotFound
 from prefect.client.schemas.actions import WorkPoolUpdate
 from prefect.client.schemas.objects import WorkPool
+from prefect.exceptions import ObjectNotFound
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.process import ProcessWorker

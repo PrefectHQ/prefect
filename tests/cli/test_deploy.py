@@ -9,37 +9,34 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pendulum
-from prefect.cli.deploy import (
-    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
-)
-from prefect.infrastructure.container import DockerRegistry
-from prefect.utilities.slugify import slugify
 import pytest
 import readchar
-from typer import Exit
 import yaml
+from typer import Exit
 
 import prefect
-from prefect.cli.deploy import (
-    _initialize_deployment_triggers,
-    _create_deployment_triggers,
-)
 from prefect.blocks.system import Secret
+from prefect.cli.deploy import (
+    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
+    _create_deployment_triggers,
+    _initialize_deployment_triggers,
+)
 from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.events.schemas import Posture
-from prefect.exceptions import ObjectNotFound
 from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
     create_default_prefect_yaml,
     initialize_project,
 )
+from prefect.events.schemas import Posture
+from prefect.exceptions import ObjectNotFound
+from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
+from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 

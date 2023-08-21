@@ -8,10 +8,8 @@ interrupts.
 """
 import asyncio
 import os
-
 import signal
-from unittest.mock import MagicMock, ANY
-from prefect.testing.utilities import AsyncMock
+from unittest.mock import ANY, MagicMock
 
 import anyio
 import pytest
@@ -20,6 +18,7 @@ import prefect
 import prefect.context
 import prefect.exceptions
 from prefect.client.schemas import FlowRun
+from prefect.testing.utilities import AsyncMock
 
 
 async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):

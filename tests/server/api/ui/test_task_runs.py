@@ -6,9 +6,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
+from prefect.server.api.ui.task_runs import TaskRunCount
 from prefect.server.schemas import core, filters, states
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.api.ui.task_runs import TaskRunCount
 
 
 class TestReadDashboardTaskRunCounts:

@@ -6,19 +6,19 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
-from collections import deque
 import inspect
-import weakref
 import queue
 import threading
+import weakref
+from collections import deque
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 import anyio
 
+from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 

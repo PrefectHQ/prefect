@@ -3,10 +3,10 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 """
 
 import asyncio
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from uuid import UUID
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models

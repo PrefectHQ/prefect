@@ -3,24 +3,22 @@ Deprecated - Command line interface for working with projects.
 """
 from pathlib import Path
 from typing import List
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
 
 import typer
 import yaml
 from rich.table import Table
 
-from prefect.cli._prompts import prompt_select_from_table
-
 import prefect
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.exceptions import ObjectNotFound
 from prefect.deployments import find_prefect_directory, initialize_project
 from prefect.deployments import register_flow as register
-
 from prefect.deployments.steps.core import run_steps
+from prefect.exceptions import ObjectNotFound
 
 # Deprecated compatibility
 project_app = PrefectTyper(

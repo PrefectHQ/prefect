@@ -1,4 +1,5 @@
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
+
 from typing_extensions import Protocol
 
 from prefect.client.cloud import get_cloud_client

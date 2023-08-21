@@ -1,9 +1,10 @@
 import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
+
+import asyncpg
 import pytest
 import sqlalchemy as sa
-import asyncpg
 import toml
 from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
@@ -11,11 +12,11 @@ from httpx import ASGITransport, AsyncClient
 from prefect.server.api.server import (
     API_ROUTERS,
     SERVER_API_VERSION,
+    SQLITE_LOCKED_MSG,
     _memoize_block_auto_registration,
     create_api_app,
     create_app,
     method_paths_from_routes,
-    SQLITE_LOCKED_MSG,
 )
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,

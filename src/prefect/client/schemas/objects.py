@@ -11,11 +11,11 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
 from uuid import UUID
 
 import pendulum
 from pydantic import Field, HttpUrl, conint, root_validator, validator
+from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy

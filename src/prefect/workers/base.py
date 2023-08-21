@@ -8,7 +8,6 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
-
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
@@ -37,6 +36,7 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.plugins import load_prefect_collections
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
@@ -46,7 +46,6 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
-from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
