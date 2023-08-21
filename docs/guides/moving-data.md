@@ -36,7 +36,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
     [prefect-aws](https://prefecthq.github.io/prefect-aws/) provides blocks for interacting with AWS services.
 
     ```bash
-    pip install prefect-aws
+    pip install -U prefect-aws
     ```
 
 === "Azure"
@@ -44,7 +44,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
     [prefect-azure](https://prefecthq.github.io/prefect-azure/) provides blocks for interacting with Azure services.
 
     ```bash
-     pip install prefect-azure
+     pip install -U prefect-azure
     ```
 
 === "GCP"
@@ -52,7 +52,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
     [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) provides blocks for interacting with GCP services.
     
     ```bash
-     pip install prefect-gcp
+     pip install -U prefect-gcp
     ```
 
 ## Register the block types
@@ -98,16 +98,18 @@ Below we'll use Python code to create a credentials block for our cloud provider
 
 !!! Warning "Credentials safety"
 
-    Reminder, don't store credential values in public locations such as public git platform repositories.
+    Reminder, don't store credential values in public locations such as public git platform repositories. 
+    In the examples below we use environment variables to store credential values.
 
 === "AWS"
 
     ```python
+    import os
     from prefect_aws import AwsCredentials
 
     my_aws_creds = AwsCredentials(
         aws_access_key_id="123abc",
-        aws_secret_access_key="ab123",
+        aws_secret_access_key=os.environ.get("MY_AWS_SECRET_ACCESS_KEY"),
     )
     my_aws_creds.save(name="my-aws-creds-block", overwrite=True)
     ```
@@ -115,22 +117,25 @@ Below we'll use Python code to create a credentials block for our cloud provider
 === "Azure"
 
      ```python
+    import os
     from prefect_azure import AzureBlobStorageCredentials
 
     my_azure_creds = AzureBlobStorageCredentials(
-        connection_string="my-connection-string",
+        connection_string=os.environ.get("MY_AZURE_CONNECTION_STRING"),
     )
     my_azure_creds.save(name="my-azure-creds-block", overwrite=True)
     ```
 
 === "GCP"
 
+    We recommend using specifying the service account key file contents as a string, rather than the path to the file, because that file will not be available in most production environments.
+
     ```python
-    from prefect import task
+    import os
     from prefect_gcp import GCPCredentials
 
     my_gcp_creds = GCPCredentials(
-        service_account_key_path="my-service-account-key-path",
+        service_account_info=os.environ.get("GCP_SERVICE_ACCOUNT_KEY_FILE_CONTENTS"), 
     )
     my_gcp_creds.save(name="my-gcp-creds-block", overwrite=True)
     ```
@@ -215,16 +220,18 @@ Use your new block inside a flow to write data to your cloud provider.
     from prefect_azure import AzureBlobStorageCredentials
     from prefect_azure.blob_storage import blob_storage_upload
 
+    @flow
     def upload_to_azure():
         """Flow function to upload data"""
         blob_storage_credentials = AzureBlobStorageCredentials.load(
             name="my-azure-creds-block"
         )
 
-        with open("my_path_to/my_file.parquet", "rb") as f: 
-            blob = blob_storage_upload(
+        with open("my_path_to/my_file.parquet", "rb") as f:
+            blob_storage_upload(
                 data=f.read(),
-                blob="my_path_to/my_file.parquet", 
+                container="my_container",
+                blob="my_path_to/my_file.parquet",
                 blob_storage_credentials=blob_storage_credentials,
             )
 
