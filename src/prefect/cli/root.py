@@ -7,9 +7,9 @@ import sys
 
 import pendulum
 import rich.console
-from rich.theme import Theme
 import typer
 import typer.core
+from rich.theme import Theme
 
 import prefect
 import prefect.context

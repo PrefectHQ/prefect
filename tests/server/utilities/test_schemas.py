@@ -11,17 +11,19 @@ import pytest
 
 import prefect._internal.schemas.bases
 import prefect.server.utilities.schemas
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
     IDBaseModel,
     ORMBaseModel,
-    PrefectBaseModel as ServerPrefectBaseModel,
     copy_model_fields,
     pydantic_subclass,
 )
+from prefect.server.utilities.schemas import (
+    PrefectBaseModel as ServerPrefectBaseModel,
+)
 from prefect.testing.utilities import assert_does_not_warn
-from prefect._internal.schemas.bases import PrefectBaseModel
 
 
 @contextmanager

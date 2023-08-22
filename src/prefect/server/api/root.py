@@ -3,9 +3,10 @@ Contains the `hello` route for testing and healthcheck purposes.
 """
 from fastapi import Depends, status
 from fastapi.responses import JSONResponse
-from prefect.server.utilities.server import PrefectRouter
+
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="", tags=["Root"])
 

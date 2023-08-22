@@ -1,6 +1,11 @@
-import pendulum
 from contextlib import contextmanager
 from typing import List, Union
+
+import pendulum
+
+from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
 from .asyncio import (
     acquire_concurrency_slots,
@@ -10,10 +15,6 @@ from .events import (
     _emit_concurrency_acquisition_events,
     _emit_concurrency_release_events,
 )
-
-from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.event_loop import get_running_loop
 
 
 @contextmanager
