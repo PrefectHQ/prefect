@@ -18,8 +18,6 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
     WorkPoolFilter,
     WorkPoolFilterName,
-    WorkQueueFilter,
-    WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
@@ -377,7 +375,6 @@ class Runner:
     def __init__(
         self,
         work_pool_name: str,
-        work_queues: Optional[List[str]] = None,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         create_pool_if_not_found: bool = True,
@@ -393,8 +390,6 @@ class Runner:
                 processes have the same name, they will be treated as the same
                 worker.
             work_pool_name: The name of the work pool to poll.
-            work_queues: A list of work queues to poll. If not provided, all
-                work queue in the work pool will be polled.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             create_pool_if_not_found: Whether to create the work pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
@@ -410,7 +405,6 @@ class Runner:
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
         self._work_pool_name = work_pool_name
-        self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -651,12 +645,6 @@ class Runner:
 
         self._logger.debug("Checking for cancelled flow runs...")
 
-        work_queue_filter = (
-            WorkQueueFilter(name=WorkQueueFilterName(any_=list(self._work_queues)))
-            if self._work_queues
-            else None
-        )
-
         named_cancelling_flow_runs = await self._client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
@@ -669,7 +657,6 @@ class Runner:
             work_pool_filter=WorkPoolFilter(
                 name=WorkPoolFilterName(any_=[self._work_pool_name])
             ),
-            work_queue_filter=work_queue_filter,
         )
 
         typed_cancelling_flow_runs = await self._client.read_flow_runs(
@@ -683,7 +670,6 @@ class Runner:
             work_pool_filter=WorkPoolFilter(
                 name=WorkPoolFilterName(any_=[self._work_pool_name])
             ),
-            work_queue_filter=work_queue_filter,
         )
 
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
@@ -822,7 +808,6 @@ class Runner:
                 await self._client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
-                    work_queue_names=list(self._work_queues),
                 )
             )
             self._logger.debug(
