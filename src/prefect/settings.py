@@ -589,6 +589,13 @@ PREFECT_API_KEY = Setting(
 )
 """API key used to authenticate with a the Prefect API. Defaults to `None`."""
 
+PREFECT_API_BASIC_AUTH = Setting(
+    str,
+    default=None,
+    is_secret=True,
+)
+"""BASIC Auth token to authenticate with a the Prefect API. Defaults to `None`."""
+
 PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
 """
 If true, enable support for HTTP/2 for communicating with an API.

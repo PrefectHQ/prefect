@@ -103,6 +103,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
+    PREFECT_API_BASIC_AUTH
 )
 from prefect.utilities.collections import AutoEnum
 
@@ -142,6 +143,7 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     return PrefectClient(
         api,
         api_key=PREFECT_API_KEY.value(),
+        api_basic_auth=PREFECT_API_BASIC_AUTH.value(),
         httpx_settings=httpx_settings,
     )
 
@@ -153,6 +155,7 @@ class PrefectClient:
     Args:
         api: the REST API URL or FastAPI application to connect to
         api_key: An optional API key for authentication.
+        api_basic_auth: An optional basic auth string for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
             `httpx.AsyncClient`
@@ -177,6 +180,7 @@ class PrefectClient:
         api: Union[str, FastAPI],
         *,
         api_key: str = None,
+        api_basic_auth: str = None,
         api_version: str = None,
         httpx_settings: dict = None,
     ) -> None:
@@ -194,6 +198,8 @@ class PrefectClient:
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+        if api_basic_auth:
+            httpx_settings["headers"].setdefault("Authorization", f"Basic {api_basic_auth}")
 
         # Context management
         self._exit_stack = AsyncExitStack()
