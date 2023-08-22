@@ -11,6 +11,8 @@ tags:
     - parallel execution
     - Dask
     - Ray
+search:
+  boost: 2
 ---
 
 # Task runners
@@ -34,7 +36,7 @@ Prefect currently provides the following built-in task runners:
 - [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
 - [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
-In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/catalog/). 
+In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Integrations](/integrations/catalog/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
@@ -613,7 +615,7 @@ def my_flow():
         future = show(3)
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     my_flow()
 ```
 
@@ -653,7 +655,7 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
 !!! warning "Ray environment limitations"
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
     
-    Ray's support for Python 3.11 is [experimental]([https://github.com/ray-project/ray/releases/tag/ray-1.13.0](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
+    Ray's support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
 
     Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
 

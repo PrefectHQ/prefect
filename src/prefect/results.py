@@ -1,6 +1,17 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type, TypeVar, Union
+from functools import partial
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 from typing_extensions import Self
@@ -30,9 +41,12 @@ ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
 LITERAL_TYPES = {type(None), bool}
 
-logger = get_logger("results")
 
-# from prefect.server.schemas.states import State
+def DEFAULT_STORAGE_KEY_FN():
+    return uuid.uuid4().hex
+
+
+logger = get_logger("results")
 R = TypeVar("R")
 
 
@@ -89,6 +103,13 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
+def _format_user_supplied_storage_key(key):
+    # Note here we are pinning to task runs since flow runs do not support storage keys
+    # yet; we'll need to split logic in the future or have two separate functions
+    runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
+    return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
+
+
 class ResultFactory(pydantic.BaseModel):
     """
     A utility to generate `Result` types.
@@ -99,6 +120,7 @@ class ResultFactory(pydantic.BaseModel):
     serializer: Serializer
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
+    storage_key_fn: Callable[[], str]
 
     @classmethod
     @inject_client
@@ -119,6 +141,7 @@ class ResultFactory(pydantic.BaseModel):
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
+        kwargs.setdefault("storage_key_fn", DEFAULT_STORAGE_KEY_FN)
 
         return await cls.from_settings(**kwargs, client=client)
 
@@ -152,6 +175,7 @@ class ResultFactory(pydantic.BaseModel):
                     )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
+                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
                 client=client,
             )
         else:
@@ -174,6 +198,7 @@ class ResultFactory(pydantic.BaseModel):
                     )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
+                storage_key_fn=DEFAULT_STORAGE_KEY_FN,
             )
 
     @classmethod
@@ -214,6 +239,11 @@ class ResultFactory(pydantic.BaseModel):
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
             client=client,
+            storage_key_fn=(
+                partial(_format_user_supplied_storage_key, task.result_storage_key)
+                if task.result_storage_key is not None
+                else DEFAULT_STORAGE_KEY_FN
+            ),
         )
 
     @classmethod
@@ -224,6 +254,7 @@ class ResultFactory(pydantic.BaseModel):
         result_serializer: ResultSerializer,
         persist_result: bool,
         cache_result_in_memory: bool,
+        storage_key_fn: Callable[[], str],
         client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
@@ -237,6 +268,7 @@ class ResultFactory(pydantic.BaseModel):
             serializer=serializer,
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
+            storage_key_fn=storage_key_fn,
         )
 
     @staticmethod
@@ -311,6 +343,7 @@ class ResultFactory(pydantic.BaseModel):
             obj,
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
+            storage_key_fn=self.storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
         )
@@ -478,6 +511,7 @@ class PersistedResult(BaseResult):
         obj: R,
         storage_block: WritableFileSystem,
         storage_block_id: uuid.UUID,
+        storage_key_fn: Callable[[], str],
         serializer: Serializer,
         cache_object: bool = True,
     ) -> "PersistedResult[R]":
@@ -490,7 +524,12 @@ class PersistedResult(BaseResult):
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(serializer=serializer, data=data)
 
-        key = uuid.uuid4().hex
+        key = storage_key_fn()
+        if not isinstance(key, str):
+            raise TypeError(
+                f"Expected type 'str' for result storage key; got value {key!r}"
+            )
+
         await storage_block.write_path(key, content=blob.to_bytes())
 
         description = f"Result of type `{type(obj).__name__}`"

@@ -33,6 +33,10 @@ from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.settings import (
+    PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+)
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -42,6 +46,11 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.visualization import (
+    VisualizationUnsupportedError,
+    get_task_viz_tracker,
+    track_viz_task,
+)
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -130,7 +139,8 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -148,6 +158,8 @@ class Task(Generic[P, R]):
             the features being used.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
+        result_storage_key: An optional key to store the result in storage at when persisted.
+            Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
@@ -161,6 +173,7 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -176,25 +189,57 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
-        task_run_name: str = None,
-        retries: int = 0,
-        retry_delay_seconds: Union[
-            float,
-            int,
-            List[float],
-            Callable[[int], List[float]],
-        ] = 0,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[
+            Union[
+                float,
+                int,
+                List[float],
+                Callable[[int], List[float]],
+            ]
+        ] = None,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        result_storage_key: Optional[str] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
+        # Validate if hook passed is list and contains callables
+        hook_categories = [on_completion, on_failure]
+        hook_names = ["on_completion", "on_failure"]
+        for hooks, hook_name in zip(hook_categories, hook_names):
+            if hooks is not None:
+                if not hooks:
+                    raise ValueError(f"Empty list passed for '{hook_name}'")
+                try:
+                    hooks = list(hooks)
+                except TypeError:
+                    raise TypeError(
+                        f"Expected iterable for '{hook_name}'; got"
+                        f" {type(hooks).__name__} instead. Please provide a list of"
+                        f" hooks to '{hook_name}':\n\n"
+                        f"@flow({hook_name}=[hook1, hook2])\ndef"
+                        " my_flow():\n\tpass"
+                    )
+
+                for hook in hooks:
+                    if not callable(hook):
+                        raise TypeError(
+                            f"Expected callables in '{hook_name}'; got"
+                            f" {type(hook).__name__} instead. Please provide a list of"
+                            f" hooks to '{hook_name}':\n\n"
+                            f"@flow({hook_name}=[hook1, hook2])\ndef"
+                            " my_flow():\n\tpass"
+                        )
+
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
@@ -211,7 +256,14 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
+        if task_run_name is not None:
+            if not isinstance(task_run_name, str) and not callable(task_run_name):
+                raise TypeError(
+                    "Expected string or callable for 'task_run_name'; got"
+                    f" {type(task_run_name).__name__} instead."
+                )
         self.task_run_name = task_run_name
+
         self.version = version
         self.log_prints = log_prints
 
@@ -231,7 +283,12 @@ class Task(Generic[P, R]):
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = retries
+
+        self.retries = (
+            retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
+        )
+        if retry_delay_seconds is None:
+            retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)
@@ -251,6 +308,7 @@ class Task(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
@@ -280,6 +338,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.viz_return_value = viz_return_value
 
     def with_options(
         self,
@@ -290,7 +349,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
-        task_run_name: str = None,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[
@@ -303,12 +362,14 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        result_storage_key: Optional[str] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -321,7 +382,8 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             task_run_name: An optional name to distinguish runs of this task; this name can be provided
-                as a string template with the task's keyword arguments as variables.
+                as a string template with the task's keyword arguments as variables,
+                or a function that returns a string.
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -336,11 +398,13 @@ class Task(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            result_storage_key: A new key for the persisted result to be stored at.
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
+            viz_return_value: An optional value to return when the task dependency tree is visualized.
 
         Returns:
             A new `Task` instance.
@@ -404,6 +468,11 @@ class Task(Generic[P, R]):
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
             ),
+            result_storage_key=(
+                result_storage_key
+                if result_storage_key is not NotSet
+                else self.result_storage_key
+            ),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
@@ -423,6 +492,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            viz_return_value=viz_return_value or self.viz_return_value,
         )
 
     @overload
@@ -470,6 +540,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return_type = "state" if return_state else "result"
+
+        task_run_tracker = get_task_viz_tracker()
+        if task_run_tracker:
+            return track_viz_task(
+                self.isasync, self.name, parameters, self.viz_return_value
+            )
 
         return enter_task_run_engine(
             self,
@@ -668,6 +744,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.submit()` is not currently supported by `flow.visualize()`"
+            )
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -834,9 +916,16 @@ class Task(Generic[P, R]):
 
         from prefect.engine import enter_task_run_engine
 
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
+        # Convert the call args/kwargs to a parameter dict; do not apply defaults
+        # since they should not be mapped over
+        parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
+
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.map()` is not currently supported by `flow.visualize()`"
+            )
 
         return enter_task_run_engine(
             self,
@@ -862,7 +951,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -873,6 +962,7 @@ def task(
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
+    result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
@@ -880,6 +970,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -893,17 +984,18 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
-    retries: int = 0,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
+    retries: int = None,
     retry_delay_seconds: Union[
         float,
         int,
         List[float],
         Callable[[int], List[float]],
-    ] = 0,
+    ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
+    result_storage_key: Optional[str] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
@@ -911,6 +1003,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_return_value: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -932,7 +1025,8 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -950,6 +1044,8 @@ def task(
             the features being used.
         result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
+        result_storage_key: An optional key to store the result in storage at when persisted.
+            Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
@@ -963,6 +1059,7 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1012,6 +1109,7 @@ def task(
         >>> def my_task():
         >>>     return "hello"
     """
+
     if __fn:
         return cast(
             Task[P, R],
@@ -1029,6 +1127,7 @@ def task(
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,
+                result_storage_key=result_storage_key,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
@@ -1036,6 +1135,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_return_value=viz_return_value,
             ),
         )
     else:
@@ -1055,6 +1155,7 @@ def task(
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,
+                result_storage_key=result_storage_key,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
@@ -1062,5 +1163,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_return_value=viz_return_value,
             ),
         )

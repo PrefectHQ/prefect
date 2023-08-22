@@ -202,9 +202,9 @@ def test_run_requires_command():
 
 async def test_prepare_for_flow_run_uses_sys_executable(
     deployment,
-    orion_client,
+    prefect_client,
 ):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = Process().prepare_for_flow_run(flow_run)
     assert infrastructure.command == [sys.executable, "-m", "prefect.engine"]
 
@@ -255,6 +255,7 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
     os_kill.assert_not_called()
 
 
+@pytest.mark.flaky(max_runs=2)
 async def test_process_kill_no_matching_pid(monkeypatch):
     infrastructure_pid = f"{socket.gethostname()}:12345"
 

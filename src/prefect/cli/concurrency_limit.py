@@ -41,7 +41,7 @@ async def create(tag: str, concurrency_limit: int):
         await client.create_concurrency_limit(
             tag=tag, concurrency_limit=concurrency_limit
         )
-        result = await client.read_concurrency_limit_by_tag(tag)
+        await client.read_concurrency_limit_by_tag(tag)
 
     app.console.print(
         textwrap.dedent(
@@ -82,7 +82,7 @@ async def inspect(tag: str):
     cl_table.add_column("Created", style="magenta", no_wrap=True)
     cl_table.add_column("Updated", style="magenta", no_wrap=True)
 
-    for trid in result.active_slots:
+    for trid in sorted(result.active_slots):
         trid_table.add_row(str(trid))
 
     cl_table.add_row(

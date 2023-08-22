@@ -1,5 +1,5 @@
 ---
-description: Answers to frequently asked questions about Prefect 2.
+description: Answers to frequently asked questions about Prefect.
 tags:
     - FAQ
     - frequently asked questions
@@ -10,11 +10,11 @@ tags:
 
 # Frequently Asked Questions
 
-## Prefect 2
+## Prefect
 
-### How is Prefect 2 licensed?
+### How is Prefect licensed?
 
-Prefect 2 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+Prefect is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
 ### Is the Prefect v2 Cloud URL different than the Prefect v1 Cloud URL?  
 
@@ -22,7 +22,7 @@ Yes. Prefect Cloud for v2 is at [app.prefect.cloud/](https://app.prefect.cloud) 
 
 ## The Prefect Orchestration Engine
 
-### Why was the Prefect 2 orchestration engine created?
+### Why was the Prefect orchestration engine created?
 
 The Prefect orchestration engine has three major objectives:
 
@@ -51,7 +51,7 @@ No, Prefect Cloud hosts an instance of the Prefect API for you. In fact, each wo
 
 ## Features
 
-### Does Prefect 2 support mapping?
+### Does Prefect support mapping?
 
 Yes! For more information, see the [`Task.map` API reference](/api-ref/prefect/tasks/#prefect.tasks.Task.map)
 

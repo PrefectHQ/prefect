@@ -20,8 +20,6 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     # dropping columns to efficiently clear indexes and constraints
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_pool_queue")
@@ -117,12 +115,8 @@ def upgrade():
         )
         batch_op.alter_column("type", nullable=False)
 
-    op.execute("PRAGMA foreign_keys=ON")
-
 
 def downgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
         batch_op.drop_index("ix_work_queue__work_pool_id")
@@ -197,5 +191,3 @@ def downgrade():
             ["id"],
             ondelete="SET NULL",
         )
-
-    op.execute("PRAGMA foreign_keys=ON")

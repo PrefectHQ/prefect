@@ -12,17 +12,20 @@ import pathspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
+import prefect
 
-def set_default_ignore_file(path: str) -> bool:
+
+def create_default_ignore_file(path: str) -> bool:
     """
     Creates default ignore file in the provided path if one does not already exist; returns boolean specifying
     whether a file was created.
     """
     path = pathlib.Path(path)
-    if (path / ".prefectignore").exists():
+    ignore_file = path / ".prefectignore"
+    if ignore_file.exists():
         return False
-    default_file = pathlib.Path(__file__).parent / ".." / ".prefectignore"
-    with open(path / ".prefectignore", "w") as f:
+    default_file = pathlib.Path(prefect.__module_path__) / ".prefectignore"
+    with ignore_file.open(mode="w") as f:
         f.write(default_file.read_text())
     return True
 
@@ -117,3 +120,23 @@ def relative_path_to_current_platform(path_str: str) -> Path:
     """
 
     return Path(PureWindowsPath(path_str).as_posix())
+
+
+def get_open_file_limit() -> int:
+    """Get the maximum number of open files allowed for the current process"""
+
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            return ctypes.cdll.ucrtbase._getmaxstdio()
+        else:
+            import resource
+
+            soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+            return soft_limit
+    except Exception:
+        # Catch all exceptions, as ctypes can raise several errors
+        # depending on what went wrong. Return a safe default if we
+        # can't get the limit from the OS.
+        return 200

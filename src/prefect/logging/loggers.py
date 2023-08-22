@@ -1,17 +1,20 @@
 import io
 import logging
+import sys
+import warnings
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
+    from prefect.client.schemas import FlowRun as ClientFlowRun
+    from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -26,8 +29,39 @@ class PrefectLogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
+        kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
+
+        from prefect._internal.compatibility.deprecated import (
+            PrefectDeprecationWarning,
+            generate_deprecation_message,
+        )
+
+        if "send_to_orion" in kwargs["extra"]:
+            warnings.warn(
+                generate_deprecation_message(
+                    'The "send_to_orion" option',
+                    start_date="May 2023",
+                    help='Use "send_to_api" instead.',
+                ),
+                PrefectDeprecationWarning,
+                stacklevel=4,
+            )
+
         return (msg, kwargs)
+
+    def getChild(
+        self, suffix: str, extra: Optional[Dict[str, str]] = None
+    ) -> "PrefectLogAdapter":
+        if extra is None:
+            extra = {}
+
+        return PrefectLogAdapter(
+            self.logger.getChild(suffix),
+            extra={
+                **self.extra,
+                **extra,
+            },
+        )
 
 
 @lru_cache()
@@ -116,7 +150,11 @@ def get_run_logger(
     return logger
 
 
-def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
+def flow_run_logger(
+    flow_run: Union["FlowRun", "ClientFlowRun"],
+    flow: Optional["Flow"] = None,
+    **kwargs: str,
+):
     """
     Create a flow run logger with the run's metadata attached.
 
@@ -205,11 +243,18 @@ def print_as_log(*args, **kwargs):
     A patch for `print` to send printed messages to the Prefect run logger.
 
     If no run is active, `print` will behave as if it were not patched.
+
+    If `print` sends data to a file other than `sys.stdout` or `sys.stderr`, it will
+    not be forwarded to the Prefect logger either.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
     context = TaskRunContext.get() or FlowRunContext.get()
-    if not context or not context.log_prints:
+    if (
+        not context
+        or not context.log_prints
+        or kwargs.get("file") not in {None, sys.stdout, sys.stderr}
+    ):
         return print(*args, **kwargs)
 
     logger = get_run_logger()

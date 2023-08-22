@@ -330,7 +330,20 @@ class TestWorkPool:
                     "properties": {"wrong_variable": {}},
                     "required": [],
                 },
-            }
+            },
+            {
+                "job_configuration": {
+                    "thing_one": "{{ expected_variable_1 }}",
+                    "thing_two": "{{ expected_variable_2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "not_expected_variable_1": {},
+                        "expected_variable_2": {},
+                    },
+                    "required": [],
+                },
+            },
         ],
     )
     async def test_validate_base_job_template_fails(self, template):
@@ -344,7 +357,7 @@ class TestWorkPool:
                 r" expected_variable"
             ),
         ):
-            wp = schemas.core.WorkPool(
+            schemas.core.WorkPool(
                 name="test", default_queue_id=qid, base_job_template=template
             )
 

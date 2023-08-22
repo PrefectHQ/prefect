@@ -5,7 +5,7 @@ Thread-safe utilities for working with asynchronous event loops.
 import asyncio
 import concurrent.futures
 import functools
-from typing import Callable, Optional, TypeVar
+from typing import Awaitable, Callable, Coroutine, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -38,8 +38,11 @@ def call_in_loop(
 
     Returns the result of the call.
     """
-    future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
-    return future.result()
+    if __loop is get_running_loop():
+        return __fn(*args, **kwargs)
+    else:
+        future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
+        return future.result()
 
 
 def call_soon_in_loop(
@@ -76,3 +79,19 @@ def call_soon_in_loop(
         __loop.call_soon_threadsafe(wrapper)
 
     return future
+
+
+async def run_coroutine_in_loop_from_async(
+    __loop: asyncio.AbstractEventLoop, __coro: Coroutine
+) -> Awaitable:
+    """
+    Run an asynchronous call in an event loop from an asynchronous context.
+
+    Returns an awaitable that returns the result of the coroutine.
+    """
+    if __loop is get_running_loop():
+        return await __coro
+    else:
+        return await asyncio.wrap_future(
+            asyncio.run_coroutine_threadsafe(__coro, __loop)
+        )

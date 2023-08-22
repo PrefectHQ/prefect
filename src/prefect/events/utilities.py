@@ -1,20 +1,27 @@
-from typing import Any, Dict, List, Optional
+from datetime import timedelta
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from prefect.server.utilities.schemas import DateTimeTZ
+import pendulum
 
-from .schemas import Event
-from .worker import get_events_worker
+from prefect._internal.schemas.fields import DateTimeTZ
+
+from .clients import AssertingEventsClient, PrefectCloudEventsClient
+from .schemas import Event, RelatedResource
+from .worker import EventsWorker
+
+TIGHT_TIMING = timedelta(minutes=5)
 
 
 def emit_event(
     event: str,
     resource: Dict[str, str],
     occurred: Optional[DateTimeTZ] = None,
-    related: Optional[List[Dict[str, str]]] = None,
+    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
-) -> None:
+    follows: Optional[Event] = None,
+) -> Optional[Event]:
     """
     Send an event to Prefect Cloud.
 
@@ -27,14 +34,28 @@ def emit_event(
         payload: An open-ended set of data describing what happened.
         id: The sender-provided identifier for this event. Defaults to a random
             UUID.
+        follows: The event that preceded this one. If the preceding event
+            happened more than 5 minutes prior to this event the follows
+            relationship will not be set.
+
+    Returns:
+        The event that was emitted if worker is using a client that emit
+        events, otherwise None.
     """
+    operational_clients = [AssertingEventsClient, PrefectCloudEventsClient]
+    worker_instance = EventsWorker.instance()
+
+    if worker_instance.client_type not in operational_clients:
+        return None
+
     event_kwargs = {
         "event": event,
         "resource": resource,
     }
 
-    if occurred is not None:
-        event_kwargs["occurred"] = occurred
+    if occurred is None:
+        occurred = pendulum.now("UTC")
+    event_kwargs["occurred"] = occurred
 
     if related is not None:
         event_kwargs["related"] = related
@@ -45,7 +66,11 @@ def emit_event(
     if id is not None:
         event_kwargs["id"] = id
 
-    event_obj = Event(**event_kwargs)
+    if follows is not None:
+        if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
+            event_kwargs["follows"] = follows.id
 
-    with get_events_worker() as worker:
-        worker.emit(event_obj)
+    event_obj = Event(**event_kwargs)
+    worker_instance.send(event_obj)
+
+    return event_obj

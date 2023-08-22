@@ -5,29 +5,37 @@
 #
 # “command” is your build command,
 #
-
 [build]
 base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@master \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
-|| mkdocs build --config-file mkdocs.yml \
 """
 publish = "site"
 
 # moved page redirects #
 
 [[redirects]]
+from = "/tutorial/first-steps/"
+to = "/#prefect-quickstart"
+status = 301
+
+[[redirects]]
 from = "/collections/overview/"
-to = "/collections/catalog/"
+to = "/integrations/catalog/"
 status = 301
 
 [[redirects]]
 from = "/api-ref/orion/*"
 to = "/api-ref/server/:splat"
+status = 301
+
+[[redirects]]
+from = "/tutorials/*"
+to = "/tutorial/:splat"
 status = 301
 
 # redirect v1 traffic to docs-v1.prefect.io
@@ -53,7 +61,7 @@ status = 301
 
 [[redirects]]
 from = "/migration_guide/"
-to = "/migration-guide/"
+to = "/guides/migration-guide/"
 status = 301
 
 [[redirects]]
@@ -63,7 +71,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/work-queues/"
-to = "/ui/work-pools/"
+to = "/cloud/work-pools/"
 status = 301
 
 [[redirects]]
@@ -73,8 +81,349 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
 status = 301
+
+# redirects added 2023-03-21
+
+[[redirects]]
+from = "/ui/overview/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/overview"
+to = "/api-ref/"
+status = 301
+
+[[redirects]]
+from = "/concepts/overview/"
+to = "/concepts/"
+status = 301
+
+[[redirects]]
+from = "/collections/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/collections/usage/"
+to = "/integrations/usage/"
+status = 301
+
+[[redirects]]
+from = "/collections/contribute/"
+to = "/integrations/contribute/"
+status = 301
+
+[[redirects]]
+from = "/migration-guide/"
+to = "/guides/migration-guide/"
+status = 301
+
+[[redirects]]
+from = "/recipes/contribute-recipes/"
+to = "/recipes/recipes/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/docker/"
+to = "/guides/deployment/docker/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/cloud-agent/"
+to = "/guides/deployment/aci/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/testing/"
+to = "/guides/testing/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/dask-ray-task-runners/"
+to = "/guides/dask-ray-task-runners/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/filesystems/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/flow-task/"
+to = "/tutorials/first-steps/"
+status = 301
+
+[[redirects]]
+from = "/integrations/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/ui/flows-and-tasks/"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/getting-started/overview/"
+to = "/"
+status = 301
+
+# add from these locations 
+# I think I can use * or splat - check netlifly docs
+# pages that don't carry over get added above explicitly
+# then splat the rest from ui/ to cloud/
+ 
+[[redirects]]
+from = "/ui/index/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/index/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-quickstart/" 
+to = "/cloud/cloud-quickstart/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-api-keys/"
+to = "/cloud/users/api-keys/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-local-environment/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/cloud/cloud-local-environment/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/ui/organizations/"
+to = "/cloud/organizations/"
+status = 301
+
+[[redirects]]
+from = "/ui/workspaces/"
+to = "/cloud/workspaces/"
+status = 301
+
+[[redirects]]
+from = "/ui/service-accounts/"
+to = "/cloud/users/service-accounts/"
+status = 301
+
+[[redirects]]
+from = "/ui/roles/"
+to = "/cloud/users/roles/"
+status = 301
+
+[[redirects]]
+from = "/ui/sso/"
+to = "/cloud/users/sso/"
+status = 301
+
+[[redirects]]
+from = "/ui/audit-log/"
+to = "/cloud/users/audit-log/"
+status = 301
+
+[[redirects]]
+from = "/ui/automations/"
+to = "/cloud/automations/"
+status = 301
+
+[[redirects]]
+from = "/ui/events/"
+to = "/cloud/events/"
+status = 301
+
+[[redirects]]
+from = "/ui/troubleshooting/"
+to = "/cloud/connecting/"
+status = 301
+
+[[redirects]]
+from = "/ui/rate-limits/"
+to = "/cloud/rate-limits/"
+status = 301
+
+
+[[redirects]]
+from = "/cloud/overview/"
+to = "/cloud/"
+status = 301
+
+
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/deployments/"
+to = "/api-ref/prefect/deployments/deployments/"
+
+[[redirects]]
+from = "/tutorial/deployments-ux/"
+to = "/tutorial/deployments/"
+[[redirects]]
+from = "/ui/blocks/"
+to = "/concepts/blocks/"
+status = 301
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/server/"
+to = "/host/"
+status = 301
+
+
+[[redirects]]
+from = "/concepts/database/"
+to = "/host/"
+status = 301
+
+[[redirects]]
+from = "/ui/notifications/"
+to = "/host/#notifications"
+status = 301
+
+[[redirects]]
+from = "/concepts/notifications/"
+to = "/host/#notifications"
+status = 301
+
+
+[[redirects]]
+from = "/ui/work-pools/"
+to = "/concepts/work-pools/"
+status = 301
+
+
+[[redirects]]
+from = "/ui/"
+to = "/cloud/"
+status = 301
+
+[[redirects]]
+from = "/ui/task-concurrency"
+to = "/concepts/tasks/"
+status = 301
+
+[[redirects]]
+from = "/ui/flow-runs"
+to = "/concepts/flows/"
+status = 301
+
+[[redirects]]
+from = "/ui/deployments"
+to = "/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/developing-a-new-worker-type/"
+to = "/guides/deployment/developing-a-new-worker-type/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/rest-api-overview/"
+to = "/api-ref/rest-api/"
+status = 301
+
+[[redirects]]
+from = "/concepts/projects/"
+to = "/concepts/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/tutorial/projects/"
+to = "/tutorial/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/projects/"
+to = "/api-ref/prefect/deployments-ux/"
+status = 301
+
+[[redirects]]
+from = "/guides/cloud-run-push-work-pools/"
+to = "/guides/push-work-pools/"
+status = 301
+
+[[redirects]]
+from = "/concepts/logs/"
+to = "/guides/logs/"
+status = 301
+
+[[redirects]]
+from = "/concepts/runtime-context/"
+to = "/guides/runtime-context/"
+status = 301
+
+[[redirects]]
+from = "/concepts/settings/"
+to = "/guides/settings/"
+status = 301
+
+[[redirects]]
+from = "/concepts/variables/"
+to = "/guides/variables/"
+status = 301
+
+[[redirects]]
+from = "/cloud/webhooks/"
+to = "/guides/webhooks/"
+status = 301
+
+[[redirects]]
+from = "/cloud/events/"
+to = "/concepts/events/"
+status = 301
+
+[[redirects]]
+from = "/cloud/automations/"
+to = "/concepts/automations/"
+status = 301
+
+[[redirects]]
+from = "/host/"
+to = "/guides/host/"
+status = 301
+
+[[redirects]]
+from = "/concepts/deployments-ux/"
+to = "/concepts/deployments/"
+status = 301
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
@@ -102,10 +451,6 @@ Strict-Transport-Security = """
 # connect-src
 #   'self' - all connections to current current origin are permitted
 #   https://api.github.com - required to display release information
-#   https://api.segment.io - default domain for Segment analytics
-#   https://cdn.segment.com - default domain for Segment analytics.js
-#   https://api.segment.prefect.io - custom proxy for Segment analytics
-#   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
 #   https://www.google-analytics.com - Google Analytics
 # font-src
 #   https://fonts.gstatic.com - load fonts from Google Fonts
@@ -118,6 +463,7 @@ Strict-Transport-Security = """
 #   'self' - all images from current origin are permitted
 #   data: - images embedded inline are permitted
 #   https://avatars.githubusercontent.com - embed user images from GitHub
+#   https://cdn.redoc.ly - Redocly adds a logo at the bottom of the page
 #   https://img.shields.io - embed badges from shields.io
 # media-src
 #   'none' - no audio or video files are permitted
@@ -126,15 +472,17 @@ Strict-Transport-Security = """
 #            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
 # script-src
 #   'self' - all resources from current origin are permitted
+# script-src-elem
+#   'self' - all resources from current origin are permitted
 #   'unsafe-inline' - required for scripts loaded in partials
-#   https://cdn.segment.com - default domain for Segment analytics.js
-#   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
+#   https://unpkg.com - required for Swagger rendering plugin
 #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
 # style-src
 #   'self' - all styles from current origin are permitted
 #   'unsafe-inline' - required for styles loaded in partials
 # worker-src
 #   'self' - allow web workers from current origin
+#   blob: - required by Redocly for a generated Worker
 Content-Security-Policy = """\
       default-src \
         'none' \
@@ -142,10 +490,6 @@ Content-Security-Policy = """\
       connect-src \
         'self' \
         https://api.github.com \
-        https://api.segment.io \
-        https://cdn.segment.com \
-        https://api.segment.prefect.io \
-        https://cdn.segment.prefect.io \
         https://www.google-analytics.com \
         ; \
       font-src 
@@ -156,9 +500,11 @@ Content-Security-Policy = """\
       frame-src 
         https://www.youtube.com \
         ; \
-      img-src 'self' \
+      img-src \
+        'self' \
         data: \
         https://avatars.githubusercontent.com \
+        https://cdn.redoc.ly \
         https://img.shields.io \
         ; \
       media-src \
@@ -169,11 +515,12 @@ Content-Security-Policy = """\
         ; \
       script-src \
         'self' \
+      ; \
+      script-src-elem \
+        'self' \
         'unsafe-inline' \
-        https://cdn.segment.com/ \
-        https://cdn.segment.prefect.io \
-        https://www.googletagmanager.com \
         https://unpkg.com \
+        https://www.googletagmanager.com \
         ; \
       style-src \
         'self' \
@@ -181,7 +528,8 @@ Content-Security-Policy = """\
         https://fonts.googleapis.com/ \
         ; \
       worker-src \
-      'self' \
+        'self' \
+        blob: \
         ; \
       """
 
@@ -231,5 +579,5 @@ Permissions-Policy = """\
       """
 
 [[edge_functions]]
-path = "/segment/*"
-function = "segment"
+path = "/2/httpapi"
+function = "amplitude"

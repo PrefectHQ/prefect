@@ -82,14 +82,6 @@ def test_is_async_gen_fn_async_decorated_with_asyncontextmanager():
     assert is_async_gen_fn(foo)
 
 
-def test_is_async_gen_fn_async_decorated_with_asyncontextmanager():
-    @asynccontextmanager
-    async def foo():
-        yield True
-
-    assert is_async_gen_fn(foo)
-
-
 def test_is_async_gen_fn_sync_decorated_with_contextmanager():
     @contextmanager
     def foo():

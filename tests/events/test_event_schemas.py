@@ -1,3 +1,4 @@
+import datetime
 import json
 from uuid import UUID, uuid4
 
@@ -6,7 +7,17 @@ import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
 
-from prefect.events import Event, RelatedResource, Resource
+from prefect.events.actions import RunDeployment
+from prefect.events.schemas import (
+    Automation,
+    DeploymentTrigger,
+    Event,
+    Posture,
+    RelatedResource,
+    Resource,
+    ResourceTrigger,
+    Trigger,
+)
 
 
 def test_client_events_generate_an_id_by_default():
@@ -19,7 +30,7 @@ def test_client_events_generate_an_id_by_default():
 
 def test_client_events_generate_occurred_by_default(start_of_test: DateTime):
     event = Event(event="hello", resource={"prefect.resource.id": "hello"})
-    assert start_of_test <= event.occurred <= pendulum.now()
+    assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
 
 def test_client_events_may_have_empty_related_resources():
@@ -79,6 +90,7 @@ def test_json_representation():
         ],
         payload={"hello": "world"},
         id=uuid4(),
+        follows=uuid4(),
     )
 
     jsonified = json.loads(event.json().encode())
@@ -94,6 +106,7 @@ def test_json_representation():
         ],
         "payload": {"hello": "world"},
         "id": str(event.id),
+        "follows": str(event.follows),
     }
 
 
@@ -122,3 +135,55 @@ def test_limit_on_related_resources(monkeypatch: pytest.MonkeyPatch):
             ],
             id=uuid4(),
         )
+
+
+def test_client_event_involved_resources():
+    event = Event(
+        occurred=pendulum.now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        related=[
+            {"prefect.resource.id": "related-1", "prefect.resource.role": "role-1"},
+        ],
+        id=uuid4(),
+    )
+
+    assert [resource.id for resource in event.involved_resources] == [
+        "hello",
+        "related-1",
+    ]
+
+
+def test_resource_trigger_actions_not_implemented():
+    trigger = ResourceTrigger()
+    with pytest.raises(NotImplementedError):
+        trigger.actions()
+
+
+def test_deployment_trigger_as_automation():
+    trigger = DeploymentTrigger(
+        name="A deployment automation",
+    )
+    trigger.set_deployment_id(uuid4())
+
+    automation = trigger.as_automation()
+
+    assert automation == Automation(
+        name="A deployment automation",
+        description="",
+        enabled=True,
+        trigger=Trigger(
+            posture=Posture.Reactive,
+            threshold=1,
+            within=datetime.timedelta(0),
+        ),
+        actions=[
+            RunDeployment(
+                type="run-deployment",
+                source="selected",
+                parameters=None,
+                deployment_id=trigger._deployment_id,
+            )
+        ],
+        owner_resource=f"prefect.deployment.{trigger._deployment_id}",
+    )

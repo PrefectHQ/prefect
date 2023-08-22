@@ -15,13 +15,19 @@ from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
+from prefect.settings import (
+    PREFECT_CLIENT_MAX_RETRIES,
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+)
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
-# Datastores for lifespan management, keys should be a tuple of thread and app identities.
+# Datastores for lifespan management, keys should be a tuple of thread and app
+# identities.
 APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
 APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
-# Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
+# Blocks concurrent access to the above dicts per thread. The index should be the thread
+# identity.
 APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
@@ -159,8 +165,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
     [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
     """
 
-    RETRY_MAX = 5
-
     async def _send_with_retry(
         self,
         request: Callable,
@@ -170,9 +174,9 @@ class PrefectHttpxClient(httpx.AsyncClient):
         """
         Send a request and retry it if it fails.
 
-        Sends the provided request and retries it up to self.RETRY_MAX times if
-        the request either raises an exception listed in `retry_exceptions` or receives
-        a response with a status code listed in `retry_codes`.
+        Sends the provided request and retries it up to PREFECT_CLIENT_MAX_RETRIES times
+        if the request either raises an exception listed in `retry_exceptions` or
+        receives a response with a status code listed in `retry_codes`.
 
         Retries will be delayed based on either the retry header (preferred) or
         exponential backoff if a retry header is not provided.
@@ -180,15 +184,15 @@ class PrefectHttpxClient(httpx.AsyncClient):
         try_count = 0
         response = None
 
-        while try_count <= self.RETRY_MAX:
+        while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
             try_count += 1
             retry_seconds = None
             exc_info = None
 
             try:
                 response = await request()
-            except retry_exceptions:
-                if try_count > self.RETRY_MAX:
+            except retry_exceptions:  # type: ignore
+                if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
@@ -222,10 +226,14 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 (
                     "Encountered retryable exception during request. "
                     if exc_info
-                    else "Received response with retryable status code. "
+                    else (
+                        "Received response with retryable status code"
+                        f" {response.status_code}. "
+                    )
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
-                f"This is attempt {try_count}/{self.RETRY_MAX + 1}.",
+                "This is attempt"
+                f" {try_count}/{PREFECT_CLIENT_MAX_RETRIES.value() + 1}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)
@@ -245,10 +253,13 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_codes={
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
+                status.HTTP_502_BAD_GATEWAY,
+                *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=(
                 httpx.ReadTimeout,
                 httpx.PoolTimeout,
+                httpx.ConnectTimeout,
                 # `ConnectionResetError` when reading socket raises as a `ReadError`
                 httpx.ReadError,
                 # Sockets can be closed during writes resulting in a `WriteError`

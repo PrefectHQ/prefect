@@ -3,10 +3,10 @@
     <template v-if="!media.lg">
       <PGlobalSidebar class="app-router-view__mobile-menu">
         <template #upper-links>
-          <p-icon icon="PrefectGradient" class="app-router-view__prefect-icon" />
+          <p-icon icon="PrefectLight" class="app-router-view__prefect-icon" />
         </template>
         <template #bottom-links>
-          <PIcon icon="MenuIcon" class="app-router-view__menu-icon" @click="toggle" />
+          <PIcon icon="Bars3Icon" class="app-router-view__menu-icon" @click="toggle" />
         </template>
       </PGlobalSidebar>
     </template>

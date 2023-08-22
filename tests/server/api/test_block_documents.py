@@ -321,7 +321,7 @@ class TestReadBlockDocument:
     async def test_read_nonsense_block_document(self, client):
         """Regression test for an issue we observed in Cloud where a client made
         requests for /block_documents/null"""
-        response = await client.get(f"/block_documents/not-even")
+        response = await client.get("/block_documents/not-even")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -456,7 +456,7 @@ class TestReadBlockDocuments:
     async def test_read_nonsense_block_document(self, client, block_documents):
         """Regression test for an issue we observed in Cloud where a client made
         requests for /block_documents/null"""
-        response = await client.get(f"/block_documents/not-even")
+        response = await client.get("/block_documents/not-even")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize("is_anonymous", [True, False])
@@ -497,6 +497,7 @@ class TestReadBlockDocuments:
         # sorted by block document name
         assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
+    @pytest.mark.flaky
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))
@@ -1237,7 +1238,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.post(
-            f"/block_documents/filter",
+            "/block_documents/filter",
             json=dict(),
         )
         blocks = pydantic.parse_obj_as(
@@ -1254,7 +1255,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.post(
-            f"/block_documents/filter",
+            "/block_documents/filter",
             json=dict(include_secrets=True),
         )
         blocks = pydantic.parse_obj_as(

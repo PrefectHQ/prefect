@@ -2,6 +2,7 @@
 Custom Prefect CLI types
 """
 import functools
+import sys
 from typing import List, Optional
 
 import typer
@@ -45,7 +46,7 @@ def with_deprecated_message(warning: str):
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            print("WARNING:", warning)
+            print("WARNING:", warning, file=sys.stderr, flush=True)
             return fn(*args, **kwargs)
 
         return wrapper

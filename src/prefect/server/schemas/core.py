@@ -11,15 +11,14 @@ from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.server.database
-import prefect.server.schemas as schemas
-from prefect.exceptions import InvalidNameError
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
+from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect.server.schemas import schedules, states
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 from prefect.utilities.templating import find_placeholders
-
-INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -37,41 +36,8 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
-
-def raise_on_invalid_name(name: str) -> None:
-    """
-    Raise an InvalidNameError if the given name contains any invalid
-    characters.
-    """
-    if any(c in name for c in INVALID_CHARACTERS):
-        raise InvalidNameError(
-            f"Name {name!r} contains an invalid character. "
-            f"Must not contain any of: {INVALID_CHARACTERS}."
-        )
-
-
-class CreatedBy(PrefectBaseModel):
-    id: Optional[UUID] = Field(
-        default=None, description="The id of the creator of the object."
-    )
-    type: Optional[str] = Field(
-        default=None, description="The type of the creator of the object."
-    )
-    display_value: Optional[str] = Field(
-        default=None, description="The display value for the creator."
-    )
-
-
-class UpdatedBy(PrefectBaseModel):
-    id: Optional[UUID] = Field(
-        default=None, description="The id of the updater of the object."
-    )
-    type: Optional[str] = Field(
-        default=None, description="The type of the updater of the object."
-    )
-    display_value: Optional[str] = Field(
-        default=None, description="The display value for the updater."
-    )
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
 class Flow(ORMBaseModel):
@@ -88,7 +54,7 @@ class Flow(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -228,7 +194,7 @@ class FlowRun(ORMBaseModel):
         ),
     )
 
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current flow run state."
     )
     state_name: Optional[str] = Field(
@@ -289,7 +255,7 @@ class FlowRun(ORMBaseModel):
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current state of the flow run."
     )
     # parent_task_run: "TaskRun" = None
@@ -453,7 +419,7 @@ class TaskRun(ORMBaseModel):
             "Tracks the source of inputs to a task run. Used for internal bookkeeping."
         ),
     )
-    state_type: Optional[schemas.states.StateType] = Field(
+    state_type: Optional[states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
     state_name: Optional[str] = Field(
@@ -505,7 +471,7 @@ class TaskRun(ORMBaseModel):
     # relationships
     # flow_run: FlowRun = None
     # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    state: Optional[schemas.states.State] = Field(
+    state: Optional[states.State] = Field(
         default=None, description="The current task run state."
     )
 
@@ -536,7 +502,7 @@ class Deployment(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[schedules.SCHEDULE_TYPES] = Field(
         default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(
@@ -549,6 +515,10 @@ class Deployment(ORMBaseModel):
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    pull_steps: Optional[List[dict]] = Field(
+        default=None,
+        description="Pull steps for cloning and running this deployment.",
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -610,7 +580,7 @@ class Deployment(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -625,6 +595,30 @@ class ConcurrencyLimit(ORMBaseModel):
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
     )
+
+
+class ConcurrencyLimitV2(ORMBaseModel):
+    """An ORM representation of a v2 concurrency limit."""
+
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: str = Field(default=..., description="The name of the concurrency limit.")
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=0, description="The number of active slots.")
+    denied_slots: int = Field(default=0, description="The number of denied slots.")
+    slot_decay_per_second: float = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+    avg_slot_occupancy_seconds: float = Field(
+        default=2.0, description="The average amount of time a slot is occupied."
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_name_with_banned_characters(v)
+        return v
 
 
 class BlockType(ORMBaseModel):
@@ -652,7 +646,7 @@ class BlockType(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -731,7 +725,7 @@ class BlockDocument(ORMBaseModel):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
         if v is not None:
-            raise_on_invalid_name(v)
+            raise_on_name_with_banned_characters(v)
         return v
 
     @root_validator
@@ -903,7 +897,7 @@ class WorkQueue(ORMBaseModel):
     )
     # Will be required after a future migration
     work_pool_id: Optional[UUID] = Field(
-        description="The work pool with which the queue is associated."
+        default=None, description="The work pool with which the queue is associated."
     )
     filter: Optional[QueueFilter] = Field(
         default=None,
@@ -916,7 +910,7 @@ class WorkQueue(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
 
@@ -1069,7 +1063,7 @@ class WorkPool(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        raise_on_name_with_banned_characters(v)
         return v
 
     @validator("default_queue_id", always=True)
@@ -1110,7 +1104,9 @@ class WorkPool(ORMBaseModel):
             # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
             # convert to json string to handle nested objects and lists
             found_variables = find_placeholders(json.dumps(template))
-            template_variables = {placeholder.name for placeholder in found_variables}
+            template_variables.update(
+                {placeholder.name for placeholder in found_variables}
+            )
 
         provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):
@@ -1203,3 +1199,60 @@ class Artifact(ORMBaseModel):
             if len(str(v[key])) > max_metadata_length:
                 v[key] = str(v[key])[:max_metadata_length] + "..."
         return v
+
+
+class ArtifactCollection(ORMBaseModel):
+    key: str = Field(description="An optional unique reference key for this artifact.")
+    latest_id: UUID = Field(
+        description="The latest artifact ID associated with the key."
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description=(
+            "An identifier that describes the shape of the data field. e.g. 'result',"
+            " 'table', 'markdown'"
+        ),
+    )
+    description: Optional[str] = Field(
+        default=None, description="A markdown-enabled description of the artifact."
+    )
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
+        default=None,
+        description=(
+            "Data associated with the artifact, e.g. a result.; structure depends on"
+            " the artifact type."
+        ),
+    )
+    metadata_: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "User-defined artifact metadata. Content must be string key and value"
+            " pairs."
+        ),
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )
+
+
+class Variable(ORMBaseModel):
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )

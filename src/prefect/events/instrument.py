@@ -13,8 +13,7 @@ from typing import (
     Union,
 )
 
-from prefect.events import Event
-from prefect.events.worker import get_events_worker
+from prefect.events import emit_event
 
 ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
@@ -23,6 +22,7 @@ def emit_instance_method_called_event(
     instance: Any,
     method_name: str,
     successful: bool,
+    payload: Optional[Dict[str, Any]] = None,
 ):
     kind = instance._event_kind()
     resources: Optional[ResourceTuple] = instance._event_method_called_resources()
@@ -33,12 +33,12 @@ def emit_instance_method_called_event(
     resource, related = resources
     result = "called" if successful else "failed"
 
-    event = Event(
-        event=f"{kind}.{method_name}.{result}", resource=resource, related=related
+    emit_event(
+        event=f"{kind}.{method_name}.{result}",
+        resource=resource,
+        related=related,
+        payload=payload,
     )
-
-    with get_events_worker() as events:
-        events.emit(event)
 
 
 def instrument_instance_method_call():

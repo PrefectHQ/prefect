@@ -45,7 +45,7 @@ def from_qualified_name(name: str) -> Any:
     Returns:
         the imported object
 
-    Example:
+    Examples:
         >>> obj = from_qualified_name("random.randint")
         >>> import random
         >>> obj == random.randint
@@ -227,8 +227,7 @@ class DelayedImportErrorModule(ModuleType):
     def __init__(self, frame_data, help_message, *args, **kwargs):
         self.__frame_data = frame_data
         self.__help_message = (
-            help_message
-            or f"Import errors for this module are only reported when used."
+            help_message or "Import errors for this module are only reported when used."
         )
         super().__init__(*args, **kwargs)
 

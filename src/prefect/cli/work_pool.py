@@ -1,20 +1,26 @@
 """
 Command line interface for working with work queues.
 """
-from typing import Optional
-
 import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import experimental
+from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+)
+from prefect.cli.root import app, is_interactive
+from prefect.client.collections import get_collections_metadata_client
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.workers.utilities import (
+    get_available_work_pool_types,
+    get_default_base_job_template_for_infrastructure_type,
+)
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
@@ -23,16 +29,15 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
-    paused: Optional[bool] = typer.Option(
+    paused: bool = typer.Option(
         False,
         "--paused",
         help="Whether or not to create the work pool in a paused state.",
+    ),
+    type: str = typer.Option(
+        None, "-t", "--type", help="The type of work pool to create."
     ),
 ):
     """
@@ -42,13 +47,45 @@ async def create(
     Examples:
         $ prefect work-pool create "my-pool" --paused
     """
-    # will always be an empty dict until workers added
-    base_job_template = dict()
+    async with get_collections_metadata_client() as collections_client:
+        if not name.lower().strip("'\" "):
+            exit_with_error("Work pool name cannot be empty.")
+        if type is None:
+            if not is_interactive():
+                exit_with_error(
+                    "When not using an interactive terminal, you must supply a `--type`"
+                    " value."
+                )
+            worker_metadata = await collections_client.read_worker_metadata()
+            worker = prompt_select_from_table(
+                app.console,
+                "What infrastructure type would you like to use for this work pool?",
+                columns=[
+                    {"header": "Infrastructure Type", "key": "display_name"},
+                    {"header": "Description", "key": "description"},
+                ],
+                data=[
+                    worker
+                    for collection in worker_metadata.values()
+                    for worker in collection.values()
+                ],
+                table_kwargs={"show_lines": True},
+            )
+            type = worker["type"]
+        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+            type
+        )
+        if base_job_template is None:
+            exit_with_error(
+                f"Unknown work pool type {type!r}. "
+                "Please choose from"
+                f" {', '.join(await get_available_work_pool_types())}."
+            )
     async with get_client() as client:
         try:
             wp = WorkPoolCreate(
                 name=name,
-                type="prefect-agent",
+                type=type,
                 base_job_template=base_job_template,
                 is_paused=paused,
             )
@@ -56,15 +93,12 @@ async def create(
             exit_with_success(f"Created work pool {work_pool.name!r}.")
         except ObjectAlreadyExists:
             exit_with_error(
-                f"Work pool {name} already exists. Please choose a different name."
+                f"Work pool named {name!r} already exists. Please try creating your"
+                " work pool again with a different name."
             )
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def ls(
     verbose: bool = typer.Option(
         False,
@@ -93,7 +127,8 @@ async def ls(
     async with get_client() as client:
         pools = await client.read_work_pools()
 
-    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+    def sort_by_created_key(q):
+        return pendulum.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -114,10 +149,6 @@ async def ls(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def inspect(
     name: str = typer.Argument(..., help="The name of the work pool to inspect."),
 ):
@@ -139,10 +170,6 @@ async def inspect(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def pause(
     name: str = typer.Argument(..., help="The name of the work pool to pause."),
 ):
@@ -169,10 +196,6 @@ async def pause(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def resume(
     name: str = typer.Argument(..., help="The name of the work pool to resume."),
 ):
@@ -199,10 +222,6 @@ async def resume(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
@@ -224,10 +243,6 @@ async def delete(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
     concurrency_limit: int = typer.Argument(
@@ -259,10 +274,6 @@ async def set_concurrency_limit(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
 ):
@@ -289,10 +300,6 @@ async def clear_concurrency_limit(
 
 
 @work_pool_app.command()
-@experimental(
-    feature="The Work Pool CLI",
-    group="work_pools",
-)
 async def preview(
     name: str = typer.Argument(None, help="The name or ID of the work pool to preview"),
     hours: int = typer.Option(
@@ -331,10 +338,13 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = pendulum.now("utc").add(hours=hours or 1)
+    pendulum.now("utc").add(hours=hours or 1)
 
     now = pendulum.now("utc")
-    sort_by_created_key = lambda r: now - r.created
+
+    def sort_by_created_key(r):
+        return now - r.created
+
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
             (

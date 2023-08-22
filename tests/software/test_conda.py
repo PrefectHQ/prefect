@@ -1,3 +1,4 @@
+import os
 import subprocess
 from contextlib import nullcontext
 from textwrap import dedent
@@ -180,6 +181,10 @@ class TestCurrentEnvironmentCondaRequirements:
     @pytest.mark.parametrize(
         "options", [{}, {"include_builds": True}, {"explicit_only": False}]
     )
+    @pytest.mark.skipif(
+        os.environ.get("CI") is not None,
+        reason="takes >30s to run on GitHub CI machines",
+    )
     def test_unmocked_retrieval_succeeds(self, options):
         # Check that we actually parsed environment errors correctly on systems without
         # conda
@@ -259,7 +264,7 @@ class TestCondaEnvironment:
                 channels:
                 - defaults
                 dependencies:
-                - python=3.7.11
+                - python=3.10.11
                 - readline
                 - sqlite=3.37.2=h707629a_0
                 - pip:
@@ -275,7 +280,7 @@ class TestCondaEnvironment:
             PipRequirement("foo==0.8.0"),
             PipRequirement("bar"),
         ]
-        assert reqs.python_version == "3.7.11"
+        assert reqs.python_version == "3.10.11"
         assert reqs.conda_requirements == [
             CondaRequirement("readline"),
             CondaRequirement("sqlite=3.37.2=h707629a_0"),
@@ -290,7 +295,7 @@ class TestCondaEnvironment:
                 channels:
                 - defaults
                 dependencies:
-                - python=3.7.11
+                - python=3.10.11
                 - readline
                 - sqlite=3.37.2=h707629a_0
                 - ohno:
@@ -315,7 +320,7 @@ class TestCondaEnvironment:
                 channels:
                 - defaults
                 dependencies:
-                - python=3.7.11
+                - python=3.10.11
                 - readline
                 - sqlite=3.37.2=h707629a_0
                 - pip:

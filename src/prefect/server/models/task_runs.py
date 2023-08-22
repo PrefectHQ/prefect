@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
@@ -21,6 +22,8 @@ from prefect.server.orchestration.global_policy import GlobalTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
+
+logger = get_logger("server")
 
 
 @inject_db
@@ -153,6 +156,19 @@ async def _apply_task_run_filters(
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter(db))
 
+    # Return a simplified query in the case that the request is ONLY asking to filter on flow_run_id (and task_run_filter)
+    # In this case there's no need to generate the complex EXISTS subqueries; the generated query here is much more efficient
+    if (
+        flow_run_filter
+        and flow_run_filter.only_filters_on_id()
+        and not any(
+            [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
+        )
+    ):
+        query = query.where(db.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
+
+        return query
+
     if (
         flow_filter
         or flow_run_filter
@@ -243,6 +259,7 @@ async def read_task_runs(
     if limit is not None:
         query = query.limit(limit)
 
+    logger.debug(f"In read_task_runs, query generated is:\n{query}")
     result = await session.execute(query)
     return result.scalars().unique().all()
 

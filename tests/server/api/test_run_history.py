@@ -4,6 +4,7 @@ from typing import List
 import pendulum
 import pydantic
 import pytest
+import sqlalchemy as sa
 from fastapi import Response, status
 
 from prefect.server import models
@@ -38,9 +39,16 @@ def parse_response(response: Response, include=None):
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def clear_db():
+async def clear_db(db):
     """Prevent automatic database-clearing behavior after every test"""
-    pass  # noqa
+    yield  # noqa
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(db.Agent.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
+        for table in reversed(db.Base.metadata.sorted_tables):
+            await session.execute(table.delete())
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -88,16 +96,18 @@ async def work_queue(db, work_pool):
 async def data(db, work_queue):
     session = await db.session()
     async with session:
-        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
-        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
-        create_task_run = lambda task_run: models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+
+        def create_flow(flow):
+            return models.flows.create_flow(session=session, flow=flow)
+
+        def create_flow_run(flow_run):
+            return models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+
+        def create_task_run(task_run):
+            return models.task_runs.create_task_run(session=session, task_run=task_run)
 
         f_1 = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
-        f_2 = await create_flow(flow=core.Flow(name="f-2", tags=["db"]))
+        await create_flow(flow=core.Flow(name="f-2", tags=["db"]))
 
         # have a completed flow every 12 hours except weekends
         for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 12):
@@ -776,7 +786,7 @@ async def test_last_bin_contains_end_date(client, route):
 
 @pytest.mark.flaky(max_runs=3)
 async def test_flow_run_lateness(client, session):
-    await session.execute("delete from flow where true;")
+    await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
 
@@ -823,14 +833,14 @@ async def test_flow_run_lateness(client, session):
     )
 
     # never started
-    fr3 = await models.flow_runs.create_flow_run(
+    await models.flow_runs.create_flow_run(
         session=session,
         flow_run=core.FlowRun(
             flow_id=f.id,
             state=states.Scheduled(scheduled_time=dt.subtract(minutes=1)),
         ),
     )
-    fr4 = await models.flow_runs.create_flow_run(
+    await models.flow_runs.create_flow_run(
         session=session,
         flow_run=core.FlowRun(
             flow_id=f.id,

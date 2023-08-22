@@ -61,6 +61,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 
 import pydantic
 import toml
@@ -277,6 +278,26 @@ def default_ui_api_url(settings, value):
     )(settings, value)
 
 
+def status_codes_as_integers_in_range(_, value):
+    """
+    `value_callback` for `PREFECT_CLIENT_RETRY_EXTRA_CODES` that ensures status codes
+    are integers in the range 100-599.
+    """
+    if value == "":
+        return set()
+
+    values = {v.strip() for v in value.split(",")}
+
+    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
+        raise ValueError(
+            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
+            "integers between 100 and 599."
+        )
+
+    values = {int(v) for v in values}
+    return values
+
+
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `value_callback` that will template the given settings into the runtime
@@ -348,6 +369,47 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def warn_on_misconfigured_api_url(values):
+    """
+    Validator for settings warning if the API URL is misconfigured.
+    """
+    api_url = values["PREFECT_API_URL"]
+    if api_url is not None:
+        misconfigured_mappings = {
+            "app.prefect.cloud": (
+                "`PREFECT_API_URL` points to `app.prefect.cloud`. Did you"
+                " mean `api.prefect.cloud`?"
+            ),
+            "account/": (
+                "`PREFECT_API_URL` uses `/account/` but should use `/accounts/`."
+            ),
+            "workspace/": (
+                "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
+            ),
+        }
+        warnings_list = []
+
+        for misconfig, warning in misconfigured_mappings.items():
+            if misconfig in api_url:
+                warnings_list.append(warning)
+
+        parsed_url = urlparse(api_url)
+        if parsed_url.path and not parsed_url.path.startswith("/api"):
+            warnings_list.append(
+                "`PREFECT_API_URL` should have `/api` after the base URL."
+            )
+
+        if warnings_list:
+            example = (
+                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            )
+            warnings_list.append(example)
+
+            warnings.warn("\n".join(warnings_list), stacklevel=2)
+
+    return values
+
+
 def default_database_connection_url(settings, value):
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 
@@ -362,8 +424,9 @@ def default_database_connection_url(settings, value):
     new_default = home / "prefect.db"
 
     # If the old one exists and the new one does not, continue using the old one
-    if old_default.exists() and not new_default.exists():
-        return "sqlite+aiosqlite:///" + str(old_default)
+    if not new_default.exists():
+        if old_default.exists():
+            return "sqlite+aiosqlite:///" + str(old_default)
 
     # Otherwise, return the new default
     return "sqlite+aiosqlite:///" + str(new_default)
@@ -457,6 +520,15 @@ PREFECT_CLI_COLORS = Setting(
 output will not include colors codes. Defaults to `True`.
 """
 
+PREFECT_CLI_PROMPT = Setting(
+    Optional[bool],
+    default=None,
+)
+"""If `True`, use interactive prompts in CLI commands. If `False`, no interactive
+prompts will be used. If `None`, the value will be dynamically determined based on
+the presence of an interactive-enabled terminal.
+"""
+
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
@@ -470,7 +542,16 @@ PREFECT_TEST_MODE = Setting(
     default=False,
 )
 """If `True`, places the API in test mode. This may modify
-behavior to faciliate testing. Defaults to `False`.
+behavior to facilitate testing. Defaults to `False`.
+"""
+
+PREFECT_UNIT_TEST_MODE = Setting(
+    bool,
+    default=False,
+)
+"""
+This variable only exists to facilitate unit testing. If `True`,
+code is executing in a unit test context. Defaults to `False`.
 """
 
 PREFECT_TEST_SETTING = Setting(
@@ -479,7 +560,7 @@ PREFECT_TEST_SETTING = Setting(
     value_callback=only_return_value_in_test_mode,
 )
 """
-This variable only exists to faciliate testing of settings.
+This variable only exists to facilitate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
@@ -487,7 +568,7 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
     bool,
     default=False,
 )
-"""If `True`, disables SSL checking to allow insecure requests. 
+"""If `True`, disables SSL checking to allow insecure requests.
 This is recommended only during development, e.g. when using self-signed certificates.
 """
 
@@ -512,8 +593,20 @@ PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
 """
 If true, enable support for HTTP/2 for communicating with an API.
 
-If the API does not support HTTP/2, this will have no effect and connections will be 
+If the API does not support HTTP/2, this will have no effect and connections will be
 made via HTTP/1.1.
+"""
+
+
+PREFECT_CLIENT_MAX_RETRIES = Setting(int, default=5)
+"""
+The maximum number of retries to perform on failed HTTP requests.
+
+Defaults to 5.
+Set to 0 to disable retries.
+
+See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
+retried.
 """
 
 PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
@@ -523,6 +616,16 @@ client requests. Higher values introduce larger amounts of jitter.
 
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
+"""
+
+
+PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
+    str, default="", value_callback=status_codes_as_integers_in_range
+)
+"""
+A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
+429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+may result in unexpected behavior.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
@@ -612,6 +715,32 @@ If `True`, enables a refresh of cached results: re-executing the
 task will refresh the cached results. Defaults to `False`.
 """
 
+PREFECT_TASK_DEFAULT_RETRIES = Setting(int, default=0)
+"""
+This value sets the default number of retries for all tasks.
+This value does not overwrite individually set retries values on tasks
+"""
+
+PREFECT_FLOW_DEFAULT_RETRIES = Setting(int, default=0)
+"""
+This value sets the default number of retries for all flows.
+This value does not overwrite individually set retries values on a flow
+"""
+
+PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
+"""
+This value sets the retry delay seconds for all flows.
+This value does not overwrite invidually set retry delay seconds
+"""
+
+PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
+    Union[float, int, List[float]], default=0
+)
+"""
+This value sets the default retry delay seconds for all tasks.
+This value does not overwrite invidually set retry delay seconds
+"""
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
@@ -631,7 +760,7 @@ PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
     default=True,
 )
 """
-Controls whether or not block auto-registration on start 
+Controls whether or not block auto-registration on start
 up should be memoized. Setting to False may result in slower server start
 up times.
 """
@@ -670,7 +799,7 @@ PREFECT_LOGGING_SETTINGS_PATH = Setting(
 )
 """
 The path to a custom YAML logging configuration file. If
-no file is found, the default `logging.yml` is used. 
+no file is found, the default `logging.yml` is used.
 Defaults to a logging.yml in the Prefect home directory.
 """
 
@@ -727,7 +856,7 @@ PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW = Setting(
 Controls the behavior when loggers attempt to send logs to the API handler from outside
 of a flow.
 
-All logs sent to the API must be associated with a flow run. The API log handler can 
+All logs sent to the API must be associated with a flow run. The API log handler can
 only be used outside of a flow by manually providing a flow run identifier. Logs
 that are not associated with a flow run will not be sent to the API. This setting can
 be used to determine if a warning or error is displayed when the identifier is missing.
@@ -760,31 +889,31 @@ interpreted and lead to incomplete output, e.g.
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
-    default=10,
+    default=15,
 )
 """
-The agent loop interval, in seconds. Agents will check for new runs this often. 
-Defaults to `10`.
+The agent loop interval, in seconds. Agents will check for new runs this often.
+Defaults to `15`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     int,
-    default=10,
+    default=15,
 )
 """
 Agents will look for scheduled runs this many seconds in
 the future and attempt to run them. This accounts for any additional
 infrastructure spin-up time or latency in preparing a flow run. Note
 flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `10`.
+prefetched. Defaults to `15`.
 """
 
 PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
 """
 Determines whether `State.result()` fetches results automatically or not.
 In Prefect 2.6.0, the `State.result()` method was updated to be async
-to faciliate automatic retrieval of results from storage which means when 
-writing async code you must `await` the call. For backwards compatibility, 
+to facilitate automatic retrieval of results from storage which means when
+writing async code you must `await` the call. For backwards compatibility,
 the result is not retrieved by default for async users. You may opt into this
 per call by passing  `fetch=True` or toggle this setting to change the behavior
 globally.
@@ -798,8 +927,8 @@ PREFECT_API_BLOCKS_REGISTER_ON_START = Setting(
     default=True,
 )
 """
-If set, any block types that have been imported will be registered with the 
-backend on application startup. If not set, block types must be manually 
+If set, any block types that have been imported will be registered with the
+backend on application startup. If not set, block types must be manually
 registered.
 """
 
@@ -941,7 +1070,7 @@ PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
 )
 """The number of flow runs the scheduler will attempt to insert
 in one batch across all deployments. If the number of flow runs to
-schedule exceeds this amount, the runs will be inserted in batches of this size. 
+schedule exceeds this amount, the runs will be inserted in batches of this size.
 Defaults to `500`.
 """
 
@@ -1043,7 +1172,7 @@ PREFECT_API_SERVICES_SCHEDULER_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the scheduling service in the server application. 
+"""Whether or not to start the scheduling service in the server application.
 If disabled, you will need to run this service separately to schedule runs for deployments.
 """
 
@@ -1051,8 +1180,8 @@ PREFECT_API_SERVICES_LATE_RUNS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the late runs service in the server application. 
-If disabled, you will need to run this service separately to have runs past their 
+"""Whether or not to start the late runs service in the server application.
+If disabled, you will need to run this service separately to have runs past their
 scheduled start time marked as late.
 """
 
@@ -1060,7 +1189,7 @@ PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the flow run notifications service in the server application. 
+"""Whether or not to start the flow run notifications service in the server application.
 If disabled, you will need to run this service separately to send flow run notifications.
 """
 
@@ -1088,7 +1217,7 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
 """
@@ -1108,14 +1237,19 @@ PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect work pools are used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect workers.
 """
 
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect visualize is used.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
@@ -1134,9 +1268,24 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect artifacts.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
+"""
+Whether or not to warn when experimental Prefect artifacts are used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKSPACE_DASHBOARD = Setting(bool, default=True)
+"""
+Whether or not to enable the experimental workspace dashboard.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
+"""
+Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
 
@@ -1666,6 +1815,7 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
+        values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
@@ -1840,7 +1990,7 @@ def temporary_settings(
 
     See `Settings.copy_with_update` for details on different argument behavior.
 
-    Example:
+    Examples:
         >>> from prefect.settings import PREFECT_API_URL
         >>>
         >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
@@ -2116,6 +2266,8 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
 
     Any existing data not present in the given `profiles` will be deleted.
     """
+    if not path.exists():
+        path.touch(mode=0o600)
     return path.write_text(toml.dumps(profiles.to_dict()))
 
 

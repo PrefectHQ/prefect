@@ -16,7 +16,10 @@ import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.server.models.workers import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    bulk_update_work_queue_priorities,
+)
 from prefect.server.schemas.states import StateType
 
 
@@ -39,7 +42,7 @@ async def create_work_queue(
         db.WorkQueue: the newly-created or updated WorkQueue
 
     """
-    data = work_queue.dict(exclude={"priority"})
+    data = work_queue.dict()
 
     if data.get("work_pool_id") is None:
         # If no work pool is provided, get or create the default agent work pool
@@ -66,15 +69,41 @@ async def create_work_queue(
 
     # Set the priority to be the max priority + 1
     # This will make the new queue the lowest priority
-    max_priority_query = sa.select(
-        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
-    ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
-    priority = (await session.execute(max_priority_query)).scalar()
+    if data["priority"] is None:
+        # Set the priority to be the first priority value that isn't already taken
+        priorities_query = sa.select(db.WorkQueue.priority).where(
+            db.WorkQueue.work_pool_id == data["work_pool_id"]
+        )
+        priorities = (await session.execute(priorities_query)).scalars().all()
 
-    model = db.WorkQueue(**data, priority=priority + 1)
+        priority = None
+        for i, p in enumerate(sorted(priorities)):
+            # if a rank was skipped (e.g. the set priority is different than the
+            # enumerated priority) then we can "take" that spot for this work
+            # queue
+            if i + 1 != p:
+                priority = i + 1
+                break
+
+        # otherwise take the maximum priority plus one
+        if priority is None:
+            priority = max(priorities, default=0) + 1
+
+        data["priority"] = priority
+
+    model = db.WorkQueue(**data)
 
     session.add(model)
     await session.flush()
+    await session.refresh(model)
+
+    if work_queue.priority:
+        await bulk_update_work_queue_priorities(
+            session=session,
+            work_pool_id=data["work_pool_id"],
+            new_priorities={model.id: work_queue.priority},
+            db=db,
+        )
 
     return model
 
@@ -392,9 +421,9 @@ async def read_work_queue_status(
         session=session,
         flow_run_filter=schemas.filters.FlowRunFilter(
             state=schemas.filters.FlowRunFilterState(name={"any_": ["Late"]}),
-            work_queue_name=schemas.filters.FlowRunFilterWorkQueueName(
-                any_=[work_queue.name]
-            ),
+        ),
+        work_queue_filter=schemas.filters.WorkQueueFilter(
+            id=schemas.filters.WorkQueueFilterId(any_=[work_queue_id])
         ),
     )
 

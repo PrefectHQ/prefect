@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime as pydatetime
 from datetime import timedelta
 from unittest import mock
@@ -775,7 +776,7 @@ class TestRRuleSchedule:
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_chicago))
 
         with pytest.raises(ValueError, match="too many dtstart timezones"):
-            s = RRuleSchedule.from_rrule(rrset)
+            RRuleSchedule.from_rrule(rrset)
 
     async def test_rrule_schedule_rejects_rrulesets_with_many_dtstarts(self):
         dt_1 = datetime(2018, 1, 11, 4, tz="America/New_York")
@@ -785,7 +786,7 @@ class TestRRuleSchedule:
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_2))
 
         with pytest.raises(ValueError, match="too many dtstarts"):
-            s = RRuleSchedule.from_rrule(rrset)
+            RRuleSchedule.from_rrule(rrset)
 
     @pytest.mark.xfail(
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
@@ -960,3 +961,101 @@ class TestRRuleSchedule:
             dt.add(days=8),
             dt.add(days=9),
         ]
+
+
+@pytest.fixture
+async def weekly_on_friday() -> RRuleSchedule:
+    return RRuleSchedule(rrule="FREQ=WEEKLY;INTERVAL=1;BYDAY=FR", timezone="UTC")
+
+
+async def test_unanchored_rrule_schedules_are_idempotent(
+    weekly_on_friday: RRuleSchedule,
+):
+    """Regression test for an issue discovered in Prefect Cloud, where a schedule with
+    an RRULE that didn't anchor to a specific time was being rescheduled every time the
+    scheduler loop picked it up.  This is because when a user does not provide a DTSTART
+    in their rule, then the current time is assumed to be the DTSTART.
+
+    This test confirms the behavior when a user does _not_ provide a DTSTART.
+    """
+    start = pendulum.datetime(2023, 6, 8)
+    end = start.add(days=21)
+
+    assert start.day_of_week == pendulum.THURSDAY
+
+    first_set = await weekly_on_friday.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    # Sleep long enough that a full second definitely ticks over, because the RRULE
+    # precision is only to the second.
+    await asyncio.sleep(1.1)
+
+    second_set = await weekly_on_friday.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    assert first_set == second_set
+
+    assert [dt.date() for dt in first_set] == [
+        pendulum.date(2023, 6, 9),
+        pendulum.date(2023, 6, 16),
+        pendulum.date(2023, 6, 23),
+    ]
+    for date in first_set:
+        assert date.day_of_week == pendulum.FRIDAY
+
+
+@pytest.fixture
+async def weekly_at_1pm_fridays() -> RRuleSchedule:
+    return RRuleSchedule(
+        rrule="DTSTART:20230608T130000\nFREQ=WEEKLY;INTERVAL=1;BYDAY=FR",
+        timezone="UTC",
+    )
+
+
+async def test_rrule_schedules_can_have_embedded_anchors(
+    weekly_at_1pm_fridays: RRuleSchedule,
+):
+    """Regression test for an issue discovered in Prefect Cloud, where a schedule with
+    an RRULE that didn't anchor to a specific time was being rescheduled every time the
+    scheduler loop picked it up.  This is because when a user does not provide a DTSTART
+    in their rule, then the current time is assumed to be the DTSTART.
+
+    This case confirms that if a user provides an alternative DTSTART it will be
+    respected.
+    """
+    start = pendulum.datetime(2023, 6, 8)
+    end = start.add(days=21)
+
+    assert start.day_of_week == pendulum.THURSDAY
+
+    first_set = await weekly_at_1pm_fridays.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    # Sleep long enough that a full second definitely ticks over, because the RRULE
+    # precision is only to the second.
+    await asyncio.sleep(1.1)
+
+    second_set = await weekly_at_1pm_fridays.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    assert first_set == second_set
+
+    assert first_set == [
+        pendulum.datetime(2023, 6, 9, 13),
+        pendulum.datetime(2023, 6, 16, 13),
+        pendulum.datetime(2023, 6, 23, 13),
+    ]
+    for date in first_set:
+        assert date.day_of_week == pendulum.FRIDAY

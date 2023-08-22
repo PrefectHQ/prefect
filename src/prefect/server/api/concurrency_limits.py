@@ -31,7 +31,7 @@ async def create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit_model
         )
 
-    if model.created >= pendulum.now():
+    if model.created >= pendulum.now("UTC"):
         response.status_code = status.HTTP_201_CREATED
 
     return model

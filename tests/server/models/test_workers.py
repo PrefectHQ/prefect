@@ -336,8 +336,8 @@ class TestReadWorkQueues:
         assert len(result) == 4
         assert (result[0].name, result[0].priority) == ("default", 1)
         assert (result[1].name, result[1].priority) == ("C", 2)
-        assert (result[2].name, result[2].priority) == ("B", 3)
-        assert (result[3].name, result[3].priority) == ("A", 4)
+        assert (result[2].name, result[2].priority) == ("B", 4)
+        assert (result[3].name, result[3].priority) == ("A", 100)
 
 
 class TestUpdateWorkQueue:
@@ -374,19 +374,6 @@ class TestUpdateWorkQueue:
             session=session, work_queue_id=work_queue.id
         )
         assert result.concurrency_limit == 0
-
-    async def test_update_work_queue_priority_is_normalized_for_number_of_queues(
-        self, session, work_queue_1
-    ):
-        assert await models.workers.update_work_queue(
-            session=session,
-            work_queue_id=work_queue_1.id,
-            work_queue=schemas.actions.WorkQueueUpdate(priority=100),
-        )
-        result = await models.workers.read_work_queue(
-            session=session, work_queue_id=work_queue_1.id
-        )
-        assert result.priority == 2
 
 
 class TestUpdateWorkQueuePriorities:
@@ -517,8 +504,8 @@ class TestUpdateWorkQueuePriorities:
         assert {q.name: q.priority for q in all_queues} == {
             "A": 1,
             "B": 2,
-            "D": 3,
-            "E": 4,
+            "D": 4,
+            "E": 5,
         }
 
 
@@ -540,7 +527,7 @@ class TestDeleteWorkQueue:
         )
 
     async def test_delete_queue_updates_priorities(self, session, work_pool):
-        result_1 = await models.workers.create_work_queue(
+        await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="A"),
@@ -550,7 +537,7 @@ class TestDeleteWorkQueue:
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="B"),
         )
-        result_3 = await models.workers.create_work_queue(
+        await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="C"),
@@ -569,7 +556,7 @@ class TestDeleteWorkQueue:
         assert len(result) == 3
         assert (result[0].name, result[0].priority) == ("default", 1)
         assert (result[1].name, result[1].priority) == ("A", 2)
-        assert (result[2].name, result[2].priority) == ("C", 3)
+        assert (result[2].name, result[2].priority) == ("C", 4)
 
 
 class TestWorkerHeartbeat:
@@ -734,7 +721,7 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.states.Scheduled(
-                            scheduled_time=pendulum.now().add(hours=i)
+                            scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -786,13 +773,13 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_before=pendulum.now()
+            session=session, scheduled_before=pendulum.now("UTC")
         )
         assert len(runs) == 18
 
     async def test_get_all_runs_scheduled_after(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_after=pendulum.now()
+            session=session, scheduled_after=pendulum.now("UTC")
         )
         assert len(runs) == 27
 

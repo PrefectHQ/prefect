@@ -8,7 +8,11 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+from sqlalchemy.orm import (
+    as_declarative,
+    declarative_mixin,
+    declared_attr,
+)
 from sqlalchemy.sql.functions import coalesce
 
 import prefect
@@ -319,6 +323,41 @@ class ORMArtifact:
         )
 
 
+class ORMArtifactCollection:
+    key = sa.Column(
+        sa.String,
+        nullable=False,
+    )
+
+    latest_id = sa.Column(UUID(), nullable=False)
+
+    task_run_id = sa.Column(
+        UUID(),
+        nullable=True,
+    )
+
+    flow_run_id = sa.Column(
+        UUID(),
+        nullable=True,
+    )
+
+    type = sa.Column(sa.String)
+    data = sa.Column(sa.JSON, nullable=True)
+    description = sa.Column(sa.String, nullable=True)
+    metadata_ = sa.Column(sa.JSON, nullable=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.UniqueConstraint("key"),
+            sa.Index(
+                "ix_artifact_collection__key_latest_id",
+                "key",
+                "latest_id",
+            ),
+        )
+
+
 class ORMTaskRunStateCache:
     """
     SQLAlchemy model of a task run state cache.
@@ -375,7 +414,7 @@ class ORMRun:
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
         if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now() - self.state_timestamp)
+            return self.total_run_time + (pendulum.now("UTC") - self.state_timestamp)
         else:
             return self.total_run_time
 
@@ -831,6 +870,7 @@ class ORMDeployment:
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),
@@ -904,6 +944,16 @@ class ORMLog:
     # The client-side timestamp of this logged statement.
     timestamp = sa.Column(Timestamp(), nullable=False, index=True)
 
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_log__flow_run_id_timestamp",
+                "flow_run_id",
+                "timestamp",
+            ),
+        )
+
 
 @declarative_mixin
 class ORMConcurrencyLimit:
@@ -914,6 +964,20 @@ class ORMConcurrencyLimit:
     @declared_attr
     def __table_args__(cls):
         return (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
+
+
+@declarative_mixin
+class ORMConcurrencyLimitV2:
+    active = sa.Column(sa.Boolean, nullable=False, default=True)
+    name = sa.Column(sa.String, nullable=False)
+    limit = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(sa.Integer, nullable=False)
+    denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
+
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
 
 
 @declarative_mixin
@@ -1256,6 +1320,15 @@ class ORMFlowRunNotificationQueue:
     flow_run_state_id = sa.Column(UUID, nullable=False)
 
 
+@declarative_mixin
+class ORMVariable:
+    name = sa.Column(sa.String, nullable=False)
+    value = sa.Column(sa.String, nullable=False)
+    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1297,11 +1370,13 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
         work_pool_mixin=ORMWorkPool,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
@@ -1312,6 +1387,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1347,11 +1423,13 @@ class BaseORMConfiguration(ABC):
             task_run_mixin=task_run_mixin,
             task_run_state_mixin=task_run_state_mixin,
             artifact_mixin=artifact_mixin,
+            artifact_collection_mixin=artifact_collection_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            concurrency_limit_v2_mixin=concurrency_limit_v2_mixin,
             work_pool_mixin=work_pool_mixin,
             worker_mixin=worker_mixin,
             work_queue_mixin=work_queue_mixin,
@@ -1362,6 +1440,7 @@ class BaseORMConfiguration(ABC):
             block_document_mixin=block_document_mixin,
             block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
+            variable_mixin=variable_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1391,11 +1470,13 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
         work_pool_mixin=ORMWorkPool,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
@@ -1408,6 +1489,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1424,6 +1506,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Artifact(artifact_mixin, self.Base):
+            pass
+
+        class ArtifactCollection(artifact_collection_mixin, self.Base):
             pass
 
         class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
@@ -1445,6 +1530,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
+            pass
+
+        class ConcurrencyLimitV2(concurrency_limit_v2_mixin, self.Base):
             pass
 
         class WorkPool(work_pool_mixin, self.Base):
@@ -1483,10 +1571,14 @@ class BaseORMConfiguration(ABC):
         class Configuration(configuration_mixin, self.Base):
             pass
 
+        class Variable(variable_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
         self.Artifact = Artifact
+        self.ArtifactCollection = ArtifactCollection
         self.TaskRunStateCache = TaskRunStateCache
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun
@@ -1494,6 +1586,7 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.ConcurrencyLimitV2 = ConcurrencyLimitV2
         self.WorkPool = WorkPool
         self.Worker = Worker
         self.WorkQueue = WorkQueue
@@ -1506,6 +1599,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
+        self.Variable = Variable
 
     @property
     @abstractmethod
@@ -1532,6 +1626,11 @@ class BaseORMConfiguration(ABC):
     def block_type_unique_upsert_columns(self):
         """Unique columns for upserting a BlockType"""
         return [self.BlockType.slug]
+
+    @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an ArtifactCollection"""
+        return [self.ArtifactCollection.key]
 
     @property
     def block_schema_unique_upsert_columns(self):

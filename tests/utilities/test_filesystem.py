@@ -1,9 +1,14 @@
+import os
 import sys
 from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
-from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
+from prefect.utilities.filesystem import (
+    filter_files,
+    get_open_file_limit,
+    relative_path_to_current_platform,
+)
 
 
 class TestFilterFiles:
@@ -149,3 +154,64 @@ class TestPlatformSpecificRelpath:
 
         assert isinstance(new_path, WindowsPath)
         assert str(new_path) == expected
+
+
+def test_get_open_file_limit():
+    """
+    Test that we can get the open file limit. Although this is a simple test, it
+    ensures that the function works as expected on both Windows and Unix.
+    """
+
+    limit = get_open_file_limit()
+
+    # The functions that check the open file limit on either Windows or Unix
+    # have an 'Any' return type, so this assertion ensures any changes to the
+    # function don't break its contract.
+    assert type(limit) == int
+
+    # It shouldn't be possible to have a negative open file limit.
+    assert limit >= 0
+
+    # The open file limit should not equal the default value of 200
+    # returned if an error occurs.
+    assert limit != 200
+
+
+@pytest.mark.skipif(os.name == "nt", reason="This is a Unix-specific test")
+def test_get_open_file_limit_exception_unix(monkeypatch):
+    import resource
+
+    def mock_getrlimit(*args, **kwargs):
+        raise OSError
+
+    monkeypatch.setattr(resource, "getrlimit", mock_getrlimit)
+
+    assert get_open_file_limit() == 200
+
+
+@pytest.mark.skipif(os.name != "nt", reason="This is a Windows-specific test")
+def test_get_open_file_limit_exception_windows(monkeypatch):
+    import ctypes
+
+    # General error when calling _getmaxstdio
+    def mock_getmaxstdio_error(*args, **kwargs):
+        raise OSError
+
+    # Either ucrtbase or _getmaxstdio is missing
+    def mock_getmaxstdio_missing(*args, **kwargs):
+        raise AttributeError
+
+    # Invalid argument(s) passed to _getmaxstdio
+    def mock_getmaxstdio_invalid_args(*args, **kwargs):
+        raise ValueError
+
+    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_error)
+    assert get_open_file_limit() == 200
+
+    monkeypatch.setattr(ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_missing)
+    assert get_open_file_limit() == 200
+
+    monkeypatch.setattr(
+        ctypes.cdll.ucrtbase, "_getmaxstdio", mock_getmaxstdio_invalid_args
+    )
+    assert get_open_file_limit() == 200

@@ -1,9 +1,8 @@
 """
 Reduced schemas for accepting API actions.
 """
-import re
 import warnings
-from copy import copy
+from copy import copy, deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -12,6 +11,10 @@ from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
+from prefect._internal.schemas.validators import (
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_alphanumeric_underscores_only,
+)
 from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -19,33 +22,28 @@ from prefect.server.utilities.schemas import (
     copy_model_fields,
     orjson_dumps_extra_compatible,
 )
-
-LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
+from prefect.utilities.pydantic import get_class_fields_only
 
 
 def validate_block_type_slug(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
-        raise ValueError(
-            "slug must only contain lowercase letters, numbers, and dashes"
-        )
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
     return value
 
 
 def validate_block_document_name(value):
-    if value is not None and not bool(
-        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
-    ):
-        raise ValueError(
-            "name must only contain lowercase letters, numbers, and dashes"
-        )
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
     return value
 
 
 def validate_artifact_key(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
-        raise ValueError(
-            "Artifact key must only contain lowercase letters, numbers, and dashes"
-        )
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
+    return value
+
+
+def validate_variable_name(value):
+    raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 
@@ -132,6 +130,7 @@ class DeploymentCreate(ActionBaseModel):
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
+    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -158,8 +157,19 @@ class DeploymentCreate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-        variables_schema = base_job_template.get("variables")
+        variables_schema = deepcopy(base_job_template.get("variables"))
+
         if variables_schema is not None:
+            # jsonschema considers required fields, even if that field has a default,
+            # to still be required. To get around this we remove the fields from
+            # required if there is a default present.
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
+
             jsonschema.validate(self.infra_overrides, variables_schema)
 
 
@@ -230,7 +240,19 @@ class DeploymentUpdate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-        variables_schema = base_job_template.get("variables")
+        variables_schema = deepcopy(base_job_template.get("variables"))
+
+        if variables_schema is not None:
+            # jsonschema considers required fields, even if that field has a default,
+            # to still be required. To get around this we remove the fields from
+            # required if there is a default present.
+            required = variables_schema.get("required")
+            properties = variables_schema.get("properties")
+            if required is not None and properties is not None:
+                for k, v in properties.items():
+                    if "default" in v and k in required:
+                        required.remove(k)
+
         if variables_schema is not None:
             jsonschema.validate(self.infra_overrides, variables_schema)
 
@@ -317,7 +339,6 @@ class FlowRunCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.FlowRun)
     flow_id: UUID = FieldFrom(schemas.core.FlowRun)
-    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parameters: dict = FieldFrom(schemas.core.FlowRun)
     context: dict = FieldFrom(schemas.core.FlowRun)
@@ -326,6 +347,17 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+
+    # DEPRECATED
+
+    deployment_id: Optional[UUID] = Field(
+        None,
+        description=(
+            "DEPRECATED: The id of the deployment associated with this flow run, if"
+            " available."
+        ),
+        deprecated=True,
+    )
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
@@ -348,6 +380,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -364,6 +397,30 @@ class ConcurrencyLimitCreate(ActionBaseModel):
 
     tag: str = FieldFrom(schemas.core.ConcurrencyLimit)
     concurrency_limit: int = FieldFrom(schemas.core.ConcurrencyLimit)
+
+
+@copy_model_fields
+class ConcurrencyLimitV2Create(ActionBaseModel):
+    """Data used by the Prefect REST API to create a v2 concurrency limit."""
+
+    active: bool = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: str = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: float = FieldFrom(schemas.core.ConcurrencyLimitV2)
+
+
+@copy_model_fields
+class ConcurrencyLimitV2Update(ActionBaseModel):
+    """Data used by the Prefect REST API to update a v2 concurrency limit."""
+
+    active: Optional[bool] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: Optional[str] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: Optional[float] = FieldFrom(schemas.core.ConcurrencyLimitV2)
 
 
 @copy_model_fields
@@ -395,6 +452,10 @@ class BlockTypeUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.BlockType)
     code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+
+    @classmethod
+    def updatable_fields(cls) -> set:
+        return get_class_fields_only(cls)
 
 
 @copy_model_fields
@@ -576,3 +637,37 @@ class ArtifactUpdate(ActionBaseModel):
     data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
     description: Optional[str] = FieldFrom(schemas.core.Artifact)
     metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+
+
+@copy_model_fields
+class VariableCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create a Variable."""
+
+    name: str = FieldFrom(schemas.core.Variable)
+    value: str = FieldFrom(schemas.core.Variable)
+    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+
+
+@copy_model_fields
+class VariableUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update a Variable."""
+
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: Optional[str] = Field(
+        default=None,
+        description="The value of the variable",
+        example="my-value",
+        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: Optional[List[str]] = FieldFrom(schemas.core.Variable)
+
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)

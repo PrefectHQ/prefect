@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
-from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
@@ -17,6 +16,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
+from prefect.workers.process import ProcessWorker
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -300,28 +300,30 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(orion_client, tmpdir):
+async def storage_document_id(prefect_client, tmpdir):
     return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name="local-test", client=orion_client
+        name="local-test", client=prefect_client
     )
 
 
 @pytest.fixture
-async def storage_document_id_2(orion_client):
-    return await LocalFileSystem().save(name="distinct-local-test", client=orion_client)
+async def storage_document_id_2(prefect_client):
+    return await LocalFileSystem().save(
+        name="distinct-local-test", client=prefect_client
+    )
 
 
 @pytest.fixture
-async def infrastructure_document_id(orion_client):
+async def infrastructure_document_id(prefect_client):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
 @pytest.fixture
-async def infrastructure_document_id_2(orion_client):
+async def infrastructure_document_id_2(prefect_client):
     return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=orion_client
+        is_anonymous=True, client=prefect_client
     )
 
 
@@ -332,7 +334,7 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_queue_1,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
     def hello(name: str):
         pass
@@ -354,6 +356,43 @@ async def deployment(
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_in_default_work_pool(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue,  # not attached to a work pool
+):
+    """This will create a deployment in the default work pool called `default-agent-pool`"""
+
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue.id,
         ),
     )
     await session.commit()
@@ -582,7 +621,11 @@ async def block_document(session, block_schema, block_type_x):
 
 
 async def commit_task_run_state(
-    session, task_run, state_type: states.StateType, state_details=None
+    session,
+    task_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -592,6 +635,7 @@ async def commit_task_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -606,7 +650,11 @@ async def commit_task_run_state(
 
 
 async def commit_flow_run_state(
-    session, flow_run, state_type: states.StateType, state_details=None
+    session,
+    flow_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -616,6 +664,7 @@ async def commit_flow_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -640,6 +689,7 @@ def initialize_orchestration(flow):
         run_override=None,
         run_tags=None,
         initial_details=None,
+        initial_state_data=None,
         proposed_details=None,
         flow_retries: int = None,
         flow_run_count: int = None,
@@ -703,6 +753,7 @@ def initialize_orchestration(flow):
             run,
             initial_state_type,
             initial_details,
+            state_data=initial_state_data,
         )
 
         proposed_details = proposed_details if proposed_details else dict()
@@ -725,7 +776,7 @@ def initialize_orchestration(flow):
 
 
 @pytest.fixture
-async def notifier_block(orion_client):
+async def notifier_block(prefect_client):
     # Ignore warnings from block reuse in fixture
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -744,3 +795,91 @@ async def notifier_block(orion_client):
     block = DebugPrintNotification()
     await block.save("debug-print-notification")
     return block
+
+
+@pytest.fixture
+async def worker_deployment_wq1(
+    session,
+    flow,
+    flow_function,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 1",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def worker_deployment_infra_wq1(
+    session, flow, flow_function, work_queue_1, infrastructure_document_id
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 2",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+            infrastructure_document_id=infrastructure_document_id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def worker_deployment_wq_2(
+    session,
+    flow,
+    flow_function,
+    work_queue_2,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 2",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_2.id,
+        ),
+    )
+    await session.commit()
+    return deployment

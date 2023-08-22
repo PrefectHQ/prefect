@@ -165,8 +165,8 @@ async def register(
     )
     app.console.print(_build_registered_blocks_table(registered_blocks))
     msg = (
-        f"\n To configure the newly registered blocks, "
-        f"go to the Blocks page in the Prefect UI.\n"
+        "\n To configure the newly registered blocks, "
+        "go to the Blocks page in the Prefect UI.\n"
     )
 
     ui_url = PREFECT_UI_URL.value()

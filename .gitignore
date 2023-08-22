@@ -9,6 +9,7 @@ dist/
 sdist/
 
 # Test artifacts
+.benchmarks/
 .coverage
 .coverage.*.*
 .prefect-results
@@ -39,6 +40,7 @@ venv/
 schema.json
 site/
 .cache/
+src/mkdocs-material
 
 # UI artifacts
 src/prefect/server/ui/*
@@ -60,3 +62,9 @@ dask-worker-space/
 .idea/
 .vscode/
 !ui/.vscode/
+
+# Prefect files
+prefect.yaml
+
+# Deployment recipes
+!src/prefect/deployments/recipes/*/**

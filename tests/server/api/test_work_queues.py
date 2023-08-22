@@ -24,6 +24,7 @@ class TestCreateWorkQueue:
         assert response.json()["filter"] is None
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
+        assert response.json()["work_pool_name"] == "default-agent-pool"
         work_queue_id = response.json()["id"]
 
         work_queue = await models.work_queues.read_work_queue(
@@ -31,6 +32,58 @@ class TestCreateWorkQueue:
         )
         assert str(work_queue.id) == work_queue_id
         assert work_queue.name == "wq-1"
+
+    async def test_create_work_queue_with_priority(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        data = dict(name="my-wpq", priority=99)
+        response = await client.post(
+            "/work_queues/",
+            json=data,
+        )
+        assert response.status_code == 201
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
+
+    async def test_create_work_queue_with_no_priority_when_low_priority_set(
+        self,
+        client,
+        work_pool,
+    ):
+        response = await client.post("/work_queues/", json=dict(name="wpq-1"))
+        # priority 2 because the default queue exists
+        assert response.json()["priority"] == 2
+
+        response2 = await client.post("/work_queues/", json=dict(name="wpq-2"))
+        assert response2.json()["priority"] == 3
+
+    async def test_create_work_queue_with_no_priority_when_high_priority_set(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        response = await client.post(
+            "/work_queues/", json=dict(name="wpq-1", priority=99)
+        )
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        response2 = await client.post("/work_queues/", json=dict(name="wpq-2"))
+        assert response2.json()["priority"] == 2
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
 
     async def test_create_work_queue_raises_error_on_existing_name(
         self, client, work_queue
@@ -61,7 +114,7 @@ class TestUpdateWorkQueue:
         session,
         client,
     ):
-        now = pendulum.now(tz="UTC")
+        pendulum.now(tz="UTC")
         data = WorkQueueCreate(name="wq-1").dict(
             json_compatible=True, exclude_unset=True
         )
@@ -94,6 +147,7 @@ class TestReadWorkQueue:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == "wq-1"
+        assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}")
@@ -106,9 +160,10 @@ class TestReadWorkQueueByName:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == work_queue.name
+        assert response.json()["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
-        response = await client.get(f"/work_queues/name/some-made-up-work-queue")
+        response = await client.get("/work_queues/name/some-made-up-work-queue")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(
@@ -175,6 +230,8 @@ class TestReadWorkQueues:
         assert response.status_code == status.HTTP_200_OK
         # includes default work queue
         assert len(response.json()) == 4
+        for wq in response.json():
+            assert wq["work_pool_name"] == "default-agent-pool"
 
     async def test_read_work_queues_applies_limit(self, work_queues, client):
         response = await client.post("/work_queues/filter", json=dict(limit=1))
@@ -296,7 +353,7 @@ class TestGetRunsInWorkQueue:
     ):
         response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(scheduled_before=pendulum.now().isoformat()),
+            json=dict(scheduled_before=pendulum.now("UTC").isoformat()),
         )
         runs_wq1 = pydantic.parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
@@ -439,6 +496,29 @@ class TestReadWorkQueueStatus:
         return work_queue
 
     @pytest.fixture
+    async def recently_pool_work_queue_in_different_work_pool(self, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="another-work-pool",
+                description="All about my work pool",
+                type="test",
+            ),
+        )
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name="wq-1",
+                description="All about my work queue",
+                last_polled=pendulum.now("UTC"),
+                work_pool_id=work_pool.id,
+                priority=1,
+            ),
+        )
+        await session.commit()
+        return work_queue
+
+    @pytest.fixture
     async def not_recently_polled_work_queue(self, session, work_pool):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
@@ -470,9 +550,9 @@ class TestReadWorkQueueStatus:
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Late(
-                    scheduled_time=pendulum.now().subtract(minutes=60)
+                    scheduled_time=pendulum.now("UTC").subtract(minutes=60)
                 ),
-                work_queue_name=work_queue.name,
+                work_queue_id=work_queue.id,
             ),
         )
         await session.commit()
@@ -523,6 +603,34 @@ class TestReadWorkQueueStatus:
         assert parsed_response.healthy is False
         assert parsed_response.late_runs_count == 1
         assert parsed_response.last_polled == work_queue_with_late_runs.last_polled
+
+    async def test_read_work_queue_returns_correct_status_when_work_queues_share_name(
+        self,
+        client,
+        work_queue_with_late_runs,
+        recently_pool_work_queue_in_different_work_pool,
+    ):
+        healthy_response = await client.get(
+            f"/work_queues/{recently_pool_work_queue_in_different_work_pool.id}/status"
+        )
+
+        assert healthy_response.status_code == status.HTTP_200_OK
+
+        parsed_healthy_response = pydantic.parse_obj_as(
+            schemas.core.WorkQueueStatusDetail, healthy_response.json()
+        )
+        assert parsed_healthy_response.healthy is True
+
+        unhealthy_response = await client.get(
+            f"/work_queues/{work_queue_with_late_runs.id}/status"
+        )
+
+        assert unhealthy_response.status_code == status.HTTP_200_OK
+
+        parsed_unhealthy_response = pydantic.parse_obj_as(
+            schemas.core.WorkQueueStatusDetail, unhealthy_response.json()
+        )
+        assert parsed_unhealthy_response.healthy is False
 
     async def test_read_work_queue_status_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}/status")

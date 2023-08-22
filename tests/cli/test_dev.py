@@ -58,11 +58,10 @@ def test_dev_start_runs_all_services(monkeypatch):
     )
 
     # ensure run_process was called for the API server by checking that
-    # the 'command' passed to one of the calls was an array with "uvicorn"
-    # as the first element
+    # the 'command' passed to one of the calls was an array with "uvicorn" included
     uvicorn_called = False
     for call in mock_run_process.call_args_list:
-        if "command" in call.kwargs and call.kwargs["command"][0] == "uvicorn":
+        if "command" in call.kwargs and "uvicorn" in call.kwargs["command"]:
             uvicorn_called = True
             break
 

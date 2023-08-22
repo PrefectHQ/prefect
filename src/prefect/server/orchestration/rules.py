@@ -233,12 +233,21 @@ class FlowOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
+        # (circular import)
+        from prefect.server.api.server import is_client_retryable_exception
+
         try:
             await self._validate_proposed_state()
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
             self.proposed_state = None
+
+            if is_client_retryable_exception(exc):
+                # Do not capture retryable database exceptions, this exception will be
+                # raised as a 503 in the API layer
+                raise
+
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)
@@ -250,7 +259,16 @@ class FlowOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            state_data = None
+            # We cannot access `self.run.state.data` directly for unknown reasons
+            state_data = (
+                (
+                    await artifacts.read_artifact(
+                        self.session, self.run.state.result_artifact_id
+                    )
+                ).data
+                if self.run.state.result_artifact_id
+                else None
+            )
         else:
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
@@ -367,12 +385,21 @@ class TaskOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
+        # (circular import)
+        from prefect.server.api.server import is_client_retryable_exception
+
         try:
             await self._validate_proposed_state()
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
             self.proposed_state = None
+
+            if is_client_retryable_exception(exc):
+                # Do not capture retryable database exceptions, this exception will be
+                # raised as a 503 in the API layer
+                raise
+
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)
@@ -384,7 +411,16 @@ class TaskOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            state_data = None
+            # We cannot access `self.run.state.data` directly for unknown reasons
+            state_data = (
+                (
+                    await artifacts.read_artifact(
+                        self.session, self.run.state.result_artifact_id
+                    )
+                ).data
+                if self.run.state.result_artifact_id
+                else None
+            )
         else:
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)

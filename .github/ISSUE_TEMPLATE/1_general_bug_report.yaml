@@ -1,6 +1,6 @@
 name: 🐞 Report a bug
 description: Errors and regression reports with complete reproducing test cases and/or stack traces.
-labels: ["status:triage", "bug"]
+labels: ["needs:triage", "bug"]
 body:
   - type: markdown
     attributes:
@@ -10,7 +10,11 @@ body:
         or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
         faster and learn more about the feature you're working with. If the issue is determined to be a bug,
         we will open an issue here.
-  
+
+        GitHub issues raised against this repository will receive community support. If you have an
+        [active support agreement](https://www.prefect.io/pricing/), we recommend creating a case to ensure
+        a faster response.
+
   - type: markdown
     attributes:
       value: >
@@ -75,8 +79,8 @@ body:
       description: >
         Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
         If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
-        Please do not just write "2.0". The command provides additional context such as your operating system, Prefect API type, Python version, etc. that we need to diagnose your problem.
-      placeholder: "# Copy output of the `prefect version` command here"
+        **Please do not just include your Prefect version number**. The command provides additional context such as your operating system, Prefect API type, Python version, etc. that we need to diagnose your problem.
+      placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
       render: Text
     validations:
       required: true

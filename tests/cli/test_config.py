@@ -74,6 +74,19 @@ def test_set_with_unknown_setting():
     )
 
 
+@pytest.mark.parametrize("setting", ["PREFECT_HOME", "PREFECT_PROFILES_PATH"])
+def test_set_with_disallowed_setting(setting):
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", f"{setting}=BAR"],
+        expected_output=f"""                
+            Setting {setting!r} cannot be changed with this command. Use an environment variable instead.
+            """,
+        expected_code=1,
+    )
+
+
 def test_set_with_invalid_value_type():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 
@@ -450,13 +463,13 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
         ), f"Source included in line: {line}"
 
     # Ensure that the settings that we know are set are still included
-    assert f"PREFECT_API_DATABASE_TIMEOUT='2.0'" in lines
-    assert f"PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001'" in lines
-    assert f"PREFECT_API_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
+    assert "PREFECT_API_DATABASE_TIMEOUT='2.0'" in lines
+    assert "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001'" in lines
+    assert "PREFECT_API_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
 
     if "--show-defaults" in command:
         # Check that defaults are included correctly by checking an unset setting
-        assert f"PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
+        assert "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
 
 
 @pytest.mark.parametrize(

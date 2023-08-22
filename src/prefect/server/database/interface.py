@@ -8,6 +8,7 @@ from prefect.server.database.alembic_commands import alembic_downgrade, alembic_
 from prefect.server.database.configurations import BaseDatabaseConfiguration
 from prefect.server.database.orm_models import BaseORMConfiguration
 from prefect.server.database.query_components import BaseQueryComponents
+from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -66,6 +67,18 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
+    async def is_db_connectable(self):
+        """
+        Returns boolean indicating if the database is connectable.
+        This method is used to determine if the server is ready to accept requests.
+        """
+        engine = await self.engine()
+        try:
+            async with engine.connect():
+                return True
+        except Exception:
+            return False
+
     async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
@@ -86,7 +99,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return await self.database_config.session(engine)
 
     @asynccontextmanager
-    async def session_context(self, begin_transaction: bool = False):
+    async def session_context(
+        self, begin_transaction: bool = False, with_for_update: bool = False
+    ):
         """
         Provides a SQLAlchemy session and a context manager for opening/closing
         the underlying connection.
@@ -98,10 +113,16 @@ class PrefectDBInterface(metaclass=DBSingleton):
         session = await self.session()
         async with session:
             if begin_transaction:
-                async with session.begin():
+                async with self.database_config.begin_transaction(
+                    session, with_for_update=with_for_update
+                ):
                     yield session
             else:
                 yield session
+
+    @property
+    def dialect(self) -> sa.engine.Dialect:
+        return get_dialect(self.database_config.connection_url)
 
     @property
     def Base(self):
@@ -139,6 +160,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Artifact
 
     @property
+    def ArtifactCollection(self):
+        """An artifact collection orm model"""
+        return self.orm.ArtifactCollection
+
+    @property
     def TaskRunStateCache(self):
         """A task run state cache orm model"""
         return self.orm.TaskRunStateCache
@@ -172,6 +198,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def ConcurrencyLimit(self):
         """A concurrency model"""
         return self.orm.ConcurrencyLimit
+
+    @property
+    def ConcurrencyLimitV2(self):
+        """A v2 concurrency model"""
+        return self.orm.ConcurrencyLimitV2
 
     @property
     def WorkQueue(self):
@@ -224,6 +255,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Configuration
 
     @property
+    def Variable(self):
+        """A variable model"""
+        return self.orm.Variable
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
@@ -237,6 +273,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return self.orm.flow_run_unique_upsert_columns
+
+    @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an ArtifactCollection"""
+        return self.orm.artifact_collection_unique_upsert_columns
 
     @property
     def block_type_unique_upsert_columns(self):

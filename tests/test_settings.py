@@ -14,6 +14,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_PASSWORD,
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLOUD_API_URL,
     PREFECT_CLOUD_UI_URL,
     PREFECT_CLOUD_URL,
@@ -173,15 +174,6 @@ class TestSettingsClass:
             ]
             == "3000"
         )
-
-    def test_settings_to_environment_respects_includes(self):
-        include = [PREFECT_SERVER_API_PORT]
-
-        assert Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables(
-            include=include
-        ) == {"PREFECT_SERVER_API_PORT": "3000"}
-
-        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
 
     def test_settings_to_environment_respects_includes(self):
         include = [PREFECT_SERVER_API_PORT]
@@ -473,6 +465,36 @@ class TestSettingAccess:
         with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
             assert PREFECT_CLOUD_UI_URL.value() == "test"
 
+    @pytest.mark.parametrize(
+        "extra_codes,expected",
+        [
+            ("", set()),
+            ("400", {400}),
+            ("400,400,400", {400}),
+            ("400,500", {400, 500}),
+            ("400, 401, 402", {400, 401, 402}),
+        ],
+    )
+    def test_client_retry_extra_codes(self, extra_codes, expected):
+        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
+            assert PREFECT_CLIENT_RETRY_EXTRA_CODES.value() == expected
+
+    @pytest.mark.parametrize(
+        "extra_codes",
+        [
+            "foo",
+            "-1",
+            "0",
+            "10",
+            "400,foo",
+            "400,500,foo",
+        ],
+    )
+    def test_client_retry_extra_codes_invalid(self, extra_codes):
+        with pytest.raises(ValueError):
+            with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
+                PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
+
 
 class TestTemporarySettings:
     def test_temporary_settings(self):
@@ -705,14 +727,14 @@ class TestProfilesCollection:
         profile = Profile(name="test", settings={})
         profiles = ProfilesCollection(profiles=[profile])
         assert profiles.profiles_by_name == {"test": profile}
-        assert profiles.active_name == None
+        assert profiles.active_name is None
 
     def test_init_stores_multiple_profile(self):
         foo = Profile(name="foo", settings={})
         bar = Profile(name="bar", settings={})
         profiles = ProfilesCollection(profiles=[foo, bar])
         assert profiles.profiles_by_name == {"foo": foo, "bar": bar}
-        assert profiles.active_name == None
+        assert profiles.active_name is None
 
     def test_init_sets_active_name(self):
         foo = Profile(name="foo", settings={})
@@ -820,7 +842,7 @@ class TestProfilesCollection:
 
     def test_remove_profile_does_not_exist(self):
         foo = Profile(name="foo", settings={})
-        bar = Profile(name="bar", settings={})
+        Profile(name="bar", settings={})
         profiles = ProfilesCollection(profiles=[foo], active=None)
         assert "bar" not in profiles.names
         with pytest.raises(KeyError):

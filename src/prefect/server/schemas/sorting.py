@@ -81,24 +81,12 @@ class LogSort(AutoEnum):
 
     TIMESTAMP_ASC = AutoEnum.auto()
     TIMESTAMP_DESC = AutoEnum.auto()
-    LEVEL_ASC = AutoEnum.auto()
-    LEVEL_DESC = AutoEnum.auto()
-    FLOW_RUN_ID_ASC = AutoEnum.auto()
-    FLOW_RUN_ID_DESC = AutoEnum.auto()
-    TASK_RUN_ID_ASC = AutoEnum.auto()
-    TASK_RUN_ID_DESC = AutoEnum.auto()
 
     def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort task runs"""
         sort_mapping = {
             "TIMESTAMP_ASC": db.Log.timestamp.asc(),
             "TIMESTAMP_DESC": db.Log.timestamp.desc(),
-            "LEVEL_ASC": db.Log.level.asc(),
-            "LEVEL_DESC": db.Log.level.desc(),
-            "FLOW_RUN_ID_ASC": db.Log.flow_run_id.asc(),
-            "FLOW_RUN_ID_DESC": db.Log.flow_run_id.desc(),
-            "TASK_RUN_ID_ASC": db.Log.task_run_id.asc(),
-            "TASK_RUN_ID_DESC": db.Log.task_run_id.desc(),
         }
         return sort_mapping[self.value]
 
@@ -158,5 +146,45 @@ class ArtifactSort(AutoEnum):
             "ID_DESC": db.Artifact.id.desc(),
             "KEY_DESC": db.Artifact.key.desc(),
             "KEY_ASC": db.Artifact.key.asc(),
+        }
+        return sort_mapping[self.value]
+
+
+class ArtifactCollectionSort(AutoEnum):
+    """Defines artifact collection sorting options."""
+
+    CREATED_DESC = AutoEnum.auto()
+    UPDATED_DESC = AutoEnum.auto()
+    ID_DESC = AutoEnum.auto()
+    KEY_DESC = AutoEnum.auto()
+    KEY_ASC = AutoEnum.auto()
+
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
+        """Return an expression used to sort artifact collections"""
+        sort_mapping = {
+            "CREATED_DESC": db.ArtifactCollection.created.desc(),
+            "UPDATED_DESC": db.ArtifactCollection.updated.desc(),
+            "ID_DESC": db.ArtifactCollection.id.desc(),
+            "KEY_DESC": db.ArtifactCollection.key.desc(),
+            "KEY_ASC": db.ArtifactCollection.key.asc(),
+        }
+        return sort_mapping[self.value]
+
+
+class VariableSort(AutoEnum):
+    """Defines variables sorting options."""
+
+    CREATED_DESC = "CREATED_DESC"
+    UPDATED_DESC = "UPDATED_DESC"
+    NAME_DESC = "NAME_DESC"
+    NAME_ASC = "NAME_ASC"
+
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
+        """Return an expression used to sort variables"""
+        sort_mapping = {
+            "CREATED_DESC": db.Variable.created.desc(),
+            "UPDATED_DESC": db.Variable.updated.desc(),
+            "NAME_DESC": db.Variable.name.desc(),
+            "NAME_ASC": db.Variable.name.asc(),
         }
         return sort_mapping[self.value]

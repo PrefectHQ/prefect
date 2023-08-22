@@ -10,5 +10,8 @@ contact_links:
     url: https://www.prefect.io/slack
     about: Join thousands of Prefect experts, engineers, and users in our Slack community
   - name: 🦆 Book a rubber duck
-    url: https://calendly.com/prefect-experts/rubber-duck
-    about: Book time with a Prefect engineer!
+    url: https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs
+    about: Schedule a meeting with a Prefect Product Advocate!
+  - name: 🔒 Report a security issue
+    url: https://www.prefect.io/security/bug-bounty-program/
+    about: Responsibly disclose a potential security issue.

@@ -130,7 +130,7 @@ async def create_deployment(
                     ),
                 )
 
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
@@ -383,6 +383,7 @@ async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
     response: Response = None,
 ) -> schemas.responses.FlowRunResponse:
     """
@@ -391,7 +392,7 @@ async def create_flow_run_from_deployment(
     Any parameters not provided will be inferred from the deployment's parameters.
     If tags are not provided, the deployment's tags will be used.
 
-    If no state is provided, the flow run will be created in a PENDING state.
+    If no state is provided, the flow run will be created in a SCHEDULED state.
     """
     async with db.session_context(begin_transaction=True) as session:
         # get relevant info from the deployment
@@ -407,6 +408,19 @@ async def create_flow_run_from_deployment(
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
 
+        work_queue_name = deployment.work_queue_name
+        work_queue_id = deployment.work_queue_id
+
+        if flow_run.work_queue_name:
+            # cant mutate the ORM model or else it will commit the changes back
+            work_queue_id = await worker_lookups._get_work_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_queue.work_pool.name,
+                work_queue_name=flow_run.work_queue_name,
+                create_queue_if_not_found=True,
+            )
+            work_queue_name = flow_run.work_queue_name
+
         # hydrate the input model into a full flow run / state model
         flow_run = schemas.core.FlowRun(
             **flow_run.dict(
@@ -414,6 +428,7 @@ async def create_flow_run_from_deployment(
                     "parameters",
                     "tags",
                     "infrastructure_document_id",
+                    "work_queue_name",
                 }
             ),
             flow_id=deployment.flow_id,
@@ -424,12 +439,12 @@ async def create_flow_run_from_deployment(
                 flow_run.infrastructure_document_id
                 or deployment.infrastructure_document_id
             ),
-            work_queue_name=deployment.work_queue_name,
-            work_queue_id=deployment.work_queue_id,
+            work_queue_name=work_queue_name,
+            work_queue_id=work_queue_id,
         )
 
         if not flow_run.state:
-            flow_run.state = schemas.states.Pending()
+            flow_run.state = schemas.states.Scheduled()
 
         now = pendulum.now("UTC")
         model = await models.flow_runs.create_flow_run(
@@ -460,7 +475,7 @@ async def work_queue_check_for_deployment(
             work_queues = await models.deployments.check_work_queues_for_deployment(
                 session=session, deployment_id=deployment_id
             )
-    except ObjectNotFoundError as exc:
+    except ObjectNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )

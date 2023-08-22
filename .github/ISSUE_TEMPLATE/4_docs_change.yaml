@@ -1,0 +1,39 @@
+name: 📝 Suggest a change to documentation
+description: Propose edits, enhancements, or fixes to Prefect documentation
+labels: ["docs", "needs:triage"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used GitHub search to find a similar request and didn't find it 😇
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the issue
+      description: A clear, concise description of the current state of the documentation; please include a URL for the relevant section and screenshots if there is a rendering problem.
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: Describe the proposed change
+      description: A clear, concise description of the proposed change to the documentation.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Provide additional context or relevant examples for this issue.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"

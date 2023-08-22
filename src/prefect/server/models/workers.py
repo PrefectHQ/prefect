@@ -259,21 +259,34 @@ async def create_work_queue(
         db.WorkQueue: the newly-created WorkQueue
 
     """
+    data = work_queue.dict(exclude={"work_pool_id"})
+    if work_queue.priority is None:
+        # Set the priority to be the first priority value that isn't already taken
+        priorities_query = sa.select(db.WorkQueue.priority).where(
+            db.WorkQueue.work_pool_id == work_pool_id
+        )
+        priorities = (await session.execute(priorities_query)).scalars().all()
 
-    max_priority_query = sa.select(
-        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
-    ).where(db.WorkQueue.work_pool_id == work_pool_id)
-    priority = (await session.execute(max_priority_query)).scalar()
+        priority = None
+        for i, p in enumerate(sorted(priorities)):
+            # if a rank was skipped (e.g. the set priority is different than the
+            # enumerated priority) then we can "take" that spot for this work
+            # queue
+            if i + 1 != p:
+                priority = i + 1
+                break
 
-    model = db.WorkQueue(
-        **work_queue.dict(exclude={"priority", "work_pool_id"}),
-        work_pool_id=work_pool_id,
-        # initialize the priority as the current max priority + 1
-        priority=priority + 1
-    )
+        # otherwise take the maximum priority plus one
+        if priority is None:
+            priority = max(priorities, default=0) + 1
+
+        data["priority"] = priority
+
+    model = db.WorkQueue(**data, work_pool_id=work_pool_id)
 
     session.add(model)
     await session.flush()
+    await session.refresh(model)
 
     if work_queue.priority:
         await bulk_update_work_queue_priorities(
@@ -293,11 +306,16 @@ async def bulk_update_work_queue_priorities(
     db: PrefectDBInterface,
 ):
     """
-    This is a brute force update of all work pool queue priorities for a given worker
+    This is a brute force update of all work pool queue priorities for a given work
     pool.
 
     It loads all queues fully into memory, sorts them, and flushes the update to
-    the db.
+    the db. The algorithm ensures that priorities are unique integers > 0, and
+    makes the minimum number of changes required to satisfy the provided
+    `new_priorities`. For example, if no queues currently have the provided
+    `new_priorities`, then they are assigned without affecting other queues. If
+    they are held by other queues, then those queues' priorities are
+    incremented as necessary.
 
     Updating queue priorities is not a common operation (happens on the same scale as
     queue modification, which is significantly less than reading from queues),
@@ -308,6 +326,7 @@ async def bulk_update_work_queue_priorities(
     if len(set(new_priorities.values())) != len(new_priorities):
         raise ValueError("Duplicate target priorities provided")
 
+    # get all the work queues, sorted by priority
     work_queues_query = (
         sa.select(db.WorkQueue)
         .where(db.WorkQueue.work_pool_id == work_pool_id)
@@ -316,14 +335,31 @@ async def bulk_update_work_queue_priorities(
     result = await session.execute(work_queues_query)
     all_work_queues = result.scalars().all()
 
+    # split the queues into those that need to be updated and those that don't
     work_queues = [wq for wq in all_work_queues if wq.id not in new_priorities]
     updated_queues = [wq for wq in all_work_queues if wq.id in new_priorities]
 
+    # update queue priorities and insert them into the appropriate place in the
+    # full list of queues
     for queue in sorted(updated_queues, key=lambda wq: new_priorities[wq.id]):
-        work_queues.insert(new_priorities[queue.id] - 1, queue)
+        queue.priority = new_priorities[queue.id]
+        for i, wq in enumerate(work_queues):
+            if wq.priority >= new_priorities[queue.id]:
+                work_queues.insert(i, queue)
+                break
 
-    for i, queue in enumerate(work_queues):
-        queue.priority = i + 1
+    # walk through the queues and update their priorities such that the
+    # priorities are sequential. Do this by tracking that last priority seen and
+    # ensuring that each successive queue's priority is higher than it. This
+    # will maintain queue order and ensure increasing priorities with minimal
+    # changes.
+    last_priority = 0
+    for queue in work_queues:
+        if queue.priority <= last_priority:
+            last_priority += 1
+            queue.priority = last_priority
+        else:
+            last_priority = queue.priority
 
     await session.flush()
 

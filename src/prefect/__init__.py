@@ -13,12 +13,24 @@ __version__ = __version_info__["version"]
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
-# The absolute path to the root of the repository, only valid for use during development.
-__root_path__ = __module_path__.parents[1]
+# The absolute path to the root of the repository, only valid for use during development
+__development_base_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
+
+if sys.version_info < (3, 8):
+    warnings.warn(
+        (
+            "Prefect dropped support for Python 3.7 when it reached end-of-life"
+            " . To use new versions of Prefect, you will need"
+            " to upgrade to Python 3.8+. See https://devguide.python.org/versions/ for "
+            " more details."
+        ),
+        FutureWarning,
+        stacklevel=2,
+    )
 
 
 # Import user-facing API
@@ -33,6 +45,8 @@ from prefect.results import BaseResult
 from prefect.engine import pause_flow_run, resume_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
+import prefect.variables
+import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
@@ -43,7 +57,7 @@ import prefect.blocks.notifications
 import prefect.blocks.system
 import prefect.infrastructure.process
 import prefect.infrastructure.kubernetes
-import prefect.infrastructure.docker
+import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -58,11 +72,11 @@ prefect.context.TaskRunContext.update_forward_refs(Task=Task)
 prefect.client.schemas.State.update_forward_refs(
     BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
 )
+prefect.client.schemas.StateCreate.update_forward_refs(
+    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
+)
 
-# Ensure collections are imported and have the opportunity to register types
-import prefect.plugins
 
-prefect.plugins.load_prefect_collections()
 prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
@@ -90,6 +104,19 @@ register_renamed_module(
     "prefect.client.orchestration",
     "prefect.client.orchestration",
     start_date="Feb 2023",
+)
+register_renamed_module(
+    "prefect.docker",
+    "prefect.utilities.dockerutils",
+    start_date="Mar 2023",
+)
+register_renamed_module(
+    "prefect.infrastructure.docker",
+    "prefect.infrastructure.container",
+    start_date="Mar 2023",
+)
+register_renamed_module(
+    "prefect.projects", "prefect.deployments", start_date="Jun 2023"
 )
 inject_renamed_module_alias_finder()
 

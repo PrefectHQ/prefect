@@ -1,14 +1,11 @@
-import asyncio
 import json
 import logging
-import queue
 import sys
-import threading
 import time
 import uuid
-import warnings
 from contextlib import nullcontext
 from functools import partial
+from io import StringIO
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -22,6 +19,8 @@ import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
@@ -35,6 +34,7 @@ from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
+    PrefectLogAdapter,
     disable_logger,
     disable_run_logger,
     flow_run_logger,
@@ -72,7 +72,7 @@ def dictConfigMock(monkeypatch):
 
 
 @pytest.fixture
-async def logger_test_deployment(orion_client):
+async def logger_test_deployment(prefect_client):
     """
     A deployment with a flow that returns information about the given loggers
     """
@@ -93,9 +93,9 @@ async def logger_test_deployment(orion_client):
 
         return settings
 
-    flow_id = await orion_client.create_flow(my_flow)
+    flow_id = await prefect_client.create_flow(my_flow)
 
-    deployment_id = await orion_client.create_deployment(
+    deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="logger_test_deployment",
         manifest_path="file.json",
@@ -120,8 +120,8 @@ def test_setup_logging_sets_incremental_on_repeated_calls(dictConfigMock):
     assert dictConfigMock.call_count == 1
     setup_logging()
     assert dictConfigMock.call_count == 2
-    assert dictConfigMock.mock_calls[0][1][0]["incremental"] == False
-    assert dictConfigMock.mock_calls[1][1][0]["incremental"] == True
+    assert dictConfigMock.mock_calls[0][1][0]["incremental"] is False
+    assert dictConfigMock.mock_calls[1][1][0]["incremental"] is True
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
@@ -179,13 +179,13 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
 
 @pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
 @pytest.mark.enable_api_log_handler
-async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deployment):
+async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deployment):
     """
     Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
     intended. This avoids side-effects of modifying the loggers in this test run without
     confusing mocking.
     """
-    flow_run = await orion_client.create_flow_run_from_deployment(
+    flow_run = await prefect_client.create_flow_run_from_deployment(
         logger_test_deployment
     )
 
@@ -195,9 +195,9 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         .run()
     )
 
-    state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state, orion_client)
-    api_logs = await orion_client.read_logs()
+    state = (await prefect_client.read_flow_run(flow_run.id)).state
+    settings = await _retrieve_result(state, prefect_client)
+    api_logs = await prefect_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
     extra_logger = logging.getLogger("prefect.extra")
@@ -269,76 +269,58 @@ class TestAPILogHandler:
         yield logger
         logger.removeHandler(handler)
 
-    def test_handler_instances_share_log_worker(self):
-        first = APILogHandler().get_worker(prefect.context.get_settings_context())
-        second = APILogHandler().get_worker(prefect.context.get_settings_context())
-        assert first is second
-        assert len(APILogHandler.workers) == 1
-
-    def test_log_workers_are_cached_by_profile(self):
-        a = APILogHandler().get_worker(prefect.context.get_settings_context())
-        b = APILogHandler().get_worker(
-            prefect.context.get_settings_context().copy(update={"name": "foo"})
-        )
-        assert a is not b
-        assert len(APILogHandler.workers) == 2
-
-    def test_instantiates_log_worker(self, mock_log_worker):
-        APILogHandler().get_worker(prefect.context.get_settings_context())
-        mock_log_worker.assert_called_once_with(prefect.context.get_settings_context())
-        mock_log_worker().start.assert_called_once_with()
-
-    def test_worker_is_not_started_until_log_is_emitted(self, mock_log_worker, logger):
-        mock_log_worker().start.assert_not_called()
-        logger.setLevel(logging.INFO)
-        logger.debug("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().start.assert_not_called()
-        logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().start.assert_called()
-
-    def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
+    def test_worker_is_not_flushed_on_handler_close(self, mock_log_worker):
         handler = APILogHandler()
-        handler.get_worker(prefect.context.get_settings_context())
         handler.close()
-        mock_log_worker().flush.assert_called_once()
-        # The worker cannot be stopped because it is a singleton and other handler
-        # instances may be using it
-        mock_log_worker().stop.assert_not_called()
+        mock_log_worker.drain_all.assert_not_called()
 
     @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
-        self, logger, handler, flow_run, orion_client
+        self, logger, handler, flow_run, prefect_client
     ):
-        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush(block=True)
+        await handler.aflush()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
 
-    async def test_logs_cannot_be_sent_after_worker_stop(
-        self, logger, handler, flow_run, orion_client, capsys
+    @pytest.mark.flaky
+    async def test_logs_can_still_be_sent_after_flush(
+        self, logger, handler, flow_run, prefect_client
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        for worker in handler.workers.values():
-            worker.stop()
-
-        # Send a log that will not be sent
+        await handler.aflush()
         logger.info("Test", extra={"flow_run_id": flow_run.id})
+        await handler.aflush()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
+        assert len(logs) == 2
+
+    @pytest.mark.flaky
+    async def test_sync_flush_from_async_context(
+        self, logger, handler, flow_run, prefect_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
+
+        # Yield to the worker thread
+        time.sleep(2)
+
+        logs = await prefect_client.read_logs()
         assert len(logs) == 1
 
-        output = capsys.readouterr()
-        assert (
-            "RuntimeError: Logs cannot be enqueued after the API log worker is stopped."
-            in output.err
-        )
+    @pytest.mark.flaky
+    def test_sync_flush_from_global_event_loop(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        with pytest.raises(RuntimeError, match="would block"):
+            from_sync.call_soon_in_loop_thread(create_call(handler.flush)).result()
 
-    def test_worker_is_not_stopped_if_not_set_on_handler_close(self, mock_log_worker):
-        APILogHandler().close()
-        mock_log_worker().stop.assert_not_called()
+    @pytest.mark.flaky
+    def test_sync_flush_from_sync_context(self, logger, handler, flow_run):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
@@ -352,9 +334,9 @@ class TestAPILogHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     def test_sends_flow_run_log_to_worker(self, logger, mock_log_worker, flow_run):
         with FlowRunContext.construct(flow_run=flow_run):
@@ -368,9 +350,9 @@ class TestAPILogHandler:
             message="test-flow",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_flow_run_id(
@@ -393,9 +375,9 @@ class TestAPILogHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_task_run_id(
@@ -419,14 +401,14 @@ class TestAPILogHandler:
             message="test-task",
         ).dict(json_compatible=True)
         expected["timestamp"] = ANY  # Tested separately
-        log_size = ANY  # Tested separately
+        expected["__payload_size__"] = ANY  # Tested separately
 
-        mock_log_worker().enqueue.assert_called_once_with(expected, log_size)
+        mock_log_worker.instance().send.assert_called_once_with(expected)
 
     def test_does_not_emit_logs_below_level(self, logger, mock_log_worker):
         logger.setLevel(logging.WARNING)
         logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_explicit_task_run_id_still_requires_flow_run_id(
         self, logger, mock_log_worker
@@ -437,7 +419,7 @@ class TestAPILogHandler:
         ):
             logger.info("test-task", extra={"task_run_id": task_run_id})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_sets_timestamp_from_record_created_time(
         self, logger, mock_log_worker, flow_run, handler
@@ -449,7 +431,7 @@ class TestAPILogHandler:
             logger.info("test-flow")
 
         record = handler.emit.call_args[0][0]
-        log_dict = mock_log_worker().enqueue.call_args[0][0]
+        log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert (
             log_dict["timestamp"] == pendulum.from_timestamp(record.created).isoformat()
@@ -472,15 +454,32 @@ class TestAPILogHandler:
         with FlowRunContext.construct(flow_run=flow_run):
             logger.info("test-flow")
 
-        log_dict = mock_log_worker().enqueue.call_args[0][0]
+        log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert log_dict["timestamp"] == pendulum.from_timestamp(now).isoformat()
 
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
-            logger.info("test", extra={"send_to_orion": False})
+            logger.info("test", extra={"send_to_api": False})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
+
+    def test_does_not_send_logs_that_opt_out_deprecated(
+        self, logger, mock_log_worker, task_run
+    ):
+        with TaskRunContext.construct(task_run=task_run):
+            with pytest.warns(
+                PrefectDeprecationWarning,
+                match=(
+                    'The "send_to_orion" option has been deprecated. It will not be'
+                    ' available after Nov 2023. Use "send_to_api" instead.'
+                ),
+            ):
+                PrefectLogAdapter(logger, extra={}).info(
+                    "test", extra={"send_to_orion": False}
+                )
+
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_does_not_send_logs_when_handler_is_disabled(
         self, logger, mock_log_worker, task_run
@@ -491,7 +490,7 @@ class TestAPILogHandler:
             with TaskRunContext.construct(task_run=task_run):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
     def test_does_not_send_logs_outside_of_run_context_with_default_setting(
         self, logger, mock_log_worker, capsys
@@ -502,11 +501,24 @@ class TestAPILogHandler:
         ):
             logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_when_logger_outside_of_run_context_with_default_setting(
+        self,
+        logger,
+    ):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "Logger 'tests.test_logging' attempted to send logs to the API without"
+                " a flow run id."
+            ),
+        ):
+            logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_error_setting(
         self, logger, mock_log_worker, capsys
@@ -520,11 +532,27 @@ class TestAPILogHandler:
             ):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_warn_when_logger_outside_of_run_context_with_error_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "error"},
+        ):
+            with pytest.raises(
+                MissingContextError,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
         self, logger, mock_log_worker, capsys
@@ -534,11 +562,20 @@ class TestAPILogHandler:
         ):
             logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_or_warn_when_logger_outside_of_run_context_with_ignore_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "ignore"},
+        ):
+            logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
         self, logger, mock_log_worker, capsys
@@ -552,11 +589,29 @@ class TestAPILogHandler:
             ):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_when_logger_outside_of_run_context_with_warn_setting(
+        self, logger
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
+        ):
+            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
+            #       capture the warning call and skip checing that we use it correctly
+            #       See https://github.com/pytest-dev/pytest/issues/9288
+            with pytest.raises(
+                UserWarning,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
 
     def test_missing_context_warning_refers_to_caller_lineno(
         self, logger, mock_log_worker
@@ -572,7 +627,7 @@ class TestAPILogHandler:
             # The above dynamic collects the line number so that added tests do not
             # break this test
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         assert warnings.pop().lineno == lineno
 
     def test_writes_logging_errors_to_stderr(
@@ -585,7 +640,7 @@ class TestAPILogHandler:
         # No error raised
         logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
 
         # Error is in stderr
         output = capsys.readouterr()
@@ -594,9 +649,9 @@ class TestAPILogHandler:
     def test_does_not_write_error_for_logs_outside_run_context_that_opt_out(
         self, logger, mock_log_worker, capsys
     ):
-        logger.info("test", extra={"send_to_orion": False})
+        logger.info("test", extra={"send_to_api": False})
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         output = capsys.readouterr()
         assert (
             "RuntimeError: Attempted to send logs to the API without a flow run id."
@@ -610,7 +665,7 @@ class TestAPILogHandler:
             with temporary_settings(updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: "1"}):
                 logger.info("test")
 
-        mock_log_worker().enqueue.assert_not_called()
+        mock_log_worker.instance().send.assert_not_called()
         output = capsys.readouterr()
         assert "ValueError" in output.err
         assert "is greater than the max size of 1" in output.err
@@ -628,10 +683,14 @@ class TestAPILogHandler:
         log_size = len(json.dumps(dict_log))
         assert log_size == 211
         handler = APILogHandler()
-        assert handler.get_log_size(dict_log) == log_size
+        assert handler._get_payload_size(dict_log) == log_size
 
 
 class TestAPILogWorker:
+    @pytest.fixture
+    async def worker(self):
+        return APILogWorker.instance()
+
     @pytest.fixture
     def log_dict(self):
         return LogCreate(
@@ -643,68 +702,14 @@ class TestAPILogWorker:
             message="hello",
         ).dict(json_compatible=True)
 
-    @pytest.fixture
-    def log_size(self, log_dict) -> int:
-        return APILogHandler().get_log_size(log_dict)
-
-    @pytest.fixture
-    def worker(self, get_worker):
-        yield get_worker()
-
-    @pytest.fixture
-    def get_worker(self):
-        # Ensures that a worker is stopped _before_ the test is torn down. Otherwise,
-        # remaining logs could be written by a background thread after all the tests
-        # finish and the database has been reset.
-        worker = None
-
-        def get_worker():
-            nonlocal worker
-            worker = APILogWorker(prefect.context.get_settings_context())
-            return worker
-
-        yield get_worker
-
-        if worker:
-            worker.stop()
-        else:
-            warnings.warn("`get_worker` fixture was specified but not called.")
-
-    def test_start_is_idempotent(self, worker):
-        worker._send_thread = MagicMock()
-        worker.start()
-        worker.start()
-        worker._send_thread.start.assert_called_once()
-
-    def test_stop_is_idempotent(self, worker):
-        worker._send_thread = MagicMock()
-        worker._stop_event = MagicMock()
-        worker._flush_event = MagicMock()
-        worker.stop()
-        worker._stop_event.set.assert_not_called()
-        worker._flush_event.set.assert_not_called()
-        worker._send_thread.join.assert_not_called()
-        worker.start()
-        worker.stop()
-        worker.stop()
-        worker._flush_event.set.assert_called_once()
-        worker._stop_event.set.assert_called_once()
-        worker._send_thread.join.assert_called_once()
-
-    def test_enqueue(self, log_dict, log_size, worker):
-        worker.enqueue(log_dict, log_size)
-        assert worker._queue.get_nowait() == (log_dict, log_size)
-
-    async def test_send_logs_single_record(
-        self, log_dict, log_size, orion_client, worker
-    ):
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs()
-        logs = await orion_client.read_logs()
+    async def test_send_logs_single_record(self, log_dict, prefect_client, worker):
+        worker.send(log_dict)
+        await worker.drain()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 1
         assert logs[0].dict(include=log_dict.keys(), json_compatible=True) == log_dict
 
-    async def test_send_logs_many_records(self, log_dict, orion_client, worker):
+    async def test_send_logs_many_records(self, log_dict, prefect_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
         count = prefect.settings.PREFECT_API_DEFAULT_LIMIT.value()
         log_dict.pop("message")
@@ -712,11 +717,10 @@ class TestAPILogWorker:
         for i in range(count):
             new_log = log_dict.copy()
             new_log["message"] = str(i)
-            new_log_size = APILogHandler().get_log_size(new_log)
-            worker.enqueue(new_log, new_log_size)
-        await worker.send_logs()
+            worker.send(new_log)
+        await worker.drain()
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == count
         for log in logs:
             assert (
@@ -727,60 +731,29 @@ class TestAPILogWorker:
             )
         assert len(set(log.message for log in logs)) == count, "Each log is unique"
 
-    async def test_send_logs_retries_on_next_call_on_exception(
-        self, log_dict, log_size, orion_client, monkeypatch, capsys, worker
-    ):
-        create_logs = orion_client.create_logs
-        monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs",
-            MagicMock(side_effect=ValueError("Test")),
-        )
-
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs()
-
-        # Log moved from queue to pending logs
-        assert worker._pending_logs == [log_dict]
-        with pytest.raises(queue.Empty):
-            worker._queue.get_nowait()
-
-        # Restore client
-        monkeypatch.setattr(
-            "prefect.client.PrefectClient.create_logs",
-            create_logs,
-        )
-        await worker.send_logs()
-
-        logs = await orion_client.read_logs()
-        assert len(logs) == 1
-
     @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(
-        self, log_dict, log_size, capsys, monkeypatch, exiting, worker
+        self, log_dict, capsys, monkeypatch, exiting, worker
     ):
         monkeypatch.setattr(
             "prefect.client.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
-        worker.enqueue(log_dict, log_size)
-        await worker.send_logs(exiting=exiting)
+        worker.send(log_dict)
+        await worker.drain()
 
         err = capsys.readouterr().err
         assert "--- Error logging to API ---" in err
         assert "ValueError: Test" in err
-        if not exiting:
-            assert "will attempt to send these logs again" in err
-        else:
-            assert "log worker is stopping and these logs will not be sent" in err
 
-    async def test_send_logs_batches_by_size(
-        self, log_dict, log_size, monkeypatch, get_worker
-    ):
+    async def test_send_logs_batches_by_size(self, log_dict, monkeypatch):
         mock_create_logs = AsyncMock()
         monkeypatch.setattr(
             "prefect.client.PrefectClient.create_logs", mock_create_logs
         )
+
+        log_size = APILogHandler()._get_payload_size(log_dict)
 
         with temporary_settings(
             updates={
@@ -788,140 +761,50 @@ class TestAPILogWorker:
                 PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: log_size,
             }
         ):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.enqueue(log_dict, log_size)
-            worker.enqueue(log_dict, log_size)
-            await worker.send_logs()
+            worker = APILogWorker.instance()
+            worker.send(log_dict)
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
 
         assert mock_create_logs.call_count == 3
 
-    @pytest.mark.flaky(max_runs=3)
-    async def test_logs_are_sent_when_started(
-        self, log_dict, log_size, orion_client, get_worker, monkeypatch
-    ):
-        event = threading.Event()
-        unpatched_create_logs = orion_client.create_logs
-
-        async def create_logs(self, *args, **kwargs):
-            result = await unpatched_create_logs(*args, **kwargs)
-            event.set()
-            return result
-
-        monkeypatch.setattr("prefect.client.PrefectClient.create_logs", create_logs)
-
-        with temporary_settings(
-            updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "0.001"}
-        ):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-
-        # We want to ensure logs are written without the thread being joined
-        await asyncio.sleep(0.01)
-        event.wait()
-        logs = await orion_client.read_logs()
-        # TODO: CI failures sometimes find one log here instead of two.
-        assert len(logs) == 2
-
-    def test_batch_interval_is_respected(self, get_worker):
-        with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "5"}):
-            worker = get_worker()
-            worker._flush_event = MagicMock(return_val=False)
-            worker.start()
-
-            # Wait for the a loop to complete
-            worker._send_logs_finished_event.wait(1)
-
-        worker._flush_event.wait.assert_called_with(5)
-
-    def test_flush_event_is_cleared(self, get_worker):
-        with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "5"}):
-            worker = get_worker()
-            worker._flush_event = MagicMock(return_val=False)
-            worker.start()
-            worker.flush(block=True)
-
-        worker._flush_event.wait.assert_called_with(5)
-        worker._flush_event.clear.assert_called()
-
     async def test_logs_are_sent_immediately_when_stopped(
-        self, log_dict, log_size, orion_client, get_worker
+        self, log_dict, prefect_client
     ):
         # Set a long interval
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.stop()
+            worker = APILogWorker.instance()
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
         end_time = time.time()
 
         assert (
             end_time - start_time
         ) < 5  # An arbitary time less than the 10s interval
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
-
-    async def test_raises_on_enqueue_after_stop(self, worker, log_dict, log_size):
-        worker.start()
-        worker.stop()
-        with pytest.raises(
-            RuntimeError, match="Logs cannot be enqueued after .* is stopped"
-        ):
-            worker.enqueue(log_dict, log_size)
-
-    async def test_raises_on_start_after_stop(self, worker):
-        worker.start()
-        worker.stop()
-        with pytest.raises(RuntimeError, match="cannot be started after stopping"):
-            worker.start()
 
     async def test_logs_are_sent_immediately_when_flushed(
-        self, log_dict, log_size, orion_client, get_worker
+        self, log_dict, prefect_client, worker
     ):
         # Set a long interval
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.flush(block=True)
+            worker.send(log_dict)
+            worker.send(log_dict)
+            await worker.drain()
         end_time = time.time()
 
         assert (
             end_time - start_time
         ) < 5  # An arbitary time less than the 10s interval
 
-        logs = await orion_client.read_logs()
+        logs = await prefect_client.read_logs()
         assert len(logs) == 2
-
-    async def test_logs_can_be_flushed_repeatedly(
-        self, log_dict, log_size, orion_client, get_worker
-    ):
-        # Set a long interval
-        start_time = time.time()
-        with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
-            worker = get_worker()
-            worker.enqueue(log_dict, log_size)
-            worker.start()
-            worker.enqueue(log_dict, log_size)
-            worker.flush()
-            worker.flush()
-            worker.enqueue(log_dict, log_size)
-            worker.flush(block=True)
-        end_time = time.time()
-
-        assert (
-            end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
-
-        logs = await orion_client.read_logs()
-        assert len(logs) == 3
 
 
 def test_flow_run_logger(flow_run):
@@ -1003,17 +886,17 @@ async def test_run_logger_with_explicit_context_of_invalid_type():
 
 
 async def test_run_logger_with_explicit_context(
-    orion_client, flow_run, local_filesystem
+    prefect_client, flow_run, local_filesystem
 ):
     @task
     def foo():
         pass
 
-    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     context = TaskRunContext.construct(
         task=foo,
         task_run=task_run,
-        client=orion_client,
+        client=prefect_client,
     )
 
     logger = get_run_logger(context)
@@ -1030,7 +913,7 @@ async def test_run_logger_with_explicit_context(
 
 
 async def test_run_logger_with_explicit_context_overrides_existing(
-    orion_client, flow_run, local_filesystem
+    prefect_client, flow_run, local_filesystem
 ):
     @task
     def foo():
@@ -1040,25 +923,25 @@ async def test_run_logger_with_explicit_context_overrides_existing(
     def bar():
         pass
 
-    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
     context = TaskRunContext.construct(
         task=bar,
         task_run=task_run,
-        client=orion_client,
+        client=prefect_client,
     )
 
     logger = get_run_logger(context)
     assert logger.extra["task_name"] == bar.name
 
 
-async def test_run_logger_in_flow(orion_client):
+async def test_run_logger_in_flow(prefect_client):
     @flow
     def test_flow():
         return get_run_logger()
 
     state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -1068,13 +951,13 @@ async def test_run_logger_in_flow(orion_client):
     }
 
 
-async def test_run_logger_extra_data(orion_client):
+async def test_run_logger_extra_data(prefect_client):
     @flow
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
     state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -1085,7 +968,7 @@ async def test_run_logger_extra_data(orion_client):
     }
 
 
-async def test_run_logger_in_nested_flow(orion_client):
+async def test_run_logger_in_nested_flow(prefect_client):
     @flow
     def child_flow():
         return get_run_logger()
@@ -1095,7 +978,7 @@ async def test_run_logger_in_nested_flow(orion_client):
         return child_flow._run()
 
     child_state = await test_flow._run().result()
-    flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
     logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
@@ -1105,7 +988,7 @@ async def test_run_logger_in_nested_flow(orion_client):
     }
 
 
-async def test_run_logger_in_task(orion_client):
+async def test_run_logger_in_task(prefect_client):
     @task
     def test_task():
         return get_run_logger()
@@ -1115,9 +998,9 @@ async def test_run_logger_in_task(orion_client):
         return test_task._run()
 
     flow_state = test_flow._run()
-    flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
+    flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
-    task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
+    task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
     logger = await task_state.result()
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {
@@ -1194,7 +1077,7 @@ class TestPrefectConsoleHandler:
 
         try:
             raise ValueError("oh my")
-        except:
+        except Exception:
             logger.exception("Helpful context!")
 
         _, stderr = capsys.readouterr()
@@ -1414,6 +1297,24 @@ def test_patch_print_writes_to_stdout_with_run_context_and_no_log_prints(
     assert "foo" not in caplog.text
 
 
+def test_patch_print_does_not_write_to_logger_with_custom_file(
+    caplog, capsys, task_run
+):
+    string_io = StringIO()
+
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            print("foo", file=string_io)
+
+    assert "foo" not in caplog.text
+    assert "foo" not in capsys.readouterr().out
+    assert string_io.getvalue().rstrip() == "foo"
+
+
 def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task_run):
     @task
     def my_task():
@@ -1424,6 +1325,34 @@ def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task
             print("foo")
 
     assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.task_runs"
+    assert record.task_run_id == str(task_run.id)
+    assert record.task_name == my_task.name
+
+
+@pytest.mark.parametrize("file", ["stdout", "stderr"])
+def test_patch_print_writes_to_logger_with_explicit_file(
+    caplog, capsys, task_run, file
+):
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            # We must defer retrieval of sys.<file> because pytest overrides sys!
+            print("foo", file=getattr(sys, file))
+
+    out, err = capsys.readouterr()
+    assert "foo" not in out
+    assert "foo" not in err
     assert "foo" in caplog.text
 
     for record in caplog.records:
@@ -1456,3 +1385,12 @@ def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow
     assert record.name == "prefect.flow_runs"
     assert record.flow_run_id == str(flow_run.id)
     assert record.flow_name == my_flow.name
+
+
+def test_log_adapter_get_child(flow_run):
+    logger = PrefectLogAdapter(get_logger("prefect.parent"), {"hello": "world"})
+    assert logger.extra == {"hello": "world"}
+
+    child_logger = logger.getChild("child", {"goodnight": "moon"})
+    assert child_logger.logger.name == "prefect.parent.child"
+    assert child_logger.extra == {"hello": "world", "goodnight": "moon"}

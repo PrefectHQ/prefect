@@ -1,10 +1,12 @@
 import contextlib
 import random
-from itertools import permutations, product
+import sqlite3
+from itertools import product
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import sqlalchemy.exc
 
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import provide_database_interface
@@ -44,7 +46,7 @@ async def commit_task_run_state(
         state_type == states.StateType.SCHEDULED
         and "scheduled_time" not in state_details
     ):
-        state_details.update({"scheduled_time": pendulum.now()})
+        state_details.update({"scheduled_time": pendulum.now("UTC")})
 
     new_state = schemas.states.State(
         type=state_type,
@@ -1530,15 +1532,12 @@ class TestOrchestrationContext:
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact is None
 
-    @pytest.mark.parametrize(
-        "intended_transition",
-        list(permutations([*states.StateType, None], 2)),
-        ids=transition_names,
-    )
     async def test_context_state_validation_encounters_exception(
-        self, session, run_type, intended_transition, initialize_orchestration
+        self, session, run_type, initialize_orchestration
     ):
-        initial_state_type, proposed_state_type = intended_transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
         cleanup_hook = MagicMock()
@@ -1584,6 +1583,65 @@ class TestOrchestrationContext:
             == "Error validating state: RuntimeError('One time error!')"
         )
 
+    async def test_context_state_validation_encounters_sqlite_busy_exception(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_hook = MagicMock()
+
+        class MockRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                before_transition_hook(initial_state, proposed_state, context)
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook(initial_state, validated_state, context)
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_hook(initial_state, validated_state, context)
+
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        orig = sqlite3.OperationalError("database locked")
+        setattr(orig, "sqlite_errorname", "SQLITE_BUSY")
+        setattr(orig, "sqlite_errorcode", 5)
+
+        # Bypass pydantic mutation protection, inject an error
+        object.__setattr__(
+            ctx.session,
+            "flush",
+            AsyncMock(
+                side_effect=sqlalchemy.exc.OperationalError(
+                    "statement",
+                    {"params": 1},
+                    orig,
+                    Exception,
+                )
+            ),
+        )
+
+        with pytest.raises(sqlalchemy.exc.OperationalError):
+            async with contextlib.AsyncExitStack() as stack:
+                mock_rule = MockRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(mock_rule)
+                await ctx.validate_proposed_state()
+
+        before_transition_hook.assert_called_once()
+        if proposed_state_type is not None:
+            after_transition_hook.assert_not_called()
+            cleanup_hook.assert_called_once(), "Cleanup should be called when trasition is aborted"
+        else:
+            after_transition_hook.assert_called_once(), "Rule expected no transition"
+            cleanup_hook.assert_not_called()
+
+        assert ctx.proposed_state is None
+
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestNullRejection:
@@ -1597,6 +1655,7 @@ class TestNullRejection:
     ):
         side_effects = 0
         minimal_before_hook = MagicMock()
+        first_after_hook = MagicMock()
         null_rejection_before_hook = MagicMock()
         minimal_after_hook = MagicMock()
         null_rejection_after_hook = MagicMock()
@@ -1685,6 +1744,7 @@ class TestNullRejection:
         minimal_before_hook = MagicMock()
         null_rejection_before_hook = MagicMock()
         minimal_after_hook = MagicMock()
+        first_after_hook = MagicMock()
         null_rejection_after_hook = MagicMock()
         minimal_cleanup_hook = MagicMock()
         null_rejection_cleanup = MagicMock()

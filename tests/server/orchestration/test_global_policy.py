@@ -94,7 +94,7 @@ class TestGlobalPolicyRules:
         initial_state_type = None
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now().add(seconds=42)
+        scheduled_time = pendulum.now("UTC").add(seconds=42)
         ctx = await initialize_orchestration(
             session,
             run_type,
@@ -120,7 +120,7 @@ class TestGlobalPolicyRules:
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.PENDING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now().add(seconds=42)
+        scheduled_time = pendulum.now("UTC").add(seconds=42)
         ctx = await initialize_orchestration(
             session,
             run_type,
@@ -173,7 +173,7 @@ class TestGlobalPolicyRules:
         run_type,
         initialize_orchestration,
     ):
-        dt = pendulum.now().add(days=10)
+        dt = pendulum.now("UTC").add(days=10)
 
         initial_state_type = None
         proposed_state_type = states.StateType.SCHEDULED
@@ -288,7 +288,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
@@ -316,7 +316,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
@@ -343,7 +343,7 @@ class TestGlobalPolicyRules:
         )
 
         run = ctx.run
-        run.start_time = pendulum.now().subtract(seconds=42)
+        run.start_time = pendulum.now("UTC").subtract(seconds=42)
         assert run.end_time is None
 
         async with SetEndTime(ctx, *intended_transition) as ctx:
@@ -364,8 +364,8 @@ class TestGlobalPolicyRules:
         )
 
         run = ctx.run
-        run.start_time = pendulum.now().subtract(seconds=42)
-        run.end_time = pendulum.now()
+        run.start_time = pendulum.now("UTC").subtract(seconds=42)
+        run.end_time = pendulum.now("UTC")
         assert run.end_time is not None
 
         async with SetEndTime(ctx, *intended_transition) as ctx:
@@ -388,7 +388,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        dt = pendulum.now()
+        dt = pendulum.now("UTC")
 
         run = ctx.run
         run.start_time = dt.subtract(seconds=42)

@@ -1,4 +1,5 @@
 import hashlib
+import html
 import inspect
 import sys
 import warnings
@@ -27,6 +28,13 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 import prefect
 import prefect.exceptions
 from prefect.blocks.fields import SecretDict
+from prefect.client.schemas import (
+    DEFAULT_BLOCK_SCHEMA_VERSION,
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+    BlockTypeUpdate,
+)
 from prefect.client.utilities import inject_client
 from prefect.events.instrument import (
     ResourceTuple,
@@ -35,12 +43,6 @@ from prefect.events.instrument import (
     instrument_method_calls_on_class_instances,
 )
 from prefect.logging.loggers import disable_logger
-from prefect.server.schemas.core import (
-    DEFAULT_BLOCK_SCHEMA_VERSION,
-    BlockDocument,
-    BlockSchema,
-    BlockType,
-)
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
@@ -137,6 +139,40 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
         secrets.append(f"{name}.*")
     elif Block.is_block_class(type_):
         secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
+def _should_update_block_type(
+    local_block_type: BlockType, server_block_type: BlockType
+) -> bool:
+    """
+    Compares the fields of `local_block_type` and `server_block_type`.
+    Only compare the possible updatable fields as defined by `BlockTypeUpdate.updatable_fields`
+    Returns True if they are different, otherwise False.
+    """
+    fields = BlockTypeUpdate.updatable_fields()
+
+    local_block_fields = local_block_type.dict(include=fields, exclude_unset=True)
+    server_block_fields = server_block_type.dict(include=fields, exclude_unset=True)
+
+    if local_block_fields.get("description") is not None:
+        local_block_fields["description"] = html.unescape(
+            local_block_fields["description"]
+        )
+    if local_block_fields.get("code_example") is not None:
+        local_block_fields["code_example"] = html.unescape(
+            local_block_fields["code_example"]
+        )
+
+    if server_block_fields.get("description") is not None:
+        server_block_fields["description"] = html.unescape(
+            server_block_fields["description"]
+        )
+    if server_block_fields.get("code_example") is not None:
+        server_block_fields["code_example"] = html.unescape(
+            server_block_fields["code_example"]
+        )
+
+    return server_block_fields != local_block_fields
 
 
 @register_base_type
@@ -616,7 +652,7 @@ class Block(BaseModel, ABC):
                 "prefect.resource.id": (
                     f"prefect.block-document.{self._block_document_id}"
                 ),
-                "prefect.name": self._block_document_name,
+                "prefect.resource.name": self._block_document_name,
             },
             [
                 {
@@ -633,7 +669,18 @@ class Block(BaseModel, ABC):
         """
         Retieve the block class implementation given a schema.
         """
-        return lookup_type(cls, block_schema_to_key(schema))
+        return cls.get_block_class_from_key(block_schema_to_key(schema))
+
+    @classmethod
+    def get_block_class_from_key(cls: Type[Self], key: str) -> Type[Self]:
+        """
+        Retieve the block class implementation given a key.
+        """
+        # Ensure collections are imported and have the opportunity to register types
+        # before looking up the block class
+        prefect.plugins.load_prefect_collections()
+
+        return lookup_type(cls, key)
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: Dict[str, Dict[str, Any]]
@@ -662,6 +709,31 @@ class Block(BaseModel, ABC):
                 nested_block._is_anonymous = nested_block_document_info.get(
                     "is_anonymous"
                 )
+
+    @classmethod
+    @inject_client
+    async def _get_block_document(
+        cls,
+        name: str,
+        client: "PrefectClient" = None,
+    ):
+        if cls.__name__ == "Block":
+            block_type_slug, block_document_name = name.split("/", 1)
+        else:
+            block_type_slug = cls.get_block_type_slug()
+            block_document_name = name
+
+        try:
+            block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+        except prefect.exceptions.ObjectNotFound as e:
+            raise ValueError(
+                f"Unable to find block document named {block_document_name} for block"
+                f" type {block_type_slug}"
+            ) from e
+
+        return block_document, block_document_name
 
     @classmethod
     @sync_compatible
@@ -716,12 +788,14 @@ class Block(BaseModel, ABC):
             ```
 
             Load from Block with a block document slug:
+            ```python
             class Custom(Block):
                 message: str
 
             Custom(message="Hello!").save("my-custom-message")
 
             loaded_block = Block.load("custom/my-custom-message")
+            ```
 
             Migrate a block document to a new schema:
             ```python
@@ -745,21 +819,7 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        if cls.__name__ == "Block":
-            block_type_slug, block_document_name = name.split("/", 1)
-        else:
-            block_type_slug = cls.get_block_type_slug()
-            block_document_name = name
-
-        try:
-            block_document = await client.read_block_document_by_name(
-                name=block_document_name, block_type_slug=block_type_slug
-            )
-        except prefect.exceptions.ObjectNotFound as e:
-            raise ValueError(
-                f"Unable to find block document named {block_document_name} for block"
-                f" type {block_type_slug}"
-            ) from e
+        block_document, block_document_name = await cls._get_block_document(name)
 
         try:
             return cls._from_block_document(block_document)
@@ -825,9 +885,13 @@ class Block(BaseModel, ABC):
                 slug=cls.get_block_type_slug()
             )
             cls._block_type_id = block_type.id
-            await client.update_block_type(
-                block_type_id=block_type.id, block_type=cls._to_block_type()
-            )
+            local_block_type = cls._to_block_type()
+            if _should_update_block_type(
+                local_block_type=local_block_type, server_block_type=block_type
+            ):
+                await client.update_block_type(
+                    block_type_id=block_type.id, block_type=local_block_type
+                )
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
             cls._block_type_id = block_type.id
@@ -930,6 +994,18 @@ class Block(BaseModel, ABC):
         document_id = await self._save(name=name, overwrite=overwrite, client=client)
 
         return document_id
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def delete(
+        cls,
+        name: str,
+        client: "PrefectClient" = None,
+    ):
+        block_document, block_document_name = await cls._get_block_document(name)
+
+        await client.delete_block_document(block_document.id)
 
     def _iter(self, *, include=None, exclude=None, **kwargs):
         # Injects the `block_type_slug` into serialized payloads for dispatch

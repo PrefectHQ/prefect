@@ -10,8 +10,8 @@
 
 <script lang="ts" setup>
   import { PCode } from '@prefecthq/prefect-design'
-  import { ServerSettings } from '@prefecthq/prefect-ui-library'
   import { computed } from 'vue'
+  import { ServerSettings } from '@/models/ServerSettings'
 
   const props = defineProps<{
     engineSettings: ServerSettings,

@@ -80,7 +80,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool(
-        self, patch_import, tmp_path, process_work_pool, enable_workers
+        self, patch_import, tmp_path, process_work_pool
     ):
         Deployment.build_from_flow(
             flow=my_flow,
@@ -105,7 +105,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool
+        self, patch_import, tmp_path, process_work_pool, disable_workers
     ):
         Deployment.build_from_flow(
             flow=my_flow,
@@ -140,7 +140,7 @@ class TestOutputMessages:
         monkeypatch,
     ):
         with temporary_settings({PREFECT_UI_URL: "http://foo/bar"}):
-            d = Deployment.build_from_flow(
+            Deployment.build_from_flow(
                 flow=my_flow,
                 name="TEST",
                 flow_name="my_flow",
@@ -159,7 +159,7 @@ class TestOutputMessages:
     def test_updating_work_queue_concurrency_from_python_build(
         self, patch_import, tmp_path
     ):
-        d = Deployment.build_from_flow(
+        Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",
             flow_name="my_flow",
@@ -180,7 +180,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_missing_work_queue_name(self, patch_import, tmp_path):
-        d = Deployment.build_from_flow(
+        Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",
             flow_name="my_flow",
@@ -237,15 +237,15 @@ class TestOutputMessages:
 
 class TestUpdatingDeployments:
     @pytest.fixture
-    async def flojo(self, orion_client):
+    async def flojo(self, prefect_client):
         @flow
         async def rence_griffith():
             pass
 
-        flow_id = await orion_client.create_flow(rence_griffith)
+        flow_id = await prefect_client.create_flow(rence_griffith)
         old_record = IntervalSchedule(interval=timedelta(seconds=10.76))
 
-        deployment_id = await orion_client.create_deployment(
+        deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
             version="git-commit-hash",
@@ -591,8 +591,8 @@ class TestUpdatingDeployments:
 
 class TestDeploymentRun:
     @pytest.fixture
-    async def deployment_name(self, deployment, orion_client):
-        flow = await orion_client.read_flow(deployment.flow_id)
+    async def deployment_name(self, deployment, prefect_client):
+        flow = await prefect_client.read_flow(deployment.flow_id)
         return f"{flow.name}/{deployment.name}"
 
     def test_run_wraps_parameter_stdin_parsing_exception(self, deployment_name):
@@ -621,7 +621,7 @@ class TestDeploymentRun:
         invoke_and_assert(
             ["deployment", "run", deployment_name, "--param", 'x="foo"1'],
             expected_code=1,
-            expected_output_contains=f"Failed to parse JSON for parameter 'x'",
+            expected_output_contains="Failed to parse JSON for parameter 'x'",
         )
 
     def test_validates_parameters_are_in_deployment_schema(
@@ -629,7 +629,7 @@ class TestDeploymentRun:
         deployment_name,
     ):
         invoke_and_assert(
-            ["deployment", "run", deployment_name, "--param", f"x=test"],
+            ["deployment", "run", deployment_name, "--param", "x=test"],
             expected_code=1,
             expected_output_contains=[
                 "parameters were specified but not found on the deployment: 'x'",
@@ -650,7 +650,12 @@ class TestDeploymentRun:
         ],
     )
     async def test_passes_parameters_to_flow_run(
-        self, deployment, deployment_name, orion_client: PrefectClient, given, expected
+        self,
+        deployment,
+        deployment_name,
+        prefect_client: PrefectClient,
+        given,
+        expected,
     ):
         """
         This test ensures the parameters are set on the created flow run and that
@@ -661,7 +666,7 @@ class TestDeploymentRun:
             ["deployment", "run", deployment_name, "--param", f"name={given}"],
         )
 
-        flow_runs = await orion_client.read_flow_runs(
+        flow_runs = await prefect_client.read_flow_runs(
             deployment_filter=DeploymentFilter(
                 id=DeploymentFilterId(any_=[deployment.id])
             )
@@ -675,7 +680,7 @@ class TestDeploymentRun:
         self,
         deployment,
         deployment_name,
-        orion_client,
+        prefect_client,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -683,7 +688,7 @@ class TestDeploymentRun:
             json.dumps({"name": "foo"}),  # stdin
         )
 
-        flow_runs = await orion_client.read_flow_runs(
+        flow_runs = await prefect_client.read_flow_runs(
             deployment_filter=DeploymentFilter(
                 id=DeploymentFilterId(any_=[deployment.id])
             )
@@ -697,7 +702,7 @@ class TestDeploymentRun:
         self,
         deployment,
         deployment_name,
-        orion_client,
+        prefect_client,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -710,7 +715,7 @@ class TestDeploymentRun:
             ],
         )
 
-        flow_runs = await orion_client.read_flow_runs(
+        flow_runs = await prefect_client.read_flow_runs(
             deployment_filter=DeploymentFilter(
                 id=DeploymentFilterId(any_=[deployment.id])
             )

@@ -6,9 +6,9 @@ import pytest
 from fastapi import status
 
 import prefect
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
-from prefect.server.schemas.actions import WorkPoolCreate
-from prefect.server.schemas.core import WorkPool, WorkQueue
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -87,6 +87,12 @@ class TestCreateWorkPool:
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
+    async def test_create_work_pool_with_empty_name(self, client, name):
+        response = await client.post("/work_pools/", json=dict(name=name))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "name cannot be empty" in response.json()["detail"]
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
@@ -317,7 +323,7 @@ class TestUpdateWorkPool:
     ):
         name = "Pool 1"
 
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -356,7 +362,7 @@ class TestUpdateWorkPool:
                 "required": [],
             },
         }
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -400,7 +406,7 @@ class TestUpdateWorkPool:
             },
         }
 
-        pool = await models.workers.create_work_pool(
+        await models.workers.create_work_pool(
             session=session,
             work_pool=WorkPoolCreate(name=name),
         )
@@ -470,6 +476,65 @@ class TestCreateWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
+
+    async def test_create_work_queue_with_priority(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        data = dict(name="my-wpq", priority=99)
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues",
+            json=data,
+        )
+        assert response.status_code == 201
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
+
+    async def test_create_work_queue_with_no_priority_when_low_priority_set(
+        self,
+        client,
+        work_pool,
+    ):
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-1")
+        )
+        # priority 2 because the default queue exists
+        assert response.json()["priority"] == 2
+
+        response2 = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-2")
+        )
+        assert response2.json()["priority"] == 3
+
+    async def test_create_work_queue_with_no_priority_when_high_priority_set(
+        self,
+        client,
+        session,
+        work_pool,
+    ):
+        response = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-1", priority=99)
+        )
+        assert response.json()["priority"] == 99
+        work_queue_id = response.json()["id"]
+
+        response2 = await client.post(
+            f"work_pools/{work_pool.name}/queues", json=dict(name="wpq-2")
+        )
+        assert response2.json()["priority"] == 2
+
+        work_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        assert work_queue.priority == 99
 
 
 class TestReadWorkQueue:
@@ -488,6 +553,7 @@ class TestReadWorkQueue:
         result = pydantic.parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
+        assert result.work_pool_name == work_pool.name
 
 
 class TestUpdateWorkQueue:
@@ -531,7 +597,7 @@ class TestWorkerProcess:
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 0
 
-        dt = pendulum.now()
+        dt = pendulum.now("UTC")
         response = await client.post(
             f"/work_pools/{work_pool.name}/workers/heartbeat",
             json=dict(name="test-worker"),
@@ -553,7 +619,7 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_upserts_for_same_name(self, client, work_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
-            response = await client.post(
+            await client.post(
                 f"/work_pools/{work_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )
@@ -566,7 +632,7 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_limit(self, client, work_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
-            response = await client.post(
+            await client.post(
                 f"/work_pools/{work_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )
@@ -682,7 +748,7 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.states.Scheduled(
-                            scheduled_time=pendulum.now().add(hours=i)
+                            scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -775,7 +841,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_before=str(pendulum.now())),
+            json=dict(scheduled_before=str(pendulum.now("UTC"))),
         )
 
         data = pydantic.parse_obj_as(
@@ -786,7 +852,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_after(self, client, work_pools):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_after=str(pendulum.now())),
+            json=dict(scheduled_after=str(pendulum.now("UTC"))),
         )
 
         data = pydantic.parse_obj_as(
@@ -798,8 +864,8 @@ class TestGetScheduledRuns:
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
-                scheduled_before=str(pendulum.now().subtract(hours=1)),
-                scheduled_after=str(pendulum.now()),
+                scheduled_before=str(pendulum.now("UTC").subtract(hours=1)),
+                scheduled_after=str(pendulum.now("UTC")),
             ),
         )
 
@@ -811,7 +877,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_single_work_queue(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
@@ -843,7 +909,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_multiple_work_queues(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
@@ -874,7 +940,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_full_work_pool(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now()
+        now = pendulum.now("UTC")
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
         )

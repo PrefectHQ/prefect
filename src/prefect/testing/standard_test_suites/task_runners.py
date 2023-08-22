@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import time
 from abc import ABC, abstractmethod
 from functools import partial
@@ -12,8 +11,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import StateType
 from prefect.logging import get_run_logger
-from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
@@ -48,6 +47,17 @@ class TaskRunnerStandardTestSuite(ABC):
     @abstractmethod
     def task_runner(self) -> BaseTaskRunner:
         pass
+
+    @pytest.fixture
+    def tmp_file(self, tmp_path):
+        file_path = tmp_path / "canary.txt"
+        file_path.touch()
+        return file_path
+
+    async def test_duplicate(self, task_runner):
+        new = task_runner.duplicate()
+        assert new == task_runner
+        assert new is not task_runner
 
     async def test_successful_flow_run(self, task_runner):
         @task
@@ -121,12 +131,6 @@ class TaskRunnerStandardTestSuite(ABC):
             " 'COMPLETED' state"
             in d.message
         )
-
-    @pytest.fixture
-    def tmp_file(self, tmp_path):
-        tmp_file = tmp_path / "canary.txt"
-        tmp_file.touch()
-        return tmp_file
 
     def test_sync_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
@@ -459,17 +463,7 @@ class TaskRunnerStandardTestSuite(ABC):
             # CI machines are slow
             sleep_time += 3
 
-        if sys.version_info < (3, 8):
-            # Python 3.7 is slower
-            sleep_time += 0.5
-
         return sleep_time
-
-    @pytest.fixture
-    def tmp_file(self, tmp_path):
-        tmp_file = tmp_path / "canary.txt"
-        tmp_file.touch()
-        return tmp_file
 
     def test_sync_tasks_run_sequentially_with_sequential_task_runners(
         self, task_runner, tmp_file

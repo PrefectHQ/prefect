@@ -55,6 +55,9 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record_dict = record.__dict__.copy()
 
+        # GCP severity detection compatibility
+        record_dict.setdefault("severity", record.levelname)
+
         # replace any exception tuples returned by `sys.exc_info()`
         # with a JSON-serializable `dict`.
         if record.exc_info:

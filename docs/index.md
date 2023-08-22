@@ -1,224 +1,227 @@
 ---
-description: Learn about Prefect 2, our second-generation workflow coordination and orchestration engine.
+icon: material/star-shooting-outline
+title: Welcome to Prefect
+description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 tags:
     - getting started
+    - quick start
     - overview
+hide:
+  - toc
+search:
+  boost: 2
 ---
 
-# Welcome to Prefect 2
+# **Welcome to Prefect**
 
-!!! tip "Changing 'Orion' nomenclature"
-    With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
+Prefect is a workflow orchestration tool empowering developers to build, observe, and react to data pipelines.
+
+It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
+
+With Prefect you gain:
+
+<ul class="ul-line-height-compress" style="columns: 2">
+    <li> <a href="/concepts/schedules"> scheduling </a> </li>
+    <li> <a href="/concepts/tasks/#task-arguments"> retries </a> </li>
+    <li> <a href="/concepts/logs/"> logging </a> </li>
+     <li> <a href="/concepts/task-runners/#task-runners"> convenient async functionality</a> </li>
+    <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
+    <li> <a href="/cloud/automations/"> notifications</a> </li>
+    <li> <a href="/cloud/overview/"> observability</a> </li>
+    <li> <a href="/cloud/webhooks/"> event-based orchestration</a> </li>
+</ul>
+
+<figure markdown>
+![screenshot of Cloud UI timeline view with menu](img/ui/dashboard-cloud.png)
+<figcaption>Prefect UI</figcaption>
+</figure>
+
+#### New to Prefect?
+Start with the [tutorial](/tutorial/) and then check out the [concepts](/concepts/index/) for more in-depth information. For deeper dives on specific use cases, explore our [guides](guides/index/) for common use-cases. <div style="height: 10px"></div>
+
+[Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
+
+<div style="height: 10px"></div>
+<p>Alternatively, read on for a quickstart of Prefect. </p>
+---
+
+## Prefect Quickstart
+
+### Step 1: Install Prefect
+
+<div class="terminal">
+```bash
+pip install -U prefect
+```
+</div>
+
+See the [install guide](/getting-started/installation/) for more detailed installation instructions.
+### Step 2: Connect to Prefect's API
+
+Sign up for a forever free [Prefect Cloud account](/cloud/) or, alternatively, host your own [server](/host/) with a subset of Prefect Cloud's features.
+
+1. If using Prefect Cloud sign in with an existing account or create a new account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
+2. If setting up a new account, [create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
+3. Use the `prefect cloud login` Prefect CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
+
+    <div class="terminal">
+    ```bash
+    prefect cloud login
+    ```
+    </div>
+
+### Step 3: Create a flow
+**The fastest way to get started with Prefect is to add a `@flow` decorator to any python function**.
+
+!!! tip "Rules of Thumb"
+    - At a minimum, you need to define at least one [flow](/tutorial/flows/) function.
+    - Your flows can be segmented by introducing [task](/tutorial/tasks/) (`@task`) functions, which can be invoked from within these flows.
+    - A [task](/concepts/tasks/) represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
+    - [Flows](/concepts/flows) can be called inside of other flows (we call these [subflows](/concepts/flows/#composing-flows)) but a task **cannot** be run inside of another task or from outside the context of a flow.
+
+Here is an example flow named `Repo Info` that contains two tasks:
+```python
+# my_flow.py
+import httpx
+from prefect import flow, task
+
+@task(retries=2)
+def get_repo_info(repo_owner: str, repo_name: str):
+    """ Get info about a repo - will retry twice after failing """
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    api_response = httpx.get(url)
+    api_response.raise_for_status()
+    repo_info = api_response.json()
+    return repo_info
+
+
+@task
+def get_contributors(repo_info: dict):
+    contributors_url = repo_info["contributors_url"]
+    response = httpx.get(contributors_url)
+    response.raise_for_status()
+    contributors = response.json()
+    return contributors
+
+@flow(name="Repo Info", log_prints=True)  
+def repo_info(
+    repo_owner: str = "PrefectHQ", repo_name: str = "prefect"
+):
+    # call our `get_repo_info` task
+    repo_info = get_repo_info(repo_owner, repo_name)
+    print(f"Stars 🌠 : {repo_info['stargazers_count']}")
+
+    # call our `get_contributors` task, 
+    # passing in the upstream result
+    contributors = get_contributors(repo_info)
+    print(
+        f"Number of contributors 👷: {len(contributors)}"
+    )
+
+
+if __name__ == "__main__":
+    # Call a flow function for a local flow run!
+    repo_info()
+```
+
+### Step 4: Run your flow locally
+Call any function that you've decorated with a `@flow` decorator to see a local instance of a flow run.
+
+<div class="terminal">
+```bash
+python my_flow.py
+```
+</div> 
+
+<div class="terminal">
+```bash
+18:21:40.235 | INFO    | prefect.engine - Created flow run 'fine-gorilla' for flow 'Repo Info'
+18:21:40.237 | INFO    | Flow run 'fine-gorilla' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/c859e5b6-1539-4c77-81e0-444c2ddcaafe/flow-runs/flow-run/c5a85193-69ea-4577-aa0e-e11adbf1f659
+18:21:40.837 | INFO    | Flow run 'fine-gorilla' - Created task run 'get_repo_info-0' for task 'get_repo_info'
+18:21:40.838 | INFO    | Flow run 'fine-gorilla' - Executing 'get_repo_info-0' immediately...
+18:21:41.468 | INFO    | Task run 'get_repo_info-0' - Finished in state Completed()
+18:21:41.477 | INFO    | Flow run 'fine-gorilla' - Stars 🌠 : 12340
+18:21:41.606 | INFO    | Flow run 'fine-gorilla' - Created task run 'get_contributors-0' for task 'get_contributors'
+18:21:41.607 | INFO    | Flow run 'fine-gorilla' - Executing 'get_contributors-0' immediately...
+18:21:42.225 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
+18:21:42.232 | INFO    | Flow run 'fine-gorilla' - Number of contributors 👷: 30
+18:21:42.383 | INFO    | Flow run 'fine-gorilla' - Finished in state Completed('All states completed.')
+```
+</div>
+
+
+You'll find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
+
+![Alt text](img/ui/flow-run-diagram.jpg)
+
+Local flow run execution is great for development and testing, but to [schedule flow runs](/concepts/schedules/) or [trigger them based on events](/cloud/automations/), you’ll need to [deploy](/concepts/deployments/) your flows.
+
+
+### Step 5: Deploy the flow
+
+[Deploying](/tutorial/deployments/) your flows informs the Prefect API of where, how, and when to run your flows.
+
+!!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
+
+When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Select the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional [schedule](/concepts/schedules/), create a [work pool](/tutorial/deployments/#why-work-pools-and-workers), optionally configure [remote flow code storage](/concepts/deployments/#the-pull-action), and more!
+
+<div class="terminal">
+```bash
+prefect deploy
+```
+</div>
+
+!!! note "It's recommended to save the configuration for the deployment."
+    Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments-ux/) for this repo. 
+
+
+### Step 5: Start a [worker](/tutorial/deployments/#why-work-pools-and-workers) and [run the deployed flow](/concepts/deployments/#create-a-flow-run-from-a-deployment)
+
+Start a [worker](/concepts/work-pools/#worker-overview) to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
+
+In a new terminal, run:
+<div class="terminal">
+```bash
+prefect worker start --pool '<work-pool-name>'
+```
+</div>
+
+Now that your worker is running, you are ready to [kick off deployed flow runs from the UI](/concepts/deployments/#create-a-flow-run-with-prefect-ui) or by running:
+
+<div class="terminal">
+```bash
+prefect deployment run '<flow-name>/<deployment-name>'
+```
+</div>
+
+Check out this flow run's logs from the Flow Runs page in the UI or from the worker logs. Congrats on your first successfully deployed flow run! 🎉
+
+You've seen:
+
+- how to define your flows and tasks using decorators
+- how to deploy a flow
+- how to start a worker
+
+## Next Steps
+
+To learn more, try our [tutorial](/tutorial) and [guides](/guides), or go deeper with [concepts](/concepts).
+
+!!! tip "Need help?"
+    Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+
+---
+
+## Community
+
+- Join over 26,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
+- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect)
+
+---
+
+!!! tip "Changing from 'Orion'"
+    With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, and variables. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
 
 !!! help "Looking for Prefect 1 Core and Server?"
-    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
-
-    [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/) is available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
-
-## Prefect coordinates your dataflow
-
-Prefect is [air traffic control for the modern data stack](https://www.prefect.io/guide/blog/the-global-coordination-plane#ATCfortheMDS). Monitor, coordinate, and orchestrate dataflows between and across your applications. Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
-
-<div class="video-wrapper">
-  <iframe width="100%" height="500" src="https://www.youtube.com/embed/ZK1s8OfVSpY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-</div>
-
-## Why Prefect?
-
-If you move data, you probably need the following functionality:
-
-- [scheduling](/concepts/schedules/)
-- [retries](/concepts/tasks/#task-arguments)
-- [logging](/concepts/logs/)
-- [caching](/concepts/tasks/#caching)
-- [notifications](/ui/notifications/)
-- [observability](/ui/overview/)
-
-Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code.
-
-That's why Prefect 2 offers all this functionality and more! 
-
-## Getting started with Prefect
-
-Prefect 2 was designed for incremental adoption into your workflows. The documentation is organized to support your exploration. Here are a few sections you might find helpful:
-
-**Getting started**
-
-Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See our [Quick Start](/getting-started/overview/) guide for details if you're ready to jump right in.
-
-Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
-
-**Concepts**
-
-Learn more about Prefect 2's design by reading our in-depth [concept docs](/concepts/overview/). The concept docs introduce the building blocks of Prefect, build up to orchestration and deployment, and cover some of the advanced use cases that Prefect makes possible.
-
-**Prefect UI & Prefect Cloud**
-
-See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make coordinating dataflows a joy.
-
-**Integrations**
-
-Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/catalog/) learn about our pre-built integrations and see how to add your own.
-
-**Frequently asked questions**
-
-Prefect 2 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](/faq/) and checking out the [Prefect Discourse](https://discourse.prefect.io/).
-
-**API reference**
-
-Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview/). This section is where you can learn how a specific function works or see the expected payload for a REST endpoint.
-
-**Contributing**
-
-Learn how [you can get involved](/contributing/overview/).
-
-Prefect 2 is made possible by the fastest-growing community of data practitioners. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. 
-
-The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. 
-
-**Recipes**
-
-[Prefect Recipes](/recipes/recipes/) are general, extensible examples to common needs related to setting up Prefect, with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
-
-## Prefect highlights
-
-**Graceful failures**
-
-Inevitably dataflows will fail. Prefect helps your code automatically retry on failure. 
-
-**Notifications**
-
-Easily set up e-mail, Slack, or PagerDuty notifications so that the right people are notified when something doesn't go as planned. 
-
-**Designed for performance**
-
-Prefect 2 has been designed from the ground up to handle the dynamic, scalable workloads that today's dataflows demands. 
-
-**Integrates with other modern data tools**
-
-Prefect has [integrations](/collections/catalog/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
-
-**Simple concurrency**
-
-Prefect makes it easy to run your code [asynchronously](/concepts/task-runners/). Prefect allows you to write workflows mixing synchronous and asynchronous tasks without worrying about the complexity of managing event loops.
-
-**Easy distributed parallel processing**
-
-Prefect makes it easy to send tasks to remote clusters for distributed parallel processing with [Dask](https://github.com/PrefectHQ/prefect-dask) and [Ray](https://github.com/PrefectHQ/prefect-ray) integrations. 
-
-**Works well with containers**
-
-Prefect is often used with [Docker and Kubernetes](/concepts/deployments/). 
-
-**Automations**
-
-Configure all sorts of actions to run in response to triggers via [automations](/ui/automations/).
-
-**Security first**
-
-Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means:
-
-- **(OSS)** Prefect's orchestration and execution layers can be managed independently
-- **(Cloud)** your data can stay in your environment while Prefect Cloud manages orchestration of your dataflow
-
-Prefect Technologies is SOC2 Type II compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
-
-**A user friendly, interactive dashboard for your dataflows**
-
-In the [Prefect UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
-
-**Faster and easier than building from scratch**
-
-It's estimated that up to 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Building the functionality that Prefect 2 delivers by hand would be a significant cost of engineering time. 
-
-**Flexible** 
-
-Some workflow tools require you to make DAGs (directed acyclic graphs). DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Prefect 2 allows you to create dynamic dataflows in native Python - no DAGs required. 
-
-**Incremental adoption**
-
-Prefect 2 is designed for incremental adoption. You can decorate as many of your dataflow functions as you like and get all the benefits of Prefect as you go!
-
-## Prefect in action
-
-To dive right in and see what Prefect 2 can do, simply sprinkle in a few decorators and add a little configuration, like the example below. 
-
-This code fetches data about GitHub stars for a few repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
-
-
-```python hl_lines="1 4 10"
-from prefect import flow, task
-import httpx
-
-@task(retries=3)
-def get_stars(repo):
-    url = f"https://api.github.com/repos/{repo}"
-    count = httpx.get(url).json()["stargazers_count"]
-    print(f"{repo} has {count} stars!")
-
-@flow
-def github_stars(repos):
-    for repo in repos:
-        get_stars(repo)
-
-# call the flow!
-github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
-```
-
-Run the code:
-
-<div class="terminal">
-```bash
-python github_stars_example.py
-```
-</div>
-
-And see the logger's output in your terminal:
-
-<div class="terminal">
-```bash
-10:56:06.988 | INFO    | prefect.engine - Created flow run 'grinning-crab' for flow 'github-stars'
-10:56:06.988 | INFO    | Flow run 'grinning-crab' - Using task runner 'ConcurrentTaskRunner'
-10:56:06.996 | WARNING | Flow run 'grinning-crab' - No default storage is configured on the server. Results from this flow run will be stored in a temporary directory in its runtime environment.
-10:56:07.027 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-0' for task 'get_stars'
-PrefectHQ/Prefect has 9579 stars!
-10:56:07.190 | INFO    | Task run 'get_stars-2ca9fbe1-0' - Finished in state Completed()
-10:56:07.199 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-1' for task 'get_stars'
-PrefectHQ/prefect-aws has 7 stars!
-10:56:07.327 | INFO    | Task run 'get_stars-2ca9fbe1-1' - Finished in state Completed()
-10:56:07.337 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-2' for task 'get_stars'
-PrefectHQ/prefect-dbt has 12 stars!
-10:56:07.464 | INFO    | Task run 'get_stars-2ca9fbe1-2' - Finished in state Completed()
-10:56:07.477 | INFO    | Flow run 'grinning-crab' - Finished in state Completed('All states completed.')
-```
-</div>
-
-By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
-
-**Observe your flow runs in the Prefect UI**
-
-Fire up the Prefect UI locally by entering this command in your terminal:
-
-<div class="terminal">
-```bash
-prefect server start
-```
-</div>
-
-Follow the link in your terminal to see the dashboard.
-
-![screenshot of the Prefect dashboard with flow runs in a scatter plot](/img/intro-ui-dashboard.png)
-
-Click on your flow name to see logs and other details.
-
-![screenshot of the Prefect dashboard with logs, radar plot, and flow info](/img/intro-ui-logs.png)
-
-The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
-
-## Next steps
-
-Follow the [Getting Started docs](getting-started/overview/) and start building!
-
-While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
-
-Thank you for joining us in our mission to coordinate the world's dataflow and, of course, **happy engineering!**
+    Prefect 2 is used by thousands of teams in production. It is highly recommended that you use Prefect 2 for all new projects. 
+    
+    If you are looking for the Prefect 1 Core and Server documentation, it is still available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).

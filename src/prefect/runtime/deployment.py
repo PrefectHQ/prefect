@@ -3,6 +3,9 @@ Access attributes of the current deployment run dynamically.
 
 Note that if a deployment is not currently being run, all attributes will return empty values.
 
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__DEPLOYMENT`.
+
 Example usage:
     ```python
     from prefect.runtime import deployment
@@ -22,7 +25,7 @@ Available attributes:
         object or those directly provided via API for this run
 """
 import os
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
@@ -35,17 +38,49 @@ __all__ = ["id", "flow_run_id", "name", "parameters", "version"]
 CACHED_DEPLOYMENT = {}
 
 
+type_cast = {
+    bool: lambda x: x.lower() == "true",
+    int: int,
+    float: float,
+    str: str,
+    # for optional defined attributes, when real value is NoneType, use str
+    type(None): str,
+}
+
+
 def __getattr__(name: str) -> Any:
     """
     Attribute accessor for this submodule; note that imports also work with this:
 
         from prefect.runtime.flow_run import id
     """
+
     func = FIELDS.get(name)
+
+    # if `name` is an attribute but it is mocked through environment variable, the mocked type will be str,
+    # which might be different from original one. For consistency, cast env var to the same type
+    env_key = f"PREFECT__RUNTIME__DEPLOYMENT__{name.upper()}"
+
     if func is None:
-        raise AttributeError(f"{__name__} has no attribute {name!r}")
+        if env_key in os.environ:
+            return os.environ[env_key]
+        else:
+            raise AttributeError(f"{__name__} has no attribute {name!r}")
+
+    real_value = func()
+    if env_key in os.environ:
+        mocked_value = os.environ[env_key]
+        # cast `mocked_value` to the same type as `real_value`
+        try:
+            cast_func = type_cast[type(real_value)]
+            return cast_func(mocked_value)
+        except KeyError:
+            raise ValueError(
+                "This runtime context attribute cannot be mocked using an"
+                " environment variable. Please use monkeypatch instead."
+            )
     else:
-        return func()
+        return real_value
 
 
 def __dir__() -> List[str]:
@@ -79,7 +114,7 @@ def get_id() -> Optional[str]:
         return str(deployment_id)
 
 
-def get_parameters() -> dict:
+def get_parameters() -> Dict:
     run_id = get_flow_run_id()
     if run_id is None:
         return {}
@@ -90,7 +125,7 @@ def get_parameters() -> dict:
     return flow_run.parameters or {}
 
 
-def get_name() -> dict:
+def get_name() -> Optional[Dict]:
     dep_id = get_id()
 
     if dep_id is None:
@@ -102,7 +137,7 @@ def get_name() -> dict:
     return deployment.name
 
 
-def get_version() -> dict:
+def get_version() -> Optional[Dict]:
     dep_id = get_id()
 
     if dep_id is None:

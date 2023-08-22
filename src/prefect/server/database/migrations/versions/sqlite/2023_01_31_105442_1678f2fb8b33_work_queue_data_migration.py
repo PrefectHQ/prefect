@@ -16,8 +16,6 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     # Create temporary indexes for migration
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON"
@@ -49,8 +47,8 @@ def upgrade():
     if not default_queue:
         connection.execute(
             sa.text(
-                f"INSERT INTO work_queue (name, work_pool_id) VALUES ('default',"
-                f" :default_pool_id)"
+                "INSERT INTO work_queue (name, work_pool_id) VALUES ('default',"
+                " :default_pool_id)"
             ).params({"default_pool_id": default_pool_id}),
         )
 
@@ -140,12 +138,8 @@ def upgrade():
     op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
     op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
 
-    op.execute("PRAGMA foreign_keys=ON")
-
 
 def downgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     connection = op.get_bind()
     # Create temporary indexes for migration
     op.execute(
@@ -225,5 +219,3 @@ def downgrade():
 
     op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
     op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
-
-    op.execute("PRAGMA foreign_keys=ON")

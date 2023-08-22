@@ -1,4 +1,4 @@
-"""
+r"""
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
@@ -11,6 +11,7 @@ import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -32,13 +33,13 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
+from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
@@ -224,6 +225,7 @@ class FlowRunContext(RunContext):
     flow_run: FlowRun
     task_runner: BaseTaskRunner
     log_prints: bool = False
+    parameters: Dict[str, Any]
 
     # Result handling
     result_factory: ResultFactory
@@ -262,13 +264,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
-    timeout_scope: Optional[anyio.abc.CancelScope] = None
     log_prints: bool = False
+    parameters: Dict[str, Any]
 
     # Result handling
     result_factory: ResultFactory
@@ -320,7 +321,8 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            os.makedirs(self.settings.value_of(PREFECT_HOME), exist_ok=True)
+            prefect_home = Path(self.settings.value_of(PREFECT_HOME))
+            prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(
                 (
@@ -405,7 +407,7 @@ def tags(*new_tags: str) -> Set[str]:
         >>> @flow
         >>> def my_flow():
         >>>     pass
-        >>> with tags("a", b"):
+        >>> with tags("a", "b"):
         >>>     my_flow()  # has tags: a, b
 
         Run a task with nested tag contexts

@@ -49,6 +49,7 @@ async def read_flow_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[SimpleFlowRun]:
     columns = [
@@ -68,6 +69,7 @@ async def read_flow_run_history(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
+            work_pool_filter=work_pools,
             sort=sort,
             limit=limit,
             offset=offset,

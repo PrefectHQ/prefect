@@ -1,11 +1,13 @@
 import datetime
 from uuid import uuid4
 
+import anyio
 import pendulum
 import pytest
 
 from prefect.server import models, schemas
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.orchestration.core_policy import PreventPendingTransitions
 from prefect.server.orchestration.dependencies import (
     provide_flow_orchestration_parameters,
     provide_flow_policy,
@@ -16,8 +18,9 @@ from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
+    OrchestrationContext,
 )
-from prefect.server.schemas.states import Running, Scheduled, StateType
+from prefect.server.schemas.states import Pending, Running, Scheduled, StateType
 
 
 class TestSetFlowRunState:
@@ -28,6 +31,110 @@ class TestSetFlowRunState:
                 flow_run_id=uuid4(),
                 state=StateType.CANCELLED,
             )
+
+    async def test_locks_row_for_update(self, db, flow_run):
+        """
+        Session 1:
+
+            - Set to SCHEDULED
+            - Set to PENDING
+                - Before commiting, wait for session 2 to begin orchestrating
+
+        Session 2:
+
+            - Set to PENDING
+            - PENDING -> PENDING transition should be blocked if locked correctly
+            - If not locked correctly, session 2 will see SCHEDULED -> PENDING
+
+        """
+        orchestrating_1 = anyio.Event()
+        orchestrating_2 = anyio.Event()
+
+        class TestRule1(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(
+                self, initial_state, proposed_state, context: OrchestrationContext
+            ):
+                orchestrating_1.set()
+
+                # If we implement this correctly, this will actually deadlock as 2
+                # will not be set until after 1 exits its transaction so we will not
+                # wait forever. Some wait here is necessary for a reproduction.
+                with anyio.move_on_after(1):
+                    await orchestrating_2.wait()
+
+                print("Session 1:", initial_state, proposed_state)
+                assert initial_state.type == StateType.SCHEDULED
+
+        class TestRule2(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(
+                self, initial_state, proposed_state, context: OrchestrationContext
+            ):
+                orchestrating_2.set()
+                print("Session 2:", initial_state, proposed_state)
+                assert initial_state.type == StateType.PENDING, (
+                    "The second transition should use the result of the first"
+                    f" transition as its initial state. Got {initial_state.type}."
+                )
+
+        class TestPolicy1(BaseOrchestrationPolicy):
+            def priority():
+                return [
+                    TestRule1,
+                    PreventPendingTransitions,
+                ]
+
+        class TestPolicy2(BaseOrchestrationPolicy):
+            def priority():
+                return [
+                    TestRule2,
+                    PreventPendingTransitions,
+                ]
+
+        async def session_1():
+            async with db.session_context(
+                # Postgres locks the table in the `set_flow_run_state` call but
+                #  SQLite requires the lock to be set when creating the transaction
+                begin_transaction=True,
+                with_for_update=True,
+            ) as session1:
+                await models.flow_runs.set_flow_run_state(
+                    session=session1,
+                    flow_run_id=flow_run.id,
+                    state=Pending(),
+                    flow_policy=TestPolicy1(),
+                )
+
+        async def session_2():
+            # Do not start until we are orchestrating in session 1
+            await orchestrating_1.wait()
+
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session2:
+                await models.flow_runs.set_flow_run_state(
+                    session=session2,
+                    flow_run_id=flow_run.id,
+                    state=Pending(),
+                    flow_policy=TestPolicy2(),
+                )
+
+        # Start in a scheduled state
+        async with db.session_context(begin_transaction=True) as session:
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=Scheduled(),
+            )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(session_1)
+            tg.start_soon(session_2)
 
 
 class TestCreateFlowRunState:
@@ -44,7 +151,7 @@ class TestCreateFlowRunState:
         assert flow_run_state.state_details.flow_run_id == flow_run.id
 
     async def test_run_details_are_updated_entering_running(self, flow_run, session):
-        frs = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Scheduled(),
@@ -57,7 +164,7 @@ class TestCreateFlowRunState:
         assert flow_run.total_run_time == datetime.timedelta(0)
 
         dt = pendulum.now("UTC")
-        frs2 = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Running(timestamp=dt),
@@ -70,7 +177,7 @@ class TestCreateFlowRunState:
         assert flow_run.estimated_run_time > datetime.timedelta(0)
 
         dt2 = pendulum.now("utc")
-        frs3 = await models.flow_runs.set_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=Running(timestamp=dt2),
@@ -91,7 +198,7 @@ class TestCreateFlowRunState:
         frs = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
             flow_policy=await provide_flow_policy(),
         )
 
@@ -118,7 +225,7 @@ class TestCreateFlowRunState:
             frs = await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                 flow_policy=await provide_flow_policy(),
             )
 
@@ -154,7 +261,7 @@ class TestCreateFlowRunState:
                 frs = await models.flow_runs.set_flow_run_state(
                     session=session,
                     flow_run_id=flow_run.id,
-                    state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                    state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
                     flow_policy=await provide_flow_policy(),
                     orchestration_parameters=await provide_flow_orchestration_parameters(),
                 )
