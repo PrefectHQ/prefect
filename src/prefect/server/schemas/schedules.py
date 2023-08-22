@@ -336,17 +336,21 @@ class CronSchedule(PrefectBaseModel):
                 microsecond=start.microsecond,
             )
         )
+        start_naive_tz = start.naive()
 
         # Respect microseconds by rounding up
         if start_localized.microsecond > 0:
             start_localized += datetime.timedelta(seconds=1)
 
-        cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
+        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
         counter = 0
 
         while True:
-            next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            delta = cron.get_next(datetime.datetime) - start_naive_tz
+            next_date = pendulum.instance(
+                pytz.timezone(start.tz.name).normalize(start_localized + delta)
+            )
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
