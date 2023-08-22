@@ -89,7 +89,7 @@ Ensure the bucket is publicly accessible or create a user or service account wit
 
 If the bucket is private, there are several options to authenticate:
 
-1. Use a worker that is authenticated at deployment run time.
+1. At deployment runtime, ensure the runtime environment is authenticated.
 2. Create a block with configuration details and reference it when creating the storage block.
 
 If saving credential details in a block we can use a credentials block specific to the cloud provider or use a more generic secret block.
