@@ -128,7 +128,7 @@ Below we'll use Python code to create a credentials block for our cloud provider
 
 === "GCP"
 
-    We recommend using specifying the service account key file contents as a string, rather than the path to the file, because that file will not be available in most production environments.
+    We recommend specifying the service account key file contents as a string, rather than the path to the file, because that file might not be available in your production environments.
 
     ```python
     import os
