@@ -9,14 +9,13 @@ import yaml
 
 import prefect
 from prefect.deployments.base import (
+    _find_flow_functions_in_file,
+    _search_for_flow_functions,
     configure_project_by_recipe,
     find_prefect_directory,
     initialize_project,
     register_flow,
-    _search_for_flow_functions,
-    _find_flow_functions_in_file,
 )
-
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
