@@ -128,7 +128,7 @@ Below we'll use Python code to create a credentials block for our cloud provider
 
 === "GCP"
 
-    We recommend using specifying the service account key file contents as a string, rather than the path to the file, because that file will not be available in most production environments.
+    We recommend specifying the service account key file contents as a string, rather than the path to the file, because that file might not be available in your production environments.
 
     ```python
     import os
@@ -144,7 +144,7 @@ Run the code to create the block. We should see a message that the block was cre
 
 ## Create a storage block
 
-Let's create a block for cloud provider using Python code or the UI.
+Let's create a block for the chosen cloud provider using Python code or the UI.
 In this example we'll use Python code.
 
 === "AWS"
