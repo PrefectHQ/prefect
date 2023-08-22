@@ -144,7 +144,7 @@ Run the code to create the block. We should see a message that the block was cre
 
 ## Create a storage block
 
-Let's create a block for cloud provider using Python code or the UI.
+Let's create a block for the chosen cloud provider using Python code or the UI.
 In this example we'll use Python code.
 
 === "AWS"
