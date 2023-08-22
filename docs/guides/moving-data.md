@@ -310,11 +310,17 @@ Use your block to read data from your cloud provider inside a flow.
     from prefect import flow
     from prefect_gcp.cloud_storage import GcsBucket
 
-    gcs_block = GcsBucket.load("zoom-gcs")
-    gcs_block.get_directory(
-        from_path="my_path_to/my_file.parquet", 
-        local_path="my_path_to/my_file.parquet"
-    )
+    @flow
+    def download_from_gcs():
+        gcs_block = GcsBucket.load("zoom-gcs")
+        gcs_block.get_directory(
+            from_path="my_path_to/my_file.parquet", 
+            local_path="my_path_to/my_file.parquet"
+        )
+
+    if __name__ == "__main__":
+        download_from_gcs()
+
     ```
 
 In this guide we've seen how to use Prefect to read data from and write data to cloud providers!
