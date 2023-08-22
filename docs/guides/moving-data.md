@@ -149,8 +149,8 @@ In this example we'll use Python code.
 
 === "AWS"
 
-    Note that the S3Bucket block is not the same as the S3 block that ships with Prefect. 
-    The S3Bucket block we use in this example is part of the prefect-aws library and provides additional functionality. 
+    Note that the `S3Bucket` block is not the same as the `S3` block that ships with Prefect. 
+    The `S3Bucket` block we use in this example is part of the `prefect-aws` library and provides additional functionality. 
 
     We'll reference the credentials block created above.
 
@@ -166,15 +166,15 @@ In this example we'll use Python code.
 
 === "Azure"
 
-    Note that the AzureBlobStorageCredentials block is not the same as the Azure block that ships with Prefect. 
-    The AzureBlobStorageCredentials block we use in this example is part of the prefect-azure library and provides additional functionality. 
+    Note that the `AzureBlobStorageCredentials` block is not the same as the Azure block that ships with Prefect. 
+    The `AzureBlobStorageCredentials` block we use in this example is part of the `prefect-azure` library and provides additional functionality. 
 
-    Azure blob storage doesn't require a separate block, the connection string used in the AzureBlobStorageCredentials block can encode the information needed. 
+    Azure blob storage doesn't require a separate block, the connection string used in the `AzureBlobStorageCredentials` block can encode the information needed. 
 
 === "GCP"
 
-    Note that the GcsBucket block is not the same as the GCS block that ships with Prefect. 
-    The GcsBucket block is part of the prefect-gcp library and provides additional functionality. 
+    Note that the `GcsBucket` block is not the same as the `GCS` block that ships with Prefect. 
+    The `GcsBucket` block is part of the `prefect-gcp` library and provides additional functionality. 
     We'll use it here.
 
     We'll reference the credentials block created above.
@@ -327,5 +327,5 @@ In this guide we've seen how to use Prefect to read data from and write data to 
 
 ## Next steps
 
-Check out the [prefect-aws](https://prefecthq.github.io/prefect-aws/), [prefect-azure](https://prefecthq.github.io/prefect-azure/), and [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
+Check out the [`prefect-aws`](https://prefecthq.github.io/prefect-aws/), [`prefect-azure`](https://prefecthq.github.io/prefect-azure/), and [`prefect-gcp`](https://prefecthq.github.io/prefect-gcp/) docs to see additional methods for interacting with cloud storage providers.
 Each library also contains blocks for interacting with other cloud-provider services.
