@@ -21,14 +21,17 @@ from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
     prompt,
+    prompt_blob_storage_credentials,
     prompt_build_custom_docker_image,
     prompt_entrypoint,
     prompt_push_custom_docker_image,
     prompt_schedule,
+    prompt_select_blob_storage,
     prompt_select_from_table,
     prompt_select_work_pool,
 )
 from prefect.cli._utilities import (
+    _get_blob_storage_step_metadata,
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
@@ -461,10 +464,11 @@ async def _run_single_deploy(
                 if work_pool_job_variables_image_not_found:
                     update_work_pool_image = True
 
-                push_docker_image_step, updated_build_docker_image_step = (
-                    await prompt_push_custom_docker_image(
-                        app.console, deploy_config, build_docker_image_step
-                    )
+                (
+                    push_docker_image_step,
+                    updated_build_docker_image_step,
+                ) = await prompt_push_custom_docker_image(
+                    app.console, deploy_config, build_docker_image_step
                 )
 
                 if actions.get("build"):
@@ -875,7 +879,7 @@ async def _generate_git_clone_pull_step(
 
 async def _generate_pull_step_for_build_docker_image(
     console: Console, deploy_config: Dict, auto: bool = True
-):
+) -> List[Dict[str, Any]]:
     pull_step = {}
     dir_name = os.path.basename(os.getcwd())
     if auto:
@@ -958,6 +962,41 @@ async def _generate_default_pull_action(
         )
     ):
         return await _generate_git_clone_pull_step(console, deploy_config, remote_url)
+
+    elif (
+        is_interactive()
+        and not ci
+        and confirm(
+            (
+                "Would you like your workers to pull your flow code from a"
+                " blob storage location when running this flow?"
+            ),
+            default=True,
+            console=console,
+        )
+    ):
+        storage_details: dict = await prompt_select_blob_storage(console=console)
+
+        step_metadata = _get_blob_storage_step_metadata(
+            action="pull", service=storage_details["service"]
+        )
+
+        credentials = await prompt_blob_storage_credentials(
+            console=console,
+            service=storage_details["service"],
+            step_metadata=step_metadata,
+        )
+
+        storage_block_pull_step = {
+            step_metadata["step_name"]: {
+                "requires": step_metadata["requires"],
+                "bucket": storage_details["bucket"],
+                "folder": storage_details["folder"],
+                **{credentials or {}},
+            }
+        }
+
+        return [storage_block_pull_step]
 
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")

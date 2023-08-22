@@ -624,3 +624,63 @@ async def prompt_entrypoint(console: Console) -> str:
             console=console,
         )
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
+
+
+async def prompt_select_blob_storage(console: Console) -> dict:
+    """
+    Prompt the user for a flow storage option.
+    """
+    flow_storage_options = [
+        {
+            "type": "S3",
+            "description": "Store flow code in an AWS S3 bucket.",
+        },
+        {
+            "type": "GCS",
+            "description": "Store flow code in a Google Cloud Storage bucket.",
+        },
+        {
+            "type": "Azure",
+            "description": "Store flow code in an Azure Blob Storage container.",
+        },
+    ]
+    selected_flow_storage_row = prompt_select_from_table(
+        console,
+        prompt="Where would you like to store your flow code?",
+        columns=[
+            {"header": "Storage Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        data=flow_storage_options,
+    )
+    storage_service = selected_flow_storage_row["type"]
+
+    bucket_name = prompt(f"{storage_service} bucket name")
+    folder_name = prompt(f"{storage_service} folder name", default="flows")
+
+    return {
+        "service": storage_service.lower(),
+        "bucket": bucket_name,
+        "folder": folder_name,
+    }
+
+
+async def prompt_blob_storage_credentials(
+    console: Console, service: str, step_metadata: dict
+) -> dict:
+    """
+    Prompt the user for blob storage credentials.
+    """
+    print(f"Configuring {service} credentials...")
+
+    # Additional service-specific prompts can be added here if needed
+    bucket_name = prompt(f"{service} bucket name:")
+    folder_name = prompt(f"{service} folder name:", default="flows")
+
+    credentials = {
+        "service": service.lower(),
+        "bucket": bucket_name,
+        "folder": folder_name,
+    }
+
+    return credentials

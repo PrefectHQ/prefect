@@ -1398,6 +1398,35 @@ class PrefectClient:
         )
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
+    async def read_block_documents_by_block_type(
+        self,
+        block_type_slug: str,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        include_secrets: bool = True,
+    ) -> List[BlockDocument]:
+        """Retrieve block documents by block type slug.
+
+        Args:
+            block_type_slug: The block type slug.
+            offset: an offset
+            limit: the number of blocks to return
+            include_secrets: whether to include secret values
+
+        Returns:
+            A list of block documents
+        """
+        response = await self._client.get(
+            f"/block_types/slug/{block_type_slug}/block_documents",
+            params=dict(
+                offset=offset,
+                limit=limit,
+                include_secrets=include_secrets,
+            ),
+        )
+
+        return pydantic.parse_obj_as(List[BlockDocument], response.json())
+
     async def create_deployment(
         self,
         flow_id: UUID,

@@ -50,3 +50,14 @@ def with_cli_exception_handling(fn):
             exit_with_error("An exception occurred.")
 
     return wrapper
+
+
+def _get_blob_storage_step_metadata(action: str, service: str) -> dict:
+    services = {"s3": "prefect_aws", "gcs": "prefect_gcp", "azure": "prefect_azure"}
+
+    step_name = f"{services[service]}.deployments.steps.{action}_to_{service}"
+
+    return {
+        "step_name": step_name,
+        "requires": services[service],
+    }
