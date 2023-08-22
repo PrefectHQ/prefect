@@ -106,7 +106,7 @@ def mock_webbrowser(monkeypatch):
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format."
+                " expected format ('pnu')."
             ),
         ),
     ],
@@ -157,7 +157,7 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format."
+                " expected format ('pnu')."
             ),
         ),
     ],
