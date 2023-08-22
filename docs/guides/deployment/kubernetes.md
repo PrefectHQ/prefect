@@ -132,7 +132,7 @@ For example: <https://app.prefect.cloud/account/abc-my-account-id-is-here/worksp
 
 ### Create a Helm release
 
-Now you can install the Prefect worker using the Helm chart with your custom `values.yaml` file:
+Let's install the Prefect worker using the Helm chart with your custom `values.yaml` file:
 
 ```bash
 helm install prefect-worker prefect/prefect-worker \
@@ -166,13 +166,13 @@ if __name__ == "__main__":
         hello()
 ```
 
-You can run the flow locally with `python hello.py` to verify that it works.
+Run the flow locally with `python hello.py` to verify that it works.
 Note that we use the `tags` context manager to tag the flow run as `local`.
 This step is not required, but does add some helpful metadata.
 
 ## Define a deployment
 
-The [`prefect.yaml`](/concepts/deployments/#managing-deployments) file gets used by the `prefect deploy` command to actually deploy our flows.
+The [`prefect.yaml`](/concepts/deployments/#managing-deployments) file is used by the `prefect deploy` command to deploy our flows.
 As a part of that process it will also build and push our image.
 Create a new file named `prefect.yaml` with the following contents:
 
@@ -246,7 +246,7 @@ prefect-docker>=0.3.11
 prefect-kubernetes>=0.2.11
 ```
 
-Your directory should now look something like this:
+The directory should now look something like this:
 
 ```
 flows
