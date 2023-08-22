@@ -11,9 +11,9 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.logging import get_logger
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
@@ -165,7 +165,7 @@ async def _apply_task_run_filters(
             [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
         )
     ):
-        query = query.where(db.TaskRun.flow_run_id == str(flow_run_filter.id.any_[0]))
+        query = query.where(db.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
 
         return query
 
