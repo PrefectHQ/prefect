@@ -425,10 +425,6 @@ class Runner:
             "worker",
             extra={
                 "worker_name": self.name,
-                "work_pool_name": (
-                    self._work_pool_name if self._work_pool else "<unknown>"
-                ),
-                "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
             },
         )
 
@@ -742,54 +738,18 @@ class Runner:
             await self._mark_flow_run_as_cancelled(flow_run)
             run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
-    async def _update_local_work_pool_info(self):
-        try:
-            work_pool = await self._client.read_work_pool(
-                work_pool_name=self._work_pool_name
-            )
-        except ObjectNotFound:
-            if self._create_pool_if_not_found:
-                work_pool = await self._client.create_work_pool(
-                    work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
-                )
-                self._logger.info(f"Work pool {self._work_pool_name!r} created.")
-            else:
-                self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
-                return
-
-        # if the remote config type changes (or if it's being loaded for the
-        # first time), check if it matches the local type and warn if not
-        if getattr(self._work_pool, "type", 0) != work_pool.type:
-            if work_pool.type != self.__class__.type:
-                self._logger.warning(
-                    "Worker type mismatch! This worker process expects type "
-                    f"{self.type!r} but received {work_pool.type!r}"
-                    " from the server. Unexpected behavior may occur."
-                )
-
-        # once the work pool is loaded, verify that it has a `base_job_template` and
-        # set it if not
-        if not work_pool.base_job_template:
-            job_template = self.__class__.get_default_base_job_template()
-            await self._set_work_pool_template(work_pool, job_template)
-            work_pool.base_job_template = job_template
-
-        self._work_pool = work_pool
-
-    async def _send_worker_heartbeat(self):
-        if self._work_pool:
-            await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name, worker_name=self.name
-            )
+    async def _send_runner_heartbeat(self):
+        """
+        Will need to reconsider how to heartbeat a runner for crash detection.
+        """
+        pass
 
     async def sync_with_backend(self):
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
-        await self._update_local_work_pool_info()
-
-        await self._send_worker_heartbeat()
+        await self._send_runner_heartbeat()
 
         self._logger.debug("Worker synchronized with the Prefect API server.")
 
@@ -987,11 +947,6 @@ class Runner:
         """
         return {
             "name": self.name,
-            "work_pool": (
-                self._work_pool.dict(json_compatible=True)
-                if self._work_pool is not None
-                else None
-            ),
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
             },
@@ -1099,15 +1054,6 @@ class Runner:
             60 * 10, self._cancelling_flow_run_ids.remove, flow_run.id
         )
 
-    async def _set_work_pool_template(self, work_pool, job_template):
-        """Updates the `base_job_template` for the worker's work pool server side."""
-        await self._client.update_work_pool(
-            work_pool_name=work_pool.name,
-            work_pool=WorkPoolUpdate(
-                base_job_template=job_template,
-            ),
-        )
-
     async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
         """
         Schedule a background task to start after some time.
@@ -1164,13 +1110,6 @@ class Runner:
         related = []
         if configuration:
             related += configuration._related_resources()
-
-        if self._work_pool:
-            related.append(
-                object_as_related_resource(
-                    kind="work-pool", role="work-pool", object=self._work_pool
-                )
-            )
 
         if include_self:
             worker_resource = self._event_resource()
