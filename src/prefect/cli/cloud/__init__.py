@@ -318,17 +318,25 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
-    current_profile_api_key = current_profile.settings.get(PREFECT_API_KEY)
-    if key and current_profile_api_key == key:
-        exit_with_success("This profile is already authenticated with that key.")
+    env_var_api_key = PREFECT_API_KEY.value()
 
-    if PREFECT_API_KEY.value() != current_profile_api_key:
+    if env_var_api_key and key and env_var_api_key != key:
         exit_with_error(
-            "Your PREFECT_API_KEY environment variable differs from the one in your"
-            " currently active profile.\nUnset the environment variable. You can also"
-            " check your active profile's PREFECT_API_KEY with `prefect config view"
-            " --show-secrets`."
+            "Cannot log in with a key when a different PREFECT_API_KEY is present as an"
+            " environment variable that will override it."
         )
+
+    if env_var_api_key and env_var_api_key == key:
+        if not await check_key_is_valid_for_login(key):
+            help_message = (
+                "Your key is not in our expected format."
+                if not key.startswith("pnu")
+                else "Please ensure your credentials are correct."
+            )
+            exit_with_error(
+                f"Unable to authenticate with Prefect Cloud. {help_message}"
+            )
+
     already_logged_in_profiles = []
     for name, profile in profiles.items():
         profile_key = profile.settings.get(PREFECT_API_KEY)
