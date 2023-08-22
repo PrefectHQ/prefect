@@ -1004,7 +1004,7 @@ async def _generate_default_pull_action(
             "Your Prefect workers will attempt to load your flow from:"
             f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
-            " prefect project recipes ls[/]\n"
+            " prefect init[/]\n"
         )
         return [
             {
