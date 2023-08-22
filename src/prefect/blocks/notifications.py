@@ -490,6 +490,99 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         self._start_apprise_client(url)
 
 
+class DiscordWebhook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided Discord webhook.
+    See [Apprise notify_Discord docs](https://github.com/caronc/apprise/wiki/Notify_Discord) # noqa
+
+    Examples:
+        Load a saved Discord webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import DiscordWebhook
+
+        discord_webhook_block = DiscordWebhook.load("BLOCK_NAME")
+
+        discord_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided Discord webhook."
+    _block_type_name = "Discord Webhook"
+    _block_type_slug = "discord-webhook"
+    _logo_url = "https://images.ctfassets.net/keir3zrx8eg0/64fsff0qm7st33BqViEpqY/e177db0d1ada88a7ee6c9433576b98d5/icons8-discord-new-480.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.DiscordWebhook"
+
+    webhook_id: SecretStr = Field(
+        default=...,
+        description=(
+            "The first part of 2 tokens provided to you after creating a"
+            " incoming-webhook."
+        ),
+    )
+
+    webhook_token: SecretStr = Field(
+        default=...,
+        description=(
+            "The second part of 2 tokens provided to you after creating a"
+            " incoming-webhook."
+        ),
+    )
+
+    botname: Optional[str] = Field(
+        title="Bot name",
+        default=None,
+        description=(
+            "Identify the name of the bot that should issue the message. If one isn't"
+            " specified then the default is to just use your account (associated with"
+            " the incoming-webhook)."
+        ),
+    )
+
+    tts: bool = Field(
+        default=False,
+        description="Whether to enable Text-To-Speech.",
+    )
+
+    include_image: bool = Field(
+        default=False,
+        description=(
+            "Whether to include an image in-line with the message describing the"
+            " notification type."
+        ),
+    )
+
+    avatar: bool = Field(
+        default=False,
+        description="Whether to override the default discord avatar icon.",
+    )
+
+    avatar_url: Optional[str] = Field(
+        title="Avatar URL",
+        default=False,
+        description=(
+            "Over-ride the default discord avatar icon URL. By default this is not set"
+            " and Apprise chooses the URL dynamically based on the type of message"
+            " (info, success, warning, or error)."
+        ),
+    )
+
+    def block_initialization(self) -> None:
+        from apprise.plugins.NotifyDiscord import NotifyDiscord
+
+        url = SecretStr(
+            NotifyDiscord(
+                webhook_id=self.webhook_id.get_secret_value(),
+                webhook_token=self.webhook_token.get_secret_value(),
+                botname=self.botname,
+                tts=self.tts,
+                include_image=self.include_image,
+                avatar=self.avatar,
+                avatar_url=self.avatar_url,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
 class CustomWebhookNotificationBlock(NotificationBlock):
     """
     Enables sending notifications via any custom webhook.
