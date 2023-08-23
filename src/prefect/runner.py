@@ -20,6 +20,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
 )
 from prefect.client.schemas.objects import StateType
+from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -120,7 +121,7 @@ class Runner:
         self.logger = get_logger()
 
         self.is_setup = False
-        self.deployment_ids = deployment_ids or set()
+        self.deployment_ids = deployment_ids or []
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -768,6 +769,42 @@ class Runner:
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
+
+    async def create_deployment(self, flow, **kwargs):
+        """
+        Creates a deployment from the provided flow information and kwargs and stores the
+        deployment ID to monitor for scheduled work.
+        """
+        # TODO: make a more ergonomic interface and dont use deployment class
+        if "work_pool_name" in kwargs:
+            raise ValueError(
+                "Cannot specify a work pool name for a runner-managed deployment"
+            )
+        if "work_queue_name" in kwargs:
+            raise ValueError(
+                "Cannot specify a work queue name for a runner-managed deployment"
+            )
+        kwargs.setdefault("name", self.name)
+        deployment = await Deployment.build_from_flow(
+            flow,
+            work_queue_name=None,
+            apply=False,
+            skip_upload=True,
+            load_existing=False,
+            **kwargs,
+        )
+        deployment.storage = None
+        deployment_id = await deployment.apply(ignore_infra=True, upload=False)
+        self.deployment_ids.append(deployment_id)
+
+    async def load(self, flow, **kwargs):
+        """
+        Main method for creating deployments out of provided flow specification.
+
+        TODO: expose a filesystem interface with hot reloading (which is why this method is
+        distinct from `create_deployment`)
+        """
+        await self.create_deployment(flow, **kwargs)
 
     async def start(self):
         """
