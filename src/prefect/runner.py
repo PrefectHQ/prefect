@@ -1,4 +1,5 @@
 import inspect
+from functools import partial
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from uuid import uuid4
 
@@ -9,8 +10,11 @@ from pydantic import BaseModel
 
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
+    DeploymentFilter,
+    DeploymentFilterId,
     FlowRunFilter,
     FlowRunFilterId,
+    FlowRunFilterNextScheduledStartTime,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
@@ -24,14 +28,17 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.settings import (
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    PREFECT_WORKER_QUERY_SECONDS,
+    get_current_settings,
+)
 from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
-    from prefect.client.schemas.responses import (
-        WorkerFlowRunResponse,
-    )
 
 import asyncio
 import os
@@ -90,6 +97,7 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
+        deployment_ids: List[str] = None,
         prefetch_seconds: Optional[float] = None,
         limit: Optional[int] = None,
     ):
@@ -97,21 +105,22 @@ class Runner:
         Responsible for managing the execution of remotely initiated flow runs.
 
         Args:
-            name: The name of the worker. If not provided, a random one
+            name: The name of the runner. If not provided, a random one
                 will be generated. If provided, it cannot contain '/' or '%'.
-                The name is used to identify the worker in the UI; if two
+                The name is used to identify the runner in the UI; if two
                 processes have the same name, they will be treated as the same
-                worker.
+                runner.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            limit: The maximum number of flow runs this worker should be running at
+            limit: The maximum number of flow runs this runner should be running at
                 a given time.
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
-        self._logger = get_logger()
+        self.logger = get_logger()
 
         self.is_setup = False
+        self.deployment_ids = deployment_ids or set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -128,15 +137,15 @@ class Runner:
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
-            "worker",
+            "runner",
             extra={
-                "worker_name": self.name,
+                "runner_name": self.name,
             },
         )
 
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
         command = f"{sys.executable} -m prefect.engine"
@@ -271,8 +280,8 @@ class Runner:
         return cls.type
 
     async def setup(self):
-        """Prepares the worker to run."""
-        self._logger.debug("Setting up worker...")
+        """Prepares the runner to run."""
+        self.logger.debug("Setting up runner...")
         self._runs_task_group = anyio.create_task_group()
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
@@ -284,8 +293,8 @@ class Runner:
         self.is_setup = True
 
     async def teardown(self, *exc_info):
-        """Cleans up resources after the worker is stopped."""
-        self._logger.debug("Tearing down worker...")
+        """Cleans up resources after the runner is stopped."""
+        self.logger.debug("Tearing down runner...")
         self.is_setup = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
@@ -296,10 +305,10 @@ class Runner:
         self._runs_task_group = None
         self._client = None
 
-    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
+    def is_runner_still_polling(self, query_interval_seconds: int) -> bool:
         """
         This method is invoked by a webserver healthcheck handler
-        and returns a boolean indicating if the worker has recorded a
+        and returns a boolean indicating if the runner has recorded a
         scheduled flow run poll within a variable amount of time.
 
         The `query_interval_seconds` is the same value that is used by
@@ -318,7 +327,7 @@ class Runner:
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 
         if not is_still_polling:
-            self._logger.error(
+            self.logger.error(
                 f"Worker has not polled in the last {seconds_since_last_poll} seconds "
                 "and should be restarted"
             )
@@ -335,14 +344,16 @@ class Runner:
     async def check_for_cancelled_flow_runs(self):
         if not self.is_setup:
             raise RuntimeError(
-                "Worker is not set up. Please make sure you are running this worker "
+                "Worker is not set up. Please make sure you are running this runner "
                 "as an async context manager."
             )
 
-        self._logger.debug("Checking for cancelled flow runs...")
+        self.logger.debug("Checking for cancelled flow runs...")
 
-        # TODO: find the right filter for these calls
         named_cancelling_flow_runs = await self._client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=list(self.deployment_ids))
+            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
@@ -354,6 +365,9 @@ class Runner:
         )
 
         typed_cancelling_flow_runs = await self._client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=list(self.deployment_ids))
+            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
@@ -366,7 +380,7 @@ class Runner:
         cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
         if cancelling_flow_runs:
-            self._logger.info(
+            self.logger.info(
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
             )
 
@@ -400,15 +414,15 @@ class Runner:
                 infrastructure_pid=flow_run.infrastructure_pid
             )
         except NotImplementedError:
-            self._logger.error(
+            self.logger.error(
                 f"Worker type {self.type!r} does not support killing created "
                 "infrastructure. Cancellation cannot be guaranteed."
             )
         except InfrastructureNotFound as exc:
-            self._logger.warning(f"{exc} Marking flow run as cancelled.")
+            self.logger.warning(f"{exc} Marking flow run as cancelled.")
             await self._mark_flow_run_as_cancelled(flow_run)
         except InfrastructureNotAvailable as exc:
-            self._logger.warning(f"{exc} Flow run cannot be cancelled by this worker.")
+            self.logger.warning(f"{exc} Flow run cannot be cancelled by this runner.")
         except Exception:
             run_logger.exception(
                 "Encountered exception while killing infrastructure for flow run "
@@ -429,37 +443,47 @@ class Runner:
 
     async def sync_with_backend(self):
         """
-        Sends a worker heartbeat to the API.
+        Sends a runner heartbeat to the API.
         """
         await self._send_runner_heartbeat()
 
-        self._logger.debug("Worker synchronized with the Prefect API server.")
+        self.logger.debug("Worker synchronized with the Prefect API server.")
 
     async def _get_scheduled_flow_runs(
         self,
-    ) -> List["WorkerFlowRunResponse"]:
+    ) -> List["FlowRun"]:
         """
         Retrieve scheduled flow runs for this runner.
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
-        self._logger.debug(
-            f"Querying for flow runs scheduled before {scheduled_before}"
+        self.logger.debug(f"Querying for flow runs scheduled before {scheduled_before}")
+
+        scheduled_flow_runs = await self._client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=list(self.deployment_ids))
+            ),
+            flow_run_filter=FlowRunFilter(
+                next_scheduled_start_time=FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.SCHEDULED]),
+                ),
+                # possible unnecessary
+                id=FlowRunFilterId(not_any_=list(self._submitting_flow_run_ids)),
+            ),
         )
-        ## TODO: create the appropriate endpoint for retrieving scheduled flow runs
-        scheduled_flow_runs = await self._client.get_scheduled_flow_runs(
-            scheduled_before=scheduled_before,
-        )
-        self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
+        self.logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
     async def _submit_scheduled_flow_runs(
-        self, flow_run_response: List["WorkerFlowRunResponse"]
+        self, flow_run_response: List["FlowRun"]
     ) -> List["FlowRun"]:
         """
         Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
-        for execution by the worker.
+        for execution by the runner.
         """
-        submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
+        submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
@@ -469,7 +493,7 @@ class Runner:
                 if self._limiter:
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
-                self._logger.info(
+                self.logger.info(
                     f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
                     " in progress."
                 )
@@ -509,14 +533,14 @@ class Runner:
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
-        Submits a given flow run for execution by the worker.
+        Submits a given flow run for execution by the runner.
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
             await self._check_flow_run(flow_run)
         except (ValueError, ObjectNotFound):
-            self._logger.exception(
+            self.logger.exception(
                 (
                     "Flow run %s did not pass checks and will not be submitted for"
                     " execution"
@@ -709,7 +733,7 @@ class Runner:
         """
         Schedule a background task to start after some time.
 
-        These tasks will be run immediately when the worker exits instead of waiting.
+        These tasks will be run immediately when the runner exits instead of waiting.
 
         The function may be async or sync. Async functions will be awaited.
         """
@@ -734,13 +758,46 @@ class Runner:
         await self._runs_task_group.start(wrapper)
 
     async def __aenter__(self):
-        self._logger.debug("Entering worker context...")
+        self.logger.debug("Entering runner context...")
         await self.setup()
         return self
 
     async def __aexit__(self, *exc_info):
-        self._logger.debug("Exiting worker context...")
+        self.logger.debug("Exiting runner context...")
         await self.teardown(*exc_info)
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
+
+    async def start(self):
+        """
+        Main entrypoint for running a runner.
+        """
+        async with self as runner:
+            async with anyio.create_task_group() as tg:
+                await runner.sync_with_backend()
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.sync_with_backend,
+                        interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.check_for_cancelled_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                        jitter_range=0.3,
+                    )
+                )

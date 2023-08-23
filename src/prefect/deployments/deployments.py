@@ -671,7 +671,10 @@ class Deployment(BaseModel):
 
     @sync_compatible
     async def apply(
-        self, upload: bool = False, work_queue_concurrency: int = None
+        self,
+        upload: bool = False,
+        work_queue_concurrency: int = None,
+        ignore_infra: bool = False,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -688,13 +691,16 @@ class Deployment(BaseModel):
             # prep IDs
             flow_id = await client.create_flow_from_name(self.flow_name)
 
-            infrastructure_document_id = self.infrastructure._block_document_id
-            if not infrastructure_document_id:
-                # if not building off a block, will create an anonymous block
-                self.infrastructure = self.infrastructure.copy()
-                infrastructure_document_id = await self.infrastructure._save(
-                    is_anonymous=True,
-                )
+            if not ignore_infra:
+                infrastructure_document_id = self.infrastructure._block_document_id
+                if not infrastructure_document_id:
+                    # if not building off a block, will create an anonymous block
+                    self.infrastructure = self.infrastructure.copy()
+                    infrastructure_document_id = await self.infrastructure._save(
+                        is_anonymous=True,
+                    )
+            else:
+                infrastructure_document_id = None
 
             if upload:
                 await self.upload_to_storage()
