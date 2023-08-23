@@ -29,6 +29,9 @@ from typer import Exit
 
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
+from unittest.mock import patch
+from prefect.cli.worker import _get_worker_class
+
 
 class MockKubernetesWorker(BaseWorker):
     type = "kubernetes"
@@ -334,6 +337,20 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
     workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
+
+
+@patch("worker.exit_with_error")
+def test_prefect_agent_exit(self, mock_exit_with_error):
+    worker_type = "prefect-agent"
+    work_pool_name = "test"
+    install_policy = "always"
+
+    # Call the function with the mock inputs
+    _get_worker_class(worker_type, work_pool_name, install_policy)
+    mock_exit_with_error.assert_called_once_with(
+        "'prefect-agent' typed work pools work with Prefect Agents instead of Workers."
+        " Please use the 'prefect agent start' to start a Prefect Agent."
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")

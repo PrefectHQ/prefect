@@ -265,7 +265,10 @@ async def _get_worker_class(
         worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
 
     if worker_type == "prefect-agent":
-        return None
+        exit_with_error(
+            "'prefect-agent' typed work pools work with Prefect Agents instead of"
+            " Workers. Please use the 'prefect agent start' to start a Prefect Agent."
+        )
 
     if install_policy == InstallPolicy.ALWAYS:
         package = await _find_package_for_worker_type(worker_type)
