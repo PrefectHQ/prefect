@@ -14,6 +14,7 @@ from prefect.client.schemas.filters import (
     DeploymentFilterId,
     FlowRunFilter,
     FlowRunFilterId,
+    FlowRunFilterStartTime,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
@@ -453,12 +454,13 @@ class Runner:
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
         self.logger.debug(f"Querying for flow runs scheduled before {scheduled_before}")
-        # TODO: use scheduled_before
+
         scheduled_flow_runs = await self._client.read_flow_runs(
             deployment_filter=DeploymentFilter(
                 id=DeploymentFilterId(any_=list(self.deployment_ids))
             ),
             flow_run_filter=FlowRunFilter(
+                start_time=FlowRunFilterStartTime(before_=scheduled_before),
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.SCHEDULED]),
                 ),
