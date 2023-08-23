@@ -215,7 +215,7 @@ mkdocs --help
 ```
 </div>
 
-We us the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
+We use the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
 
 Internal developers can install the production theme by running:
 

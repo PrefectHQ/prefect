@@ -36,7 +36,10 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 === "AWS"
 
-    One easy way to get set up with a cluster in EKS is with [`eksctl`](https://eksctl.io/). Node pools can be backed by either EC2 instances or FARGATE. Let's choose FARGATE so there's less to manage. The following command takes around 15 minutes and must not be interrupted:
+    One easy way to get set up with a cluster in EKS is with [`eksctl`](https://eksctl.io/). 
+    Node pools can be backed by either EC2 instances or FARGATE. 
+    Let's choose FARGATE so there's less to manage. 
+    The following command takes around 15 minutes and must not be interrupted:
 
     ```bash
     # Replace the cluster name with your own value
@@ -100,7 +103,8 @@ If you already have a registry, skip ahead to the next section.
 
     # Login to ECR
     # Replace the region and account ID with your own values
-    aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+    aws ecr get-login-password --region <REGION> | docker login \
+      --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
     ```
 
 === "GCP"
@@ -151,7 +155,8 @@ kubectl create namespace prefect
 ### Create a Kubernetes secret for the Prefect API key
 
 ```bash
-kubectl create secret generic prefect-api-key --namespace=prefect --from-literal=key=your-prefect-cloud-api-key
+kubectl create secret generic prefect-api-key \
+--namespace=prefect --from-literal=key=your-prefect-cloud-api-key
 ```
 
 ### Configure Helm chart values
@@ -279,7 +284,8 @@ Also note that we are specifically building for the `linux/amd64` platform.
 This specification is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
 
 !!! note "Deployment specific build, push, and pull"
-    The build, push, and pull steps can be overridden for each deployment. This allows for more custom behavior, such as specifying a different image for each deployment.
+    The build, push, and pull steps can be overridden for each deployment. 
+    This allows for more custom behavior, such as specifying a different image for each deployment.
 
 Let's make sure we define our requirements in a `requirements.txt` file:
 
@@ -300,7 +306,9 @@ flows
 
 ### Tag images with a Git SHA
 
-If your code is stored in a GitHub repository, it's good practice to tag your images with the Git SHA of the code used to build it. This can be done in the `prefect.yaml` file with a few minor modifications. Let's use the `run_shell_script` command to grab the SHA and pass it to the `tag` parameter of `build_docker_image`:
+If your code is stored in a GitHub repository, it's good practice to tag your images with the Git SHA of the code used to build it. 
+This can be done in the `prefect.yaml` file with a few minor modifications. 
+Let's use the `run_shell_script` command to grab the SHA and pass it to the `tag` parameter of `build_docker_image`:
 
 ```yaml hl_lines="2-5 10"
 build:
@@ -346,7 +354,9 @@ prefect-demo/bin/prefect cloud login
 
 ## Deploy the flows
 
-Now we're ready to deploy our flows which will build our images. The image name determines which registry it will end up in. We have configured our `prefect.yaml` file to get the image name from the `PREFECT_IMAGE_NAME` environment variable, so let's set that first:
+Now we're ready to deploy our flows which will build our images. 
+The image name determines which registry it will end up in. 
+We have configured our `prefect.yaml` file to get the image name from the `PREFECT_IMAGE_NAME` environment variable, so let's set that first:
 
 === "AWS"
 
