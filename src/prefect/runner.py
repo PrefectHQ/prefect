@@ -1,26 +1,21 @@
 import inspect
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel
 
-import prefect
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
 )
-from prefect.client.schemas.objects import StateType, WorkPool
-from prefect.client.utilities import inject_client
+from prefect.client.schemas.objects import StateType
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -31,34 +26,25 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.templating import (
-    apply_values,
-    resolve_block_document_references,
-    resolve_variables,
-)
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow, FlowRun
+    from prefect.client.schemas.objects import FlowRun
     from prefect.client.schemas.responses import (
-        DeploymentResponse,
         WorkerFlowRunResponse,
     )
 
 import asyncio
-import contextlib
 import os
 import signal
 import socket
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
 import anyio
 import anyio.abc
 import sniffio
 
-from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -103,10 +89,8 @@ class ProcessWorkerResult(BaseModel):
 class Runner:
     def __init__(
         self,
-        work_pool_name: str,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
-        create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
     ):
         """
@@ -118,11 +102,7 @@ class Runner:
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            work_pool_name: The name of the work pool to poll.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            create_pool_if_not_found: Whether to create the work pool
-                if it is not found. Defaults to `True`, but can be set to `False` to
-                ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
         """
@@ -132,14 +112,11 @@ class Runner:
         self._logger = get_logger()
 
         self.is_setup = False
-        self._create_pool_if_not_found = create_pool_if_not_found
-        self._work_pool_name = work_pool_name
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
 
-        self._work_pool: Optional[WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
@@ -364,6 +341,7 @@ class Runner:
 
         self._logger.debug("Checking for cancelled flow runs...")
 
+        # TODO: find the right filter for these calls
         named_cancelling_flow_runs = await self._client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
@@ -372,9 +350,6 @@ class Runner:
                 ),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
             ),
         )
 
@@ -385,9 +360,6 @@ class Runner:
                 ),
                 # Avoid duplicate cancellation calls
                 id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
             ),
         )
 
@@ -457,8 +429,7 @@ class Runner:
 
     async def sync_with_backend(self):
         """
-        Updates the worker's local information about it's current work pool and
-        queues. Sends a worker heartbeat to the API.
+        Sends a worker heartbeat to the API.
         """
         await self._send_runner_heartbeat()
 
@@ -468,27 +439,18 @@ class Runner:
         self,
     ) -> List["WorkerFlowRunResponse"]:
         """
-        Retrieve scheduled flow runs from the work pool's queues.
+        Retrieve scheduled flow runs for this runner.
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
-        try:
-            scheduled_flow_runs = (
-                await self._client.get_scheduled_flow_runs_for_work_pool(
-                    work_pool_name=self._work_pool_name,
-                    scheduled_before=scheduled_before,
-                )
-            )
-            self._logger.debug(
-                f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs"
-            )
-            return scheduled_flow_runs
-        except ObjectNotFound:
-            # the pool doesn't exist; it will be created on the next
-            # heartbeat (or an appropriate warning will be logged)
-            return []
+        ## TODO: create the appropriate endpoint for retrieving scheduled flow runs
+        scheduled_flow_runs = await self._client.get_scheduled_flow_runs(
+            scheduled_before=scheduled_before,
+        )
+        self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
+        return scheduled_flow_runs
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["WorkerFlowRunResponse"]
@@ -648,8 +610,7 @@ class Runner:
 
     def get_status(self):
         """
-        Retrieves the status of the current worker including its name, current worker
-        pool, the work pool queues it is polling, and its local settings.
+        Retrieves basic info about this runner.
         """
         return {
             "name": self.name,
@@ -782,4 +743,4 @@ class Runner:
         await self.teardown(*exc_info)
 
     def __repr__(self):
-        return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"
+        return f"Runner(name={self.name!r})"
