@@ -1,4 +1,5 @@
 import inspect
+from functools import partial
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from uuid import uuid4
 
@@ -24,8 +25,14 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.settings import (
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    PREFECT_WORKER_QUERY_SECONDS,
+    get_current_settings,
+)
 from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -744,3 +751,36 @@ class Runner:
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
+
+    async def start(self):
+        """
+        Main entrypoint for running a runner.
+        """
+        async with self as runner:
+            async with anyio.create_task_group() as tg:
+                await runner.sync_with_backend()
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.sync_with_backend,
+                        interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                        jitter_range=0.3,
+                    )
+                )
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.check_for_cancelled_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                        jitter_range=0.3,
+                    )
+                )
