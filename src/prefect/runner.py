@@ -22,9 +22,6 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
 from prefect.engine import propose_state
-from prefect.events import Event, emit_event
-from prefect.events.related import object_as_related_resource, tags_as_related_resources
-from prefect.events.schemas import RelatedResource
 from prefect.exceptions import (
     Abort,
     InfrastructureNotAvailable,
@@ -449,7 +446,6 @@ class Runner:
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            self._emit_flow_run_cancelled_event(flow_run=flow_run)
             await self._mark_flow_run_as_cancelled(flow_run)
             run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
@@ -603,7 +599,6 @@ class Runner:
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
-            submitted_event = self._emit_flow_run_submitted_event()
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -648,8 +643,6 @@ class Runner:
                     f" {result.status_code}."
                 ),
             )
-
-        self._emit_flow_run_executed_event(result, submitted_event)
 
         return result
 
@@ -790,79 +783,3 @@ class Runner:
 
     def __repr__(self):
         return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"
-
-    def _event_resource(self):
-        return {
-            "prefect.resource.id": f"prefect.worker.{self.type}.{self.get_name_slug()}",
-            "prefect.resource.name": self.name,
-            "prefect.version": prefect.__version__,
-            "prefect.worker-type": self.type,
-        }
-
-    def _event_related_resources(
-        self,
-        include_self: bool = False,
-    ) -> List[RelatedResource]:
-        related = []
-        if include_self:
-            worker_resource = self._event_resource()
-            worker_resource["prefect.resource.role"] = "worker"
-            related.append(RelatedResource(__root__=worker_resource))
-
-        return related
-
-    def _emit_flow_run_submitted_event(self) -> Event:
-        return emit_event(
-            event="prefect.worker.submitted-flow-run",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
-        )
-
-    def _emit_flow_run_executed_event(
-        self,
-        result: ProcessWorkerResult,
-        submitted_event: Event,
-    ):
-        related = self._event_related_resources()
-
-        for resource in related:
-            if resource.role == "flow-run":
-                resource["prefect.infrastructure.identifier"] = str(result.identifier)
-                resource["prefect.infrastructure.status-code"] = str(result.status_code)
-
-        emit_event(
-            event="prefect.worker.executed-flow-run",
-            resource=self._event_resource(),
-            related=related,
-            follows=submitted_event,
-        )
-
-    async def _emit_worker_started_event(self) -> Event:
-        return emit_event(
-            "prefect.worker.started",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
-        )
-
-    async def _emit_worker_stopped_event(self, started_event: Event):
-        emit_event(
-            "prefect.worker.stopped",
-            resource=self._event_resource(),
-            related=self._event_related_resources(),
-            follows=started_event,
-        )
-
-    def _emit_flow_run_cancelled_event(self, flow_run: "FlowRun"):
-        related = self._event_related_resources()
-
-        for resource in related:
-            if resource.role == "flow-run":
-                resource["prefect.infrastructure.identifier"] = str(
-                    flow_run.infrastructure_pid
-                )
-
-        emit_event(
-            event="prefect.worker.cancelled-flow-run",
-            resource=self._event_resource(),
-            related=related,
-        )
