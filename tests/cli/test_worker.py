@@ -31,6 +31,7 @@ from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 from unittest.mock import patch
 from prefect.cli.worker import _get_worker_class
+import subprocess
 
 
 class MockKubernetesWorker(BaseWorker):
@@ -549,6 +550,32 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_not_called()
+
+        @pytest.mark.parametrize("worker_type", ["prefect-agent"])
+        def test_start_with_prefect_agent_type(worker_type):
+            # Run the CLI command with the specified worker_type
+            result = subprocess.run(
+                ["python", "worker.py", "worker", "start", "--type", worker_type],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            if worker_type == "prefect-agent":
+                assert result.returncode == 1
+
+                assert (
+                    "prefect-agent' typed work pools work with Prefect Agents"
+                    " instead of"
+                    in result.stderr
+                )
+            else:
+                assert result.returncode != 1
+                assert (
+                    "prefect-agent' typed work pools work with Prefect Agents"
+                    " instead of"
+                    not in result.stderr
+                )
 
 
 POLL_INTERVAL = 0.5
