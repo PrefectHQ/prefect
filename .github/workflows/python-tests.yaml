@@ -234,7 +234,7 @@ jobs:
   notify:
     needs: run-tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && failure()
+    if: github.ref == 'refs/heads/gha-notify-main-failing' && failure()
 
     steps:
       - name: Send Slack Notification
