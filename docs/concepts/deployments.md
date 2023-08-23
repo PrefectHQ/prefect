@@ -167,9 +167,9 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
     This capability is useful with multiple deployments that require different deployment instructions.
 
-For more information on the mechanics of steps, [see below](#deployment-mechanics).
+See below for more information on the mechanics of steps!
 
-#### The Build Action
+### The Build Action
 
 The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
