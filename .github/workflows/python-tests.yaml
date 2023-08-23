@@ -98,7 +98,8 @@ jobs:
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
+    # runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 75
 
     steps:
