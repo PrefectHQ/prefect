@@ -319,7 +319,7 @@ build:
     - prefect_docker.deployments.steps.build_docker_image:
         requires: prefect-docker>=0.3.0
         image_name: my-image
-        image_tag: "{{ get-commit-hash.stdout }}"
+        tag: "{{ get-commit-hash.stdout }}"
         dockerfile: auto
 ```
 
@@ -420,7 +420,7 @@ deployments:
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
-So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
+So long as our `build` steps produce fields called `image_name` and `tag`, every time we deploy a new version of our deployment, the `{{ build-image.image }}` variable will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
