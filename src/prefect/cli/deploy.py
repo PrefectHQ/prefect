@@ -121,7 +121,7 @@ async def deploy(
         "--variable",
         help=(
             "One or more job variable overrides for the work pool provided in the"
-            " format of key=value"
+            " format of key=value string or a JSON object"
         ),
     ),
     cron: str = typer.Option(
