@@ -53,7 +53,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```bash
     # Authenticate to gcloud
     gcloud auth login
-    # Specify the project & zone to deploy the cluster to
+    # Specify the project & zone to deploy the cluster to. Replace the project name with your GCP project name.
     gcloud config set project <YOUR-PROJECT-NAME>
     gcloud config set compute/zone us-east1-b
     ```
@@ -61,10 +61,10 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
 
     ```bash
-    # Create cluster
+    # Create cluster. Replace the cluster name with your own value.
     gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 --machine-type=n1-standard-2
 
-    # Authenticate to the cluster
+    # Authenticate to the cluster.
     gcloud container clusters <CLUSTER-NAME> gke-guide-1 --region us-east1-b
     ```
 
@@ -103,10 +103,18 @@ If you already have a registry, skip ahead to the next section.
     aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
+    Let's create a registry using the gcloud CLI and authenticate the docker daemon to said registry:
 
-=== "Azure"
+    ```bash
+    # Create artifact registry repository to host your custom image. Replace the image name with your own value.
+    gcloud artifacts repositories create <YOUR-IMAGE> --repository-format=docker --location=us
+
+    # Authenticate to artifact registry
+    gcloud auth configure-docker us-docker.pkg.dev
+    ```
+
+<!-- === "Azure"
     TODO -->
 
 ## Create a work pool
@@ -322,6 +330,20 @@ definitions:
       image: "{{ build-image.image }}"
 ```
 
+## Authenticate to Prefect
+
+Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI. We will also need to ensure that all of our flow's dependencies are present at `deploy` time. Note: using a virtual environment is optional, but provided here for best practice and to ensure consistency across environments.
+
+```bash
+# Create a virtualenv & activate it.
+virtualenv prefect-demo
+source prefect-demo/bin/activate
+# Install your flow's dependencies.
+prefect-demo/bin/pip install -r requirements.txt
+# Authenticate to Prefect & select the apropriate workspace to deploy your flows to.
+prefect-demo/bin/prefect cloud login
+```
+
 ## Deploy the flows
 
 Now we're ready to deploy our flows which will build our images. The image name determines which registry it will end up in. We have configured our `prefect.yaml` file to get the image name from the `PREFECT_IMAGE_NAME` environment variable, so let's set that first:
@@ -332,13 +354,16 @@ Now we're ready to deploy our flows which will build our images. The image name 
     export PREFECT_IMAGE_NAME=<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<IMAGE-NAME>
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
 
-=== "Azure"
+    ```bash
+    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME/<IMAGE-NAME>
+    ```
+
+<!-- === "Azure"
     TODO -->
 
-Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`
+In order to deploy your flows - please ensure your Docker Daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
 
 ## Run the flows
 
