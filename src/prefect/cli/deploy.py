@@ -3,6 +3,7 @@ import json
 import os
 from copy import deepcopy
 from datetime import timedelta
+from functools import partial
 from getpass import GetPassWarning
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -30,10 +31,7 @@ from prefect.cli._prompts import (
     prompt_select_from_table,
     prompt_select_work_pool,
 )
-from prefect.cli._utilities import (
-    _get_blob_storage_step_metadata,
-    exit_with_error,
-)
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.schedules import (
@@ -501,6 +499,8 @@ async def _run_single_deploy(
                 style="yellow",
             )
 
+    push_steps, blob_pull_step = await prompt_blob_storage_steps(push_steps, actions)
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
@@ -538,14 +538,14 @@ async def _run_single_deploy(
     deploy_config["schedule"] = _schedule
 
     # prepare the pull step
-    pull_steps = deploy_config.get(
-        "pull", actions.get("pull")
-    ) or await _generate_default_pull_action(
-        app.console,
-        deploy_config=deploy_config,
-        actions=actions,
-        ci=ci,
+    pull_steps = (
+        deploy_config.get("pull", actions.get("pull"))
+        or ([blob_pull_step] if blob_pull_step else [])
+        or await _generate_default_pull_action(
+            app.console, deploy_config=deploy_config, actions=actions, ci=ci
+        )
     )
+
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
@@ -737,7 +737,6 @@ def _construct_schedule(
             and confirm(
                 "Would you like to schedule when this flow runs?",
                 default=True,
-                console=app.console,
             )
         ):
             schedule = prompt_schedule(app.console)
@@ -953,50 +952,13 @@ async def _generate_default_pull_action(
         and remote_url
         and confirm(
             (
-                "Your Prefect workers will need access to this flow's code in order to"
-                " run it. Would you like your workers to pull your flow code from its"
-                " remote repository when running this flow?"
+                "Would you like to pull your flow code from its remote"
+                " repository when running your deployment?"
             ),
             default=True,
-            console=console,
         )
     ):
         return await _generate_git_clone_pull_step(console, deploy_config, remote_url)
-
-    elif (
-        is_interactive()
-        and not ci
-        and confirm(
-            (
-                "Would you like your workers to pull your flow code from a"
-                " blob storage location when running this flow?"
-            ),
-            default=True,
-            console=console,
-        )
-    ):
-        storage_details: dict = await prompt_select_blob_storage(console=console)
-
-        step_metadata = _get_blob_storage_step_metadata(
-            action="pull", service=storage_details["service"]
-        )
-
-        credentials = await prompt_blob_storage_credentials(
-            console=console,
-            service=storage_details["service"],
-            step_metadata=step_metadata,
-        )
-
-        storage_block_pull_step = {
-            step_metadata["step_name"]: {
-                "requires": step_metadata["requires"],
-                "bucket": storage_details["bucket"],
-                "folder": storage_details["folder"],
-                **{credentials or {}},
-            }
-        }
-
-        return [storage_block_pull_step]
 
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
@@ -1354,3 +1316,81 @@ async def _create_deployment_triggers(
         for trigger in triggers:
             trigger.set_deployment_id(deployment_id)
             await client.create_automation(trigger.as_automation())
+
+
+def _get_blob_storage_step_metadata(action: str, service: str) -> dict:
+    service_package = {
+        "s3": "prefect_aws",
+        "gcs": "prefect_gcp",
+        "azure": "prefect_azure",
+    }[service]
+
+    preposition = "to" if action == "push" else "from"
+
+    return {
+        "step_name": (
+            f"{service_package}.deployments.steps.{action}_{preposition}_{service}"
+        ),
+        "requires": service_package,
+    }
+
+
+async def prompt_blob_storage_steps(existing_push_steps: list, actions: list):
+    """
+    Prompt the user to add blob storage steps to their push steps.
+
+    Args:
+        existing_push_steps: A list of existing push steps
+
+    Returns:
+        List: a list of push steps with blob storage steps added
+        List: the corresponding pull step, to be confirmed by the user
+
+    """
+    print(actions, actions.get("pull"))
+    if not actions.get("pull") and confirm(
+        "Would you like to push your code to a blob storage location?"
+        " This location is where workers will pull your code when running your flow."
+    ):
+        storage_details: dict = await prompt_select_blob_storage(console=app.console)
+
+        push_step_metadata, pull_step_metadata = map(
+            partial(
+                _get_blob_storage_step_metadata, service=storage_details["service"]
+            ),
+            ["push", "pull"],
+        )
+
+        credentials = (
+            await prompt_blob_storage_credentials(
+                console=app.console,
+                service=storage_details["service"],
+                collection=push_step_metadata["requires"],
+            )
+            if confirm(
+                f"Add {storage_details['service'].capitalize()} credentials to access"
+                " your storage?"
+            )
+            else None
+        )
+
+        existing_push_steps.append(
+            {
+                push_step_metadata["step_name"]: {
+                    "requires": push_step_metadata["requires"],
+                    "bucket": storage_details["bucket"],
+                    "folder": storage_details["folder"],
+                    "credentials": credentials or None,
+                }
+            }
+        )
+        pull_step = {
+            # pull step fields need to be the same as push step fields
+            pull_step_metadata["step_name"]: existing_push_steps[-1].get(
+                push_step_metadata["step_name"]
+            )
+        }
+
+        return existing_push_steps, pull_step
+    else:
+        return existing_push_steps, None

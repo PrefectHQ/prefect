@@ -3,10 +3,11 @@ Utilities for prompting the user for input
 """
 import os
 import shutil
+import subprocess
 import sys
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 import readchar
 from rich.console import Console, Group
@@ -16,6 +17,8 @@ from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
 from rich.text import Text
 
+from prefect.blocks.abstract import CredentialsBlock
+from prefect.blocks.core import Block
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
@@ -28,8 +31,10 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.client.utilities import inject_client
 from prefect.deployments.base import _search_for_flow_functions
+from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
 from prefect.utilities.slugify import slugify
 
@@ -628,25 +633,25 @@ async def prompt_entrypoint(console: Console) -> str:
 
 async def prompt_select_blob_storage(console: Console) -> dict:
     """
-    Prompt the user for a flow storage option.
+    Prompt the user for a storage option.
     """
     flow_storage_options = [
         {
             "type": "S3",
-            "description": "Store flow code in an AWS S3 bucket.",
+            "description": "Use an AWS S3 bucket.",
         },
         {
             "type": "GCS",
-            "description": "Store flow code in a Google Cloud Storage bucket.",
+            "description": "Use a Google Cloud Storage bucket.",
         },
         {
             "type": "Azure",
-            "description": "Store flow code in an Azure Blob Storage container.",
+            "description": "Use an Azure Blob Storage bucket.",
         },
     ]
     selected_flow_storage_row = prompt_select_from_table(
         console,
-        prompt="Where would you like to store your flow code?",
+        prompt="Please select a blob storage provider",
         columns=[
             {"header": "Storage Type", "key": "type"},
             {"header": "Description", "key": "description"},
@@ -665,22 +670,131 @@ async def prompt_select_blob_storage(console: Console) -> dict:
     }
 
 
+collection_to_storage_creds_block_slug = {
+    "prefect_aws": "aws-credentials",
+    "prefect_gcp": "gcp-credentials",
+    "prefect_azure": "azure-blob-storage-credentials",
+}
+
+
+def install_collection(collection: str):
+    with Progress(
+        SpinnerColumn(),
+        TextColumn(f"Installing required collection: [blue]{collection}[/]"),
+    ) as progress:
+        task = progress.add_task("Installing...", total=100)
+        process = subprocess.Popen(
+            [sys.executable, "-m", "pip", "install", collection],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = process.communicate()
+        if process.returncode != 0:
+            raise RuntimeError(f"Failed to install package: {stderr.decode()}")
+        progress.update(task, completed=100)
+
+
+async def _get_creds_block_class(collection: str) -> Type[Block]:
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=UserWarning,
+            message="A task named",
+        )
+        for _ in range(2):
+            try:
+                return Block.get_block_class_from_key(
+                    key=collection_to_storage_creds_block_slug[collection]
+                )
+            except KeyError as e:
+                if "No class found for dispatch key" in str(e):
+                    install_collection(collection)
+                else:
+                    raise
+
+        raise RuntimeError(f"Failed to get block class for collection: {collection}")
+
+
+@inject_client
 async def prompt_blob_storage_credentials(
-    console: Console, service: str, step_metadata: dict
-) -> dict:
+    console: Console, service: str, collection: str, client: PrefectClient = None
+) -> str:
     """
     Prompt the user for blob storage credentials.
+
+    Returns a jinja template string that references a credentials block.
     """
-    print(f"Configuring {service} credentials...")
+    _provider = collection.split("_")[-1]
+    _Service = service.capitalize()
+    existing_credentials_blocks = await client.read_block_documents_by_block_type(
+        block_type_slug=collection_to_storage_creds_block_slug[collection]
+    )
 
-    # Additional service-specific prompts can be added here if needed
-    bucket_name = prompt(f"{service} bucket name:")
-    folder_name = prompt(f"{service} folder name:", default="flows")
+    if existing_credentials_blocks:
+        selected_credentials_block = prompt_select_from_table(
+            console,
+            prompt=f"Select from your existing {_Service} credential blocks",
+            columns=[{"header": f"{_Service} Credentials Blocks", "key": "name"}],
+            data=[{"name": block.name} for block in existing_credentials_blocks],
+            opt_out_message="Create a new credentials block",
+        )
 
-    credentials = {
-        "service": service.lower(),
-        "bucket": bucket_name,
-        "folder": folder_name,
+        if selected_credentials_block and (
+            selected_block := selected_credentials_block.get("name")
+        ):
+            return f"{{{{ prefect.blocks.{_provider}-credentials.{selected_block} }}}}"
+
+    credentials_block_type = await _get_creds_block_class(collection)
+
+    fields_without_defaults = [
+        field
+        for field in credentials_block_type.__fields__.values()
+        if field.default is None
+    ]
+
+    console.print(f"\nProvide details on your new {_Service} credentials:")
+    credentials_data = {
+        field.name: prompt(f"{field.name} [yellow]({field.type_.__name__})[/]")
+        for field in fields_without_defaults
     }
+    credentials_block: CredentialsBlock = credentials_block_type.construct(
+        **credentials_data
+    )
 
-    return credentials
+    console.print(f"[blue]\n{_Service} credentials specified![/]\n")
+
+    credentials_block_name = prompt(
+        "Give a name to your new credentials block",
+        default=f"{service}-storage-credentials",
+    )
+
+    try:
+        uuid = await credentials_block.save(name=credentials_block_name)
+    except (ObjectAlreadyExists, ValueError) as e:
+        if "already in use" in str(e):
+            if confirm(
+                (
+                    f"A credentials block named {credentials_block_name!r} already"
+                    " exists. Would you like to overwrite it?"
+                ),
+            ):
+                uuid = await credentials_block.save(
+                    name=credentials_block_name, overwrite=True
+                )
+            else:
+                different_name = prompt(
+                    "Please provide a different name for this credentials block",
+                    default=f"{service}-storage-credentials",
+                )
+                uuid = await credentials_block.save(name=different_name)
+        else:
+            raise
+
+    if PREFECT_UI_URL:
+        console.print(
+            "\nView your new credentials block in the UI:"
+            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{uuid}[/]\n"
+        )
+    return f"{{{{ prefect.blocks.{_provider}-credentials.{credentials_block_name} }}}}"
