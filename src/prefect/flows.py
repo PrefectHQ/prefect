@@ -463,7 +463,7 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    async def watch(self, name: str, **kwargs):
+    async def serve(self, name: str, **kwargs):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
