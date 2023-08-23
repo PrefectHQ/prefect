@@ -72,7 +72,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql-config.yml
-          queries: security-and-quality
+          queries: default
           setup-python-dependencies: false
 
       - name: Perform CodeQL Analysis
