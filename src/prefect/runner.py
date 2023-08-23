@@ -352,8 +352,10 @@ class Runner:
 
         self.logger.debug("Checking for cancelled flow runs...")
 
-        # TODO: find the right filter for these calls
         named_cancelling_flow_runs = await self._client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=list(self.deployment_ids))
+            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
@@ -365,6 +367,9 @@ class Runner:
         )
 
         typed_cancelling_flow_runs = await self._client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=list(self.deployment_ids))
+            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
