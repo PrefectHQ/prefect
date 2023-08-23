@@ -41,12 +41,47 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```bash
     # Replace the cluster name with your own value
     eksctl create cluster --fargate --name <CLUSTER-NAME>
+    # Authenticate to the cluster (unless eksctl does this for you automatically)
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
+    
+    You can easily get a GKE cluster up and running with a few short commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). This will build a barebones cluster that is accessible over the open internet - this should **not** be used in a production environment. In order to deploy the cluster, your project must have a VPC network configured.
 
-=== "Azure"
+    First, authenticate to GCP by setting the following configuration options.
+
+    ```bash
+    # Authenticate to gcloud
+    gcloud auth login
+    # Specify the project & zone to deploy the cluster to
+    gcloud config set project <YOUR-PROJECT-NAME>
+    gcloud config set compute/zone us-east1-b
+    ```
+
+    Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
+
+    ```bash
+    # Create cluster
+    gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 --machine-type=n1-standard-2
+
+    # Authenticate to the cluster
+    gcloud container clusters <CLUSTER-NAME> gke-guide-1 --region us-east1-b
+    ```
+
+    Some gotchas you might run into:
+    1. Disbaled default compute service account
+    ```
+    ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
+    ```
+    You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
+
+    2. Organization Policy blocks creation of external (public) IPs.
+    ```
+    creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+    ```
+    You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
+
+<!-- === "Azure"
     TODO -->
 
 ## Create a container registry
@@ -108,7 +143,7 @@ kubectl create namespace prefect
 ### Create a Kubernetes secret for the Prefect API key
 
 ```bash
-kubectl create secret generic prefect-api-key-secret --namespace=prefect --from-literal=key=your-prefect-cloud-api-key
+kubectl create secret generic prefect-api-key --namespace=prefect --from-literal=key=your-prefect-cloud-api-key
 ```
 
 ### Configure Helm chart values
