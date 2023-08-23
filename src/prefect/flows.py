@@ -471,22 +471,10 @@ class Flow(Generic[P, R]):
             name: the name to give the deployment
             **kwargs: additional kwargs to pass to the deployment constructor
         """
-        from prefect.deployments import Deployment
         from prefect.runner import Runner
 
-        deployment = await Deployment.build_from_flow(
-            self,
-            name=name,
-            work_queue_name=None,
-            apply=False,
-            skip_upload=True,
-            load_existing=False,
-            **kwargs,
-        )
-        deployment.storage = None
-        deployment_id = await deployment.apply(ignore_infra=True, upload=False)
-
-        runner = Runner(name=name, deployment_ids=[str(deployment_id)])
+        runner = Runner(name=name)
+        await runner.load(self, name=name, **kwargs)
         await runner.start()
 
     @overload
