@@ -34,6 +34,7 @@ if sys.version_info < (3, 8):
 
 
 # Import user-facing API
+from prefect.runner import Runner
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
@@ -168,4 +169,5 @@ __all__ = [
     "task",
     "Task",
     "unmapped",
+    "Runner",
 ]

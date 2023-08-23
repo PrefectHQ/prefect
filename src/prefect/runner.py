@@ -136,7 +136,7 @@ class Runner:
 
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
         command = f"{sys.executable} -m prefect.engine"
