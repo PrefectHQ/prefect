@@ -463,6 +463,31 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
+    async def watch(self, name: str, **kwargs):
+        """
+        Creates a deployment for this flow and starts a runner to monitor for scheduled work.
+
+        Args:
+            name: the name to give the deployment
+            **kwargs: additional kwargs to pass to the deployment constructor
+        """
+        from prefect.deployments import Deployment
+        from prefect.runner import Runner
+
+        deployment = await Deployment.build_from_flow(
+            self,
+            name=name,
+            apply=False,
+            skip_upload=True,
+            load_existing=False,
+            **kwargs,
+        )
+        deployment.storage = None
+        deployment_id = await deployment.apply(ignore_infra=True, upload=False)
+
+        runner = Runner(name=name, deployment_ids=[str(deployment_id)])
+        await runner.start()
+
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a

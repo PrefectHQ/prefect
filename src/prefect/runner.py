@@ -14,7 +14,7 @@ from prefect.client.schemas.filters import (
     DeploymentFilterId,
     FlowRunFilter,
     FlowRunFilterId,
-    FlowRunFilterStartTime,
+    FlowRunFilterNextScheduledStartTime,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
@@ -39,9 +39,6 @@ from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
-    from prefect.client.schemas.responses import (
-        WorkerFlowRunResponse,
-    )
 
 import asyncio
 import os
@@ -100,6 +97,7 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
+        deployment_ids: List[str] = None,
         prefetch_seconds: Optional[float] = None,
         limit: Optional[int] = None,
     ):
@@ -122,7 +120,7 @@ class Runner:
         self.logger = get_logger()
 
         self.is_setup = False
-        self.deployment_ids = set()
+        self.deployment_ids = deployment_ids or set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -453,7 +451,7 @@ class Runner:
 
     async def _get_scheduled_flow_runs(
         self,
-    ) -> List["WorkerFlowRunResponse"]:
+    ) -> List["FlowRun"]:
         """
         Retrieve scheduled flow runs for this runner.
         """
@@ -465,7 +463,9 @@ class Runner:
                 id=DeploymentFilterId(any_=list(self.deployment_ids))
             ),
             flow_run_filter=FlowRunFilter(
-                start_time=FlowRunFilterStartTime(before_=scheduled_before),
+                next_scheduled_start_time=FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.SCHEDULED]),
                 ),
@@ -477,13 +477,13 @@ class Runner:
         return scheduled_flow_runs
 
     async def _submit_scheduled_flow_runs(
-        self, flow_run_response: List["WorkerFlowRunResponse"]
+        self, flow_run_response: List["FlowRun"]
     ) -> List["FlowRun"]:
         """
         Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
         for execution by the worker.
         """
-        submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
+        submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
