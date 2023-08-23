@@ -162,6 +162,7 @@ nav:
           - Webhooks: guides/webhooks.md
           - State Change Hooks: guides/state-change-hooks.md
           - Dask & Ray: guides/dask-ray-task-runners.md
+          - Moving data: guides/moving-data.md
           - Hosting: guides/host.md
           - Recipes: recipes/recipes.md
     - Concepts:
