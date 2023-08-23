@@ -105,13 +105,13 @@ class Runner:
         Responsible for managing the execution of remotely initiated flow runs.
 
         Args:
-            name: The name of the worker. If not provided, a random one
+            name: The name of the runner. If not provided, a random one
                 will be generated. If provided, it cannot contain '/' or '%'.
-                The name is used to identify the worker in the UI; if two
+                The name is used to identify the runner in the UI; if two
                 processes have the same name, they will be treated as the same
-                worker.
+                runner.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            limit: The maximum number of flow runs this worker should be running at
+            limit: The maximum number of flow runs this runner should be running at
                 a given time.
         """
         if name and ("/" in name or "%" in name):
@@ -137,9 +137,9 @@ class Runner:
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
-            "worker",
+            "runner",
             extra={
-                "worker_name": self.name,
+                "runner_name": self.name,
             },
         )
 
@@ -280,8 +280,8 @@ class Runner:
         return cls.type
 
     async def setup(self):
-        """Prepares the worker to run."""
-        self.logger.debug("Setting up worker...")
+        """Prepares the runner to run."""
+        self.logger.debug("Setting up runner...")
         self._runs_task_group = anyio.create_task_group()
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
@@ -293,8 +293,8 @@ class Runner:
         self.is_setup = True
 
     async def teardown(self, *exc_info):
-        """Cleans up resources after the worker is stopped."""
-        self.logger.debug("Tearing down worker...")
+        """Cleans up resources after the runner is stopped."""
+        self.logger.debug("Tearing down runner...")
         self.is_setup = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
@@ -305,10 +305,10 @@ class Runner:
         self._runs_task_group = None
         self._client = None
 
-    def is_worker_still_polling(self, query_interval_seconds: int) -> bool:
+    def is_runner_still_polling(self, query_interval_seconds: int) -> bool:
         """
         This method is invoked by a webserver healthcheck handler
-        and returns a boolean indicating if the worker has recorded a
+        and returns a boolean indicating if the runner has recorded a
         scheduled flow run poll within a variable amount of time.
 
         The `query_interval_seconds` is the same value that is used by
@@ -344,7 +344,7 @@ class Runner:
     async def check_for_cancelled_flow_runs(self):
         if not self.is_setup:
             raise RuntimeError(
-                "Worker is not set up. Please make sure you are running this worker "
+                "Worker is not set up. Please make sure you are running this runner "
                 "as an async context manager."
             )
 
@@ -422,7 +422,7 @@ class Runner:
             self.logger.warning(f"{exc} Marking flow run as cancelled.")
             await self._mark_flow_run_as_cancelled(flow_run)
         except InfrastructureNotAvailable as exc:
-            self.logger.warning(f"{exc} Flow run cannot be cancelled by this worker.")
+            self.logger.warning(f"{exc} Flow run cannot be cancelled by this runner.")
         except Exception:
             run_logger.exception(
                 "Encountered exception while killing infrastructure for flow run "
@@ -443,7 +443,7 @@ class Runner:
 
     async def sync_with_backend(self):
         """
-        Sends a worker heartbeat to the API.
+        Sends a runner heartbeat to the API.
         """
         await self._send_runner_heartbeat()
 
@@ -481,7 +481,7 @@ class Runner:
     ) -> List["FlowRun"]:
         """
         Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
-        for execution by the worker.
+        for execution by the runner.
         """
         submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
@@ -533,7 +533,7 @@ class Runner:
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
-        Submits a given flow run for execution by the worker.
+        Submits a given flow run for execution by the runner.
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
@@ -733,7 +733,7 @@ class Runner:
         """
         Schedule a background task to start after some time.
 
-        These tasks will be run immediately when the worker exits instead of waiting.
+        These tasks will be run immediately when the runner exits instead of waiting.
 
         The function may be async or sync. Async functions will be awaited.
         """
@@ -758,12 +758,12 @@ class Runner:
         await self._runs_task_group.start(wrapper)
 
     async def __aenter__(self):
-        self.logger.debug("Entering worker context...")
+        self.logger.debug("Entering runner context...")
         await self.setup()
         return self
 
     async def __aexit__(self, *exc_info):
-        self.logger.debug("Exiting worker context...")
+        self.logger.debug("Exiting runner context...")
         await self.teardown(*exc_info)
 
     def __repr__(self):
