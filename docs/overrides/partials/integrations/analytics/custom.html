@@ -7,7 +7,7 @@ const addUrl = (event) => {
   const deviceId = amplitude.getDeviceId()
   const { href = '' } = event.target
   const url = new URL(href)
-  url.searchParams.append('deviceId', deviceId)
+  url.searchParams.set('deviceId', deviceId)
   event.target.href = url.toString()
 }
 
