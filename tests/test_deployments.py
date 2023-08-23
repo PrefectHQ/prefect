@@ -1,8 +1,8 @@
+import json
 import re
 from uuid import uuid4
 
 import httpx
-import json
 import pendulum
 import pytest
 import respx
@@ -13,11 +13,11 @@ from pydantic.error_wrappers import ValidationError
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow, task
-from prefect.events.schemas import DeploymentTrigger
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment, run_deployment
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process

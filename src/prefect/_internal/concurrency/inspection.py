@@ -2,11 +2,11 @@
 Utilities for inspection of stack frames and threads.
 """
 
-from types import FrameType
+import dis
 import linecache
 import sys
 import threading
-import dis
+from types import FrameType
 from typing import List
 
 """

@@ -1,8 +1,8 @@
 from typing import Any, Dict, Optional
-from typing_extensions import Literal
 from uuid import UUID
 
 from pydantic import Field
+from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 

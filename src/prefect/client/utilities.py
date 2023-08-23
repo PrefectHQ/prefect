@@ -6,8 +6,8 @@ Utilities for working with clients.
 
 from functools import wraps
 
-from prefect.utilities.asyncutils import asyncnullcontext
 from prefect._internal.concurrency.event_loop import get_running_loop
+from prefect.utilities.asyncutils import asyncnullcontext
 
 
 def inject_client(fn):

@@ -1,9 +1,9 @@
 """Module containing implementation for deploying projects."""
-from getpass import GetPassWarning
 import json
+import os
 from copy import deepcopy
 from datetime import timedelta
-import os
+from getpass import GetPassWarning
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
@@ -11,23 +11,28 @@ from uuid import UUID
 import typer
 import typer.core
 import yaml
-from rich.panel import Panel
 from rich.console import Console
+from rich.panel import Panel
 
+from prefect._internal.compatibility.deprecated import (
+    generate_deprecation_message,
+)
+from prefect.blocks.system import Secret
+from prefect.cli._prompts import (
+    confirm,
+    prompt,
+    prompt_build_custom_docker_image,
+    prompt_entrypoint,
+    prompt_push_custom_docker_image,
+    prompt_schedule,
+    prompt_select_from_table,
+    prompt_select_work_pool,
+)
 from prefect.cli._utilities import (
     exit_with_error,
 )
-from prefect.cli._prompts import (
-    prompt,
-    confirm,
-    prompt_select_from_table,
-    prompt_schedule,
-    prompt_select_work_pool,
-    prompt_entrypoint,
-    prompt_build_custom_docker_image,
-    prompt_push_custom_docker_image,
-)
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     CronSchedule,
@@ -35,37 +40,24 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.events.schemas import DeploymentTrigger
-from prefect.exceptions import ObjectNotFound
-from prefect.flows import load_flow_from_entrypoint
 from prefect.deployments import find_prefect_directory, register_flow
-from prefect.settings import PREFECT_UI_URL, PREFECT_DEBUG_MODE
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.callables import parameter_schema
-from prefect.utilities.templating import apply_values
-
-from prefect.deployments.steps.core import run_steps
-
 from prefect.deployments.base import (
     _copy_deployments_into_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
     _save_deployment_to_prefect_file,
 )
-
-from prefect.blocks.system import Secret
-
-from prefect.utilities.slugify import slugify
-
-from prefect.client.orchestration import PrefectClient, ServerType
-
-from prefect._internal.compatibility.deprecated import (
-    generate_deprecation_message,
-)
-
-from prefect.utilities.collections import get_from_dict
-
+from prefect.deployments.steps.core import run_steps
+from prefect.events.schemas import DeploymentTrigger
+from prefect.exceptions import ObjectNotFound
+from prefect.flows import load_flow_from_entrypoint
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.callables import parameter_schema
+from prefect.utilities.collections import get_from_dict
+from prefect.utilities.slugify import slugify
+from prefect.utilities.templating import apply_values
 
 
 @app.command()
@@ -973,7 +965,7 @@ async def _generate_default_pull_action(
             "Your Prefect workers will attempt to load your flow from:"
             f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
-            " prefect project recipes ls[/]\n"
+            " prefect init[/]\n"
         )
         return [
             {

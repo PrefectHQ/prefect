@@ -147,7 +147,8 @@ nav:
           - Deployment:
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
-                - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
+                - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
+                - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
@@ -161,6 +162,7 @@ nav:
           - Webhooks: guides/webhooks.md
           - State Change Hooks: guides/state-change-hooks.md
           - Dask & Ray: guides/dask-ray-task-runners.md
+          - Moving data: guides/moving-data.md
           - Hosting: guides/host.md
           - Recipes: recipes/recipes.md
     - Concepts:
