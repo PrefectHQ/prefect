@@ -477,6 +477,7 @@ class Flow(Generic[P, R]):
         deployment = await Deployment.build_from_flow(
             self,
             name=name,
+            work_queue_name=None,
             apply=False,
             skip_upload=True,
             load_existing=False,
