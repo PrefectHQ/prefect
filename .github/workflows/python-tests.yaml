@@ -227,7 +227,7 @@ jobs:
           && docker container logs postgres
           || echo "Ignoring bad exit code"
 
-  notify:
+  notify-tests-failing-on-main:
     needs: run-tests
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && failure()
@@ -244,4 +244,4 @@ jobs:
               channel: "#engineering-review",
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
