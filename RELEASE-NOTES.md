@@ -4,7 +4,7 @@
 
 ### New Guides
 
-We're happy to announce two new guides aimed at helping users get the most out of their Prefect setup!
+We're happy to announce two new guides to help you get the most out of Prefect!
 
 #### How to move data to and from cloud providers
 
