@@ -349,7 +349,9 @@ definitions:
 
 ## Authenticate to Prefect
 
-Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI. We will also need to ensure that all of our flow's dependencies are present at `deploy` time. Note: using a virtual environment is optional, but provided here for best practice and to ensure consistency across environments.
+Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI. We will also need to ensure that all of our flow's dependencies are present at `deploy` time. 
+
+This example uses a virtual environment to ensure consistency across environments.
 
 ```bash
 # Create a virtualenv & activate it.
