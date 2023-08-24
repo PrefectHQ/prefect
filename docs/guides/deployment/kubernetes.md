@@ -121,7 +121,7 @@ If you already have a registry, skip ahead to the next section.
     ```bash
     # Create artifact registry repository to host your custom image. 
     # Replace the repository name with your own value; it can be the 
-    # same name as your image.
+    # same name as your image
     gcloud artifacts repositories create <REPOSITORY-NAME> \
     --repository-format=docker --location=us
 
