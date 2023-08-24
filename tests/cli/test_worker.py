@@ -530,6 +530,27 @@ class TestInstallPolicyOption:
 
         run_process_mock.assert_not_called()
 
+        def test_start_with_prefect_agent_type(worker_type):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--run-once",
+                    "-p",
+                    "test-work-pool",
+                    "-n",
+                    "test-worker",
+                    "-t",
+                    "prefect-agent",
+                ],
+                expected_code=1,
+                expected_output_contains=(
+                    "'prefect-agent' typed work pools work with Prefect Agents instead"
+                    " of Workers. Please use the 'prefect agent start' to start a"
+                    " Prefect Agent."
+                ),
+            )
+
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
