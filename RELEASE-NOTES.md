@@ -8,11 +8,11 @@ We're happy to announce two new guides to help you get the most out of Prefect!
 
 #### How to move data to and from cloud providers
 
-Moving data to cloud-based storage and retrieving it is crucial in many data engineering setups. This guide provides step-by-step instructions to seamlessly integrate and interact with popular cloud services like AWS, Azure, and GCP.
+Moving data to cloud-based storage and retrieving it is crucial in many data engineering setups. [This guide](https://docs.prefect.io/latest/guides/moving-data/) provides step-by-step instructions to seamlessly integrate and interact with popular cloud services like AWS, Azure, and GCP.
 
 #### Running flows with Kubernetes
 
-For those aiming to optimize their flows using Kubernetes, this guide provides a deep dive on how to efficiently run flows on Kubernetes using containers. Catering to both novices and seasoned experts, the content offers insights for all proficiency levels.
+For those aiming to optimize their flows using Kubernetes, this guide provides a deep dive on how to efficiently run flows on Kubernetes using containers. Catering to both novices and seasoned experts, [this guide](https://docs.prefect.io/latest/guides/deployment/kubernetes/) offers insights for all proficiency levels.
 
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10133
