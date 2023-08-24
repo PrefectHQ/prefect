@@ -8,7 +8,7 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel
 
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.filters import (
     DeploymentFilter,
     DeploymentFilterId,
@@ -781,6 +781,11 @@ class Runner:
         TODO: expose a filesystem interface with hot reloading (which is why this method is
         distinct from `create_deployment`)
         """
+        if kwargs.get("schedule") and self._client.server_type == ServerType.EPHEMERAL:
+            self.logger.warning(
+                "Cannot schedule flows on an ephemeral server; run `prefect server"
+                " start` to start the scheduler."
+            )
         await self.create_deployment(flow, **kwargs)
 
     async def start(self):
