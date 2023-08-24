@@ -78,7 +78,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     <details>
       <summary>GCP Gotchas</summary>
       
-      - Disabled default compute service account. You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
+      - You'll need to enable the default service account in the IAM console, or specify a different service account with the appropriate permissions to be used.
       ```
       ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
       ```
