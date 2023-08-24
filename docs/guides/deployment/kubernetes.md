@@ -59,7 +59,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
     # Specify the project & zone to deploy the cluster to. 
     # Replace the project name with your GCP project name.
-    gcloud config set project <YOUR-PROJECT-NAME>
+    gcloud config set project <GCP-PROJECT-NAME>
     gcloud config set compute/zone us-east1-b
     ```
 
@@ -85,7 +85,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       
       - Organization policy blocks creation of external (public) IPs. You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
       ```
-      creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+      creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
       ```
       
     </details>
@@ -118,8 +118,9 @@ If you already have a registry, skip ahead to the next section.
 
     ```bash
     # Create artifact registry repository to host your custom image. 
-    # Replace the image name with your own value.
-    gcloud artifacts repositories create <YOUR-IMAGE> \
+    # Replace the repository name with your own value; it can be the 
+    # same name as your image.
+    gcloud artifacts repositories create <REPOSITORY-NAME> \
     --repository-format=docker --location=us
 
     # Authenticate to artifact registry
@@ -378,7 +379,7 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
 === "GCP"
 
     ```bash
-    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<YOUR-PROJECT-NAME>/<IMAGE-NAME>
+    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
     ```
 
 <!-- === "Azure"
