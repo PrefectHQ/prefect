@@ -78,17 +78,16 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     <details>
       <summary>GCP Gotchas</summary>
       
-      1. Disabled default compute service account
-      ```
-      ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
-      ```
-      You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
-
-      2. Organization policy blocks creation of external (public) IPs.
-      ```
-      creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
-      ```
-      You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
+      - Disabled default compute service account. You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
+        ```
+        ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
+        ```
+      
+      - Organization policy blocks creation of external (public) IPs. You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
+        ```
+        creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+        ```
+      
     </details>
 
 <!-- === "Azure"
