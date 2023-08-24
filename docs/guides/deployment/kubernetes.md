@@ -119,7 +119,7 @@ If you already have a registry, skip ahead to the next section.
     Let's create a registry using the gcloud CLI and authenticate the docker daemon to said registry:
 
     ```bash
-    # Create artifact registry repository to host your custom image. 
+    # Create artifact registry repository to host your custom image
     # Replace the repository name with your own value; it can be the 
     # same name as your image
     gcloud artifacts repositories create <REPOSITORY-NAME> \
