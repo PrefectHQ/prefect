@@ -14,7 +14,6 @@ Moving data to cloud-based storage and retrieving it is crucial in many data eng
 
 For those aiming to optimize their flows using Kubernetes, this guide provides a deep dive on how to efficiently run flows on Kubernetes using containers. Catering to both novices and seasoned experts, the content offers insights for all proficiency levels.
 
-
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10133
 - https://github.com/PrefectHQ/prefect/pull/10368
