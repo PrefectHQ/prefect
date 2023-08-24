@@ -45,7 +45,6 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
 
 import anyio
 import anyio.abc
@@ -157,19 +156,13 @@ class Runner:
         _use_threaded_child_watcher()
         flow_run_logger.info("Opening process...")
 
-        # TODO: expose working dir as configurable on the runner
-        with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
-            flow_run_logger.debug(
-                f"Process running command: {command} in {working_dir}"
-            )
-            process = await run_process(
-                command.split(" "),
-                stream_output=True,
-                task_status=task_status,
-                cwd=working_dir,
-                env=prepare_environment(flow_run),
-                **kwargs,
-            )
+        process = await run_process(
+            command.split(" "),
+            stream_output=True,
+            task_status=task_status,
+            env=prepare_environment(flow_run),
+            **kwargs,
+        )
 
         # Use the pid for display if no name was given
         display_name = f" {process.pid}"
@@ -336,7 +329,7 @@ class Runner:
         # To stop loop service checking for cancelled runs.
         # Need to find a better way to stop runner spawned by
         # a worker.
-        if not self._flow_run_process_map:
+        if not self._flow_run_process_map and not self.deployment_ids:
             raise Exception("No flow runs to watch for cancel.")
 
         self.logger.debug("Checking for cancelled flow runs...")
