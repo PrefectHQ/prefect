@@ -8,7 +8,7 @@ We're happy to announce two new guides aimed at helping users get the most out o
 
 #### How to move data to and from cloud providers
 
-Moving data to cloud-based storage and retrieving it is crucial in many data engineering setups. This guide provides step-by-step instructions to seamlessly integrate and interact with popular cloud services like AWS, Azure, and GCP using Prefect.
+Moving data to cloud-based storage and retrieving it is crucial in many data engineering setups. This guide provides step-by-step instructions to seamlessly integrate and interact with popular cloud services like AWS, Azure, and GCP.
 
 #### Running flows with Kubernetes
 
