@@ -364,7 +364,7 @@ source prefect-demo/bin/activate
 prefect-demo/bin/pip install -r requirements.txt
 
 # Authenticate to Prefect & select the appropriate 
-# workspace to deploy your flows to.
+# workspace to deploy your flows to
 prefect-demo/bin/prefect cloud login
 ```
 
