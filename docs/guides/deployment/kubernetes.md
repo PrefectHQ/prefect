@@ -56,7 +56,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```bash
     # Authenticate to gcloud
     gcloud auth login
-    # Specify the project & zone to deploy the cluster to. Replace the project name with your GCP project name.
+
+    # Specify the project & zone to deploy the cluster to. 
+    # Replace the project name with your GCP project name.
     gcloud config set project <YOUR-PROJECT-NAME>
     gcloud config set compute/zone us-east1-b
     ```
@@ -68,21 +70,32 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 --machine-type=n1-standard-2
 
     # Authenticate to the cluster.
-    gcloud container clusters <CLUSTER-NAME> gke-guide-1 --region us-east1-b
+    gcloud container clusters <CLUSTER-NAME> --region us-east1-b
     ```
 
-    Some gotchas you might run into:
-    1. Disbaled default compute service account
+    Some gotchas to watch out for:
+
+    1. Disabled default compute service account
     ```
     ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
     ```
     You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
 
-    2. Organization Policy blocks creation of external (public) IPs.
+    2. Organization policy blocks creation of external (public) IPs.
     ```
-    creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+    creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
     ```
     You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
+
+    # test toggle
+    <details>
+      <summary>Click to toggle</summary>
+      
+      This is a collapsible section.
+      
+      - Item 1
+      - Item 2
+    </details>
 
 <!-- === "Azure"
     TODO -->
@@ -111,7 +124,8 @@ If you already have a registry, skip ahead to the next section.
     Let's create a registry using the gcloud CLI and authenticate the docker daemon to said registry:
 
     ```bash
-    # Create artifact registry repository to host your custom image. Replace the image name with your own value.
+    # Create artifact registry repository to host your custom image. 
+    # Replace the image name with your own value.
     gcloud artifacts repositories create <YOUR-IMAGE> --repository-format=docker --location=us
 
     # Authenticate to artifact registry
@@ -346,9 +360,11 @@ Before we deploy the flows to Prefect, we will need to authenticate via the Pref
 # Create a virtualenv & activate it.
 virtualenv prefect-demo
 source prefect-demo/bin/activate
+
 # Install your flow's dependencies.
 prefect-demo/bin/pip install -r requirements.txt
 # Authenticate to Prefect & select the apropriate workspace to deploy your flows to.
+
 prefect-demo/bin/prefect cloud login
 ```
 
@@ -367,13 +383,13 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
 === "GCP"
 
     ```bash
-    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME/<IMAGE-NAME>
+    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<YOUR-PROJECT-NAME>/<IMAGE-NAME>
     ```
 
 <!-- === "Azure"
     TODO -->
 
-In order to deploy your flows - please ensure your Docker Daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
+In order to deploy your flows, ensure your Docker daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
 
 ## Run the flows
 
