@@ -1,7 +1,7 @@
 import inspect
 from functools import partial
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
@@ -531,6 +531,18 @@ class Runner:
                     " Workers currently only support local storage. Please use an"
                     " agent to execute this flow run."
                 )
+
+    async def execute_flow_run(self, flow_run_id: UUID):
+        async with self as runner:
+            self._submitting_flow_run_ids.add(flow_run_id)
+            flow_run = await runner._client.read_flow_run(flow_run_id)
+
+            # Tried _submit_run first, but worker marks flow run
+            # as pending before getting to the runner. Which should
+            # be responsible for marking the run as pending?
+            await runner._runs_task_group.start(
+                self._submit_run_and_capture_errors, flow_run
+            )
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """

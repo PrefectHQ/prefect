@@ -2,7 +2,8 @@
 Command line interface for working with flow runs
 """
 import logging
-from typing import List
+import os
+from typing import List, Optional
 from uuid import UUID
 
 import httpx
@@ -21,6 +22,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
+from prefect.runner import Runner
 from prefect.states import State
 
 flow_run_app = PrefectTyper(
@@ -261,3 +263,16 @@ async def logs(
                 else:
                     # No more logs to show, exit
                     more_logs = False
+
+
+@flow_run_app.command()
+async def execute(id: Optional[UUID] = None):
+    if id is None:
+        environ_flow_id = os.environ.get("PREFECT__FLOW_RUN_ID")
+        if environ_flow_id:
+            id = UUID(environ_flow_id)
+
+    if id is None:
+        exit_with_error("Cloud not determine the ID of the flow run to execute.")
+
+    await Runner().execute_flow_run(id)
