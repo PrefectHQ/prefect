@@ -356,7 +356,7 @@ Before we deploy the flows to Prefect, we will need to authenticate via the Pref
 This example uses a virtual environment to ensure consistency across environments.
 
 ```bash
-# Create a virtualenv & activate it.
+# Create a virtualenv & activate it
 virtualenv prefect-demo
 source prefect-demo/bin/activate
 
