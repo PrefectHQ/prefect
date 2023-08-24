@@ -240,7 +240,7 @@ jobs:
           fields: repo,message
           custom_payload: |
             {
-              text: "Python tests are failing on the main branch!",
+              text: "Unit tests are failing on the main branch!",
               channel: "#engineering-review",
             }
         env:
