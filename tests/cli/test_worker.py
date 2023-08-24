@@ -29,10 +29,6 @@ from typer import Exit
 
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
-from unittest.mock import patch
-from prefect.cli.worker import _get_worker_class
-import subprocess
-
 
 class MockKubernetesWorker(BaseWorker):
     type = "kubernetes"
@@ -340,20 +336,6 @@ async def test_start_worker_without_type_creates_process_work_pool(
     assert workers[0].name == "test-worker"
 
 
-@patch("worker.exit_with_error")
-def test_prefect_agent_exit(self, mock_exit_with_error):
-    worker_type = "prefect-agent"
-    work_pool_name = "test"
-    install_policy = "always"
-
-    # Call the function with the mock inputs
-    _get_worker_class(worker_type, work_pool_name, install_policy)
-    mock_exit_with_error.assert_called_once_with(
-        "'prefect-agent' typed work pools work with Prefect Agents instead of Workers."
-        " Please use the 'prefect agent start' to start a Prefect Agent."
-    )
-
-
 @pytest.mark.usefixtures("use_hosted_api_server")
 class TestInstallPolicyOption:
     async def test_install_policy_if_not_present(
@@ -551,31 +533,26 @@ class TestInstallPolicyOption:
 
         run_process_mock.assert_not_called()
 
-        @pytest.mark.parametrize("worker_type", ["prefect-agent"])
         def test_start_with_prefect_agent_type(worker_type):
-            # Run the CLI command with the specified worker_type
-            result = subprocess.run(
-                ["python", "worker.py", "worker", "start", "--type", worker_type],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--run-once",
+                    "-p",
+                    "test-work-pool",
+                    "-n",
+                    "test-worker",
+                    "-t",
+                    "prefect-agent",
+                ],
+                expected_code=1,
+                expected_output_contains=(
+                    "'prefect-agent' typed work pools work with Prefect Agents instead"
+                    " of Workers. Please use the 'prefect agent start' to start a"
+                    " Prefect Agent."
+                ),
             )
-
-            if worker_type == "prefect-agent":
-                assert result.returncode == 1
-
-                assert (
-                    "prefect-agent' typed work pools work with Prefect Agents"
-                    " instead of"
-                    in result.stderr
-                )
-            else:
-                assert result.returncode != 1
-                assert (
-                    "prefect-agent' typed work pools work with Prefect Agents"
-                    " instead of"
-                    not in result.stderr
-                )
 
 
 POLL_INTERVAL = 0.5
