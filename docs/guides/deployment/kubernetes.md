@@ -73,7 +73,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 \
     --machine-type=n1-standard-2
 
-    # Authenticate to the cluster.
+    # Authenticate to the cluster
     gcloud container clusters <CLUSTER-NAME> --region <AVAILABILITY-ZONE>
     ```
 
