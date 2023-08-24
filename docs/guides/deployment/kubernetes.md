@@ -360,7 +360,7 @@ This example uses a virtual environment to ensure consistency across environment
 virtualenv prefect-demo
 source prefect-demo/bin/activate
 
-# Install your flow's dependencies.
+# Install your flow's dependencies
 prefect-demo/bin/pip install -r requirements.txt
 
 # Authenticate to Prefect & select the appropriate 
