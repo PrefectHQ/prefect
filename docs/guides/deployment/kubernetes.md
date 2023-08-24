@@ -44,12 +44,55 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```bash
     # Replace the cluster name with your own value
     eksctl create cluster --fargate --name <CLUSTER-NAME>
+
+    # Authenticate to the cluster.
+    aws eks update-kubeconfig --name <CLUSTER-NAME>
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
+    
+    You can easily get a GKE cluster up and running with a few short commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). This will build a barebones cluster that is accessible over the open internet - this should **not** be used in a production environment. In order to deploy the cluster, your project must have a VPC network configured.
 
-=== "Azure"
+    First, authenticate to GCP by setting the following configuration options.
+
+    ```bash
+    # Authenticate to gcloud
+    gcloud auth login
+
+    # Specify the project & zone to deploy the cluster to
+    # Replace the project name with your GCP project name
+    gcloud config set project <GCP-PROJECT-NAME>
+    gcloud config set compute/zone <AVAILABILITY-ZONE>
+    ```
+
+    Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
+
+    ```bash
+    # Create cluster
+    # Replace the cluster name with your own value
+    gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 \
+    --machine-type=n1-standard-2
+
+    # Authenticate to the cluster
+    gcloud container clusters <CLUSTER-NAME> --region <AVAILABILITY-ZONE>
+    ```
+
+    <details>
+      <summary>GCP Gotchas</summary>
+      
+      - You'll need to enable the default service account in the IAM console, or specify a different service account with the appropriate permissions to be used.
+      ```
+      ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
+      ```
+      
+      - Organization policy blocks creation of external (public) IPs. You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
+      ```
+      creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+      ```
+      
+    </details>
+
+<!-- === "Azure"
     TODO -->
 
 ## Create a container registry
@@ -72,10 +115,21 @@ If you already have a registry, skip ahead to the next section.
       --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
+    Let's create a registry using the gcloud CLI and authenticate the docker daemon to said registry:
 
-=== "Azure"
+    ```bash
+    # Create artifact registry repository to host your custom image
+    # Replace the repository name with your own value; it can be the 
+    # same name as your image
+    gcloud artifacts repositories create <REPOSITORY-NAME> \
+    --repository-format=docker --location=us
+
+    # Authenticate to artifact registry
+    gcloud auth configure-docker us-docker.pkg.dev
+    ```
+
+<!-- === "Azure"
     TODO -->
 
 ## Create a work pool
@@ -112,8 +166,8 @@ kubectl create namespace prefect
 ### Create a Kubernetes secret for the Prefect API key
 
 ```bash
-kubectl create secret generic prefect-api-key-secret \
-  --namespace=prefect --from-literal=key=your-prefect-cloud-api-key
+kubectl create secret generic prefect-api-key \
+--namespace=prefect --from-literal=key=your-prefect-cloud-api-key
 ```
 
 ### Configure Helm chart values
@@ -295,6 +349,25 @@ definitions:
       image: "{{ build-image.image }}"
 ```
 
+## Authenticate to Prefect
+
+Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI. We will also need to ensure that all of our flow's dependencies are present at `deploy` time. 
+
+This example uses a virtual environment to ensure consistency across environments.
+
+```bash
+# Create a virtualenv & activate it
+virtualenv prefect-demo
+source prefect-demo/bin/activate
+
+# Install your flow's dependencies
+prefect-demo/bin/pip install -r requirements.txt
+
+# Authenticate to Prefect & select the appropriate 
+# workspace to deploy your flows to
+prefect-demo/bin/prefect cloud login
+```
+
 ## Deploy the flows
 
 Now we're ready to deploy our flows which will build our images. 
@@ -307,13 +380,16 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
     export PREFECT_IMAGE_NAME=<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<IMAGE-NAME>
     ```
 
-<!-- === "GCP"
-    TODO
+=== "GCP"
 
-=== "Azure"
+    ```bash
+    export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
+    ```
+
+<!-- === "Azure"
     TODO -->
 
-Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`
+In order to deploy your flows, ensure your Docker daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
 
 ## Run the flows
 
