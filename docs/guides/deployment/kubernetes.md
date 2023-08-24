@@ -44,7 +44,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```bash
     # Replace the cluster name with your own value
     eksctl create cluster --fargate --name <CLUSTER-NAME>
-    # Authenticate to the cluster (unless eksctl does this for you automatically)
+
+    # Authenticate to the cluster.
+    aws eks update-kubeconfig --name <CLUSTER-NAME>
     ```
 
 === "GCP"
