@@ -60,7 +60,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     # Specify the project & zone to deploy the cluster to. 
     # Replace the project name with your GCP project name.
     gcloud config set project <GCP-PROJECT-NAME>
-    gcloud config set compute/zone us-east1-b
+    gcloud config set compute/zone <AVAILABILITY-ZONE>
     ```
 
     Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
