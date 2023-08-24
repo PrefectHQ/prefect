@@ -68,7 +68,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
 
     ```bash
-    # Create cluster. 
+    # Create cluster
     # Replace the cluster name with your own value.
     gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 \
     --machine-type=n1-standard-2
