@@ -22,6 +22,34 @@ RESERVED_POOL_NAMES = [
 ]
 
 
+@pytest.fixture
+async def invalid_work_pool(session):
+    work_pool = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate.construct(
+            _fields_set=schemas.actions.WorkPoolCreate.__fields_set__,
+            name="wp-1",
+            type="invalid",
+            description="I have an invalid base job template!",
+            base_job_template={
+                "job_configuration": {
+                    "thing_one": "{{ expected_variable_1 }}",
+                    "thing_two": "{{ expected_variable_2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "not_expected_variable_1": {},
+                        "expected_variable_2": {},
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return work_pool
+
+
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session, client):
         response = await client.post(
@@ -440,6 +468,16 @@ class TestReadWorkPool:
         response = await client.get("/work_pools/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_read_work_pool_that_fails_validation(
+        self,
+        client,
+        invalid_work_pool,
+    ):
+        response = await client.get(f"/work_pools/{invalid_work_pool.name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == str(invalid_work_pool.id)
+        assert response.json()["name"] == "wp-1"
+
 
 class TestReadWorkPools:
     @pytest.fixture(autouse=True)
@@ -464,6 +502,15 @@ class TestReadWorkPools:
         assert response.status_code == status.HTTP_200_OK
         result = pydantic.parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["B", "C"]
+
+    async def test_read_work_pool_with_work_pool_that_fails_validation(
+        self,
+        client,
+        invalid_work_pool,
+    ):
+        response = await client.post("/work_pools/filter")
+        assert response.status_code == 200
+        assert len(response.json()) == 4
 
 
 class TestCreateWorkQueue:
