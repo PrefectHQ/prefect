@@ -79,7 +79,7 @@ def prepare_environment(flow_run: "FlowRun") -> Dict[str, str]:
     return env
 
 
-class ProcessWorkerResult(BaseModel):
+class ProcessRunnerResult(BaseModel):
     identifier: str
     status_code: int
 
@@ -109,7 +109,7 @@ class Runner:
                 a given time.
         """
         if name and ("/" in name or "%" in name):
-            raise ValueError("Worker name cannot contain '/' or '%'")
+            raise ValueError("Runner name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self.logger = get_logger()
 
@@ -208,7 +208,7 @@ class Runner:
         else:
             flow_run_logger.info(f"Process{display_name} exited cleanly.")
 
-        return ProcessWorkerResult(
+        return ProcessRunnerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
 
@@ -260,7 +260,7 @@ class Runner:
 
     @classmethod
     def __dispatch_key__(cls):
-        if cls.__name__ == "BaseWorker":
+        if cls.__name__ == "BaseRunner":
             return None  # The base class is abstract
         return cls.type
 
@@ -313,7 +313,7 @@ class Runner:
 
         if not is_still_polling:
             self.logger.error(
-                f"Worker has not polled in the last {seconds_since_last_poll} seconds "
+                f"Runner has not polled in the last {seconds_since_last_poll} seconds "
                 "and should be restarted"
             )
 
@@ -329,7 +329,7 @@ class Runner:
     async def check_for_cancelled_flow_runs(self):
         if not self.is_setup:
             raise RuntimeError(
-                "Worker is not set up. Please make sure you are running this runner "
+                "Runner is not set up. Please make sure you are running this runner "
                 "as an async context manager."
             )
 
@@ -430,7 +430,7 @@ class Runner:
         """
         await self._send_runner_heartbeat()
 
-        self.logger.debug("Worker synchronized with the Prefect API server.")
+        self.logger.debug("Runner synchronized with the Prefect API server.")
 
     async def _get_scheduled_flow_runs(
         self,
@@ -463,7 +463,7 @@ class Runner:
         self, flow_run_response: List["FlowRun"]
     ) -> List["FlowRun"]:
         """
-        Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
+        Takes a list of FlowRuns and submits the referenced flow runs
         for execution by the runner.
         """
         submittable_flow_runs = flow_run_response
@@ -484,7 +484,7 @@ class Runner:
             else:
                 run_logger = self.get_flow_run_logger(flow_run)
                 run_logger.info(
-                    f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
+                    f"Runner '{self.name}' submitting flow run '{flow_run.id}'"
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
@@ -510,7 +510,7 @@ class Runner:
                 raise ValueError(
                     f"Flow run {flow_run.id!r} was created from deployment"
                     f" {deployment.name!r} which is configured with a storage block."
-                    " Workers currently only support local storage. Please use an"
+                    " Runners currently only support local storage. Please use an"
                     " agent to execute this flow run."
                 )
 
@@ -575,7 +575,7 @@ class Runner:
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
-    ) -> Union[ProcessWorkerResult, Exception]:
+    ) -> Union[ProcessRunnerResult, Exception]:
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
