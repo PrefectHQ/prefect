@@ -60,7 +60,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud auth login
 
     # Specify the project & zone to deploy the cluster to
-    # Replace the project name with your GCP project name.
+    # Replace the project name with your GCP project name
     gcloud config set project <GCP-PROJECT-NAME>
     gcloud config set compute/zone <AVAILABILITY-ZONE>
     ```
