@@ -66,35 +66,29 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
 
     ```bash
-    # Create cluster. Replace the cluster name with your own value.
-    gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 --machine-type=n1-standard-2
+    # Create cluster. 
+    # Replace the cluster name with your own value.
+    gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 \
+    --machine-type=n1-standard-2
 
     # Authenticate to the cluster.
     gcloud container clusters <CLUSTER-NAME> --region us-east1-b
     ```
 
-    Some gotchas to watch out for:
-
-    1. Disabled default compute service account
-    ```
-    ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
-    ```
-    You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
-
-    2. Organization policy blocks creation of external (public) IPs.
-    ```
-    creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
-    ```
-    You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
-
-    # test toggle
     <details>
-      <summary>Click to toggle</summary>
+      <summary>GCP Gotchas</summary>
       
-      This is a collapsible section.
-      
-      - Item 1
-      - Item 2
+        1. Disabled default compute service account
+        ```
+        ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
+        ```
+        You'll need to enable the default service account in the IAM console, or specifiy a different service account with the appropriate permissions to be used.
+
+        2. Organization policy blocks creation of external (public) IPs.
+        ```
+        creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<YOUR-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+        ```
+        You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
     </details>
 
 <!-- === "Azure"
@@ -126,7 +120,8 @@ If you already have a registry, skip ahead to the next section.
     ```bash
     # Create artifact registry repository to host your custom image. 
     # Replace the image name with your own value.
-    gcloud artifacts repositories create <YOUR-IMAGE> --repository-format=docker --location=us
+    gcloud artifacts repositories create <YOUR-IMAGE> \
+    --repository-format=docker --location=us
 
     # Authenticate to artifact registry
     gcloud auth configure-docker us-docker.pkg.dev
@@ -363,8 +358,9 @@ source prefect-demo/bin/activate
 
 # Install your flow's dependencies.
 prefect-demo/bin/pip install -r requirements.txt
-# Authenticate to Prefect & select the apropriate workspace to deploy your flows to.
 
+# Authenticate to Prefect & select the appropriate 
+# workspace to deploy your flows to.
 prefect-demo/bin/prefect cloud login
 ```
 
