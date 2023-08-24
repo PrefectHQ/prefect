@@ -102,6 +102,17 @@ async def start(
     """
     Start a worker process to poll a work pool for flow runs.
     """
+
+    is_paused = await _check_work_pool_paused(work_pool_name)
+    if is_paused:
+        app.console.print(
+            (
+                f"The work pool {work_pool_name!r} is currently paused. This worker"
+                " will not execute any flow runs until the work pool is unpaused."
+            ),
+            style="yellow",
+        )
+
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
     if worker_cls is None:
         exit_with_error(
@@ -179,6 +190,15 @@ async def start(
     app.console.print(f"Worker {worker.name!r} stopped!")
 
 
+async def _check_work_pool_paused(work_pool_name: str) -> bool:
+    try:
+        async with get_client() as client:
+            work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+            return work_pool.is_paused
+    except ObjectNotFound:
+        return False
+
+
 async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) -> str:
     try:
         async with get_client() as client:
@@ -241,6 +261,12 @@ async def _get_worker_class(
 
     if worker_type is None:
         worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
+
+    if worker_type == "prefect-agent":
+        exit_with_error(
+            "'prefect-agent' typed work pools work with Prefect Agents instead of"
+            " Workers. Please use the 'prefect agent start' to start a Prefect Agent."
+        )
 
     if install_policy == InstallPolicy.ALWAYS:
         package = await _find_package_for_worker_type(worker_type)
