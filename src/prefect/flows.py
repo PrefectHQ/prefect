@@ -37,7 +37,9 @@ from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -463,18 +465,82 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    async def serve(self, name: str, **kwargs):
+    @sync_compatible
+    async def serve(
+        self,
+        name: str = "served",
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[Dict] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        pause_on_shutdown: bool = True,
+    ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
         Args:
-            name: the name to give the deployment
-            **kwargs: additional kwargs to pass to the deployment constructor
+            name: The name to give the created deployment.
+            schedule: A schedule of when to execute runs of this flow.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
+                If False, the schedules will continue running.
+
+        Examples:
+            Serve a flow
+
+            >>> from prefect import flow
+            >>>
+            >>> @flow
+            >>> def my_flow(name):
+            >>>     print(f"hello {name}")
+            >>>     return f"goodbye {name}"
+            >>>
+            >>> if __name__ == "__main__":
+            >>>     my_flow.serve()
+
+            Serve a flow on a schedule
+
+            >>> from prefect import flow
+            >>> from datetime import timedelta
+            >>>
+            >>> @flow
+            >>> def my_flow(name):
+            >>>     print(f"hello {name}")
+            >>>     return f"goodbye {name}"
+            >>>
+            >>> if __name__ == "__main__":
+            >>>     my_flow.serve(schedule={"interval": timedelta(hours=1)})
         """
         from prefect.runner import Runner
 
-        runner = Runner(name=name)
-        await runner.load(self, name=name, **kwargs)
+        if parameters is None:
+            parameters = {}
+
+        if tags is None:
+            tags = []
+
+        if triggers is None:
+            triggers = []
+
+        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+        await runner.load(
+            self,
+            name=name,
+            triggers=triggers,
+            schedule=schedule,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+        )
         await runner.start()
 
     @overload
