@@ -167,7 +167,6 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
     This capability is useful with multiple deployments that require different deployment instructions.
 
-See below for more information on the mechanics of steps!
 
 ### The Build Action
 
