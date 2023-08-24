@@ -629,11 +629,12 @@ async def _run_single_deploy(
                 ),
             )
 
+    work_pool_type = deploy_config.get('work_pool', {}).get('type')
     app.console.print(
         "\nTo execute flow runs from this deployment, start a worker in a"
         " separate terminal that pulls work from the"
         f" {deploy_config['work_pool']['name']!r} work pool:"
-    )
+    )if work_pool_type == 'pull' else None
     app.console.print(
         f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
         style="blue",
