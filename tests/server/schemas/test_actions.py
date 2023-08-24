@@ -9,6 +9,8 @@ from prefect.server.schemas.actions import (
     DeploymentCreate,
     DeploymentUpdate,
     FlowRunCreate,
+    WorkPoolCreate,
+    WorkPoolUpdate,
 )
 
 
@@ -249,3 +251,119 @@ class TestBlockTypeUpdate:
             "description",
             "code_example",
         }
+
+
+class TestWorkPoolCreate:
+    @pytest.mark.parametrize(
+        "template",
+        [
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"wrong_variable": {}},
+                    "required": [],
+                },
+            },
+            {
+                "job_configuration": {
+                    "thing_one": "{{ expected_variable_1 }}",
+                    "thing_two": "{{ expected_variable_2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "not_expected_variable_1": {},
+                        "expected_variable_2": {},
+                    },
+                    "required": [],
+                },
+            },
+        ],
+    )
+    async def test_validate_base_job_template_fails(self, template):
+        """Test that error is raised if base_job_template job_configuration
+        expects a variable that is not provided in variables."""
+        with pytest.raises(
+            ValueError,
+            match=(
+                r"Your job configuration uses the following undeclared variable\(s\):"
+                r" expected_variable"
+            ),
+        ):
+            WorkPoolCreate(name="test", base_job_template=template)
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            dict(),
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"expected_variable": {}},
+                    "required": [],
+                },
+            },
+        ],
+    )
+    async def test_validate_base_job_template_succeeds(self, template):
+        """Test that no error is raised if all variables expected by job_configuration
+        are provided in variables."""
+        wp = WorkPoolCreate(name="test", type="test", base_job_template=template)
+        assert wp
+
+
+class TestWorkPoolUpdate:
+    @pytest.mark.parametrize(
+        "template",
+        [
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"wrong_variable": {}},
+                    "required": [],
+                },
+            },
+            {
+                "job_configuration": {
+                    "thing_one": "{{ expected_variable_1 }}",
+                    "thing_two": "{{ expected_variable_2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "not_expected_variable_1": {},
+                        "expected_variable_2": {},
+                    },
+                    "required": [],
+                },
+            },
+        ],
+    )
+    async def test_validate_base_job_template_fails(self, template):
+        """Test that error is raised if base_job_template job_configuration
+        expects a variable that is not provided in variables."""
+        with pytest.raises(
+            ValueError,
+            match=(
+                r"Your job configuration uses the following undeclared variable\(s\):"
+                r" expected_variable"
+            ),
+        ):
+            WorkPoolUpdate(base_job_template=template)
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            dict(),
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"expected_variable": {}},
+                    "required": [],
+                },
+            },
+        ],
+    )
+    async def test_validate_base_job_template_succeeds(self, template):
+        """Test that no error is raised if all variables expected by job_configuration
+        are provided in variables."""
+        wp = WorkPoolUpdate(base_job_template=template)
+        assert wp

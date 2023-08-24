@@ -50,7 +50,7 @@ For example:
 Your Prefect workers will attempt to load your flow from: 
 /my-path/my-flow-file.py. To see more options for managing your flow's code, run:
 
-    $ prefect project recipes ls
+    $ prefect init
 ```
 </div>
 
