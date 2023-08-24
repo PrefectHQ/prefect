@@ -24,7 +24,6 @@ from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
-    InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
 )
@@ -44,7 +43,6 @@ if TYPE_CHECKING:
 import asyncio
 import os
 import signal
-import socket
 import subprocess
 import sys
 import tempfile
@@ -72,11 +70,6 @@ def _use_threaded_child_watcher():
         # lead to errors in tests on unix as the previous default `SafeChildWatcher`
         # is not compatible with threaded event loops.
         asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
-
-
-def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
-    hostname = socket.gethostname()
-    return f"{hostname}:{process.pid}"
 
 
 def prepare_environment(flow_run: "FlowRun") -> Dict[str, str]:
@@ -135,6 +128,7 @@ class Runner:
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._flow_run_process_map = dict()
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
@@ -172,7 +166,6 @@ class Runner:
                 command.split(" "),
                 stream_output=True,
                 task_status=task_status,
-                task_status_handler=_infrastructure_pid_from_process,
                 cwd=working_dir,
                 env=prepare_environment(flow_run),
                 **kwargs,
@@ -219,20 +212,11 @@ class Runner:
             status_code=process.returncode, identifier=str(process.pid)
         )
 
-    async def kill_infrastructure(
+    async def kill_process(
         self,
-        infrastructure_pid: str,
+        pid: int,
         grace_seconds: int = 30,
     ):
-        hostname, pid = infrastructure_pid.split(":")
-        pid = int(pid)
-
-        if hostname != socket.gethostname():
-            raise InfrastructureNotAvailable(
-                f"Unable to kill process {pid!r}: The process is running on a different"
-                f" host {hostname!r}."
-            )
-
         # In a non-windows environment first send a SIGTERM, then, after
         # `grace_seconds` seconds have passed subsequent send SIGKILL. In
         # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
@@ -349,32 +333,42 @@ class Runner:
                 "as an async context manager."
             )
 
+        # To stop loop service checking for cancelled runs.
+        # Need to find a better way to stop runner spawned by
+        # a worker.
+        if not self._flow_run_process_map:
+            raise Exception("No flow runs to watch for cancel.")
+
         self.logger.debug("Checking for cancelled flow runs...")
 
         named_cancelling_flow_runs = await self._client.read_flow_runs(
-            deployment_filter=DeploymentFilter(
-                id=DeploymentFilterId(any_=list(self.deployment_ids))
-            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
                     name=FlowRunFilterStateName(any_=["Cancelling"]),
                 ),
                 # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
+                id=FlowRunFilterId(
+                    any_=list(
+                        self._flow_run_process_map.keys()
+                        - self._cancelling_flow_run_ids
+                    )
+                ),
             ),
         )
 
         typed_cancelling_flow_runs = await self._client.read_flow_runs(
-            deployment_filter=DeploymentFilter(
-                id=DeploymentFilterId(any_=list(self.deployment_ids))
-            ),
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
                 ),
                 # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
+                id=FlowRunFilterId(
+                    any_=list(
+                        self._flow_run_process_map.keys()
+                        - self._cancelling_flow_run_ids
+                    )
+                ),
             ),
         )
 
@@ -394,16 +388,13 @@ class Runner:
     async def cancel_run(self, flow_run: "FlowRun"):
         run_logger = self.get_flow_run_logger(flow_run)
 
-        if not flow_run.infrastructure_pid:
-            run_logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
-                " attached. Cancellation cannot be guaranteed."
-            )
+        pid = self._flow_run_process_map.get(flow_run.id)
+        if not pid:
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
                     "message": (
-                        "This flow run is missing infrastructure tracking information"
+                        "Could not find process ID for flow run"
                         " and cancellation cannot be guaranteed."
                     )
                 },
@@ -411,22 +402,13 @@ class Runner:
             return
 
         try:
-            await self.kill_infrastructure(
-                infrastructure_pid=flow_run.infrastructure_pid
-            )
-        except NotImplementedError:
-            self.logger.error(
-                f"Worker type {self.type!r} does not support killing created "
-                "infrastructure. Cancellation cannot be guaranteed."
-            )
+            await self.kill_process(pid)
         except InfrastructureNotFound as exc:
             self.logger.warning(f"{exc} Marking flow run as cancelled.")
             await self._mark_flow_run_as_cancelled(flow_run)
-        except InfrastructureNotAvailable as exc:
-            self.logger.warning(f"{exc} Flow run cannot be cancelled by this runner.")
         except Exception:
             run_logger.exception(
-                "Encountered exception while killing infrastructure for flow run "
+                "Encountered exception while killing process for flow run "
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
@@ -534,15 +516,24 @@ class Runner:
 
     async def execute_flow_run(self, flow_run_id: UUID):
         async with self as runner:
-            self._submitting_flow_run_ids.add(flow_run_id)
-            flow_run = await runner._client.read_flow_run(flow_run_id)
+            async with anyio.create_task_group() as tg:
+                self._submitting_flow_run_ids.add(flow_run_id)
+                flow_run = await runner._client.read_flow_run(flow_run_id)
 
-            # Tried _submit_run first, but worker marks flow run
-            # as pending before getting to the runner. Which should
-            # be responsible for marking the run as pending?
-            await runner._runs_task_group.start(
-                self._submit_run_and_capture_errors, flow_run
-            )
+                pid = await runner._runs_task_group.start(
+                    self._submit_run_and_capture_errors, flow_run
+                )
+
+                self._flow_run_process_map[flow_run.id] = pid
+
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner.check_for_cancelled_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                        jitter_range=0.3,
+                    )
+                )
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
@@ -571,17 +562,7 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                try:
-                    await self._client.update_flow_run(
-                        flow_run_id=flow_run.id,
-                        infrastructure_pid=str(readiness_result),
-                    )
-                except Exception:
-                    run_logger.exception(
-                        "An error occurred while setting the `infrastructure_pid` on "
-                        f"flow run {flow_run.id!r}. The flow run will "
-                        "not be cancellable."
-                    )
+                self._flow_run_process_map[flow_run.id] = readiness_result
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
@@ -606,12 +587,12 @@ class Runner:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                    f"Failed to start proces for flow run '{flow_run.id}'."
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
                 await self._propose_crashed_state(
-                    flow_run, "Flow run could not be submitted to infrastructure"
+                    flow_run, "Flow run process could not be started"
                 )
             else:
                 run_logger.exception(
@@ -623,22 +604,13 @@ class Runner:
         finally:
             if self._limiter:
                 self._limiter.release_on_behalf_of(flow_run.id)
-
-        if not task_status._future.done():
-            run_logger.error(
-                f"Infrastructure returned without reporting flow run '{flow_run.id}' "
-                "as started or raising an error. This behavior is not expected and "
-                "generally indicates improper implementation of infrastructure. The "
-                "flow run will not be marked as failed, but an issue may have occurred."
-            )
-            # Mark the task as started to prevent agent crash
-            task_status.started()
+            self._flow_run_process_map.pop(flow_run.id, None)
 
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
                 (
-                    "Flow run infrastructure exited with non-zero status code"
+                    "Flow run process exited with non-zero status code"
                     f" {result.status_code}."
                 ),
             )
