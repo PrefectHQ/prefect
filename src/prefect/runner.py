@@ -29,6 +29,7 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_QUERY_SECONDS,
@@ -93,6 +94,7 @@ class Runner:
         deployment_ids: List[str] = None,
         prefetch_seconds: Optional[float] = None,
         limit: Optional[int] = None,
+        pause_on_shutdown: bool = True,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -106,6 +108,8 @@ class Runner:
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             limit: The maximum number of flow runs this runner should be running at
                 a given time.
+            pause_on_shutdown: A boolean for whether or not to automatically pause
+                deployment schedules on shutdown; defaults to `True`
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
@@ -113,6 +117,7 @@ class Runner:
         self.logger = get_logger()
 
         self.is_setup = False
+        self.pause_on_shutdown = pause_on_shutdown
         self.deployment_ids = deployment_ids or []
 
         self._prefetch_seconds: float = (
@@ -273,6 +278,8 @@ class Runner:
     async def teardown(self, *exc_info):
         """Cleans up resources after the runner is stopped."""
         self.logger.debug("Tearing down runner...")
+        if self.pause_on_shutdown:
+            await self.pause_schedules()
         self.is_setup = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
@@ -282,6 +289,13 @@ class Runner:
             await self._client.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
+
+    async def pause_schedules(self):
+        """
+        Pauses all deployment schedules.
+        """
+        for deployment_id in self.deployment_ids:
+            await self._client.update_schedule(deployment_id, active=False)
 
     def is_runner_still_polling(self, query_interval_seconds: int) -> bool:
         """
@@ -781,6 +795,12 @@ class Runner:
         TODO: expose a filesystem interface with hot reloading (which is why this method is
         distinct from `create_deployment`)
         """
+        api = PREFECT_API_URL.value()
+        if kwargs.get("schedule") and not api:
+            self.logger.warning(
+                "Cannot schedule flows on an ephemeral server; run `prefect server"
+                " start` to start the scheduler."
+            )
         await self.create_deployment(flow, **kwargs)
 
     async def start(self):

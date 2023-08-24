@@ -1486,6 +1486,12 @@ class PrefectClient:
 
         return UUID(deployment_id)
 
+    async def update_schedule(self, deployment_id: UUID, active: bool = True):
+        path = "set_schedule_active" if active else "set_schedule_inactive"
+        await self._client.post(
+            f"/deployments/{deployment_id}/{path}",
+        )
+
     async def update_deployment(
         self,
         deployment: Deployment,
