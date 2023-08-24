@@ -18,21 +18,21 @@
 
 ### Documentation
 - Guide to Kubernetes — https://github.com/PrefectHQ/prefect/pull/10368
-- Update warning block to mention worker in title — https://github.com/PrefectHQ/prefect/pull/10464
+- Add reference to workers in flows documentation admonition — https://github.com/PrefectHQ/prefect/pull/10464
 - Fix duplicate Amplitude deviceId — https://github.com/PrefectHQ/prefect/pull/10449
-- Combine K8s worker page with K8s flows page — https://github.com/PrefectHQ/prefect/pull/10448
+- Combine Kubernetes worker and flows pages — https://github.com/PrefectHQ/prefect/pull/10448
 - Guide - How to move data to and from cloud providers — https://github.com/PrefectHQ/prefect/pull/10133
 - Remove references to `flow_name` from deployments documentation — https://github.com/PrefectHQ/prefect/pull/10477
-- Update kubernetes guide for readability — https://github.com/PrefectHQ/prefect/pull/10481
-- Fix a few typos in docs — https://github.com/PrefectHQ/prefect/pull/10488
-- Surface more documentation on push work pools — https://github.com/PrefectHQ/prefect/pull/10497
+- Improve readability of Kubernetes guide  — https://github.com/PrefectHQ/prefect/pull/10481
+- Fix typos in contribution and host documentation — https://github.com/PrefectHQ/prefect/pull/10488
+- Raise visibility of push work pools documentation — https://github.com/PrefectHQ/prefect/pull/10497
 - Fix heading size, remove unnecessary link in deployments documentation — https://github.com/PrefectHQ/prefect/pull/10489
-- Create GCP specific guide references for deploying a GKE cluster to host a worker — https://github.com/PrefectHQ/prefect/pull/10490
-- fix typo in gcs recipe — https://github.com/PrefectHQ/prefect/pull/10442
-- Move and reference Agents -> Workers upgrade guide — https://github.com/PrefectHQ/prefect/pull/10445
-Fix grammatical errors in documentation — https://github.com/PrefectHQ/prefect/pull/10457
+- Add GCP-specific guide for deploying a GKE cluster to host a worker — https://github.com/PrefectHQ/prefect/pull/10490
+- Fix typo in `prefect-gcs` deployment example — https://github.com/PrefectHQ/prefect/pull/10442
+- Move guide on upgrading from agents to workers — https://github.com/PrefectHQ/prefect/pull/10445
+- Fix grammatical errors in documentation — https://github.com/PrefectHQ/prefect/pull/10457
 - Clarify deployments variables and fix `prefect.yaml` example — https://github.com/PrefectHQ/prefect/pull/10474
-- Update README header image with new Prefect branding — https://github.com/PrefectHQ/prefect/pull/10493
+- Update `README` header image with new Prefect branding — https://github.com/PrefectHQ/prefect/pull/10493
 
 ## Contributors
 - @mattklein made their first contribution in https://github.com/PrefectHQ/prefect/pull/10422
