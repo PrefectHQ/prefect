@@ -1,6 +1,6 @@
 import inspect
 from functools import partial
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -20,13 +20,16 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
 )
 from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments import Deployment
 from prefect.engine import propose_state
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     Abort,
     InfrastructureNotFound,
     ObjectNotFound,
 )
+from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
@@ -36,6 +39,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
@@ -91,7 +95,6 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
-        deployment_ids: List[str] = None,
         prefetch_seconds: Optional[float] = None,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
@@ -113,12 +116,11 @@ class Runner:
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
-        self.name = name or f"{self.__class__.__name__} {uuid4()}"
+        self.name = name or f"runner-{uuid4()}"
         self.logger = get_logger()
 
         self.is_setup = False
         self.pause_on_shutdown = pause_on_shutdown
-        self.deployment_ids = deployment_ids or []
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -132,6 +134,7 @@ class Runner:
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
@@ -294,7 +297,7 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
-        for deployment_id in self.deployment_ids:
+        for deployment_id in self._deployment_ids:
             await self._client.update_schedule(deployment_id, active=False)
 
     def is_runner_still_polling(self, query_interval_seconds: int) -> bool:
@@ -343,7 +346,7 @@ class Runner:
         # To stop loop service checking for cancelled runs.
         # Need to find a better way to stop runner spawned by
         # a worker.
-        if not self._flow_run_process_map and not self.deployment_ids:
+        if not self._flow_run_process_map and not self._deployment_ids:
             raise Exception("No flow runs to watch for cancel.")
 
         self.logger.debug("Checking for cancelled flow runs...")
@@ -450,7 +453,7 @@ class Runner:
 
         scheduled_flow_runs = await self._client.read_flow_runs(
             deployment_filter=DeploymentFilter(
-                id=DeploymentFilterId(any_=list(self.deployment_ids))
+                id=DeploymentFilterId(any_=list(self._deployment_ids))
             ),
             flow_run_filter=FlowRunFilter(
                 next_scheduled_start_time=FlowRunFilterNextScheduledStartTime(
@@ -761,51 +764,103 @@ class Runner:
     def __repr__(self):
         return f"Runner(name={self.name!r})"
 
-    async def create_deployment(self, flow, **kwargs):
+    @sync_compatible
+    async def load(
+        self,
+        flow: Flow,
+        name: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[Dict] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+    ):
         """
-        Creates a deployment from the provided flow information and kwargs and stores the
-        deployment ID to monitor for scheduled work.
+        Provides a flow to the runner to be run base on the provided conditions.
+
+        Will create a deployment for the provided flow and register the deployment
+        with the runner.
+
+        Args:
+            flow: A flow for the runner to run.
+            name: The name to give the created deployment. Will default to the name
+                of the runner.
+            schedule: A schedule of when to execute runs of the provided flow.
+            triggers: A list of triggers that should kick of a run of the provided flow.
+            parameters: A dictionary of default parameter values to pass to runs of
+                the provided flow.
+            description: A description for the created deployment. Defaults to the
+                provided flow's description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the provided flow's version.
         """
-        # TODO: make a more ergonomic interface and dont use deployment class
-        if "work_pool_name" in kwargs:
-            raise ValueError(
-                "Cannot specify a work pool name for a runner-managed deployment"
+        # TODO: expose a filesystem interface with hot reloading
+        # will need to create a separate method for deployment creation
+        api = PREFECT_API_URL.value()
+        if schedule and not api:
+            self.logger.warning(
+                "Cannot schedule flows on an ephemeral server; run `prefect server"
+                " start` to start the scheduler."
             )
-        if "work_queue_name" in kwargs:
-            raise ValueError(
-                "Cannot specify a work queue name for a runner-managed deployment"
-            )
-        kwargs.setdefault("name", self.name)
+        name = self.name if name is None else name
+
+        if parameters is None:
+            parameters = {}
+
+        if tags is None:
+            tags = []
+
+        if triggers is None:
+            triggers = []
+
         deployment = await Deployment.build_from_flow(
             flow,
             work_queue_name=None,
             apply=False,
             skip_upload=True,
             load_existing=False,
-            **kwargs,
+            name=name,
+            schedule=schedule,
+            triggers=triggers,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
         )
         deployment.storage = None
         deployment_id = await deployment.apply(ignore_infra=True, upload=False)
-        self.deployment_ids.append(deployment_id)
+        self._deployment_ids.add(deployment_id)
 
-    async def load(self, flow, **kwargs):
-        """
-        Main method for creating deployments out of provided flow specification.
-
-        TODO: expose a filesystem interface with hot reloading (which is why this method is
-        distinct from `create_deployment`)
-        """
-        api = PREFECT_API_URL.value()
-        if kwargs.get("schedule") and not api:
-            self.logger.warning(
-                "Cannot schedule flows on an ephemeral server; run `prefect server"
-                " start` to start the scheduler."
-            )
-        await self.create_deployment(flow, **kwargs)
-
+    @sync_compatible
     async def start(self):
         """
-        Main entrypoint for running a runner.
+        Starts a runner.
+
+        The runner will begin monitoring for and executing any scheduled work for all loaded flows.
+
+        Examples:
+
+            Load two flows and serve them:
+            ```python
+            from prefect import flow, Runner
+
+            @flow
+            def hello_flow(name):
+                print(f"hello {name}")
+
+            @flow
+            def goodbye_flow(name):
+                print(f"goodbye {name}")
+
+            if __name__ == "__main__"
+                Runner(__file__).load(hello_flow)
+                # Run on a cron schedule
+                Runner(__file__).load(goodbye_flow, schedule={"cron": "0 * * * *"})
+
+                Runner.start()
+            ```
         """
         async with self as runner:
             async with anyio.create_task_group() as tg:
