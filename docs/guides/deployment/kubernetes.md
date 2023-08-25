@@ -51,7 +51,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 === "GCP"
 
-    You can easily get a GKE cluster up and running with a few short commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). This will build a barebones cluster that is accessible over the open internet - this should **not** be used in a production environment. In order to deploy the cluster, your project must have a VPC network configured.
+    You can get a GKE cluster up and running with a few commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). 
+    We'll show how to build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment. 
+    To deploy the cluster, your project must have a VPC network configured.
 
     First, authenticate to GCP by setting the following configuration options.
 
@@ -65,7 +67,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud config set compute/zone <AVAILABILITY-ZONE>
     ```
 
-    Next, deploy the cluster - this command will take ~15 minutes to complete. Once the cluster has been created, authenticate to the cluster.
+    Next, deploy the cluster - this command will take ~15 minutes to complete. 
+    Once the cluster has been created, authenticate to the cluster.
 
     ```bash
     # Create cluster
@@ -148,8 +151,9 @@ Let's look at a few popular configuration options.
 
 **Environment Variables**
 Add environment variables to set when starting a flow run.
-You can add packages for installation with `pip
-Alternatively you can bake package installation into the Docker image, which can allow you to take advantage of caching if you aren't pulling the image on every run.
+You can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
+Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
+As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
 
 **Namespace**
 Set the Kubernetes namespace to create jobs within, such as `prefect`. By default, set to **default**.
@@ -176,9 +180,7 @@ Generally you should leave the cluster config blank as the worker should be prov
 
   Select the **Advanced** tab and edit the JSON representation of the base job template.
 
-  For example, to set the namespace to `myorg`:
-
-  Remove the namespace section under variables:
+  For example, to set the namespace to `myorg` remove the namespace section under variables:
 
     ```json
       "namespace": {
@@ -189,7 +191,7 @@ Generally you should leave the cluster config blank as the worker should be prov
       },
     ```
 
-  and hardcode `"namespace": "myorg",` under job_configuration->namespace and job_configuration->job_manifest->metadata->namespace.
+  and hardcode `"namespace": "myorg",` under `job_configuration->namespace` and `job_configuration->job_manifest->metadata->namespace`.
 
   Running deployments with this work pool will now create flow runs in the `myorg` namespace.
 
@@ -199,11 +201,9 @@ Give the work pool a name and save.
 
 Our new Kubernetes work pool should now appear in the list of work pools.
 
-If you just wanted to use deploy
-
 ## Deploy a worker using Helm
 
-With our cluster and work pool created, it's time to deploy a worker, which will take our flows and run them as Kubernetes jobs.
+With our cluster and work pool created, it's time to deploy a worker, which will set up Kubernetes infrastructure to run our flows.
 The best way to deploy a worker is using the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker).
 
 ### Add the Prefect Helm repository
@@ -462,6 +462,4 @@ prefect deployment run hello/arthur
 
 Congratulations! You just ran two flows in Kubernetes. Now head over to the UI to check their status.
 
-<!-- ## Work pool customization -->
-
-<!-- ### Example: cpu and memory -->
+<!-- ### Example: cpu and memory example -->
