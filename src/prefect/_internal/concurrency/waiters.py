@@ -10,7 +10,6 @@ import inspect
 import queue
 import threading
 import weakref
-from collections import deque
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 import anyio
@@ -24,19 +23,19 @@ T = TypeVar("T")
 
 
 # Waiters are stored in a stack for each thread
-_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, dict]" = (
     weakref.WeakKeyDictionary()
 )
 
 
-def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+def get_waiter_for_thread(thread: threading.Thread, call_id) -> Optional["Waiter"]:
     """
     Get the current waiter for a thread.
 
     Returns `None` if one does not exist.
     """
     waiters = _WAITERS_BY_THREAD.get(thread)
-    return waiters[-1] if waiters else None
+    return waiters.get(call_id) if waiters else None
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
@@ -44,9 +43,9 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     Add a waiter for a thread.
     """
     if thread not in _WAITERS_BY_THREAD:
-        _WAITERS_BY_THREAD[thread] = deque()
+        _WAITERS_BY_THREAD[thread] = {}
 
-    _WAITERS_BY_THREAD[thread].append(waiter)
+    _WAITERS_BY_THREAD[thread][id(waiter._call)] = waiter
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):
@@ -268,5 +267,5 @@ class AsyncWaiter(Waiter[T]):
             # Wait for the future to be done
             await self._done_event.wait()
 
-        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
+        _WAITERS_BY_THREAD[self._owner_thread].pop(id(self._call))
         return self._call
