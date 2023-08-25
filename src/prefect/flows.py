@@ -562,7 +562,6 @@ class Flow(Generic[P, R]):
             version=version,
         )
 
-        # new deployment object - create it and return it
         return await RunnerDeployment.from_flow(self, **init_kwargs)
 
     @sync_compatible
