@@ -21,6 +21,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
 )
 from prefect.client.schemas.objects import StateType
+from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -122,6 +123,21 @@ class Runner:
         self._flow_run_process_map = dict()
 
     @sync_compatible
+    async def add_deployment(
+        self,
+        deployment: RunnerDeployment,
+    ):
+        """
+        Registers the deployment with the Prefect API and will monitor for work once
+        the runner is started.
+
+        Args:
+            deployment: A deployment for the runner to register.
+        """
+        deployment_id = await deployment.apply()
+        self._deployment_ids.add(deployment_id)
+
+    @sync_compatible
     async def add(
         self,
         flow: Flow,
@@ -178,8 +194,7 @@ class Runner:
             tags=tags,
             version=version,
         )
-        deployment_id = await deployment.apply()
-        self._deployment_ids.add(deployment_id)
+        await self.add_deplyoment(deployment)
 
     @sync_compatible
     async def start(self):
@@ -809,3 +824,15 @@ def _use_threaded_child_watcher():
         # lead to errors in tests on unix as the previous default `SafeChildWatcher`
         # is not compatible with threaded event loops.
         asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
+
+
+@sync_compatible
+async def serve(*args: RunnerDeployment, pause_on_shutdown: bool = True, **kwargs):
+    """
+    Serve the provided list of deployments.
+    """
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
+    for deployment in args:
+        await runner.add_deployment(deployment)
+
+    await runner.start()
