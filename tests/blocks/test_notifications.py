@@ -12,6 +12,7 @@ from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
     CustomWebhookNotificationBlock,
+    DiscordWebhook,
     MattermostWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
@@ -168,6 +169,58 @@ class TestMattermostWebhook:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, MattermostWebhook)
+
+
+class TestDiscordWebhook:
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            discord_block = DiscordWebhook(
+                webhook_id="123456",
+                webhook_token="abc123EFG",
+            )
+            await discord_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            discord_block = DiscordWebhook(
+                webhook_id="123456", webhook_token="abc123EFG"
+            )
+            discord_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_is_picklable(self):
+        reload_modules()
+        block = DiscordWebhook(webhook_id="123456", webhook_token="abc123EFG")
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, DiscordWebhook)
 
 
 class TestOpsgenieWebhook:
