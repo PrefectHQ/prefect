@@ -153,7 +153,7 @@ class SyncWaiter(Waiter[T]):
             # Wait for the future to be done
             self._done_event.wait()
 
-        _WAITERS_BY_THREAD[self._owner_thread].remove(self)
+        _WAITERS_BY_THREAD[self._owner_thread].pop(id(self._call))
         return self._call
 
 
