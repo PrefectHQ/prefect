@@ -93,10 +93,10 @@ class Runner:
                     runner = Runner(__file__)
 
                     # Will be runnable via the API
-                    runner.load(hello_flow)
+                    runner.add(hello_flow)
 
                     # Run on a cron schedule
-                    runner.load(goodbye_flow, schedule={"cron": "0 * * * *"})
+                    runner.add(goodbye_flow, schedule={"cron": "0 * * * *"})
 
                     runner.start()
                 ```
@@ -123,7 +123,7 @@ class Runner:
         self._flow_run_process_map = dict()
 
     @sync_compatible
-    async def load(
+    async def add(
         self,
         flow: Flow,
         name: Optional[str] = None,
@@ -196,11 +196,11 @@ class Runner:
         """
         Starts a runner.
 
-        The runner will begin monitoring for and executing any scheduled work for all loaded flows.
+        The runner will begin monitoring for and executing any scheduled work for all added flows.
 
         Examples:
 
-            Load two flows and serve them:
+            Initialize a Runner, add two flows, and serve them by starting the Runner:
             ```python
             from prefect import flow, Runner
 
@@ -216,10 +216,10 @@ class Runner:
                 runner = Runner(__file__)
 
                 # Will be runnable via the API
-                runner.load(hello_flow)
+                runner.add(hello_flow)
 
                 # Run on a cron schedule
-                runner.load(goodbye_flow, schedule={"cron": "0 * * * *"})
+                runner.add(goodbye_flow, schedule={"cron": "0 * * * *"})
 
                 runner.start()
             ```
