@@ -487,7 +487,7 @@ class Flow(Generic[P, R]):
         version: Optional[str] = None,
     ):
         """
-        Creates a deployment for this flow and starts a runner to monitor for scheduled work.
+        Creates a deployment object for this flow.
 
         Args:
             name: The name to give the created deployment.
@@ -524,11 +524,6 @@ class Flow(Generic[P, R]):
             ```
         """
         from prefect.deployments.runner import RunnerDeployment
-
-        # Handling for my_flow.serve(__file__)
-        # Will set name to name of file where my_flow.serve() without the extension
-        # Non filepath strings will pass through unchanged
-        name = Path(name).stem
 
         num_schedules = sum(
             1 for schedule in (interval, cron, rrule) if schedule is not None
@@ -572,6 +567,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -632,34 +628,15 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        num_schedules = sum(
-            1 for schedule in (interval, cron, rrule) if schedule is not None
-        )
-        if num_schedules > 1:
-            raise ValueError("Only one of interval, cron, and rrule can be provided.")
-
-        schedule = None
-        if interval:
-            if isinstance(interval, (int, float)):
-                interval = datetime.timedelta(seconds=interval)
-            schedule = IntervalSchedule(interval=interval)
-        elif cron:
-            schedule = CronSchedule(cron=cron)
-        elif rrule:
-            schedule = RRuleSchedule(rrule=rrule)
-
-        if tags is None:
-            tags = []
-
-        if triggers is None:
-            triggers = []
-
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
         await runner.add(
             self,
             name=name,
             triggers=triggers,
-            schedule=schedule,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            parameters=parameters,
             description=description,
             tags=tags,
             version=version,
