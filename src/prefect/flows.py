@@ -564,7 +564,7 @@ class Flow(Generic[P, R]):
             triggers = []
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-        await runner.load(
+        await runner.add(
             self,
             name=name,
             triggers=triggers,
