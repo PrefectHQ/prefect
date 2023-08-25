@@ -353,7 +353,7 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            next_date = pendulum.instance(start_localized + delta).in_tz(start.tz.name)
+            next_date = pendulum.instance(start_localized + delta)
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
