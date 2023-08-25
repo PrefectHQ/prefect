@@ -33,6 +33,8 @@ from typing import (
 import pydantic
 from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
+from rich.console import Console
+from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.compatibility.experimental import experimental
@@ -483,6 +485,7 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         pause_on_shutdown: bool = True,
+        print_starting_message: bool = True,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -502,6 +505,7 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
+            print_starting_message: Whether or not to print the starting message when flow is served.
 
         Examples:
             Serve a flow:
@@ -560,7 +564,7 @@ class Flow(Generic[P, R]):
             triggers = []
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-        await runner.load(
+        await runner.add(
             self,
             name=name,
             triggers=triggers,
@@ -569,6 +573,14 @@ class Flow(Generic[P, R]):
             tags=tags,
             version=version,
         )
+        if print_starting_message:
+            console = Console()
+            console.print(
+                Panel(
+                    f"Your flow {self.name!r} is served and ready for scheduled runs!"
+                ),
+                style="blue",
+            )
         await runner.start()
 
     @overload
