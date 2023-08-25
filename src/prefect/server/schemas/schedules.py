@@ -347,10 +347,13 @@ class CronSchedule(PrefectBaseModel):
         counter = 0
 
         while True:
-            delta = cron.get_next(datetime.datetime) - start_naive_tz
-            next_date = pendulum.instance(
-                pytz.timezone(start.tz.name).normalize(start_localized + delta)
-            )
+            # croniter does not handle DST properly when the start time is
+            # in and around when the actual shift occurs. To work around this,
+            # we use the naive start time to get the next cron date delta, then
+            # add that time to the original scheduling anchor.
+            next_time = cron.get_next(datetime.datetime)
+            delta = next_time - start_naive_tz
+            next_date = pendulum.instance(start_localized + delta).in_tz(start.tz.name)
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
