@@ -251,6 +251,63 @@ Hello Marvin!
 ```
 </div>
 
+## Visualizing Flow Structure <span class="badge experimental"></span>
+
+You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
+
+!!! warning "Functions and code not inside of flows or tasks will still be run when calling `.visualize()`. This may have unintended consequences. Place your code into tasks to avoid unintended execution."
+
+!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). And note: just installing the `graphviz` python package is not sufficient."
+
+```python
+from prefect import flow, task
+
+@task(name="Print Hello")
+def print_hello(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@task(name="Print Hello Again")
+def print_hello_again(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@flow(name="Hello Flow")
+def hello_world(name="world"):
+    message = print_hello(name)
+    message2 = print_hello_again(message)
+
+hello_world.visualize()
+```
+
+![A simple flow visualized with the .visualize() method](/img/orchestration/hello-flow-viz.png)
+
+Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or if/else control flow. In this case, you can provide tasks with mock return values for use in the `visualize()` call.
+
+```python
+from prefect import flow, task
+@task(viz_return_value=[4])
+def get_list():
+    return [1, 2, 3]
+
+@task
+def append_one(n):
+    return n.append(6)
+
+@flow
+def viz_return_value_tracked():
+    l = get_list()
+    for num in range(3):
+        l.append(5)
+        append_one(l)
+
+viz_return_value_tracked.visualize()
+```
+
+![A flow with return values visualized with the .visualize() method](/img/orchestration/viz-return-value-tracked.png)
+
 ## Composing flows
 
 A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
@@ -773,8 +830,8 @@ You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, o
 
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
-!!! warning "An agent is required"
-    Flow run cancellation requires the flow run to be submitted by an agent or worker. The agent or worker must be running to enforce the cancellation. In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
+!!! warning "A worker or agent is required"
+    Flow run cancellation requires the flow run to be submitted by a worker or agent. The worker or agent must be running to enforce the cancellation. In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
 
 Support for cancellation is included for all core library infrastructure types:
 

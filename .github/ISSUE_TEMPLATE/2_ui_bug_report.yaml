@@ -1,6 +1,6 @@
 name: 🖼️ Report a bug with the Prefect UI
 description: Errors and display issues with the Prefect web interface.
-labels: ["status:triage", "ui", "bug"]
+labels: ["needs:triage", "ui", "bug"]
 body:
   - type: markdown
     attributes:
@@ -20,6 +20,10 @@ body:
         3. The browser console output or screenshots demonstrating the issue.
 
         4. Additional details that may help us reproduce your issue.
+
+        GitHub issues raised against this repository will receive community support. If you have an
+        [active support agreement](https://www.prefect.io/pricing/), we recommend creating a case to ensure
+        a faster response.
 
   - type: checkboxes
     id: checks

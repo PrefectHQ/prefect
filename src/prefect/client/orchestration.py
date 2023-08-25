@@ -2546,11 +2546,15 @@ class PrefectClient:
         )
 
     async def release_concurrency_slots(
-        self, names: List[str], slots: int
+        self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
-            json={"names": names, "slots": slots},
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
         )
 
     async def __aenter__(self):

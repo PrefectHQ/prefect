@@ -4,15 +4,15 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import mimetypes
-import sqlite3
-import asyncpg
 import os
+import sqlite3
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
 from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import anyio
+import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
@@ -30,8 +30,8 @@ import prefect
 import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
-from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
@@ -73,6 +73,7 @@ API_ROUTERS = (
     api.saved_searches.router,
     api.logs.router,
     api.concurrency_limits.router,
+    api.concurrency_limits_v2.router,
     api.block_types.router,
     api.block_documents.router,
     api.workers.router,
@@ -456,7 +457,7 @@ def create_app(
             async with session:
                 await run_block_auto_registration(session=session)
         except Exception as exc:
-            logger.warn(f"Error occurred during block auto-registration: {exc!r}")
+            logger.warning(f"Error occurred during block auto-registration: {exc!r}")
 
     async def start_services():
         """Start additional services when the Prefect REST API starts up."""

@@ -11,7 +11,7 @@ search:
   boost: 2
 ---
 
-# Push Work to Serverless Computing Infrastructure <span class="badge cloud"></span>
+# Push Work to Serverless Computing Infrastructure <span class="badge cloud"></span> <span class="badge beta"></span>
 Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker. Push work pools currently support execution in GCP Cloud Run Jobs, Azure Container Instances, and AWS ECS Tasks.
 
 In this guide you will:
@@ -82,7 +82,7 @@ Our push work pool will store information about what type of infrastructure we'r
     
     Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
     
-    For use in a push work pool, this block must have the region and cluster name filled out, in addiiton to access key and access key secret.
+    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
 
     Provide any other optional information and create your block.
 

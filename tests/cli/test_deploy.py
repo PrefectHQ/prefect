@@ -9,37 +9,34 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pendulum
-from prefect.cli.deploy import (
-    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
-)
-from prefect.infrastructure.container import DockerRegistry
-from prefect.utilities.slugify import slugify
 import pytest
 import readchar
-from typer import Exit
 import yaml
+from typer import Exit
 
 import prefect
-from prefect.cli.deploy import (
-    _initialize_deployment_triggers,
-    _create_deployment_triggers,
-)
 from prefect.blocks.system import Secret
+from prefect.cli.deploy import (
+    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
+    _create_deployment_triggers,
+    _initialize_deployment_triggers,
+)
 from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.events.schemas import Posture
-from prefect.exceptions import ObjectNotFound
 from prefect.deployments import register_flow
 from prefect.deployments.base import (
     _save_deployment_to_prefect_file,
     create_default_prefect_yaml,
     initialize_project,
 )
+from prefect.events.schemas import Posture
+from prefect.exceptions import ObjectNotFound
+from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
+from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -626,7 +623,7 @@ class TestProjectDeploy:
             expected_output_contains=[
                 "Your Prefect workers will attempt to load your flow from:",
                 "To see more options for managing your flow's code, run:",
-                "$ prefect project recipes ls",
+                "$ prefect init",
             ],
         )
 
@@ -1884,6 +1881,41 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
         assert deployment.schedule is None
+
+    @pytest.mark.parametrize("build_value", [None, {}])
+    @pytest.mark.usefixtures("project_dir", "interactive_console")
+    async def test_deploy_does_not_prompt_build_docker_image_when_empty_build_action_prefect_yaml(
+        self, build_value, work_pool, prefect_client
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "build": build_value,
+                "schedule": {},
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+            expected_output_does_not_contain="Would you like to build a Docker image?",
+        )
+
+        assert await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
 
 
 class TestSchedules:
@@ -4876,6 +4908,81 @@ class TestDeployDockerBuildSteps:
             "name": docker_work_pool.name,
             "job_variables": {"image": "original-image"},
         }
+
+
+class TestDeployInfraOverrides:
+    @pytest.fixture
+    async def work_pool(self, prefect_client):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+
+    async def test_uses_infra_overrides(self, project_dir, work_pool, prefect_client):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable"
+                ' \'{"resources":{"limits":{"cpu": 1}}}\''
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "An important name/test-name",
+                "prefect worker start --pool 'test-pool'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {
+            "env": "prod",
+            "resources": {"limits": {"cpu": 1}},
+        }
+
+    async def test_rejects_json_strings(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable 'my-variable'"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
+
+    async def test_rejects_json_arrays(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable ['my-variable']"
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
+
+    async def test_rejects_invalid_json(self, project_dir, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar --variable "
+                ' \'{"resources":{"limits":{"cpu"}\''
+            ),
+            expected_code=1,
+            expected_output_contains=[
+                "Could not parse variable",
+            ],
+        )
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")

@@ -1,11 +1,10 @@
+import asyncio
 import enum
 import inspect
 import os
-import sys
-import asyncio
-import time
 import signal
-import regex as re
+import sys
+import time
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -13,10 +12,11 @@ from unittest.mock import MagicMock, call, create_autospec
 import anyio
 import pydantic
 import pytest
+import regex as re
 
-from prefect import flow, get_run_logger, tags, task
-from prefect import runtime
 import prefect
+import prefect.exceptions
+from prefect import flow, get_run_logger, runtime, tags, task
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
@@ -31,7 +31,7 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
-from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
+from prefect.settings import PREFECT_FLOW_DEFAULT_RETRIES, temporary_settings
 from prefect.states import (
     Cancelled,
     Paused,
@@ -50,7 +50,6 @@ from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
-import prefect.exceptions
 
 
 @pytest.fixture
@@ -376,6 +375,54 @@ class TestFlowWithOptions:
         with_options_params.remove("self")
 
         assert flow_params == with_options_params
+
+    def get_flow_run_name():
+        name = "test"
+        date = "todays_date"
+        return f"{name}-{date}"
+
+    @pytest.mark.parametrize(
+        "name, match",
+        [
+            (1, "Expected string for flow parameter 'name'; got int instead."),
+            (
+                get_flow_run_name,
+                (
+                    "Expected string for flow parameter 'name'; got function instead."
+                    " Perhaps you meant to call it?"
+                ),
+            ),
+        ],
+    )
+    def test_flow_name_non_string_raises(self, name, match):
+        with pytest.raises(TypeError, match=match):
+            Flow(
+                name=name,
+                fn=lambda **kwargs: 42,
+                version="A",
+                description="B",
+                flow_run_name="hi",
+            )
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "test",
+            (get_flow_run_name()),
+        ],
+    )
+    def test_flow_name_string_succeeds(
+        self,
+        name,
+    ):
+        f = Flow(
+            name=name,
+            fn=lambda **kwargs: 42,
+            version="A",
+            description="B",
+            flow_run_name="hi",
+        )
+        assert f.name == name
 
 
 class TestFlowCall:

@@ -19,15 +19,17 @@ Example:
             dockerfile: auto
     ```
 """
-from typing_extensions import TypedDict
-from anyio import create_task_group
-from anyio.streams.text import TextReceiveStream
 import io
 import os
 import shlex
+import string
 import subprocess
 import sys
-from typing import Optional, Dict
+from typing import Dict, Optional
+
+from anyio import create_task_group
+from anyio.streams.text import TextReceiveStream
+from typing_extensions import TypedDict
 
 from prefect.utilities.processutils import (
     open_process,
@@ -74,6 +76,7 @@ async def run_shell_script(
     directory: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
+    expand_env_vars: bool = False,
 ) -> RunShellScriptResult:
     """
     Runs one or more shell commands in a subprocess. Returns the standard
@@ -86,6 +89,8 @@ async def run_shell_script(
         env: A dictionary of environment variables to set for the script
         stream_output: Whether to stream the output of the script to
             stdout/stderr
+        expand_env_vars: Whether to expand environment variables in the script
+            before running it
 
     Returns:
         A dictionary with the keys `stdout` and `stderr` containing the output
@@ -125,6 +130,18 @@ async def run_shell_script(
                     NAME: World
         ```
 
+        Run a shell script with environment variables expanded
+            from the current environment:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.run_shell_script:
+                script: |
+                    echo "User: $USER"
+                    echo "Home Directory: $HOME"
+                stream_output: true
+                expand_env_vars: true
+        ```
+
         Run a shell script in a specific directory:
         ```yaml
         build:
@@ -148,6 +165,9 @@ async def run_shell_script(
     stderr_sink = io.StringIO()
 
     for command in commands:
+        if expand_env_vars:
+            # Expand environment variables in command and provided environment
+            command = string.Template(command).safe_substitute(current_env)
         split_command = shlex.split(command)
         if not split_command:
             continue

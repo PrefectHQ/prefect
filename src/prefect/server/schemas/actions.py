@@ -1,6 +1,7 @@
 """
 Reduced schemas for accepting API actions.
 """
+import json
 import warnings
 from copy import copy, deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
@@ -23,6 +24,7 @@ from prefect.server.utilities.schemas import (
     orjson_dumps_extra_compatible,
 )
 from prefect.utilities.pydantic import get_class_fields_only
+from prefect.utilities.templating import find_placeholders
 
 
 def validate_block_type_slug(value):
@@ -400,6 +402,30 @@ class ConcurrencyLimitCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class ConcurrencyLimitV2Create(ActionBaseModel):
+    """Data used by the Prefect REST API to create a v2 concurrency limit."""
+
+    active: bool = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: str = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: int = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: float = FieldFrom(schemas.core.ConcurrencyLimitV2)
+
+
+@copy_model_fields
+class ConcurrencyLimitV2Update(ActionBaseModel):
+    """Data used by the Prefect REST API to update a v2 concurrency limit."""
+
+    active: Optional[bool] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    name: Optional[str] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    limit: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    active_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    denied_slots: Optional[int] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+    slot_decay_per_second: Optional[float] = FieldFrom(schemas.core.ConcurrencyLimitV2)
+
+
+@copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
@@ -499,6 +525,37 @@ class LogCreate(ActionBaseModel):
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
 
 
+def validate_base_job_template(v):
+    if v == dict():
+        return v
+
+    job_config = v.get("job_configuration")
+    variables = v.get("variables")
+    if not (job_config and variables):
+        raise ValueError(
+            "The `base_job_template` must contain both a `job_configuration` key"
+            " and a `variables` key."
+        )
+    template_variables = set()
+    for template in job_config.values():
+        # find any variables inside of double curly braces, minus any whitespace
+        # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
+        # convert to json string to handle nested objects and lists
+        found_variables = find_placeholders(json.dumps(template))
+        template_variables.update({placeholder.name for placeholder in found_variables})
+
+    provided_variables = set(variables["properties"].keys())
+    if not template_variables.issubset(provided_variables):
+        missing_variables = template_variables - provided_variables
+        raise ValueError(
+            "The variables specified in the job configuration template must be "
+            "present as properties in the variables schema. "
+            "Your job configuration uses the following undeclared "
+            f"variable(s): {' ,'.join(missing_variables)}."
+        )
+    return v
+
+
 @copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
@@ -510,6 +567,10 @@ class WorkPoolCreate(ActionBaseModel):
     is_paused: bool = FieldFrom(schemas.core.WorkPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
 
+    _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
+        validate_base_job_template
+    )
+
 
 @copy_model_fields
 class WorkPoolUpdate(ActionBaseModel):
@@ -519,6 +580,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
     base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
+
+    _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
+        validate_base_job_template
+    )
 
 
 @copy_model_fields

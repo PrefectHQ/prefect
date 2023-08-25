@@ -1,16 +1,14 @@
 import asyncio
 import contextlib
-import time
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
 
-from prefect._internal.concurrency.api import from_async
-
 import pytest
 
-from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.services import (
     BatchedQueueService,
     QueueService,
