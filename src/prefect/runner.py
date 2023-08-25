@@ -768,7 +768,7 @@ class Runner:
     async def load(
         self,
         flow: Flow,
-        name: Optional[str] = "served",
+        name: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         parameters: Optional[Dict] = None,
@@ -784,7 +784,8 @@ class Runner:
 
         Args:
             flow: A flow for the runner to run.
-            name: The name to give the created deployment.
+            name: The name to give the created deployment. Will default to the name
+                of the runner.
             schedule: A schedule of when to execute runs of the provided flow.
             triggers: A list of triggers that should kick of a run of the provided flow.
             parameters: A dictionary of default parameter values to pass to runs of
@@ -804,6 +805,16 @@ class Runner:
                 " start` to start the scheduler."
             )
         name = self.name if name is None else name
+
+        if parameters is None:
+            parameters = {}
+
+        if tags is None:
+            tags = []
+
+        if triggers is None:
+            triggers = []
+
         deployment = await Deployment.build_from_flow(
             flow,
             work_queue_name=None,
@@ -828,6 +839,28 @@ class Runner:
         Starts a runner.
 
         The runner will begin monitoring for and executing any scheduled work for all loaded flows.
+
+        Examples:
+
+            Load two flows and serve them:
+            ```python
+            from prefect import flow, Runner
+
+            @flow
+            def hello_flow(name):
+                print(f"hello {name}")
+
+            @flow
+            def goodbye_flow(name):
+                print(f"goodbye {name}")
+
+            if __name__ == "__main__"
+                Runner(__file__).load(hello_flow)
+                # Run on a cron schedule
+                Runner(__file__).load(goodbye_flow, schedule={"cron": "0 * * * *"})
+
+                Runner.start()
+            ```
         """
         async with self as runner:
             async with anyio.create_task_group() as tg:

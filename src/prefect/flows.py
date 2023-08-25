@@ -4,10 +4,12 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import datetime
 import inspect
 import os
 import warnings
 from functools import partial, update_wrapper
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import (
     Any,
@@ -37,7 +39,11 @@ from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -468,10 +474,11 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def serve(
         self,
-        name: str = "served",
-        schedule: Optional[SCHEDULE_TYPES] = None,
+        name: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
-        parameters: Optional[Dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -482,7 +489,10 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            schedule: A schedule of when to execute runs of this flow.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -494,35 +504,54 @@ class Flow(Generic[P, R]):
                 If False, the schedules will continue running.
 
         Examples:
-            Serve a flow
+            Serve a flow:
 
-            >>> from prefect import flow
-            >>>
-            >>> @flow
-            >>> def my_flow(name):
-            >>>     print(f"hello {name}")
-            >>>     return f"goodbye {name}"
-            >>>
-            >>> if __name__ == "__main__":
-            >>>     my_flow.serve()
+            ```python
+            from prefect import flow
 
-            Serve a flow on a schedule
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
 
-            >>> from prefect import flow
-            >>> from datetime import timedelta
-            >>>
-            >>> @flow
-            >>> def my_flow(name):
-            >>>     print(f"hello {name}")
-            >>>     return f"goodbye {name}"
-            >>>
-            >>> if __name__ == "__main__":
-            >>>     my_flow.serve(schedule={"interval": timedelta(hours=1)})
+            if __name__ == "__main__":
+                my_flow.serve(__file__)
+            ```
+
+            Serve a flow and run it every hour:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.serve(__file__, interval=3600)
+            ```
         """
         from prefect.runner import Runner
 
-        if parameters is None:
-            parameters = {}
+        # Handling for my_flow.serve(__file__)
+        # Will set name to name of file where my_flow.serve() without the extension
+        # Non filepath strings will pass through unchanged
+        name = Path(name).stem
+
+        num_schedules = sum(
+            1 for schedule in (interval, cron, rrule) if schedule is not None
+        )
+        if num_schedules > 1:
+            raise ValueError("Only one of interval, cron, and rrule can be provided.")
+
+        schedule = None
+        if interval:
+            if isinstance(interval, (int, float)):
+                interval = datetime.timedelta(seconds=interval)
+            schedule = IntervalSchedule(interval=interval)
+        elif cron:
+            schedule = CronSchedule(cron=cron)
+        elif rrule:
+            schedule = RRuleSchedule(rrule=rrule)
 
         if tags is None:
             tags = []
@@ -536,7 +565,6 @@ class Flow(Generic[P, R]):
             name=name,
             triggers=triggers,
             schedule=schedule,
-            parameters=parameters,
             description=description,
             tags=tags,
             version=version,
