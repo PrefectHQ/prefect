@@ -168,6 +168,19 @@ class Flow(Generic[P, R]):
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
+        if name is not None and not isinstance(name, str):
+            raise TypeError(
+                "Expected string for flow parameter 'name'; got {} instead. {}".format(
+                    type(name).__name__,
+                    (
+                        "Perhaps you meant to call it? e.g."
+                        " '@flow(name=get_flow_run_name())'"
+                        if callable(name)
+                        else ""
+                    ),
+                )
+            )
+
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
         hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
