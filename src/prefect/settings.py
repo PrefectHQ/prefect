@@ -831,10 +831,7 @@ PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
     default=None,
 )
 """
-When creating a SQLAlchemy engine to connect to PostgreSQL, this value will be passed as the pool_size argument.
-
-If None the pool_size argument will not be passed to the engine; in this case SQLAlchemy will (currently anyway)
-default it to 5.
+Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
 """
 
 PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
