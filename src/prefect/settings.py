@@ -839,10 +839,7 @@ PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
     default=None,
 )
 """
-When creating a SQLAlchemy engine to connect to PostgreSQL, this value will be passed as the max_overflow argument.
-
-If None the max_overflow argument will not be passed to the engine; in this case SQLAlchemy will (currently anyway)
-default it to 10.
+Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
 """
 
 PREFECT_LOGGING_COLORS = Setting(
