@@ -480,6 +480,24 @@ class TestCronScheduleDaylightSavingsTime:
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
 
+    async def test_cron_schedule_handles_scheduling_near_dst_boundary(self):
+        """
+        Regression test for  https://github.com/PrefectHQ/nebula/issues/4048
+
+        `croniter` does not generate expected schedules when given a start
+        time on the day DST occurs but before the time shift actually happens.
+
+        Daylight savings occurs at 2023-03-12T02:00:00-05:00 and clocks jump
+        ahead to 2023-03-12T03:00:00-04:00. The timestamp below is in the 2-hour
+        window where it is 2023-03-12, but the DST shift has not yet occurred.
+        """
+        dt = pendulum.datetime(2023, 3, 12, 5, 10, 2, tz="UTC")
+        s = CronSchedule(cron="10 0 * * *", timezone="America/Montreal")
+        dates = await s.get_dates(n=5, start=dt)
+
+        assert [d.in_tz("America/New_York").hour for d in dates] == [0, 0, 0, 0, 0]
+        assert [d.in_tz("UTC").hour for d in dates] == [4, 4, 4, 4, 4]
+
 
 class TestRRuleScheduleDaylightSavingsTime:
     async def test_rrule_schedule_hourly_daylight_savings_time_forward_with_UTC(
