@@ -89,6 +89,50 @@ Enter a name for your deployment. Let's use `docker-deployment`.
 
 Select `n` for no schedule.
 
+Select a Docker work pool.
+
+When prompted `Would you like to build a custom Docker image for this deployment? [y/n] (n):`
+
+Select `y` to build a custom Docker image for this deployment.
+
+`Repository name (e.g. your Docker Hub username):`
+
+`Image name (docker-deployment):` is autopopulated with the deployment name. Let's use that.
+`Image tag (latest):` works fine for our purposes.
+
+```
+Image discdiver/docker-deployment:latest will be built.
+? Would you like to push this image to a remote 
+registry? [y/n] (n):
+```
+
+Note that you must be authenticated through the CLI if you would like to push your image to a remote registry.
+
+Dockerhub is the default registry, but you can specify a different registry by entering the URL.
+
+```
+Registry URL (docker.io):
+```
+
+```
+Is this a private registry? [y/n]:
+```
+
+```
+Would you like use prefect-docker to manage Docker 
+registry credentials? [y/n] (n):
+```
+
+If you select `y`, you will be prompted to enter your Dockerhub username and password. Prefect will create a Docker Registry block on the server to store your credentials.
+
+You should see the image being built and pushed in the CLI
+
+You will then be prompted to create a `prefect.yaml` file with the deployment configuration.
+
+```
+Would you like to save configuration for this deployment for faster deployments in the future? [y/n]
+```
+
 ## Adding Python packages into your deployment
 
 The Prefect package is already installed in the Docker image, but you may want to add additional packages to your deployment.
@@ -144,54 +188,49 @@ This will create a `prefect.yaml` file for us populated with some fields. By def
 # control along with your flow code.
 
 # Generic metadata about this project
-name: docker-tutorial
+name: demos
 prefect-version: 2.11.5
 
 # build section allows you to manage and build docker images
 build:
 - prefect_docker.deployments.steps.build_docker_image:
-    id: build_image
-    requires: prefect-docker>=0.3.0
-    image_name: docker-tutorial-image
-    tag: latest
+    requires: prefect-docker>=0.3.1
+    id: build-image
     dockerfile: auto
-    push: true
+    image_name: docker.io/discdiver/docker-deployment
+    tag: latest
 
 # push section allows you to manage if and how this project is uploaded to remote locations
-push: null
+push:
+- prefect_docker.deployments.steps.push_docker_image:
+    requires: prefect-docker>=0.3.1
+    image_name: '{{ build-image.image_name }}'
+    tag: '{{ build-image.tag }}'
+    credentials: '{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name
+      }}'
 
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
 - prefect.deployments.steps.set_working_directory:
-    directory: /opt/prefect/docker-tutorial
+    directory: /opt/my_directory
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
-- name: null
+- name: docker-deployment
   version: null
   tags: []
   description: null
-  schedule: {}
-  flow_name: null
-  entrypoint: null
+  entrypoint: flows.py:docker_flow
   parameters: {}
   work_pool:
-    name: null
+    name: docker-pool
     work_queue_name: null
     job_variables:
-      image: '{{ build_image.image }}'
+      image: '{{ build-image.image }}'
+  schedule: null
 ```
 
-Once you have made any updates you would like to this `prefect.yaml` file, in your terminal run:
-
-<div class="terminal">
-```bash
-prefect deploy
-```
-</div>
-
-The Prefect deployment wizard will walk you through the deployment experience.  
-You can save the configuration to your `prefect.yaml` file for tweaking or use in a CI/CD pipeline.
+In the future, you can make updates to this `prefect.yaml` file, and redeploy it with `prefect deploy`.
 
 ## Next steps
 
