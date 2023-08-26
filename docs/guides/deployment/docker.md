@@ -10,40 +10,70 @@ search:
   boost: 2
 ---
 
-# Running flows with Docker
+# Running flows in a Docker container
 
-In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
-
-In this guide, we will "bake" your code directly into a Docker image. This will allow for easy storage and allow you to deploy flow code without the need for a storage block. Then, we'll configure the deployment so flow runs are executed in a Docker container based on that image. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
-
-
-In this guide we'll:
-
-- Create a Docker image that stores your Prefect flow code.
-- Configure a [build step](/concepts/deployments#build) which will build a docker image on our behalf.
-- Build and register a new `log_flow.py` deployment that uses the new image.
-- Create a flow run from this deployment that spins up a Docker container and executes, logging a message.
+In this guide, we'll see how to run flows in a Docker container.
+We'll see how we can use work pools to configure a Prefect deployment to run flow runs in Docker containers.
+We'll also see how we can store our flow code inside of a Docker image.
 
 ## Prerequisites
 
 To run a deployed flow in a Docker container, you'll need the following:
 
-- We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
-- You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
-- You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
+- A connection to a self-hosted [Prefect server]() or [Prefect Cloud]() account. TK
+- [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your worker.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
-!!! note "Run a Prefect server"
-    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorial/deployments/) tutorial.
-    
-    If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
+## Flow code
 
-## Storing Prefect Flow Code in a Docker Image 
+In the root of your project directory, create a file named `flows.py` with your flow code in it.
 
-First let's create a directory to work from, `docker-tutorial`.
+```python
 
-In this directory, you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial. In this case, I've named the flow `docker-tutorial-flow.py`.
+from prefect import flow
+
+@flow
+def docker_flow():
+    return "Hello, Docker!"
+```
+
+## Create a Docker work pool
+
+Go to
+
+Workers will poll the server for scheduled flow runs.
+When a flow run is executed, the worker will spin up the Docker container as specified in our work pool and with any deployment-specific overrides, and track flow run.
+
+## Create a deployment
+
+We have several options for creating a deployment with Docker:
+
+1. Use the guided deployment experience with `prefect deploy` that will create a deployment and output a `prefect.yaml`.
+1. Use `prefect init` to create a `prefect.yaml` file from a template and then deploy it with `prefect deploy`.
+
+Let's use the guided deployment experience.
+
+### Guided deployment experience
+
+In the root folder of your project, run `prefect deploy`.
+
+Select the flow you want to deploy from the list of flows.
+
+Enter a name for your deployment. Let's use `docker-deployment`.
+
+Select `n` for no schedule.
+
+## Getting other Python packages into your deployment
+
+Options:
+
+1. Add environment variables extra pip packages to your work pool
+1. Hardcode in your Dockerfile
+1. Specify requirements.txt file in your Dockerfile
+1. Build step include install from requirements.txt file will auto-build in your dockerfile
+
+### Flow code storage
 
 The next file you will add to the `docker-tutorial` directory is a `requirements.txt`.  In this file make sure to include all dependencies that are required for your `docker-tutorial-flow.py` script.  
 
@@ -56,7 +86,7 @@ RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-di
 ADD flows /opt/prefect/flows
 ```
 
-Finally, we build this image by running: 
+Finally, we build this image by running:
 
 ```bash
 docker build -t docker-tutorial-image .
@@ -75,6 +105,7 @@ prefect init --recipe docker
 </div>
 
 You will see a prompt to input values for image name and tag, lets use:
+
 ```
 image_name: docker-tutorial-image
 tag: latest
@@ -126,7 +157,7 @@ deployments:
       image: '{{ build_image.image }}'
 ```
 
-Once you have made any updates you would like to this `prefect.yaml` file, in your terminal run: 
+Once you have made any updates you would like to this `prefect.yaml` file, in your terminal run:
 
 <div class="terminal">
 ```bash
@@ -135,6 +166,7 @@ prefect deploy
 </div>
 
 The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed, you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
+
 ## Cleaning up
 
 When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.
