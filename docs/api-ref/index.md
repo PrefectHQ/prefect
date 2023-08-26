@@ -1,9 +1,10 @@
 ---
-description: Prefect APIs enable you to interact programmatically with the REST API and Prefect Cloud.
+description: Explore Prefect's auto-generated reference documentation.
 icon: octicons/book-16
 tags:
     - API
     - Prefect API
+    - Prefect SDK
     - Prefect Cloud
     - REST API
     - development
@@ -12,11 +13,15 @@ tags:
 
 # API Reference
 
-Prefect provides several APIs. 
+Prefect auto-generates reference documentation for the following components:
 
-- The [Prefect Python SDK API](/api-ref/python/) is used to build, test, and execute workflows against the Prefect orchestration engine. This is the primary user-facing API.
-- The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from clients to the Prefect server so that orchestration can be performed. This API is consumed by clients such as the Prefect Python SDK or the server dashboard.
+- **[Prefect Python SDK](/api-ref/python/)**: used to build, test, and execute workflows.
+- **[Prefect REST API](/api-ref/rest-api/)**: used by both workflow clients as well as the Prefect UI for orchestration and data retrieval
     -  Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-    - The REST API documentation for a locally hosted open-source Prefect server is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
-    - The REST API documentation for a locally hosted open-source Prefect server is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
-- The [Prefect server API](/api-ref/server/) is used by the server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Prefect developers.
+    - The REST API documentation for a locally hosted open-source Prefect server is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
+- **[Prefect Server SDK](/api-ref/server/)**: used primarily by the server to work with workflow metadata and enforce orchestration logic. This is only used directly by Prefect developers and contributors.
+
+
+!!! Note "Self-hosted docs"
+    When self-hosting, you can access REST API documentation at the `/docs` endpoint of your [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) - for example, if you ran `prefect server start` with no additional configuration you can find this reference at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a>.
+    

@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# **Prefect Quickstart**
+# Quickstart
 
 ### Step 1: Install Prefect
 
