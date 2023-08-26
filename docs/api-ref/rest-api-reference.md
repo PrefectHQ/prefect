@@ -8,9 +8,6 @@ hide:
 title: Prefect server REST API reference
 ---
 
-## The Prefect server REST API
-The REST API documentation for a locally hosted open-source Prefect server is available below.
-
 <hr>
 
 <div id="redoc-container"></div>
