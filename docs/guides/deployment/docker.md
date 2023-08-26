@@ -21,6 +21,7 @@ We'll also see how we can store our flow code inside of a Docker image.
 To run a deployed flow in a Docker container, you'll need the following:
 
 - A connection to a self-hosted [Prefect server]() or [Prefect Cloud]() account. TK
+- [`prefect-docker`]() package installed.
 - [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your worker.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
@@ -28,6 +29,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 ## Flow code
 
 In the root of your project directory, create a file named `flows.py` with your flow code in it.
+Here's a very basic example flow for testing.
 
 ```python
 
@@ -40,7 +42,30 @@ def docker_flow():
 
 ## Create a Docker work pool
 
-Go to
+[Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.
+We'll configure the default values for our Kubernetes base job template.
+Note that these values can be overridden by individual deployments.
+
+Let's switch to the Prefect Cloud UI, where we'll create a new Kubernetes work pool (alternatively, you could use the Prefect CLI to create a work pool).
+
+1. Click on the **Work Pools** tab on the left sidebar
+1. Click the **+** button at the top of the page
+1. Select **Docker** as the work pool type
+1. Click **Next** to configure the work pool settings
+
+Let's look at a few popular configuration options.
+
+**Environment Variables**
+Add environment variables to set when starting a flow run.
+You can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
+Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
+As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
+
+**Image**
+Specify the Docker container image for created jobs. If not set, the latest Prefect 2 image will be used.
+
+**Image Pull Policy**
+Select from the dropdown options to specify when to pull the image.
 
 Workers will poll the server for scheduled flow runs.
 When a flow run is executed, the worker will spin up the Docker container as specified in our work pool and with any deployment-specific overrides, and track flow run.
@@ -49,7 +74,7 @@ When a flow run is executed, the worker will spin up the Docker container as spe
 
 We have several options for creating a deployment with Docker:
 
-1. Use the guided deployment experience with `prefect deploy` that will create a deployment and output a `prefect.yaml`.
+1. Use the guided deployment experience with `prefect deploy` to create a deployment and output a `prefect.yaml`.
 1. Use `prefect init` to create a `prefect.yaml` file from a template and then deploy it with `prefect deploy`.
 
 Let's use the guided deployment experience.
@@ -64,35 +89,35 @@ Enter a name for your deployment. Let's use `docker-deployment`.
 
 Select `n` for no schedule.
 
-## Getting other Python packages into your deployment
+## Adding Python packages into your deployment
+
+The Prefect package is already installed in the Docker image, but you may want to add additional packages to your deployment.
 
 Options:
 
-1. Add environment variables extra pip packages to your work pool
-1. Hardcode in your Dockerfile
-1. Specify requirements.txt file in your Dockerfile
-1. Build step include install from requirements.txt file will auto-build in your dockerfile
+1. Add environment variables extra pip packages to your work pool as shown above
+1. Install packages from a `requirements.txt` file in your hand-made Dockerfile.
+1. Add a `requirements.txt` file to your folder and allow Prefect to auto-build a Dockerfile that includes the packages.
 
-### Flow code storage
-
-The next file you will add to the `docker-tutorial` directory is a `requirements.txt`.  In this file make sure to include all dependencies that are required for your `docker-tutorial-flow.py` script.  
-
-Next, you will create a `Dockerfile` that will be used to create a Docker image that will also store the flow code.  This `Dockerfile` should look similar to the following:  
+If you want to create your own `Dockerfile`, you can base it on the one below
 
 ```bash
-FROM prefecthq/prefect:2-python3.9
+FROM prefecthq/prefect:2-python3.11
 COPY requirements.txt .
 RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-dir
 ADD flows /opt/prefect/flows
 ```
 
-Finally, we build this image by running:
+## Flow code storage
 
-```bash
-docker build -t docker-tutorial-image .
-```
+Your flow code can be stored in a variety of places.
 
-This will create a Docker image in your Docker repository with your Prefect flow stored in the image.  
+1. Bake your flow code into your Docker image. This can allow you to take advantage of image caching in some cases.
+1. Store your flow code in a git-based repository or cloud provider. See the flow code [storage guide](/guides/deployment/storage-guide/) for more details.
+
+If you would prefer to use flow code stored in a git-based repository or cloud provider, just specify that in the `prefect.yaml` file. A template for a Dockerfile with git-based storage is available by running `prefect init --recipe docker-git`.
+
+TK list pull step
 
 ## Prefect.yaml File
 
@@ -120,7 +145,7 @@ This will create a `prefect.yaml` file for us populated with some fields. By def
 
 # Generic metadata about this project
 name: docker-tutorial
-prefect-version: 2.10.16
+prefect-version: 2.11.5
 
 # build section allows you to manage and build docker images
 build:
@@ -165,8 +190,11 @@ prefect deploy
 ```
 </div>
 
-The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed, you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
+The Prefect deployment wizard will walk you through the deployment experience.  
+You can save the configuration to your `prefect.yaml` file for tweaking or use in a CI/CD pipeline.
 
-## Cleaning up
+## Next steps
 
-When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.
+You've seen how to use Docker to deploy Prefect flows.
+
+Docker containers are the basis for most Prefect work pool options, including [Kubernetes](/guides/deployment/kubernetes), [serverless cloud provider options such as ECS, Cloud Run, and ACI](/guides/aci/), and serverless [push-based work pools](/guides/push-work-pools/) that don't require a worker.
