@@ -137,6 +137,7 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
+          - Quickstart: getting-started/quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md
@@ -203,7 +204,7 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
-    - API References:
+    - API Reference:
           - api-ref/index.md
           - Python SDK API:
                 - api-ref/python/index.md
