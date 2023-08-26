@@ -37,7 +37,11 @@ With Prefect you gain:
 
 #### New to Prefect?
 
-Get up and running quickly with the [quickstart guide](getting-started/quickstart) and [tutorial](/tutorial/); for deeper dives on specific use cases, explore our [guides](guides/index/) for common scenarios.  Take your understanding even further with Prefect's [concepts](/concepts/index/) and [API reference](/api-ref/).  Join Prefect's [vibrant community](/community/) of over 26,000 engineers to learn with others and share your knowledge!
+Get up and running quickly with the [quickstart guide](/getting-started/quickstart/). 
+Want more hands on practice to productionize your workflows? Follow our [tutorial](/tutorial/). 
+For deeper dives on common use cases, explore our [guides](/guides/index/). 
+Take your understanding even further with Prefect's [concepts](/concepts/index/) and [API reference](/api-ref/). 
+Join Prefect's [vibrant community](/community/) of over 26,000 engineers to learn with others and share your knowledge!
 
 [Concepts](/concepts){ .md-button .main-button--secondary .full } [Tutorial](/tutorial/){ .md-button .md-button--primary .main-button--primary .full }  [Guides](guides){ .md-button .main-button--secondary .full } [Community](community){ .md-button .main-button--primary .full }
 
