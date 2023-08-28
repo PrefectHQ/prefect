@@ -27,6 +27,9 @@ T = TypeVar("T")
 _WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
     weakref.WeakKeyDictionary()
 )
+_LOCK_PER_THREAD: "weakref.WeakKeyDictionary[threading.Thread, threading.Lock]" = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
@@ -38,9 +41,9 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     waiters = _WAITERS_BY_THREAD.get(thread)
 
     if waiters:
-        for w in waiters:
-            if not w._call.future.done():
-                return w
+        for waiter in reversed(waiters):
+            if not waiter.call_future_done():
+                return waiter
 
     return None
 
@@ -51,6 +54,7 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     """
     if thread not in _WAITERS_BY_THREAD:
         _WAITERS_BY_THREAD[thread] = deque()
+        _LOCK_PER_THREAD[thread] = threading.Lock()
 
     _WAITERS_BY_THREAD[thread].append(waiter)
 
@@ -73,6 +77,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         # Set the waiter for the current thread
         add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
+
+    def call_future_done(self) -> bool:
+        return self._call.future.done()
 
     @abc.abstractmethod
     def wait(self) -> Union[Awaitable[None], None]:
@@ -112,7 +119,7 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self._call.future.done():
+        if self.call_future_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         self._queue.put_nowait(call)
@@ -182,7 +189,7 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self._call.future.done():
+        if self.call_future_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         call.set_runner(self)
