@@ -39,7 +39,7 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
 
     if waiters:
         idx = -1
-        while True:
+        while abs(idx) <= len(waiters):
             try:
                 waiter = waiters[idx]
                 if not waiter.call_is_done():
