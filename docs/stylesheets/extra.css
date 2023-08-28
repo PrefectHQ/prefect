@@ -476,3 +476,7 @@ to force column width */
     font-size: 14px;
     text-transform: uppercase;
 }
+
+a.cloud-button:hover {
+    background-color: rgb(2, 37, 172);
+}
