@@ -1,3 +1,4 @@
+import datetime
 import inspect
 from functools import partial
 from pathlib import Path
@@ -20,8 +21,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
 )
 from prefect.client.schemas.objects import StateType
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.deployments import Deployment
+from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -123,13 +123,30 @@ class Runner:
         self._flow_run_process_map = dict()
 
     @sync_compatible
+    async def add_deployment(
+        self,
+        deployment: RunnerDeployment,
+    ):
+        """
+        Registers the deployment with the Prefect API and will monitor for work once
+        the runner is started.
+
+        Args:
+            deployment: A deployment for the runner to register.
+        """
+        deployment_id = await deployment.apply()
+        self._deployment_ids.add(deployment_id)
+
+    @sync_compatible
     async def add(
         self,
         flow: Flow,
-        name: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
+        name: str = None,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
-        parameters: Optional[Dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -144,52 +161,40 @@ class Runner:
             flow: A flow for the runner to run.
             name: The name to give the created deployment. Will default to the name
                 of the runner.
-            schedule: A schedule of when to execute runs of the provided flow.
-            triggers: A list of triggers that should kick of a run of the provided flow.
-            parameters: A dictionary of default parameter values to pass to runs of
-                the provided flow.
-            description: A description for the created deployment. Defaults to the
-                provided flow's description if not provided.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
-            version: A version for the created deployment. Defaults to the provided flow's version.
+            version: A version for the created deployment. Defaults to the flow's version.
         """
         # TODO: expose a filesystem interface with hot reloading
         # will need to create a separate method for deployment creation
         api = PREFECT_API_URL.value()
-        if schedule and not api:
+        if any([interval, cron, rrule]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
             )
         name = self.name if name is None else name
 
-        if parameters is None:
-            parameters = {}
-
-        if tags is None:
-            tags = []
-
-        if triggers is None:
-            triggers = []
-
-        deployment = await Deployment.build_from_flow(
-            flow,
-            work_queue_name=None,
-            apply=False,
-            skip_upload=True,
-            load_existing=False,
+        deployment = await flow.to_deployment(
             name=name,
-            schedule=schedule,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
             triggers=triggers,
             parameters=parameters,
             description=description,
             tags=tags,
             version=version,
         )
-        deployment.storage = None
-        deployment_id = await deployment.apply(ignore_infra=True, upload=False)
-        self._deployment_ids.add(deployment_id)
+        await self.add_deplyoment(deployment)
 
     @sync_compatible
     async def start(self):
@@ -819,3 +824,15 @@ def _use_threaded_child_watcher():
         # lead to errors in tests on unix as the previous default `SafeChildWatcher`
         # is not compatible with threaded event loops.
         asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
+
+
+@sync_compatible
+async def serve(*args: RunnerDeployment, pause_on_shutdown: bool = True, **kwargs):
+    """
+    Serve the provided list of deployments.
+    """
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
+    for deployment in args:
+        await runner.add_deployment(deployment)
+
+    await runner.start()

@@ -474,6 +474,92 @@ class Flow(Generic[P, R]):
         return serialized_parameters
 
     @sync_compatible
+    async def to_deployment(
+        self,
+        name: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+    ):
+        """
+        Creates a deployment object for this flow.
+
+        Args:
+            name: The name to give the created deployment.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+
+        Examples:
+            Prepare two deployments and serve them:
+
+            ```python
+            from prefect import flow, serve
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            @flow
+            def my_other_flow(name):
+                print(f"goodbye {name}")
+
+            if __name__ == "__main__":
+                hello_deploy = my_flow.to_deployment("hello", tags=["dev"])
+                bye_deploy = my_other_flow.to_deployment("goodbye", tags=["dev"])
+                serve(hello_deploy, bye_deploy)
+            ```
+        """
+        from prefect.deployments.runner import RunnerDeployment
+
+        num_schedules = sum(
+            1 for schedule in (interval, cron, rrule) if schedule is not None
+        )
+        if num_schedules > 1:
+            raise ValueError("Only one of interval, cron, and rrule can be provided.")
+
+        schedule = None
+        if interval:
+            if isinstance(interval, (int, float)):
+                interval = datetime.timedelta(seconds=interval)
+            schedule = IntervalSchedule(interval=interval)
+        elif cron:
+            schedule = CronSchedule(cron=cron)
+        elif rrule:
+            schedule = RRuleSchedule(rrule=rrule)
+
+        if tags is None:
+            tags = []
+
+        if triggers is None:
+            triggers = []
+
+        init_kwargs = dict(
+            name=name,
+            schedule=schedule,
+            tags=tags,
+            triggers=triggers,
+            parameters=parameters or {},
+            description=description,
+            version=version,
+        )
+
+        return await RunnerDeployment.from_flow(self, **init_kwargs)
+
+    @sync_compatible
     async def serve(
         self,
         name: str,
@@ -481,6 +567,7 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -541,34 +628,15 @@ class Flow(Generic[P, R]):
         # Non filepath strings will pass through unchanged
         name = Path(name).stem
 
-        num_schedules = sum(
-            1 for schedule in (interval, cron, rrule) if schedule is not None
-        )
-        if num_schedules > 1:
-            raise ValueError("Only one of interval, cron, and rrule can be provided.")
-
-        schedule = None
-        if interval:
-            if isinstance(interval, (int, float)):
-                interval = datetime.timedelta(seconds=interval)
-            schedule = IntervalSchedule(interval=interval)
-        elif cron:
-            schedule = CronSchedule(cron=cron)
-        elif rrule:
-            schedule = RRuleSchedule(rrule=rrule)
-
-        if tags is None:
-            tags = []
-
-        if triggers is None:
-            triggers = []
-
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
         await runner.add(
             self,
             name=name,
             triggers=triggers,
-            schedule=schedule,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            parameters=parameters,
             description=description,
             tags=tags,
             version=version,
