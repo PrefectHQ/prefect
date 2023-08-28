@@ -645,7 +645,7 @@ class Flow(Generic[P, R]):
             console = Console()
             console.print(
                 Panel(
-                    f"Your flow {self.name!r} is served and ready for scheduled runs!"
+                    f"Your flow {self.name!r} is served and polling for scheduled runs!"
                 ),
                 style="blue",
             )
