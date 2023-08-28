@@ -184,14 +184,13 @@ class RunnerDeployment(BaseModel):
 
         return schedule
 
-    @staticmethod
-    def set_defaults_from_flow(deployment, flow: Flow):
-        deployment.parameter_openapi_schema = parameter_schema(flow)
+    def _set_defaults_from_flow(self, flow: Flow):
+        self.parameter_openapi_schema = parameter_schema(flow)
 
-        if not deployment.version:
-            deployment.version = flow.version
-        if not deployment.description:
-            deployment.description = flow.description
+        if not self.version:
+            self.version = flow.version
+        if not self.description:
+            self.description = flow.description
 
     @classmethod
     @sync_compatible
@@ -269,7 +268,7 @@ class RunnerDeployment(BaseModel):
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        cls.set_defaults_from_flow(deployment, flow)
+        cls._set_defaults_from_flow(deployment, flow)
 
         if apply:
             await deployment.apply()
@@ -339,7 +338,7 @@ class RunnerDeployment(BaseModel):
             path=str(Path.cwd()),
         )
 
-        cls.set_defaults_from_flow(deployment, flow)
+        cls._set_defaults_from_flow(deployment, flow)
 
         if apply:
             await deployment.apply()
