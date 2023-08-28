@@ -159,8 +159,9 @@ class RunnerDeployment(BaseModel):
         Args:
             flow: A flow function to deploy
             name: A name for the deployment
-            **kwargs: other keyword arguments to pass to the constructor for the
-                `Deployment` class
+            apply: If True, the deployment is automatically registered with the API
+            **kwargs: Other keyword arguments to pass to the constructor for the
+                `RunnerDeployment` class
         """
         deployment = cls(name=name, flow_name=flow.name, **kwargs)
         # TODO: better error messages with doc links
