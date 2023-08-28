@@ -4,13 +4,11 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import importlib
 from datetime import datetime, timedelta
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import pendulum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.schedules import (
@@ -67,37 +65,23 @@ class RunnerDeployment(BaseModel):
         default=None, description="Whether or not the schedule is active."
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    path: Optional[str] = Field(
-        default=None,
-        description=(
-            "The path to the working directory for the workflow, relative to remote"
-            " storage or an absolute path."
-        ),
-    )
     entrypoint: Optional[str] = Field(
         default=None,
         description=(
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    parameter_openapi_schema: ParameterSchema = Field(
-        default_factory=ParameterSchema,
-        description="The parameter schema of the flow, including defaults.",
-    )
-    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
     triggers: List[DeploymentTrigger] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
 
-    @validator("parameter_openapi_schema", pre=True)
-    def handle_openapi_schema(cls, value):
-        """
-        This method ensures setting a value of `None` is handled gracefully.
-        """
-        if value is None:
-            return ParameterSchema()
-        return value
+    _path: Optional[str] = PrivateAttr(
+        default=None,
+    )
+    _parameter_openapi_schema: ParameterSchema = PrivateAttr(
+        default_factory=ParameterSchema,
+    )
 
     @validator("triggers")
     def validate_automation_names(cls, field_value, values, field, config):
@@ -127,11 +111,11 @@ class RunnerDeployment(BaseModel):
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
-                path=self.path,
+                path=self._path,
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
-                parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                parameter_openapi_schema=self._parameter_openapi_schema.dict(),
             )
 
             if client.server_type == ServerType.CLOUD:
@@ -185,7 +169,7 @@ class RunnerDeployment(BaseModel):
         return schedule
 
     def _set_defaults_from_flow(self, flow: Flow):
-        self.parameter_openapi_schema = parameter_schema(flow)
+        self._parameter_openapi_schema = parameter_schema(flow)
 
         if not self.version:
             self.version = flow.version
@@ -268,6 +252,9 @@ class RunnerDeployment(BaseModel):
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
+        if not deployment._path:
+            deployment._path = str(Path.cwd())
+
         cls._set_defaults_from_flow(deployment, flow)
 
         if apply:
@@ -335,7 +322,7 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             entrypoint=entrypoint,
-            path=str(Path.cwd()),
+            _path=str(Path.cwd()),
         )
 
         cls._set_defaults_from_flow(deployment, flow)
