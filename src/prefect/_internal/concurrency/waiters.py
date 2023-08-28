@@ -27,6 +27,20 @@ T = TypeVar("T")
 _WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
     weakref.WeakKeyDictionary()
 )
+_lock = threading.Lock()
+
+
+def get_waiter_for_thread_and_call(
+    thread: threading.Thread, call: Call
+) -> Optional["Waiter"]:
+    waiters = _WAITERS_BY_THREAD.get(thread)
+    if waiters:
+        with _lock:
+            for waiter in waiters:
+                if waiter._call == call:
+                    return waiter
+
+    return None
 
 
 def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
@@ -46,7 +60,8 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     if thread not in _WAITERS_BY_THREAD:
         _WAITERS_BY_THREAD[thread] = deque()
 
-    _WAITERS_BY_THREAD[thread].append(waiter)
+    with _lock:
+        _WAITERS_BY_THREAD[thread].append(waiter)
 
 
 class Waiter(Portal, abc.ABC, Generic[T]):

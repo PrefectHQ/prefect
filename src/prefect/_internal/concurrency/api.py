@@ -18,6 +18,7 @@ from typing import (
 
 from typing_extensions import ParamSpec
 
+from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import (
     WorkerThread,
     get_global_loop,
@@ -27,7 +28,7 @@ from prefect._internal.concurrency.waiters import (
     AsyncWaiter,
     Call,
     SyncWaiter,
-    get_waiter_for_thread,
+    get_waiter_for_thread_and_call,
 )
 
 P = ParamSpec("P")
@@ -117,7 +118,9 @@ class _base(abc.ABC):
         Returns the submitted call.
         """
         call = _cast_to_call(__call)
-        waiter = get_waiter_for_thread(thread)
+
+        current_call = get_current_call()
+        waiter = get_waiter_for_thread_and_call(thread, current_call)
         if waiter is None:
             raise RuntimeError(f"No waiter found for thread {thread}.")
 
