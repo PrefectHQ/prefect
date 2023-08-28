@@ -45,6 +45,9 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
                 if not waiter.call_is_done():
                     return waiter
                 idx = idx - 1
+            # It is possible that items are being added or removed
+            # from the deque, so the index we're using may not always
+            # be valid.
             except IndexError:
                 break
 
