@@ -150,28 +150,35 @@ Let's switch to the Prefect Cloud UI, where we'll create a new Kubernetes work p
 Let's look at a few popular configuration options.
 
 **Environment Variables**
+
 Add environment variables to set when starting a flow run.
 You can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
 Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
 As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
 
 **Namespace**
+
 Set the Kubernetes namespace to create jobs within, such as `prefect`. By default, set to **default**.
 
 **Image**
+
 Specify the Docker container image for created jobs. If not set, the latest Prefect 2 image will be used.
 
 **Image Pull Policy**
+
 Select from the dropdown options to specify when to pull the image.
 
 **Finished Job TTL**
+
 You may want to set to 60 so that completed flow runs are cleaned up after a minute.
 
 **Pod Watch Timeout Seconds**
+
 Number of seconds for pod creation to complete before timing out.
 Consider setting to 300, especially if using a **serverless** type node pool, as these tend to have longer startup times.
 
 **Kubernetes Cluster Config**
+
 You can configure the Kubernetes cluster to use for job creation by specifying a `KubernetesClusterConfig` block.
 Generally you should leave the cluster config blank as the worker should be provisioned with appropriate access and permissions.
 
