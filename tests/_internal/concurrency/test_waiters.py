@@ -8,7 +8,6 @@ from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.threads import WorkerThread
 from prefect._internal.concurrency.waiters import (
-    _WAITERS_BY_THREAD,
     AsyncWaiter,
     SyncWaiter,
     get_waiter_for_thread,
@@ -40,31 +39,6 @@ def sleep_repeatedly(seconds: int):
     # for cancellation between sleep calls
     for i in range(seconds * 10):
         time.sleep(float(i) / 10)
-
-
-async def test_add_waiter_for_thread():
-    call = Call.new(identity, 1)
-    # initializing the waiter calls `add_waiter_for_thread`
-    # and adds it to the stack
-    waiter = AsyncWaiter(call)
-    assert len(_WAITERS_BY_THREAD[threading.current_thread()]) == 1
-    assert _WAITERS_BY_THREAD[threading.current_thread()][0] == waiter
-
-
-async def test_get_waiter_for_thread():
-    call = Call.new(identity, 1)
-    waiter = AsyncWaiter(call)
-    assert len(_WAITERS_BY_THREAD[threading.current_thread()]) == 1
-
-    waiter_for_thread = get_waiter_for_thread(threading.current_thread())
-    assert waiter_for_thread == waiter
-
-    call2 = Call.new(identity, 2)
-    waiter2 = AsyncWaiter(call2)
-    assert len(_WAITERS_BY_THREAD[threading.current_thread()]) == 2
-
-    waiter_for_thread = get_waiter_for_thread(threading.current_thread())
-    assert waiter_for_thread == waiter2
 
 
 async def test_get_waiter_with_call_done():
