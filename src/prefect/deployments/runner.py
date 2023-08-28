@@ -3,19 +3,24 @@ Objects for specifying deployments and utilities for loading flows from deployme
 """
 
 import importlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
 from pydantic import BaseModel, Field, validator
 
 from prefect.client.orchestration import ServerType, get_client
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.events.schemas import DeploymentTrigger
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 
@@ -57,7 +62,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: SCHEDULE_TYPES = None
+    schedule: Optional[SCHEDULE_TYPES] = None
     is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
@@ -144,14 +149,66 @@ class RunnerDeployment(BaseModel):
 
             return deployment_id
 
+    @staticmethod
+    def _construct_schedule(
+        interval: Optional[Union[int, float, timedelta]] = None,
+        anchor_date: Optional[Union[str, datetime]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        timezone: Optional[str] = None,
+    ) -> Optional[SCHEDULE_TYPES]:
+        schedule = None
+
+        num_schedules = sum(
+            1 for schedule in (interval, cron, rrule) if schedule is not None
+        )
+        if num_schedules > 1:
+            raise ValueError("Only one of interval, cron, and rrule can be provided.")
+
+        if anchor_date and not interval:
+            raise ValueError(
+                "An anchor date can only be provided with an interval schedule"
+            )
+
+        schedule = None
+        if interval:
+            if isinstance(interval, (int, float)):
+                interval = timedelta(seconds=interval)
+            schedule = IntervalSchedule(
+                interval=interval, anchor_date=anchor_date, timezone=timezone
+            )
+        elif cron:
+            schedule = CronSchedule(cron=cron, timezone=timezone)
+        elif rrule:
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+
+        return schedule
+
+    def _set_defaults_from_flow(self, flow: Flow):
+        self.parameter_openapi_schema = parameter_schema(flow)
+
+        if not self.version:
+            self.version = flow.version
+        if not self.description:
+            self.description = flow.description
+
     @classmethod
     @sync_compatible
     async def from_flow(
         cls,
         flow: Flow,
         name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        anchor_date: Optional[Union[str, datetime]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        timezone: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
         apply: bool = False,
-        **kwargs,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -159,11 +216,40 @@ class RunnerDeployment(BaseModel):
         Args:
             flow: A flow function to deploy
             name: A name for the deployment
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            anchor_date: The start date for an interval schedule.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            timezone: Timezone to used scheduling flow runs e.g. 'America/New_York'
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
             apply: If True, the deployment is automatically registered with the API
-            **kwargs: Other keyword arguments to pass to the constructor for the
-                `RunnerDeployment` class
         """
-        deployment = cls(name=name, flow_name=flow.name, **kwargs)
+        schedule = cls._construct_schedule(
+            interval=interval,
+            anchor_date=anchor_date,
+            cron=cron,
+            rrule=rrule,
+            timezone=timezone,
+        )
+
+        deployment = cls(
+            name=name,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+        )
+
         # TODO: better error messages with doc links
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined
@@ -182,13 +268,77 @@ class RunnerDeployment(BaseModel):
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        # set a few attributes for this flow object
-        deployment.parameter_openapi_schema = parameter_schema(flow)
+        cls._set_defaults_from_flow(deployment, flow)
 
-        if not deployment.version:
-            deployment.version = flow.version
-        if not deployment.description:
-            deployment.description = flow.description
+        if apply:
+            await deployment.apply()
+
+        return deployment
+
+    @classmethod
+    @sync_compatible
+    async def from_entrypoint(
+        cls,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        anchor_date: Optional[Union[str, datetime]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        timezone: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        apply: bool = False,
+    ) -> "RunnerDeployment":
+        """
+        Configure a deployment for a given flow located at a given entrypoint.
+
+        Args:
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+            name: A name for the deployment
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            anchor_date: The start date for an interval schedule.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            timezone: Timezone to used scheduling flow runs e.g. 'America/New_York'
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            apply: If True, the deployment is automatically registered with the API
+        """
+        flow = load_flow_from_entrypoint(entrypoint)
+
+        schedule = cls._construct_schedule(
+            interval=interval,
+            anchor_date=anchor_date,
+            cron=cron,
+            rrule=rrule,
+            timezone=timezone,
+        )
+
+        deployment = cls(
+            name=name,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            entrypoint=entrypoint,
+            path=str(Path.cwd()),
+        )
+
+        cls._set_defaults_from_flow(deployment, flow)
 
         if apply:
             await deployment.apply()

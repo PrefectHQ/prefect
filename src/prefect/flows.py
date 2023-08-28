@@ -41,11 +41,6 @@ from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
-from prefect.client.schemas.schedules import (
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
-)
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -525,39 +520,18 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
-        num_schedules = sum(
-            1 for schedule in (interval, cron, rrule) if schedule is not None
-        )
-        if num_schedules > 1:
-            raise ValueError("Only one of interval, cron, and rrule can be provided.")
-
-        schedule = None
-        if interval:
-            if isinstance(interval, (int, float)):
-                interval = datetime.timedelta(seconds=interval)
-            schedule = IntervalSchedule(interval=interval)
-        elif cron:
-            schedule = CronSchedule(cron=cron)
-        elif rrule:
-            schedule = RRuleSchedule(rrule=rrule)
-
-        if tags is None:
-            tags = []
-
-        if triggers is None:
-            triggers = []
-
-        init_kwargs = dict(
+        return await RunnerDeployment.from_flow(
+            self,
             name=name,
-            schedule=schedule,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
             tags=tags,
             triggers=triggers,
             parameters=parameters or {},
             description=description,
             version=version,
         )
-
-        return await RunnerDeployment.from_flow(self, **init_kwargs)
 
     @sync_compatible
     async def serve(
@@ -645,7 +619,7 @@ class Flow(Generic[P, R]):
             console = Console()
             console.print(
                 Panel(
-                    f"Your flow {self.name!r} is served and ready for scheduled runs!"
+                    f"Your flow {self.name!r} is served and polling for scheduled runs!"
                 ),
                 style="blue",
             )
