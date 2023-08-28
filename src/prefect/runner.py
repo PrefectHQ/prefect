@@ -194,7 +194,7 @@ class Runner:
             tags=tags,
             version=version,
         )
-        await self.add_deplyoment(deployment)
+        await self.add_deployment(deployment)
 
     @sync_compatible
     async def start(self):
