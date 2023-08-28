@@ -44,6 +44,7 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
                 waiter = waiters[idx]
                 if not waiter.call_is_done():
                     return waiter
+                idx = idx - 1
             except IndexError:
                 break
 
