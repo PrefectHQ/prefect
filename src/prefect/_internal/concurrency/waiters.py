@@ -36,7 +36,13 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     Returns `None` if one does not exist.
     """
     waiters = _WAITERS_BY_THREAD.get(thread)
-    return waiters[-1] if waiters else None
+
+    if waiters:
+        for w in waiters:
+            if not w._call.future.done():
+                return w
+
+    return None
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
