@@ -27,9 +27,6 @@ T = TypeVar("T")
 _WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
     weakref.WeakKeyDictionary()
 )
-_LOCK_PER_THREAD: "weakref.WeakKeyDictionary[threading.Thread, threading.Lock]" = (
-    weakref.WeakKeyDictionary()
-)
 
 
 def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
@@ -41,9 +38,14 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     waiters = _WAITERS_BY_THREAD.get(thread)
 
     if waiters:
-        for waiter in reversed(waiters):
-            if not waiter.call_future_done():
-                return waiter
+        idx = -1
+        while True:
+            try:
+                waiter = waiters[idx]
+                if not waiter.call_future_done():
+                    return waiter
+            except IndexError:
+                break
 
     return None
 
@@ -54,7 +56,6 @@ def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     """
     if thread not in _WAITERS_BY_THREAD:
         _WAITERS_BY_THREAD[thread] = deque()
-        _LOCK_PER_THREAD[thread] = threading.Lock()
 
     _WAITERS_BY_THREAD[thread].append(waiter)
 
