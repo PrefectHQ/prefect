@@ -126,7 +126,7 @@ class Runner:
     async def add_deployment(
         self,
         deployment: RunnerDeployment,
-    ):
+    ) -> UUID:
         """
         Registers the deployment with the Prefect API and will monitor for work once
         the runner is started.
@@ -136,6 +136,8 @@ class Runner:
         """
         deployment_id = await deployment.apply()
         self._deployment_ids.add(deployment_id)
+
+        return deployment_id
 
     @sync_compatible
     async def add(
@@ -150,7 +152,7 @@ class Runner:
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-    ):
+    ) -> UUID:
         """
         Provides a flow to the runner to be run base on the provided configuration.
 
@@ -194,7 +196,7 @@ class Runner:
             tags=tags,
             version=version,
         )
-        await self.add_deployment(deployment)
+        return await self.add_deployment(deployment)
 
     @sync_compatible
     async def start(self):

@@ -54,6 +54,7 @@ from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
@@ -603,7 +604,7 @@ class Flow(Generic[P, R]):
         name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-        await runner.add(
+        deployment_id = await runner.add(
             self,
             name=name,
             triggers=triggers,
@@ -616,13 +617,20 @@ class Flow(Generic[P, R]):
             version=version,
         )
         if print_starting_message:
-            console = Console()
-            console.print(
-                Panel(
-                    f"Your flow {self.name!r} is served and polling for scheduled runs!"
-                ),
-                style="blue",
+            help_message = (
+                f"[green]Your flow {self.name!r} is served and polling for scheduled"
+                " runs!\n[/]\nTo schedule a run for this deployment, use the following"
+                " command:\n[blue]\n\t$ prefect deployment run"
+                f" '{self.name}/{name}'\n[/]"
             )
+            if PREFECT_UI_URL:
+                help_message += (
+                    "\nYou can also run your flow via the Prefect UI:"
+                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+                )
+
+            console = Console()
+            console.print(Panel(help_message))
         await runner.start()
 
     @overload

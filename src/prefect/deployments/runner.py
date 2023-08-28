@@ -147,7 +147,7 @@ class RunnerDeployment(BaseModel):
             1 for schedule in (interval, cron, rrule) if schedule is not None
         )
         if num_schedules > 1:
-            raise ValueError("Only one of interval, cron, and rrule can be provided.")
+            raise ValueError("Only one of interval, cron, or rrule can be provided.")
 
         if anchor_date and not interval:
             raise ValueError(
