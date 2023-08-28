@@ -42,7 +42,7 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
         while True:
             try:
                 waiter = waiters[idx]
-                if not waiter.call_future_done():
+                if not waiter.call_is_done():
                     return waiter
             except IndexError:
                 break
@@ -79,7 +79,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
 
-    def call_future_done(self) -> bool:
+    def call_is_done(self) -> bool:
         return self._call.future.done()
 
     @abc.abstractmethod
@@ -120,7 +120,7 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self.call_future_done():
+        if self.call_is_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         self._queue.put_nowait(call)
@@ -190,7 +190,7 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self.call_future_done():
+        if self.call_is_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         call.set_runner(self)
