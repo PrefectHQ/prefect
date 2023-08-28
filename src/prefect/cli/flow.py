@@ -2,8 +2,6 @@
 Command line interface for working with flows.
 """
 
-import datetime
-from pathlib import Path
 from typing import List, Optional
 
 import typer
@@ -11,18 +9,10 @@ from rich.panel import Panel
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.client.schemas.schedules import (
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
-)
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
-from prefect.exceptions import MissingFlowError
-from prefect.flows import load_flow_from_entrypoint
 from prefect.runner import Runner
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
@@ -131,51 +121,22 @@ async def serve(
     """
     Serve a flow via an entrypoint.
     """
-    try:
-        flow = load_flow_from_entrypoint(entrypoint)
-    except MissingFlowError as exc:
-        exit_with_error(str(exc))
-
-    num_schedules = sum(
-        1 for schedule in (interval, cron, rrule) if schedule is not None
-    )
-    if num_schedules > 1:
-        raise ValueError("Only one of interval, cron, and rrule can be provided.")
-
-    if interval_anchor and not interval:
-        raise ValueError(
-            "An anchor date can only be provided with an interval schedule"
-        )
-
-    schedule = None
-    if interval:
-        schedule = IntervalSchedule(
-            interval=datetime.timedelta(seconds=interval),
-            anchor_date=interval_anchor,
-            timezone=timezone,
-        )
-    elif cron:
-        schedule = CronSchedule(cron=cron, timezone=timezone)
-    elif rrule:
-        schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-
-    if tags is None:
-        tags = []
-
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-    runner_deployment = await RunnerDeployment.from_flow(
-        flow=flow,
-        name=name,
+    runner_deployment = await RunnerDeployment.from_entrypoint(
         entrypoint=entrypoint,
-        path=str(Path.cwd()),
-        schedule=schedule,
+        name=name,
+        interval=interval,
+        anchor_date=interval_anchor,
+        cron=cron,
+        rrule=rrule,
+        timezone=timezone,
         description=description,
         tags=tags,
         version=version,
     )
     await runner.add_deployment(runner_deployment)
     app.console.print(
-        Panel(f"Your flow {flow.name!r} is served and polling for scheduled runs!"),
+        Panel("Your flow is served and polling for scheduled runs!"),
         style="blue",
     )
     await runner.start()
