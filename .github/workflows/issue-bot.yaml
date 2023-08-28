@@ -1,0 +1,15 @@
+name: Issue bot
+
+on:
+  issues:
+    types: [closed, assigned, unassigned, labeled]
+
+jobs:
+  remove_label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove status labels on close
+        if: github.event.action == 'closed'
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "needs:triage" --remove-label "needs:attention"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
