@@ -61,7 +61,6 @@ jobs:
   run-tests:
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     needs: isinternal
-
     strategy:
       matrix:
         database:
@@ -227,3 +226,22 @@ jobs:
           docker container inspect postgres
           && docker container logs postgres
           || echo "Ignoring bad exit code"
+
+  notify-tests-failing-on-main:
+    needs: run-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && failure()
+
+    steps:
+      - name: Send Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: repo,message
+          custom_payload: |
+            {
+              text: "Unit tests are failing on the main branch!",
+              channel: "#engineering-review",
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
