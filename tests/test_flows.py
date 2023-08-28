@@ -3164,6 +3164,20 @@ class TestFlowServe:
                 )
             ]
 
+    async def test_serve_handles__file__(
+        self, test_flow, prefect_client: PrefectClient
+    ):
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(test_flow.serve, __file__)
+            await anyio.sleep(1)
+            tg.cancel_scope.cancel()
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+
+            assert deployment.name == "test_flows"
+
     async def test_serve_creates_deployment_with_interval_schedule(
         self, test_flow, prefect_client: PrefectClient
     ):
@@ -3216,6 +3230,28 @@ class TestFlowServe:
 
             assert deployment is not None
             assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+
+    async def test_serve_pauses_schedule_on_stop(
+        self, test_flow, prefect_client: PrefectClient
+    ):
+        async with anyio.create_task_group() as tg:
+            test_serve = partial(test_flow.serve, "test", interval=3600)
+            tg.start_soon(test_serve)
+
+            await anyio.sleep(1)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+            assert deployment.is_schedule_active is True
+
+            tg.cancel_scope.cancel()
+            await anyio.sleep(1)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+            assert deployment.is_schedule_active is False
 
     async def test_to_deployment_errors_with_multiple_schedules(self, test_flow):
         with pytest.raises(

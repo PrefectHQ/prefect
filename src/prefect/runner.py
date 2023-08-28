@@ -832,6 +832,12 @@ def _use_threaded_child_watcher():
 async def serve(*args: RunnerDeployment, pause_on_shutdown: bool = True, **kwargs):
     """
     Serve the provided list of deployments.
+
+    Args:
+        *args: A list of deployments to serve.
+        pause_on_shutdown: A boolean for whether or not to automatically pause
+            deployment schedules on shutdown.
+        **kwargs: Additional keyword arguments to pass to the runner.
     """
     runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
     for deployment in args:

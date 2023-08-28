@@ -469,8 +469,7 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    @sync_compatible
-    async def to_deployment(
+    def to_deployment(
         self,
         name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
@@ -521,7 +520,7 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
-        return await RunnerDeployment.from_flow(
+        return RunnerDeployment.from_flow(
             self,
             name=name,
             interval=interval,

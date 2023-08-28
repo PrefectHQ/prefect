@@ -83,7 +83,7 @@ class RunnerDeployment(BaseModel):
         default_factory=ParameterSchema,
     )
 
-    @validator("triggers")
+    @validator("triggers", allow_reuse=True)
     def validate_automation_names(cls, field_value, values, field, config):
         """Ensure that each trigger has a name for its automation if none is provided."""
         for i, trigger in enumerate(field_value, start=1):
@@ -177,8 +177,7 @@ class RunnerDeployment(BaseModel):
             self.description = flow.description
 
     @classmethod
-    @sync_compatible
-    async def from_flow(
+    def from_flow(
         cls,
         flow: Flow,
         name: str,
@@ -192,7 +191,6 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        apply: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -213,7 +211,6 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            apply: If True, the deployment is automatically registered with the API
         """
         schedule = cls._construct_schedule(
             interval=interval,
@@ -224,7 +221,7 @@ class RunnerDeployment(BaseModel):
         )
 
         deployment = cls(
-            name=name,
+            name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
             tags=tags or [],
@@ -257,14 +254,10 @@ class RunnerDeployment(BaseModel):
 
         cls._set_defaults_from_flow(deployment, flow)
 
-        if apply:
-            await deployment.apply()
-
         return deployment
 
     @classmethod
-    @sync_compatible
-    async def from_entrypoint(
+    def from_entrypoint(
         cls,
         entrypoint: str,
         name: str,
@@ -278,7 +271,6 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        apply: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -326,8 +318,5 @@ class RunnerDeployment(BaseModel):
         )
 
         cls._set_defaults_from_flow(deployment, flow)
-
-        if apply:
-            await deployment.apply()
 
         return deployment
