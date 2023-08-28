@@ -6,7 +6,9 @@ from packaging.version import Version
 import prefect
 from prefect import flow, task
 
-MINIMUM_VERSION = "2.10.0"
+# Support for this pattern was added in 2.10.6
+# to support subflows with the same name
+MINIMUM_VERSION = "2.10.6"
 
 
 @task
@@ -32,5 +34,5 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 if __name__ == "__main__":
-    if Version(prefect.__version__) > Version(MINIMUM_VERSION):
+    if Version(prefect.__version__) >= Version(MINIMUM_VERSION):
         asyncio.run(parent_flow(10, 10))
