@@ -61,6 +61,11 @@ from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
 
+@flow
+def test_flow():
+    pass
+
+
 @pytest.fixture
 def mock_sigterm_handler():
     mock = MagicMock()
@@ -3166,6 +3171,7 @@ class TestFlowServe:
             test_serve = partial(test_flow.serve, "test", interval=3600)
             tg.start_soon(test_serve)
 
+            # Yield event loop to allow serve to start
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
@@ -3176,3 +3182,85 @@ class TestFlowServe:
             assert deployment is not None
             assert isinstance(deployment.schedule, IntervalSchedule)
             assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+
+    async def test_serve_creates_deployment_with_cron_schedule(
+        self, test_flow, prefect_client: PrefectClient
+    ):
+        async with anyio.create_task_group() as tg:
+            test_serve = partial(test_flow.serve, "test", cron="* * * * *")
+            tg.start_soon(test_serve)
+
+            await anyio.sleep(1)
+            tg.cancel_scope.cancel()
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+
+            assert deployment is not None
+            assert deployment.schedule == CronSchedule(cron="* * * * *")
+
+    async def test_serve_creates_deployment_with_rrule_schedule(
+        self, test_flow, prefect_client: PrefectClient
+    ):
+        async with anyio.create_task_group() as tg:
+            test_serve = partial(test_flow.serve, "test", rrule="FREQ=MINUTELY")
+            tg.start_soon(test_serve)
+
+            await anyio.sleep(1)
+            tg.cancel_scope.cancel()
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+
+            assert deployment is not None
+            assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+
+    async def test_to_deployment_errors_with_multiple_schedules(self, test_flow):
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            await test_flow.serve(name="test", interval=3600, cron="* * * * *")
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            await test_flow.serve(name="test", interval=3600, rrule="FREQ=MINUTELY")
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            await test_flow.serve(name="test", cron="* * * * *", rrule="FREQ=MINUTELY")
+
+    async def test_serve_executes_scheduled_runs(self, prefect_client: PrefectClient):
+        """
+        This test is slow because it waits for the polling loop to pick up the
+        flow run and then finish execution.
+        """
+        async with anyio.create_task_group() as tg:
+            test_serve = partial(test_flow.serve, "test")
+            tg.start_soon(test_serve)
+
+            await anyio.sleep(1)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="test-flow/test"
+            )
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment.id
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish execution
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                print(flow_run.state)
+                if flow_run.state.is_completed():
+                    tg.cancel_scope.cancel()
+                    break
+            else:
+                tg.cancel_scope.cancel()
+                raise AssertionError("Flow run did not complete")
