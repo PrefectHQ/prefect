@@ -14,8 +14,8 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_SQLALCHEMY_POOL_SIZE,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
+    PREFECT_SQLALCHEMY_POOL_SIZE,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
