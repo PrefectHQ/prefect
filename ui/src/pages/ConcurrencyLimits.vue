@@ -3,7 +3,7 @@
     <template #header>
       <PageHeading :crumbs="[{ text: 'Task Run Concurrency Limits' }]">
         <template #after-crumbs>
-          <p-button inset size="xs" icon="PlusIcon" @click="open" />
+          <p-button small icon="PlusIcon" @click="open" />
         </template>
       </PageHeading>
       <ConcurrencyLimitsCreateModal v-model:showModal="showModal" />

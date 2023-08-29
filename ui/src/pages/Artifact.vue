@@ -13,7 +13,7 @@
         <p-content>
           <ArtifactDataView :artifact="artifact" />
 
-          <p-button class="artifact__raw-data-button" inset size="sm" @click="showRaw = !showRaw">
+          <p-button class="artifact__raw-data-button" small @click="showRaw = !showRaw">
             {{ showRaw ? 'Hide' : 'Show' }} raw data
           </p-button>
 
