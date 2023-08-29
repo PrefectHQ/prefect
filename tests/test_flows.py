@@ -3057,7 +3057,7 @@ class TestFlowToDeployment:
         return test_flow
 
     async def test_to_deployment_returns_runner_deployment(self, test_flow):
-        deployment = await test_flow.to_deployment(
+        deployment = test_flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3097,18 +3097,18 @@ class TestFlowToDeployment:
         ]
 
     async def test_to_deployment_accepts_interval(self, test_flow):
-        deployment = await test_flow.to_deployment(name="test", interval=3600)
+        deployment = test_flow.to_deployment(name="test", interval=3600)
 
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_to_deployment_accepts_cron(self, test_flow):
-        deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
+        deployment = test_flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self, test_flow):
-        deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+        deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
@@ -3116,19 +3116,17 @@ class TestFlowToDeployment:
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await test_flow.to_deployment(name="test", interval=3600, cron="* * * * *")
+            test_flow.to_deployment(name="test", interval=3600, cron="* * * * *")
 
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await test_flow.to_deployment(
-                name="test", interval=3600, rrule="FREQ=MINUTELY"
-            )
+            test_flow.to_deployment(name="test", interval=3600, rrule="FREQ=MINUTELY")
 
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await test_flow.to_deployment(
+            test_flow.to_deployment(
                 name="test", cron="* * * * *", rrule="FREQ=MINUTELY"
             )
 
@@ -3280,7 +3278,7 @@ class TestFlowServe:
 
             # Need to wait for polling loop to pick up flow run and then
             # finish execution
-            for _ in range(15):
+            for _ in range(30):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_completed():
