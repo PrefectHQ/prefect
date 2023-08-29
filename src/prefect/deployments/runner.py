@@ -314,8 +314,8 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             entrypoint=entrypoint,
-            _path=str(Path.cwd()),
         )
+        deployment._path = str(Path.cwd())
 
         cls._set_defaults_from_flow(deployment, flow)
 
