@@ -268,7 +268,16 @@ jobs:
           fi
           echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
 
-      - name: Failure Notification
-        if: steps.check_failure.outputs.too_many_tests_failed == 'true'
-        run: |
-          echo "More than $FAILURE_THRESHOLD tests failed on main branch."
+      - name: Send Slack Notification
+        if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: repo,message
+          custom_payload: |
+            {
+              text: "THIS IS A TEST: More than $FAILURE_THRESHOLD tests are failing on main :oh-noo:",
+              channel: "#engineering-review",
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
