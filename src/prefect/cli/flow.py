@@ -14,6 +14,7 @@ from prefect.client import get_client
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner import Runner
+from prefect.settings import PREFECT_UI_URL
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app, aliases=["flows"])
@@ -134,9 +135,18 @@ async def serve(
         tags=tags,
         version=version,
     )
-    await runner.add_deployment(runner_deployment)
-    app.console.print(
-        Panel("Your flow is served and polling for scheduled runs!"),
-        style="blue",
+    deployment_id = await runner.add_deployment(runner_deployment)
+
+    help_message = (
+        f"[green]Your flow {runner_deployment.flow_name!r} is served and polling for"
+        " scheduled runs!\n[/]\nTo schedule a run for this deployment, use the"
+        " following command:\n[blue]\n\t$ prefect deployment run"
+        f" '{runner_deployment.flow_name}/{name}'\n[/]"
     )
+    if PREFECT_UI_URL:
+        help_message += (
+            "\nYou can also run your flow via the Prefect UI:"
+            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+        )
+    app.console.print(Panel(help_message))
     await runner.start()
