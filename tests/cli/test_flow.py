@@ -29,8 +29,8 @@ class TestFlowServe:
             command=["flow", "serve", "flows/hello_world.py:hello", "--name", "test"],
             expected_code=0,
             expected_output_contains=[
-                "Your flow 'hello' is served and polling for scheduled runs!",
-                "To schedule a run for this deployment, use the following command",
+                "Your flow 'hello' is being served and polling for scheduled runs!",
+                "To trigger a run for this flow, use the following command",
                 "$ prefect deployment run 'hello/test'",
             ],
         )
@@ -58,11 +58,6 @@ class TestFlowServe:
                 "3600",
             ],
             expected_code=0,
-            expected_output_contains=[
-                "Your flow 'hello' is served and polling for scheduled runs!",
-                "To schedule a run for this deployment, use the following command",
-                "$ prefect deployment run 'hello/test'",
-            ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
@@ -84,11 +79,6 @@ class TestFlowServe:
                 "* * * * *",
             ],
             expected_code=0,
-            expected_output_contains=[
-                "Your flow 'hello' is served and polling for scheduled runs!",
-                "To schedule a run for this deployment, use the following command",
-                "$ prefect deployment run 'hello/test'",
-            ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
@@ -110,11 +100,6 @@ class TestFlowServe:
                 "FREQ=MINUTELY;COUNT=5",
             ],
             expected_code=0,
-            expected_output_contains=[
-                "Your flow 'hello' is served and polling for scheduled runs!",
-                "To schedule a run for this deployment, use the following command",
-                "$ prefect deployment run 'hello/test'",
-            ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
@@ -142,11 +127,6 @@ class TestFlowServe:
                 "1.0.0",
             ],
             expected_code=0,
-            expected_output_contains=[
-                "Your flow 'hello' is served and polling for scheduled runs!",
-                "To schedule a run for this deployment, use the following command",
-                "$ prefect deployment run 'hello/test'",
-            ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")

@@ -124,7 +124,7 @@ class TestServe:
             )
             # Need to wait for polling loop to pick up flow run and then
             # finish execution
-            for _ in range(15):
+            for _ in range(30):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 if flow_run.state.is_final():

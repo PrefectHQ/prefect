@@ -138,9 +138,9 @@ async def serve(
     deployment_id = await runner.add_deployment(runner_deployment)
 
     help_message = (
-        f"[green]Your flow {runner_deployment.flow_name!r} is served and polling for"
-        " scheduled runs!\n[/]\nTo schedule a run for this deployment, use the"
-        " following command:\n[blue]\n\t$ prefect deployment run"
+        f"[green]Your flow {runner_deployment.flow_name!r} is being served and polling"
+        " for scheduled runs!\n[/]\nTo trigger a run for this flow, use the following"
+        " command:\n[blue]\n\t$ prefect deployment run"
         f" '{runner_deployment.flow_name}/{name}'\n[/]"
     )
     if PREFECT_UI_URL:

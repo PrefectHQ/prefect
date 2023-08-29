@@ -630,9 +630,9 @@ class Flow(Generic[P, R]):
         )
         if print_starting_message:
             help_message = (
-                f"[green]Your flow {self.name!r} is served and polling for scheduled"
-                " runs!\n[/]\nTo schedule a run for this deployment, use the following"
-                " command:\n[blue]\n\t$ prefect deployment run"
+                f"[green]Your flow {self.name!r} is being served and polling for"
+                " scheduled runs!\n[/]\nTo trigger a run for this flow, use the"
+                " following command:\n[blue]\n\t$ prefect deployment run"
                 f" '{self.name}/{name}'\n[/]"
             )
             if PREFECT_UI_URL:

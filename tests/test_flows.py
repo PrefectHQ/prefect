@@ -3150,7 +3150,7 @@ class TestFlowServe:
         captured = capsys.readouterr()
 
         assert (
-            "Your flow 'test-flow' is served and polling for scheduled runs!"
+            "Your flow 'test-flow' is being served and polling for scheduled runs!"
             in captured.out
         )
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
