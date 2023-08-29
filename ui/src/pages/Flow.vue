@@ -6,7 +6,7 @@
 
     <FlowStats v-if="flow" :flow-id="flow.id" />
 
-    <p-tabs :tabs="tabs">
+    <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
         <FlowDetails v-if="flow" :flow="flow" />
       </template>
@@ -24,7 +24,7 @@
 
 <script lang="ts" setup>
   import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowStats from '@/components/FlowStats.vue'
@@ -35,6 +35,7 @@
   const flowId = useRouteParam('flowId')
   const flowIds = computed(() => [flowId.value])
   const router = useRouter()
+  const tab = useRouteQueryParam('tab', 'Runs')
   const tabs = ['Runs', 'Deployments', 'Details']
 
   const subscriptionOptions = {

@@ -35,14 +35,13 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useFlowRunsFilter, useTabs, useCan, WorkersTable } from '@prefecthq/prefect-ui-library'
-  import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useFlowRunsFilter, useTabs, WorkersTable } from '@prefecthq/prefect-ui-library'
+  import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
   const workPoolName = useRouteParam('workPoolName')
-  const can = useCan()
 
   const subscriptionOptions = {
     interval: 300000,
@@ -55,10 +54,11 @@
     { label: 'Details', hidden: media.xl },
     { label: 'Runs' },
     { label: 'Work Queues' },
-    { label: 'Workers', hidden: !can.access.workers || isAgentWorkPool.value },
+    { label: 'Workers', hidden: isAgentWorkPool.value },
   ])
 
-  const { tab, tabs } = useTabs(computedTabs)
+  const tab = useRouteQueryParam('tab', 'Details')
+  const { tabs } = useTabs(computedTabs, tab)
 
 
   const codeBannerTitle = computed(() => {
