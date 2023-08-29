@@ -165,7 +165,7 @@ async def _apply_task_run_filters(
             [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
         )
     ):
-        query = query.where(db.TaskRun.flow_run_id == str(flow_run_filter.id.any_[0]))
+        query = query.where(db.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
 
         return query
 

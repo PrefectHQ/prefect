@@ -121,7 +121,7 @@ async def deploy(
         "--variable",
         help=(
             "One or more job variable overrides for the work pool provided in the"
-            " format of key=value"
+            " format of key=value string or a JSON object"
         ),
     ),
     cron: str = typer.Option(
@@ -965,7 +965,7 @@ async def _generate_default_pull_action(
             "Your Prefect workers will attempt to load your flow from:"
             f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
-            " prefect project recipes ls[/]\n"
+            " prefect init[/]\n"
         )
         return [
             {
@@ -1186,6 +1186,31 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         return []
 
 
+def _extract_variable(variable: str) -> Dict[str, Any]:
+    """
+    Extracts a variable from a string. Variables can be in the format
+    key=value or a JSON object.
+    """
+    try:
+        key, value = variable.split("=", 1)
+    except ValueError:
+        pass
+    else:
+        return {key: value}
+
+    try:
+        # Only key=value strings and JSON objexcts are valid inputs for
+        # variables, not arrays or strings, so we attempt to convert the parsed
+        # object to a dict.
+        return dict(json.loads(variable))
+    except (ValueError, TypeError) as e:
+        raise ValueError(
+            f'Could not parse variable: "{variable}". Please ensure variables are'
+            " either in the format `key=value` or are strings containing a valid JSON"
+            " object."
+        ) from e
+
+
 def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
     """
     Applies CLI options to a deploy config. CLI options take
@@ -1227,8 +1252,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 deploy_config["work_pool"]["name"] = cli_value
             elif cli_option == "variables":
                 for variable in cli_value or []:
-                    key, value = variable.split("=", 1)
-                    variable_overrides[key] = value
+                    variable_overrides.update(**_extract_variable(variable))
                 if not isinstance(deploy_config["work_pool"].get("variables"), dict):
                     deploy_config["work_pool"]["job_variables"] = {}
                 deploy_config["work_pool"]["job_variables"].update(variable_overrides)

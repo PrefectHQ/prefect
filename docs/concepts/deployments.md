@@ -127,7 +127,6 @@ deployments:
     schedule: null
 
     # flow-specific fields
-    flow_name: null
     entrypoint: null
     parameters: {}
 
@@ -168,9 +167,8 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
     This capability is useful with multiple deployments that require different deployment instructions.
 
-For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
-#### The Build Action
+### The Build Action
 
 The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
@@ -320,7 +318,7 @@ build:
     - prefect_docker.deployments.steps.build_docker_image:
         requires: prefect-docker>=0.3.0
         image_name: my-image
-        image_tag: "{{ get-commit-hash.stdout }}"
+        tag: "{{ get-commit-hash.stdout }}"
         dockerfile: auto
 ```
 
@@ -409,7 +407,6 @@ deployments:
     schedule: null
 
     # flow-specific fields
-    flow_name: null
     entrypoint: null
     parameters: {}
 
@@ -422,7 +419,7 @@ deployments:
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
-So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
+So long as our `build` steps produce fields called `image_name` and `tag`, every time we deploy a new version of our deployment, the `{{ build-image.image }}` variable will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
     The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
@@ -588,8 +585,7 @@ Below are fields that can be added to each deployment declaration.
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/concepts/schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
-| `flow_name`                                | Deprecated: The name of a flow that has been registered in the [`.prefect` directory](#the-prefect-directory). Either `flow_name` **or** `entrypoint` is required.                                                                                                                       |
-| `entrypoint`                               | The path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. Either `flow_name` **or** `entrypoint` is required. |
+| `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 

@@ -390,6 +390,54 @@ class TestFlowWithOptions:
 
         assert flow_params == with_options_params
 
+    def get_flow_run_name():
+        name = "test"
+        date = "todays_date"
+        return f"{name}-{date}"
+
+    @pytest.mark.parametrize(
+        "name, match",
+        [
+            (1, "Expected string for flow parameter 'name'; got int instead."),
+            (
+                get_flow_run_name,
+                (
+                    "Expected string for flow parameter 'name'; got function instead."
+                    " Perhaps you meant to call it?"
+                ),
+            ),
+        ],
+    )
+    def test_flow_name_non_string_raises(self, name, match):
+        with pytest.raises(TypeError, match=match):
+            Flow(
+                name=name,
+                fn=lambda **kwargs: 42,
+                version="A",
+                description="B",
+                flow_run_name="hi",
+            )
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "test",
+            (get_flow_run_name()),
+        ],
+    )
+    def test_flow_name_string_succeeds(
+        self,
+        name,
+    ):
+        f = Flow(
+            name=name,
+            fn=lambda **kwargs: 42,
+            version="A",
+            description="B",
+            flow_run_name="hi",
+        )
+        assert f.name == name
+
 
 class TestFlowCall:
     async def test_call_creates_flow_run_and_runs(self):
