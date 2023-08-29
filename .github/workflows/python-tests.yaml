@@ -256,7 +256,7 @@ jobs:
         with:
           path: failure-flags/
 
-      - name: Check for failure flags and print their content
+      - name: Check for failure flags
         id: check_failure
         run: |
           failure_count=$(ls -1q failure-flags/*/*.txt | wc -l)
