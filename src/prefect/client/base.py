@@ -154,7 +154,7 @@ class PrefectResponse(httpx.Response):
 class PrefectHttpxClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
-    for the provided status codes (typically 423, 429, 502 and 503).
+    for the provided status codes (typically 429, 502 and 503).
 
     Additionally, this client will always call `raise_for_status` on responses.
 
@@ -246,7 +246,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
         """
         Send a request with automatic retry behavior for the following status codes:
 
-        - 423 Resource locked
         - 429 CloudFlare-style rate limiting
         - 502 Bad Gateway
         - 503 Service unavailable
@@ -257,7 +256,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
         response = await self._send_with_retry(
             request=api_request,
             retry_codes={
-                status.HTTP_423_LOCKED,
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 status.HTTP_502_BAD_GATEWAY,
