@@ -163,7 +163,7 @@ to force column width */
 }
 
 /* apply extra styling to badges inside h1 and h2 elements */
-:where(h1, h2) > .badge::before {
+:where(h1, h2)>.badge::before {
     position: relative;
     top: -0.42rem;
     font-weight: 600;
@@ -173,7 +173,7 @@ to force column width */
     border-radius: 15px;
 }
 
-:is(h1) > .badge::before {
+:is(h1)>.badge::before {
     margin-left: 0.4rem;
 }
 
@@ -462,4 +462,21 @@ to force column width */
         width: 86%;
         margin-left: 7%
     }
+}
+
+.cloud-button {
+    background-color: rgb(45, 109, 246);
+    border-bottom-color: rgb(229, 232, 237);
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    color: rgb(229, 232, 237);
+    padding: 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+a.cloud-button:hover {
+    background-color: rgb(2, 37, 172);
 }
