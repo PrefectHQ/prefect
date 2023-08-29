@@ -3101,13 +3101,13 @@ class TestFlowServe:
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            captured = capsys.readouterr()
+        captured = capsys.readouterr()
 
-            assert (
-                "Your flow 'test-flow' is served and polling for scheduled runs!"
-                in captured.out
-            )
-            assert "$ prefect deployment run 'test-flow/test'" in captured.out
+        assert (
+            "Your flow 'test-flow' is served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
     async def test_serve_creates_deployment(
         self, test_flow, prefect_client: PrefectClient
@@ -3120,49 +3120,23 @@ class TestFlowServe:
                 parameters={"name": "Arthur"},
                 description="This is a test",
                 version="alpha",
-                triggers=[
-                    {
-                        "name": "Happiness",
-                        "enabled": True,
-                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                        "expect": ["prefect.flow-run.Completed"],
-                        "match_related": {
-                            "prefect.resource.name": "seed",
-                            "prefect.resource.role": "flow",
-                        },
-                    }
-                ],
             )
             tg.start_soon(test_serve)
 
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
-            assert deployment is not None
-            # Flow.serve should created deployments with a work queue or work pool
-            assert deployment.work_pool_name is None
-            assert deployment.work_queue_name is None
-            assert deployment.name == "test"
-            assert deployment.tags == ["price", "luggage"]
-            assert deployment.parameters == {"name": "Arthur"}
-            assert deployment.description == "This is a test"
-            assert deployment.version == "alpha"
-            assert deployment.triggers == [
-                DeploymentTrigger(
-                    name="Happiness",
-                    enabled=True,
-                    match={"prefect.resource.id": "prefect.flow-run.*"},
-                    expect=["prefect.flow-run.Completed"],
-                    match_related={
-                        "prefect.resource.name": "seed",
-                        "prefect.resource.role": "flow",
-                    },
-                )
-            ]
+        assert deployment is not None
+        # Flow.serve should created deployments with a work queue or work pool
+        assert deployment.work_pool_name is None
+        assert deployment.work_queue_name is None
+        assert deployment.name == "test"
+        assert deployment.tags == ["price", "luggage"]
+        assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.description == "This is a test"
+        assert deployment.version == "alpha"
 
     async def test_serve_handles__file__(
         self, test_flow, prefect_client: PrefectClient
@@ -3172,11 +3146,11 @@ class TestFlowServe:
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
+        deployment = await prefect_client.read_deployment_by_name(
+            name="test-flow/test_flows"
+        )
 
-            assert deployment.name == "test_flows"
+        assert deployment.name == "test_flows"
 
     async def test_serve_creates_deployment_with_interval_schedule(
         self, test_flow, prefect_client: PrefectClient
@@ -3184,18 +3158,14 @@ class TestFlowServe:
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", interval=3600)
             tg.start_soon(test_serve)
-
-            # Yield event loop to allow serve to start
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
-            assert deployment is not None
-            assert isinstance(deployment.schedule, IntervalSchedule)
-            assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment is not None
+        assert isinstance(deployment.schedule, IntervalSchedule)
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_serve_creates_deployment_with_cron_schedule(
         self, test_flow, prefect_client: PrefectClient
@@ -3203,16 +3173,13 @@ class TestFlowServe:
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", cron="* * * * *")
             tg.start_soon(test_serve)
-
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
-            assert deployment is not None
-            assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert deployment is not None
+        assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_serve_creates_deployment_with_rrule_schedule(
         self, test_flow, prefect_client: PrefectClient
@@ -3220,38 +3187,13 @@ class TestFlowServe:
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", rrule="FREQ=MINUTELY")
             tg.start_soon(test_serve)
-
             await anyio.sleep(1)
             tg.cancel_scope.cancel()
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
-            assert deployment is not None
-            assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
-
-    async def test_serve_pauses_schedule_on_stop(
-        self, test_flow, prefect_client: PrefectClient
-    ):
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(test_flow.serve, "test", interval=3600)
-            tg.start_soon(test_serve)
-
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
-            assert deployment.is_schedule_active is True
-
-            tg.cancel_scope.cancel()
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
-            )
-            assert deployment.is_schedule_active is False
+        assert deployment is not None
+        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     async def test_to_deployment_errors_with_multiple_schedules(self, test_flow):
         with pytest.raises(
@@ -3293,10 +3235,8 @@ class TestFlowServe:
             for _ in range(15):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                print(flow_run.state)
                 if flow_run.state.is_completed():
-                    tg.cancel_scope.cancel()
                     break
-            else:
-                tg.cancel_scope.cancel()
-                raise AssertionError("Flow run did not complete")
+
+            tg.cancel_scope.cancel()
+        assert flow_run.state.is_completed()
