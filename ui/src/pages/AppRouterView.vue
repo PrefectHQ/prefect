@@ -62,9 +62,6 @@
 }
 
 .app-router-view { @apply
-  text-foreground
-  bg-background-600
-  dark:bg-background-400
   flex
   flex-col
 }
@@ -80,7 +77,6 @@
 }
 
 .app-router-view__menu-icon { @apply
-  text-white
   w-6
   h-6
   cursor-pointer
