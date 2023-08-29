@@ -154,7 +154,7 @@ class Runner:
         version: Optional[str] = None,
     ) -> UUID:
         """
-        Provides a flow to the runner to be run base on the provided configuration.
+        Provides a flow to the runner to be run based on the provided configuration.
 
         Will create a deployment for the provided flow and register the deployment
         with the runner.
