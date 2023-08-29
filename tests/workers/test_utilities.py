@@ -1,8 +1,8 @@
 import httpx
 import pytest
 import respx
-from prefect.workers.process import ProcessWorker
 
+from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,

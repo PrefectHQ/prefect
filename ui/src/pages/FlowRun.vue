@@ -59,7 +59,7 @@
     httpStatus,
     useFlowRun
   } from '@prefecthq/prefect-ui-library'
-  import { useRouteParam } from '@prefecthq/vue-compositions'
+  import { useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, watch, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
@@ -86,7 +86,8 @@
     { label: 'Details' },
     { label: 'Parameters' },
   ])
-  const { tab, tabs } = useTabs(computedTabs, 'Logs')
+  const tab = useRouteQueryParam('tab', 'Logs')
+  const { tabs } = useTabs(computedTabs, tab)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
     if (oldFlowRunId !== newFlowRunId) {

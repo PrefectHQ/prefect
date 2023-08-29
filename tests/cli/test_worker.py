@@ -7,26 +7,23 @@ from unittest.mock import ANY
 import anyio
 import httpx
 import pytest
+import readchar
+import respx
+from typer import Exit
 
 import prefect
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    temporary_settings,
     get_current_settings,
+    temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
-from prefect.settings import PREFECT_API_URL
-
-from prefect.client.schemas.actions import WorkPoolCreate
-import readchar
-import respx
-
-from typer import Exit
-
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
@@ -532,6 +529,27 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_not_called()
+
+        def test_start_with_prefect_agent_type(worker_type):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--run-once",
+                    "-p",
+                    "test-work-pool",
+                    "-n",
+                    "test-worker",
+                    "-t",
+                    "prefect-agent",
+                ],
+                expected_code=1,
+                expected_output_contains=(
+                    "'prefect-agent' typed work pools work with Prefect Agents instead"
+                    " of Workers. Please use the 'prefect agent start' to start a"
+                    " Prefect Agent."
+                ),
+            )
 
 
 POLL_INTERVAL = 0.5

@@ -137,6 +137,7 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
+          - Quickstart: getting-started/quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md
@@ -144,10 +145,11 @@ nav:
           - Deploying Flows: tutorial/deployments.md
     - Guides:
           - guides/index.md
-          - Deployment:
+          - Worker Deployment:
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
-                - Kubernetes Worker with Helm: guides/deployment/helm-worker.md
+                - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
+                - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
@@ -161,6 +163,7 @@ nav:
           - Webhooks: guides/webhooks.md
           - State Change Hooks: guides/state-change-hooks.md
           - Dask & Ray: guides/dask-ray-task-runners.md
+          - Moving data: guides/moving-data.md
           - Hosting: guides/host.md
           - Recipes: recipes/recipes.md
     - Concepts:
@@ -176,13 +179,13 @@ nav:
           - Blocks: concepts/blocks.md
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
-          - Automations: concepts/automations.md
-          - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
+                - Filesystems: concepts/filesystems.md
+          - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
           - Quickstart: cloud/cloud-quickstart.md
@@ -201,9 +204,9 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
-    - API References:
+    - API Reference:
           - api-ref/index.md
-          - Python SDK API:
+          - Python SDK:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
@@ -272,7 +275,7 @@ nav:
                 - api-ref/rest-api/index.md
                 - Prefect Cloud REST API Reference: https://app.prefect.cloud/api/docs
                 - Prefect Server REST API Reference: api-ref/rest-api-reference.md
-          - Server API:
+          - Server SDK:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
