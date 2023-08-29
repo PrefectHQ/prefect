@@ -122,7 +122,7 @@ async def serve(
     Serve a flow via an entrypoint.
     """
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-    runner_deployment = await RunnerDeployment.from_entrypoint(
+    runner_deployment = RunnerDeployment.from_entrypoint(
         entrypoint=entrypoint,
         name=name,
         interval=interval,
