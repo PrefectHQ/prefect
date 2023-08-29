@@ -481,6 +481,66 @@ class TestGitCloneStep:
                 }
             )
 
+    @pytest.mark.parametrize(
+        "access_token", ["example-token", "x-token-auth:example-token"]
+    )
+    async def test_bitbucket_clone_with_access_token(self, access_token, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://bitbucket.org/org/repo.git",
+                    "access_token": access_token,
+                }
+            }
+        )
+        assert output["directory"] == "repo"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://x-token-auth:example-token@bitbucket.org/org/repo.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    @pytest.mark.parametrize("access_token", ["example-token", "oauth2:example-token"])
+    async def test_gitlab_clone_with_access_token(self, access_token, monkeypatch):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://gitlab.com/org/repo.git",
+                    "access_token": access_token,
+                }
+            }
+        )
+        assert output["directory"] == "repo"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://oauth2:example-token@gitlab.com/org/repo.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
 
 class TestRunShellScript:
     async def test_run_shell_script_single_command(self, capsys):
