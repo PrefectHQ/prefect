@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
 Notice that we can write standard Python code within our flow _or_ within our tasks, depending on the level of control and observability we want.
 
-### Step 4: Create a Deployment
+### Step 4: Create a deployment
 
 When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will say running so that it can listen for scheduled or triggered runs of this flow.
 
@@ -129,12 +129,12 @@ This command creates a new run for this deployment that is then picked up by the
 
 ### Step 5: Add a schedule
 
-We can now begin configuring our deployment as we like - for example, let's add a schedule to our deployment.  We could do this in one of two ways:
+We can now configure our deployment as we like - for example, let's add a schedule to our deployment.  We could do this in one of two ways:
 
 - use the Prefect UI to create and attach the schedule
 - specify the schedule in code
 
-If you can manage it, it is generally best practice to try and keep all of your configuration defined within code, so let's update the script above to specify a schedule:
+It's generally best practice to keep your configuration defined within code, so let's update the script above to specify a schedule:
 
 ```python
 if __name__ == "__main__":
