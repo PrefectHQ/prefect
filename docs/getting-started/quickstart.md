@@ -49,7 +49,7 @@ Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/
 ### Step 3: Write a flow
 The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment.  
 
-Here is an example flow named `"Repo Info"` that contains two tasks ([tasks](/concepts/tasks/) are the smallest unit of observed and orchestrated work in Prefect):
+Here is an example flow named `"Repo Info"` that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect):
 
 ```python
 # my_flow.py
