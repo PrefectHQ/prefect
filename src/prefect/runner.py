@@ -103,12 +103,13 @@ class Runner:
         self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
         self._logger = get_logger()
 
-        self.is_setup = False
+        self.started = False
         self.pause_on_shutdown = pause_on_shutdown
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
 
-        self._runs_task_group: Optional[anyio.abc.TaskGroup] = anyio.create_task_group()
+        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._client = get_client()
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
@@ -226,7 +227,7 @@ class Runner:
             ```
         """
         async with self as runner:
-            async with anyio.create_task_group() as tg:
+            async with self._loops_task_group as tg:
                 tg.start_soon(
                     partial(
                         critical_service_loop,
@@ -243,6 +244,15 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+
+    def stop(self):
+        """Stops the runner's polling cycle."""
+        if not self.started:
+            raise RuntimeError(
+                "Runner has not yet started. Please start the runner by calling"
+                " .start()"
+            )
+        self._loops_task_group.cancel_scope.cancel()
 
     async def execute_flow_run(self, flow_run_id: UUID):
         """
@@ -434,7 +444,7 @@ class Runner:
     async def _check_for_cancelled_flow_runs(
         self, on_nothing_to_watch: Callable = lambda: None
     ):
-        if not self.is_setup:
+        if not self.started:
             raise RuntimeError(
                 "Runner is not set up. Please make sure you are running this runner "
                 "as an async context manager."
@@ -743,7 +753,7 @@ class Runner:
         async def wrapper(task_status):
             # If we are shutting down, do not sleep; otherwise sleep until the scheduled
             # time or shutdown
-            if self.is_setup:
+            if self.started:
                 with anyio.CancelScope() as scope:
                     self._scheduled_task_scopes.add(scope)
                     task_status.started()
@@ -760,18 +770,18 @@ class Runner:
         await self._runs_task_group.start(wrapper)
 
     async def __aenter__(self):
-        self._logger.debug("Setting up runner...")
+        self._logger.debug("Starting runner...")
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
-        self.is_setup = True
+        self.started = True
         return self
 
     async def __aexit__(self, *exc_info):
-        self._logger.debug("Tearing down runner...")
+        self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
-        self.is_setup = False
+        self.started = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
         if self._runs_task_group:

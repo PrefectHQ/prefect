@@ -101,8 +101,8 @@ class TestServe:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment.id
             )
-            # Need to wait for polling loop to pick up flow run and then
-            # finish execution
+            # Need to wait for polling loop to pick up flow run and
+            # start execution
             for _ in range(15):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
@@ -190,3 +190,132 @@ class TestRunner:
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedule.cron == "* * * * *"
+
+    async def test_runner_can_pause_schedules_on_stop(
+        self, prefect_client: PrefectClient
+    ):
+        runner = Runner()
+
+        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+
+        await runner.add_deployment(deployment_1)
+        await runner.add_deployment(deployment_2)
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            deployment_1 = await prefect_client.read_deployment_by_name(
+                name="dummy-flow-1/test_runner"
+            )
+            deployment_2 = await prefect_client.read_deployment_by_name(
+                name="dummy-flow-2/test_runner"
+            )
+
+            assert deployment_1.is_schedule_active
+
+            assert deployment_2.is_schedule_active
+
+            runner.stop()
+
+        deployment_1 = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+        deployment_2 = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
+        )
+
+        assert not deployment_1.is_schedule_active
+
+        assert not deployment_2.is_schedule_active
+
+    async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
+        runner = Runner(query_seconds=2)
+
+        deployment = dummy_flow_1.to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="dummy-flow-1/test_runner"
+            )
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment.id
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish execution
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_completed():
+                    break
+
+            runner.stop()
+
+        assert flow_run.state.is_completed()
+
+    async def test_runner_can_cancel_flow_runs(self, prefect_client: PrefectClient):
+        runner = Runner(query_seconds=2)
+
+        deployment = tired_flow.to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="tired-flow/test_runner"
+            )
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment.id
+            )
+
+            # Need to wait for polling loop to pick up flow run and
+            # start execution
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.copy(
+                    update={"name": "Cancelled", "type": StateType.CANCELLED}
+                ),
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish cancellation
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_cancelled():
+                    break
+
+            runner.stop()
+            tg.cancel_scope.cancel()
+
+        assert flow_run.state.is_cancelled()
+
+    async def test_runner_can_execute_a_single_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        runner = Runner()
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state.is_completed()
