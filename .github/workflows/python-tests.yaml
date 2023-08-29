@@ -275,7 +275,7 @@ jobs:
           fields: repo,message
           custom_payload: |
             {
-              text: "More than ${{ env.FAILURE_THRESHOLD }} tests are failing on main :oh-noo:",
+              text: "More than ${{ env.FAILURE_THRESHOLD }} unit test jobs are failing on main :oh-noo:",
               channel: "#engineering-review",
             }
         env:
