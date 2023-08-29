@@ -671,9 +671,7 @@ class Deployment(BaseModel):
 
     @sync_compatible
     async def apply(
-        self,
-        upload: bool = False,
-        work_queue_concurrency: int = None,
+        self, upload: bool = False, work_queue_concurrency: int = None
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
