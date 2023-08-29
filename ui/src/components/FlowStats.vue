@@ -4,7 +4,7 @@
       <FlowRunHistoryCard :filter="flowRunsFilter" />
       <CumulativeTaskRunsCard :filter="taskRunsFilter" />
     </div>
-    <TimeSpanFilter v-model:selected="timeSpanInSeconds" size="sm" />
+    <TimeSpanFilter v-model:selected="timeSpanInSeconds" small />
   </div>
 </template>
 
