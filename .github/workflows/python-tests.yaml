@@ -227,7 +227,6 @@ jobs:
           sanitized_name="${sanitized_name//:/-}"
           echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
           echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
-        continue-on-error: true
 
       - name: Upload failure flag
         if: ${{ failure() }}
