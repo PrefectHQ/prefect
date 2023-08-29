@@ -45,9 +45,9 @@ Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/
         </div>
 
 
-
 ### Step 3: Write a flow
-The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment.  
+
+The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment. Flows are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work. Deployments elevate flows to remotely configurable entities that have their own API, as we will see shortly.
 
 Here is an example flow named `"Repo Info"` that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect):
 
@@ -98,7 +98,7 @@ Notice that we can write standard Python code within our flow _or_ break it down
 
 ### Step 4: Create a deployment
 
-When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow.
+When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow; once a run is found, it will be executed within a subprocess.
 
 <div class="terminal">
 ```bash
