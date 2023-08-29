@@ -674,7 +674,7 @@ Note: PREFECT_UI_URL will be workspace specific and will be usable in the open s
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
-    default=30.0,
+    default=60.0,
 )
 """The default timeout for requests to the API"""
 
