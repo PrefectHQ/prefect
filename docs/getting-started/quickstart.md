@@ -94,11 +94,11 @@ if __name__ == "__main__":
     repo_info.serve(name="my-first-deployment")
 ```
 
-Notice that we can write standard Python code within our flow _or_ within our tasks, depending on the level of control and observability we want to give Prefect.
+Notice that we can write standard Python code within our flow _or_ within our tasks, depending on the level of control and observability we want.
 
 ### Step 4: Create a Deployment
 
-When we run this script, Prefect will automatically create a flow deployment that we can interact with via the UI and API; note that this process must stay running in order for your runs to be picked up.
+When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will say running so that it can listen for scheduled or triggered runs of this flow.
 
 <div class="terminal">
 ```bash
@@ -132,7 +132,7 @@ This command creates a new run for this deployment that is then picked up by the
 We can now begin configuring our deployment as we like - for example, let's add a schedule to our deployment.  We could do this in one of two ways:
 
 - use the Prefect UI to create and attach the schedule
-- specify our schedule in code
+- specify the schedule in code
 
 If you can manage it, it is generally best practice to try and keep all of your configuration defined within code, so let's update the script above to specify a schedule:
 
