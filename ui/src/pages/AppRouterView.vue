@@ -64,11 +64,16 @@
 .app-router-view { @apply
   flex
   flex-col
-}
-
-.app-router-view {
+  bg-no-repeat;
   --prefect-scroll-margin: theme('spacing.20');
   min-height: 100vh;
+  background-image: url('/decorative_iso-pixel-grid_light.svg');
+  background-attachment: fixed;
+  background-position: bottom -140px left -140px;
+}
+
+.dark .app-router-view {
+  background-image: url('/decorative_iso-pixel-grid_dark.svg');
 }
 
 .app-router-view__prefect-icon { @apply
