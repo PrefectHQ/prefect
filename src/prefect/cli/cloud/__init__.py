@@ -327,12 +327,12 @@ async def login(
         )
 
     if env_var_api_key and env_var_api_key == key:
-        if not await check_key_is_valid_for_login(key):
-            help_message = (
-                "Your key is not in our expected format ('pnu')."
-                if not key.startswith("pnu")
-                else "Please ensure your credentials are correct."
-            )
+        is_valid_key = await check_key_is_valid_for_login(key)
+        is_correct_key_format = key.startswith("pnu_") or key.startswith("pnb_")
+        if not is_valid_key:
+            help_message = "Please ensure your credentials are correct and unexpired."
+            if not is_correct_key_format:
+                help_message = "Your key is not in our expected format."
             exit_with_error(
                 f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
@@ -410,10 +410,14 @@ async def login(
                     " (https://cloud.prefect.io). Make sure that you generate API key"
                     " using Cloud 2 (https://app.prefect.cloud)"
                 )
-            elif not key.startswith("pnu"):
-                help_message = "Your key is not in our expected format ('pnu')."
+            elif not key.startswith("pnu_") and not key.startswith("pnb_"):
+                help_message = (
+                    "Your key is not in our expected format: 'pnu_' or 'pnb_'."
+                )
             else:
-                help_message = "Please ensure your credentials are correct."
+                help_message = (
+                    "Please ensure your credentials are correct and unexpired."
+                )
             exit_with_error(
                 f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
