@@ -305,7 +305,7 @@ class RunnerDeployment(BaseModel):
         )
 
         deployment = cls(
-            name=name,
+            name=Path(name).stem,
             flow_name=flow.name,
             schedule=schedule,
             tags=tags or [],

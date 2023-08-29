@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 from time import sleep
 
 import anyio
@@ -7,11 +8,13 @@ import pytest
 from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
+from prefect.deployments.runner import RunnerDeployment
 from prefect.runner import Runner
 
 
-@flow
+@flow(version="test")
 def dummy_flow_1():
+    """I'm just here for tests"""
     pass
 
 
@@ -319,3 +322,164 @@ class TestRunner:
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_completed()
+
+
+class TestDeploymentRunner:
+    @pytest.fixture
+    def relative_file_path(self):
+        return Path(__file__).relative_to(Path.cwd())
+
+    @pytest.fixture
+    def dummy_flow_1_entrypoint(self, relative_file_path):
+        return f"{relative_file_path}:dummy_flow_1"
+
+    def test_from_flow(self, relative_file_path):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            tags=["test"],
+            version="alpha",
+            description="Deployment descriptions",
+        )
+
+        assert deployment.name == "test_runner"
+        assert deployment.flow_name == "dummy-flow-1"
+        assert deployment.entrypoint == f"{relative_file_path}:dummy_flow_1"
+        assert deployment.description == "Deployment descriptions"
+        assert deployment.version == "alpha"
+        assert deployment.tags == ["test"]
+
+    def test_from_flow_accepts_interval(self):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+
+    def test_from_flow_accepts_cron(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, cron="* * * * *"
+        )
+
+        assert deployment.schedule.cron == "* * * * *"
+
+    def test_from_flow_accepts_rrule(self):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, rrule="FREQ=MINUTELY"
+        )
+
+        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+
+    def test_from_flow_raises_on_multiple_schedules(self):
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_flow(
+                dummy_flow_1, __file__, interval=3600, cron="* * * * *"
+            )
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_flow(
+                dummy_flow_1, __file__, interval=3600, rrule="FREQ=MINUTELY"
+            )
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_flow(
+                dummy_flow_1, __file__, cron="* * * * *", rrule="FREQ=MINUTELY"
+            )
+
+    def test_from_flow_uses_defaults_from_flow(self):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
+
+        assert deployment.version == "test"
+        assert deployment.description == "I'm just here for tests"
+
+    def test_from_entrypoint(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            tags=["test"],
+            version="alpha",
+            description="Deployment descriptions",
+        )
+
+        assert deployment.name == "test_runner"
+        assert deployment.flow_name == "dummy-flow-1"
+        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.description == "Deployment descriptions"
+        assert deployment.version == "alpha"
+        assert deployment.tags == ["test"]
+
+    def test_from_entrypoint_accepts_interval(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, interval=3600
+        )
+
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+
+    def test_from_entrypoint_accepts_cron(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, cron="* * * * *"
+        )
+
+        assert deployment.schedule.cron == "* * * * *"
+
+    def test_from_entrypoint_accepts_rrule(self, dummy_flow_1_entrypoint):
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint, __file__, rrule="FREQ=MINUTELY"
+        )
+
+        assert deployment.schedule.rrule == "FREQ=MINUTELY"
+
+    def test_from_entrypoint_raises_on_multiple_schedules(
+        self, dummy_flow_1_entrypoint
+    ):
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_entrypoint(
+                dummy_flow_1_entrypoint, __file__, interval=3600, cron="* * * * *"
+            )
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_entrypoint(
+                dummy_flow_1_entrypoint, __file__, interval=3600, rrule="FREQ=MINUTELY"
+            )
+
+        with pytest.raises(
+            ValueError, match="Only one of interval, cron, or rrule can be provided."
+        ):
+            RunnerDeployment.from_entrypoint(
+                dummy_flow_1_entrypoint,
+                __file__,
+                cron="* * * * *",
+                rrule="FREQ=MINUTELY",
+            )
+
+    def test_from_entrypoint_uses_defaults_from_entrypoint(
+        self, dummy_flow_1_entrypoint
+    ):
+        deployment = RunnerDeployment.from_entrypoint(dummy_flow_1_entrypoint, __file__)
+
+        assert deployment.version == "test"
+        assert deployment.description == "I'm just here for tests"
+
+    async def test_apply(self, prefect_client: PrefectClient):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+
+        deployment_id = await deployment.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test_runner"
+        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.version == "test"
+        assert deployment.description == "I'm just here for tests"
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert deployment.work_pool_name is None
+        assert deployment.work_queue_name is None
+        assert deployment.path == str(Path.cwd())
