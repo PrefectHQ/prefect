@@ -246,7 +246,7 @@ jobs:
 
   notify-tests-failing-on-main:
     needs: run-tests
-    if: github.ref == 'refs/heads/main' && failure()
+    if: github.ref == 'refs/heads/ci-failure-threshold' && failure()
     runs-on: ubuntu-latest
     steps:
       - name: Download all failure flags
@@ -270,20 +270,6 @@ jobs:
             too_many_tests_failed="false"
           fi
           echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
-
-      # - name: Send Slack Notification
-      #   if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
-      #   uses: 8398a7/action-slack@v3
-      #   with:
-      #     status: custom
-      #     fields: repo,message
-      #     custom_payload: |
-      #       {
-      #         text: "Exceeded threshold of unit tests failing on the main branch!",
-      #         channel: "#engineering-review",
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
 
       - name: Failure Notification
         if: steps.check_failure.outputs.too_many_tests_failed == 'true'
