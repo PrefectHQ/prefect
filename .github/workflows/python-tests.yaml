@@ -248,6 +248,8 @@ jobs:
     needs: run-tests
     if: github.ref == 'refs/heads/ci-failure-threshold' && failure()
     runs-on: ubuntu-latest
+    env:
+      FAILURE_THRESHOLD: 3
     steps:
       - name: Download all failure flags
         uses: actions/download-artifact@v2
@@ -257,14 +259,9 @@ jobs:
       - name: Check for failure flags and print their content
         id: check_failure
         run: |
-          ls -al failure-flags/*  # List directory to debug
           failure_count=$(ls -1q failure-flags/*/*.txt | wc -l)
-          failed_tests=$(basename -a failure-flags/*/*.txt | tr '\n' ', ')
           
-          echo "Failure Count: $failure_count"  # Debug print
-          echo "Failed Tests: $failed_tests"  # Debug print
-          
-          if [ $failure_count -gt 1 ]; then
+          if [ $failure_count -gt $FAILURE_THRESHOLD ]; then
             too_many_tests_failed="true"
           else
             too_many_tests_failed="false"
@@ -274,4 +271,4 @@ jobs:
       - name: Failure Notification
         if: steps.check_failure.outputs.too_many_tests_failed == 'true'
         run: |
-          echo "More than 1 unit tests failed on main."
+          echo "More than $FAILURE_THRESHOLD tests failed on main branch."
