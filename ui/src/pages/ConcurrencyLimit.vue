@@ -4,7 +4,7 @@
       <PageHeadingConcurrencyLimit v-if="concurrencyLimit" :concurrency-limit="concurrencyLimit" @delete="deleteConcurrencyLimit" />
     </template>
 
-    <p-tabs :tabs="tabs">
+    <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
         <ConcurrencyLimitDetails v-if="concurrencyLimit" :concurrency-limit="concurrencyLimit" />
       </template>
@@ -22,7 +22,7 @@
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
   import { PageHeadingConcurrencyLimit, ConcurrencyLimitDetails, ConcurrencyLimitActiveRuns, useTabs, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
-  import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -36,7 +36,8 @@
     { label: 'Details', hidden: media.xl },
     { label: 'Active Task Runs' },
   ])
-  const { tabs } = useTabs(computedTabs)
+  const tab = useRouteQueryParam('tab', 'Details')
+  const { tabs } = useTabs(computedTabs, tab)
 
   const subscriptionOptions = {
     interval: 300000,

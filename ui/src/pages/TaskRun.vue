@@ -4,7 +4,7 @@
       <PageHeadingTaskRun :task-run-id="taskRun.id" @delete="goToFlowRun" />
     </template>
 
-    <p-tabs :tabs="tabs">
+    <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #details>
         <TaskRunDetails :task-run="taskRun" />
       </template>
@@ -37,8 +37,8 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PageHeadingTaskRun, TaskRunArtifacts, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal } from '@prefecthq/prefect-ui-library'
-  import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { PageHeadingTaskRun, TaskRunArtifacts, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal, useTabs } from '@prefecthq/prefect-ui-library'
+  import { useRouteParam, useRouteQueryParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -48,15 +48,14 @@
   const taskRunId = useRouteParam('taskRunId')
   const api = useWorkspaceApi()
 
-  const tabs = computed(() => {
-    const values = ['Logs', 'Artifacts', 'Task Inputs']
-
-    if (!media.xl) {
-      values.push('Details')
-    }
-
-    return values
-  })
+  const computedTabs = computed(() => [
+    { label: 'Details', hidden: media.xl },
+    { label: 'Logs' },
+    { label: 'Artifacts' },
+    { label: 'Task Inputs' },
+  ])
+  const tab = useRouteQueryParam('tab', 'Logs')
+  const { tabs } = useTabs(computedTabs, tab)
 
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
   const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs, { interval: 30000 })
