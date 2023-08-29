@@ -11,9 +11,9 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/graphs": "2.0.2",
+    "@prefecthq/graphs": "2.0.3",
     "@prefecthq/prefect-design": "2.0.0",
-    "@prefecthq/prefect-ui-library": "2.0.0-beta.0",
+    "@prefecthq/prefect-ui-library": "2.0.0",
     "@prefecthq/vue-charts": "2.0.1",
     "@prefecthq/vue-compositions": "1.5.8",
     "@types/lodash.debounce": "4.0.7",
