@@ -59,6 +59,7 @@ class Runner:
         name: Optional[str] = None,
         query_seconds: float = 10,
         prefetch_seconds: float = 10,
+        limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
     ):
         """
@@ -70,6 +71,7 @@ class Runner:
             query_seconds: The number of seconds to wait between querying for
                 scheduled flow runs.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
+            limit: The maximum number of flow runs this runner should be running at
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
 
@@ -110,6 +112,9 @@ class Runner:
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._limiter: Optional[anyio.CapacityLimiter] = (
+            anyio.CapacityLimiter(limit) if limit is not None else None
+        )
         self._client = get_client()
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
@@ -580,14 +585,25 @@ class Runner:
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-
-            run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.info(f"Runner '{self.name}' submitting flow run '{flow_run.id}'")
-            self._submitting_flow_run_ids.add(flow_run.id)
-            self._runs_task_group.start_soon(
-                self._submit_run,
-                flow_run,
-            )
+            try:
+                if self._limiter:
+                    self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
+            except anyio.WouldBlock:
+                self._logger.info(
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                    " in progress."
+                )
+                break
+            else:
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.info(
+                    f"Runner '{self.name}' submitting flow run '{flow_run.id}'"
+                )
+                self._submitting_flow_run_ids.add(flow_run.id)
+                self._runs_task_group.start_soon(
+                    self._submit_run,
+                    flow_run,
+                )
 
         return list(
             filter(
@@ -613,6 +629,10 @@ class Runner:
                 self._flow_run_process_map[flow_run.id] = readiness_result
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
+        else:
+            # If the run is not ready to submit, release the concurrency slot
+            if self._limiter:
+                self._limiter.release_on_behalf_of(flow_run.id)
 
         self._submitting_flow_run_ids.remove(flow_run.id)
 
@@ -645,6 +665,8 @@ class Runner:
                 )
             return exc
         finally:
+            if self._limiter:
+                self._limiter.release_on_behalf_of(flow_run.id)
             self._flow_run_process_map.pop(flow_run.id, None)
 
         if status_code != 0:
