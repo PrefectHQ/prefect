@@ -707,6 +707,7 @@ class TestFlowRunLogs:
         )
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestFlowRunExecute:
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
         deployment_id = await RunnerDeployment.from_entrypoint(

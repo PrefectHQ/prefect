@@ -3131,6 +3131,7 @@ class TestFlowToDeployment:
             )
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestFlowServe:
     @pytest.fixture
     def test_flow(self):
@@ -3281,7 +3282,7 @@ class TestFlowServe:
             for _ in range(30):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_completed():
+                if flow_run.state.is_final():
                     break
 
             tg.cancel_scope.cancel()

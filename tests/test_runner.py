@@ -32,9 +32,11 @@ def tired_flow():
         sleep(5)
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestServe:
     async def test_serve_can_create_multiple_deployments(
-        self, prefect_client: PrefectClient
+        self,
+        prefect_client: PrefectClient,
     ):
         async with anyio.create_task_group() as tg:
             with anyio.CancelScope(shield=True):
@@ -82,7 +84,7 @@ class TestServe:
             for _ in range(15):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_completed():
+                if flow_run.state.is_final():
                     break
 
             tg.cancel_scope.cancel()
@@ -132,6 +134,7 @@ class TestServe:
         assert flow_run.state.is_cancelled()
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestRunner:
     async def test_add_flows_to_runner(self, prefect_client: PrefectClient):
         """Runner.add should create a deployment for the flow passed to it"""
@@ -255,7 +258,7 @@ class TestRunner:
             for _ in range(15):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_completed():
+                if flow_run.state.is_final():
                     break
 
             runner.stop()
