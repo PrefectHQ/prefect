@@ -94,11 +94,11 @@ if __name__ == "__main__":
     repo_info.serve(name="my-first-deployment")
 ```
 
-Notice that we can write standard Python code within our flow _or_ within our tasks, depending on the level of control and observability we want.
+Notice that we can write standard Python code within our flow _or_ break it down into component tasks, depending on the level of control and observability we want.
 
 ### Step 4: Create a deployment
 
-When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will say running so that it can listen for scheduled or triggered runs of this flow.
+When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow.
 
 <div class="terminal">
 ```bash
