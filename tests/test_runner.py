@@ -32,7 +32,6 @@ def tired_flow():
         sleep(5)
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
 class TestServe:
     async def test_serve_can_create_multiple_deployments(
         self,
@@ -62,35 +61,7 @@ class TestServe:
         assert deployment is not None
         assert deployment.schedule.cron == "* * * * *"
 
-    async def test_serve_can_execute_scheduled_flow_runs(
-        self, prefect_client: PrefectClient
-    ):
-        async with anyio.create_task_group() as tg:
-            deployment = dummy_flow_1.to_deployment("test")
-
-            tg.start_soon(serve, deployment)
-
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="dummy-flow-1/test"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-            # Need to wait for polling loop to pick up flow run and then
-            # finish execution
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_final():
-                    break
-
-            tg.cancel_scope.cancel()
-
-        assert flow_run.state.is_completed()
-
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_serve_can_cancel_flow_runs(self, prefect_client: PrefectClient):
         async with anyio.create_task_group() as tg:
             deployment = tired_flow.to_deployment("test")
@@ -126,15 +97,44 @@ class TestServe:
             for _ in range(15):
                 await anyio.sleep(1)
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_cancelled():
+                if flow_run.state.is_final():
                     break
 
             tg.cancel_scope.cancel()
 
         assert flow_run.state.is_cancelled()
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_serve_can_execute_scheduled_flow_runs(
+        self, prefect_client: PrefectClient
+    ):
+        async with anyio.create_task_group() as tg:
+            deployment = dummy_flow_1.to_deployment("test")
 
-@pytest.mark.usefixtures("use_hosted_api_server")
+            tg.start_soon(serve, deployment)
+
+            await anyio.sleep(1)
+
+            deployment = await prefect_client.read_deployment_by_name(
+                name="dummy-flow-1/test"
+            )
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment.id
+            )
+            # Need to wait for polling loop to pick up flow run and then
+            # finish execution
+            for _ in range(15):
+                await anyio.sleep(1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                if flow_run.state.is_final():
+                    break
+
+            tg.cancel_scope.cancel()
+
+        assert flow_run.state.is_completed()
+
+
 class TestRunner:
     async def test_add_flows_to_runner(self, prefect_client: PrefectClient):
         """Runner.add should create a deployment for the flow passed to it"""
@@ -235,6 +235,7 @@ class TestRunner:
 
         assert not deployment_2.is_schedule_active
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner(query_seconds=2)
 
@@ -265,6 +266,7 @@ class TestRunner:
 
         assert flow_run.state.is_completed()
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_can_cancel_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner(query_seconds=2)
 
@@ -311,6 +313,7 @@ class TestRunner:
 
         assert flow_run.state.is_cancelled()
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_can_execute_a_single_flow_run(
         self, prefect_client: PrefectClient
     ):

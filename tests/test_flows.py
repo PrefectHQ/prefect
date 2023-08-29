@@ -3131,7 +3131,6 @@ class TestFlowToDeployment:
             )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
 class TestFlowServe:
     @pytest.fixture
     def test_flow(self):
@@ -3258,6 +3257,7 @@ class TestFlowServe:
         ):
             await test_flow.serve(name="test", cron="* * * * *", rrule="FREQ=MINUTELY")
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_serve_executes_scheduled_runs(self, prefect_client: PrefectClient):
         """
         This test is slow because it waits for the polling loop to pick up the
