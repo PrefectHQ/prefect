@@ -119,7 +119,7 @@ PREFECT_PROFILE='default'
 PREFECT_AGENT_PREFETCH_SECONDS='10' (from defaults)
 PREFECT_AGENT_QUERY_INTERVAL='5.0' (from defaults)
 PREFECT_API_KEY='None' (from defaults)
-PREFECT_API_REQUEST_TIMEOUT='30.0' (from defaults)
+PREFECT_API_REQUEST_TIMEOUT='60.0' (from defaults)
 PREFECT_API_URL='None' (from defaults)
 ...
 ```
