@@ -102,13 +102,6 @@
     return `Deployment: ${deployment.value.name}`
   })
   usePageTitle(title)
-
-  watch(deployment, () => {
-    // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
-    if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
-      showToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
-    }
-  })
 </script>
 
 <style>
