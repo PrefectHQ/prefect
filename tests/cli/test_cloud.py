@@ -99,14 +99,14 @@ def mock_webbrowser(monkeypatch):
             "pnu_foo",
             (
                 "Unable to authenticate with Prefect Cloud. Please ensure your"
-                " credentials are correct."
+                " credentials are correct and unexpired."
             ),
         ),
         (
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format ('pnu')."
+                " expected format: 'pnu_' or 'pnb_'."
             ),
         ),
     ],
@@ -149,7 +149,7 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
             "pnu_foo",
             (
                 "Unable to authenticate with Prefect Cloud. Please ensure your"
-                " credentials are correct."
+                " credentials are correct and unexpired."
             ),
         ),
         (
@@ -157,7 +157,7 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format ('pnu')."
+                " expected format."
             ),
         ),
     ],
