@@ -187,20 +187,35 @@ Generally you should leave the cluster config blank as the worker should be prov
 
   Select the **Advanced** tab and edit the JSON representation of the base job template.
 
-  For example, to set the namespace to `myorg` remove the namespace section under variables:
+  For example, to set a CPU request, add the following section under variables:
 
     ```json
-      "namespace": {
-        "title": "Namespace",
-        "description": "The Kubernetes namespace to create jobs within.",
+      "cpu_request": {
+        "title": "CPU Request",
+        "description": "The CPU allocation to request for this pod.",
         "default": "default",
         "type": "string"
       },
     ```
 
-  and hardcode `"namespace": "myorg",` under `job_configuration->namespace` and `job_configuration->job_manifest->metadata->namespace`.
+  Next add the following to the first `containers` item under `job_configuration`:
 
-  Running deployments with this work pool will now create flow runs in the `myorg` namespace.
+    ```json
+            ...
+            "containers": [
+              {
+                ...,
+                "resources": {
+                  "requests": {
+                    "cpu": {{ cpu_request }}"
+                  }
+                }
+              }
+            ],
+            ...
+    ```
+
+  Running deployments with this work pool will now request the specified CPU.
 
 After configuring the work pool settings, move to the next screen.
 
