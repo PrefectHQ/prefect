@@ -77,8 +77,7 @@
 }
 
 .flow-run-graphs__timeline { @apply
-  bg-background
-  rounded-lg
+  rounded-default
   overflow-hidden
 }
 

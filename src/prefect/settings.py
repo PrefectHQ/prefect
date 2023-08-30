@@ -624,7 +624,7 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 )
 """
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
 """
 
@@ -674,7 +674,7 @@ Note: PREFECT_UI_URL will be workspace specific and will be usable in the open s
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
-    default=30.0,
+    default=60.0,
 )
 """The default timeout for requests to the API"""
 
