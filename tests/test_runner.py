@@ -151,21 +151,18 @@ class TestRunner:
         await runner.add_deployment(deployment_1)
         await runner.add_deployment(deployment_2)
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
+        deployment_1 = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+        deployment_2 = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
+        )
 
-            deployment_1 = await prefect_client.read_deployment_by_name(
-                name="dummy-flow-1/test_runner"
-            )
-            deployment_2 = await prefect_client.read_deployment_by_name(
-                name="dummy-flow-2/test_runner"
-            )
+        assert deployment_1.is_schedule_active
 
-            assert deployment_1.is_schedule_active
+        assert deployment_2.is_schedule_active
 
-            assert deployment_2.is_schedule_active
-
-            runner.stop()
+        await runner.start(run_once=True)
 
         deployment_1 = await prefect_client.read_deployment_by_name(
             name="dummy-flow-1/test_runner"
