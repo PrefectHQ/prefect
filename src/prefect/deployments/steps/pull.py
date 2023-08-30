@@ -41,6 +41,8 @@ def _format_token(netloc: str, access_token: str, credentials: dict) -> str:
     password = credentials.get("password") if credentials else None
     token = credentials.get("token") if credentials else None
 
+    user_provided_token = access_token or token or password
+
     if "bitbucketserver" in netloc:
         # If they pass a header themselves, we can use it as-is
         if access_token:
@@ -55,7 +57,6 @@ def _format_token(netloc: str, access_token: str, credentials: dict) -> str:
         # If they pass a BitBucketCredentials block and we don't have both a username and at
         # least one of a password or token and they don't provide a header themselves,
         # we can raise the appropriate error to avoid the wrong format for BitBucket Server.
-        user_provided_token = token or password
         if username and user_provided_token:
             return (
                 f"{username}:{user_provided_token}"
@@ -72,7 +73,6 @@ def _format_token(netloc: str, access_token: str, credentials: dict) -> str:
             )
 
     elif "bitbucket" in netloc:
-        user_provided_token = access_token or token or password
         if user_provided_token:
             contains_header = (
                 user_provided_token.startswith("x-token-auth:")
@@ -84,7 +84,6 @@ def _format_token(netloc: str, access_token: str, credentials: dict) -> str:
                 return f"x-token-auth:{user_provided_token}"
 
     elif "gitlab" in netloc:
-        user_provided_token = access_token or token
         if user_provided_token:
             return (
                 f"oauth2:{user_provided_token}"
