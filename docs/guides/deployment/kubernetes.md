@@ -169,6 +169,7 @@ Note that you can override this on each deployment through `job_variables`.
 **Image Pull Policy**
 
 Select from the dropdown options to specify when to pull the image.
+When using the `IfNotPresent` policy, make sure to use unique image tags, as otherwise old images could get cached on your nodes.
 
 **Finished Job TTL**
 
