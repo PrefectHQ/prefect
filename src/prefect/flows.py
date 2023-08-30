@@ -41,6 +41,7 @@ from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -486,10 +487,9 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
-        timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -503,10 +503,10 @@ class Flow(Generic[P, R]):
             name: The name to give the created deployment.
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            timezone: A timezone to use for the schedule. Defaults to UTC.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -541,10 +541,9 @@ class Flow(Generic[P, R]):
             self,
             name=name,
             interval=interval,
-            anchor_date=anchor_date,
             cron=cron,
             rrule=rrule,
-            timezone=timezone,
+            schedule=schedule,
             tags=tags,
             triggers=triggers,
             parameters=parameters or {},
@@ -557,10 +556,9 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
-        timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -631,10 +629,9 @@ class Flow(Generic[P, R]):
             name=name,
             triggers=triggers,
             interval=interval,
-            anchor_date=anchor_date,
             cron=cron,
             rrule=rrule,
-            timezone=timezone,
+            schedule=schedule,
             parameters=parameters,
             description=description,
             tags=tags,

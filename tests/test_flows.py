@@ -6,7 +6,7 @@ import os
 import signal
 import sys
 import time
-from functools import partial
+from itertools import combinations
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -51,6 +51,7 @@ from prefect.states import (
 )
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
+    AsyncMock,
     exceptions_equal,
     flaky_on_windows,
     get_most_recent_flow_run,
@@ -3104,32 +3105,38 @@ class TestFlowToDeployment:
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
-    async def test_to_deployment_errors_with_multiple_schedules(self):
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            test_flow.to_deployment(name="test", interval=3600, cron="* * * * *")
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            test_flow.to_deployment(name="test", interval=3600, rrule="FREQ=MINUTELY")
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            test_flow.to_deployment(
-                name="test", cron="* * * * *", rrule="FREQ=MINUTELY"
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
             )
+        ],
+    )
+    def test_to_deployment_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            test_flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
-    async def test_serve_prints_message(self, capsys):
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(test_flow.serve, "test")
+    @pytest.fixture(autouse=True)
+    async def mock_runner_start(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.cli.flow.Runner.start", mock)
+        return mock
 
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+    async def test_serve_prints_message(self, capsys):
+        await test_flow.serve("test")
 
         captured = capsys.readouterr()
 
@@ -3140,19 +3147,13 @@ class TestFlowServe:
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
     async def test_serve_creates_deployment(self, prefect_client: PrefectClient):
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(
-                test_flow.serve,
-                name="test",
-                tags=["price", "luggage"],
-                parameters={"name": "Arthur"},
-                description="This is a test",
-                version="alpha",
-            )
-            tg.start_soon(test_serve)
-
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await test_flow.serve(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            description="This is a test",
+            version="alpha",
+        )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
@@ -3167,10 +3168,7 @@ class TestFlowServe:
         assert deployment.version == "alpha"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(test_flow.serve, __file__)
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await test_flow.serve(__file__)
 
         deployment = await prefect_client.read_deployment_by_name(
             name="test-flow/test_flows"
@@ -3181,11 +3179,10 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_interval_schedule(
         self, prefect_client: PrefectClient
     ):
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(test_flow.serve, "test", interval=3600)
-            tg.start_soon(test_serve)
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await test_flow.serve(
+            "test",
+            interval=3600,
+        )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
@@ -3196,11 +3193,7 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_cron_schedule(
         self, prefect_client: PrefectClient
     ):
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(test_flow.serve, "test", cron="* * * * *")
-            tg.start_soon(test_serve)
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await test_flow.serve("test", cron="* * * * *")
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
@@ -3210,60 +3203,40 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_rrule_schedule(
         self, prefect_client: PrefectClient
     ):
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(test_flow.serve, "test", rrule="FREQ=MINUTELY")
-            tg.start_soon(test_serve)
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await test_flow.serve("test", rrule="FREQ=MINUTELY")
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
-    async def test_to_deployment_errors_with_multiple_schedules(self):
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await test_flow.serve(name="test", interval=3600, cron="* * * * *")
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await test_flow.serve(name="test", interval=3600, rrule="FREQ=MINUTELY")
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await test_flow.serve(name="test", cron="* * * * *", rrule="FREQ=MINUTELY")
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_serve_executes_scheduled_runs(self, prefect_client: PrefectClient):
-        """
-        This test is slow because it waits for the polling loop to pick up the
-        flow run and then finish execution.
-        """
-        async with anyio.create_task_group() as tg:
-            test_serve = partial(test_flow.serve, "test")
-            tg.start_soon(test_serve)
-
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="test-flow/test"
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
             )
+        ],
+    )
+    async def test_serve_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            await test_flow.serve(__file__, **kwargs)
 
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
+    async def test_serve_starts_a_runner(self, mock_runner_start):
+        """
+        This test only makes sure Runner.start() is called. The actual
+        functionality of the runner is tested in test_runner.py
+        """
+        await test_flow.serve("test")
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish execution
-            for _ in range(30):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_final():
-                    break
-
-            tg.cancel_scope.cancel()
-        assert flow_run.state.is_completed()
+        mock_runner_start.assert_awaited_once()

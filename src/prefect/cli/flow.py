@@ -139,19 +139,22 @@ async def serve(
     """
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
     try:
-        runner_deployment = RunnerDeployment.from_entrypoint(
-            entrypoint=entrypoint,
-            name=name,
+        schedule = RunnerDeployment.construct_schedule(
             interval=interval,
-            anchor_date=interval_anchor,
             cron=cron,
             rrule=rrule,
             timezone=timezone,
+            anchor_date=interval_anchor,
+        )
+        runner_deployment = RunnerDeployment.from_entrypoint(
+            entrypoint=entrypoint,
+            name=name,
+            schedule=schedule,
             description=description,
             tags=tags,
             version=version,
         )
-    except MissingFlowError as exc:
+    except (MissingFlowError, ValueError) as exc:
         exit_with_error(str(exc))
     deployment_id = await runner.add_deployment(runner_deployment)
 

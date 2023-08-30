@@ -21,6 +21,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
 )
 from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
@@ -145,10 +146,9 @@ class Runner:
         flow: Flow,
         name: str = None,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
-        timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -167,10 +167,10 @@ class Runner:
                 of the runner.
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: A datetime to anchor the interval on. Defaults to the current time.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            timezone: A timezone to use for the schedule. Defaults to UTC.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -192,10 +192,9 @@ class Runner:
         deployment = flow.to_deployment(
             name=name,
             interval=interval,
-            anchor_date=anchor_date,
             cron=cron,
             rrule=rrule,
-            timezone=timezone,
+            schedule=schedule,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -205,11 +204,14 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
-    async def start(self):
+    async def start(self, run_once: bool = False):
         """
         Starts a runner.
 
         The runner will begin monitoring for and executing any scheduled work for all added flows.
+
+        Args:
+            run_once: If True, the runner will through one query loop and then exit.
 
         Examples:
 
@@ -244,6 +246,7 @@ class Runner:
                         critical_service_loop,
                         workload=runner._get_and_submit_flow_runs,
                         interval=self._query_seconds,
+                        run_once=run_once,
                         jitter_range=0.3,
                     )
                 )
@@ -252,6 +255,7 @@ class Runner:
                         critical_service_loop,
                         workload=runner._check_for_cancelled_flow_runs,
                         interval=self._query_seconds * 2,
+                        run_once=run_once,
                         jitter_range=0.3,
                     )
                 )
@@ -799,6 +803,7 @@ class Runner:
 
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
+        self._client = get_client()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -841,7 +846,11 @@ def _use_threaded_child_watcher():
 
 
 @sync_compatible
-async def serve(*args: RunnerDeployment, pause_on_shutdown: bool = True, **kwargs):
+async def serve(
+    *args: RunnerDeployment,
+    pause_on_shutdown: bool = True,
+    **kwargs,
+):
     """
     Serve the provided list of deployments.
 

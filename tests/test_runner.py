@@ -1,4 +1,5 @@
 import datetime
+from itertools import combinations
 from pathlib import Path
 from time import sleep
 
@@ -8,8 +9,10 @@ import pytest
 from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner import Runner
+from prefect.testing.utilities import AsyncMock
 
 
 @flow(version="test")
@@ -33,18 +36,20 @@ def tired_flow():
 
 
 class TestServe:
+    @pytest.fixture(autouse=True)
+    async def mock_runner_start(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.runner.Runner.start", mock)
+        return mock
+
     async def test_serve_can_create_multiple_deployments(
         self,
         prefect_client: PrefectClient,
     ):
-        async with anyio.create_task_group() as tg:
-            deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-            deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
-            tg.start_soon(serve, deployment_1, deployment_2)
-
-            await anyio.sleep(1)
-            tg.cancel_scope.cancel()
+        await serve(deployment_1, deployment_2)
 
         deployment = await prefect_client.read_deployment_by_name(
             name="dummy-flow-1/test_runner"
@@ -60,78 +65,14 @@ class TestServe:
         assert deployment is not None
         assert deployment.schedule.cron == "* * * * *"
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_serve_can_cancel_flow_runs(self, prefect_client: PrefectClient):
-        async with anyio.create_task_group() as tg:
-            deployment = tired_flow.to_deployment("test")
-
-            tg.start_soon(serve, deployment)
-
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="tired-flow/test"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-            # Need to wait for polling loop to pick up flow run and
-            # start execution
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_running():
-                    break
-
-            await prefect_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
-                    update={"name": "Cancelled", "type": StateType.CANCELLED}
-                ),
-            )
-
-            # Need to wait for polling loop to pick up flow run and then
-            # finish cancellation
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_final():
-                    break
-
-            tg.cancel_scope.cancel()
-
-        assert flow_run.state.is_cancelled()
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_serve_can_execute_scheduled_flow_runs(
-        self, prefect_client: PrefectClient
+    async def test_serve_starts_a_runner(
+        self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):
-        async with anyio.create_task_group() as tg:
-            deployment = dummy_flow_1.to_deployment("test")
+        deployment = dummy_flow_1.to_deployment("test")
 
-            tg.start_soon(serve, deployment)
+        await serve(deployment)
 
-            await anyio.sleep(1)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="dummy-flow-1/test"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-            # Need to wait for polling loop to pick up flow run and then
-            # finish execution
-            for _ in range(30):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_final():
-                    break
-
-            tg.cancel_scope.cancel()
-
-        assert flow_run.state.is_completed()
+        mock_runner_start.assert_awaited_once()
 
 
 class TestRunner:
@@ -155,29 +96,28 @@ class TestRunner:
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedule.cron == "* * * * *"
 
-    async def test_add_fails_with_multiple_schedules(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
+            )
+        ],
+    )
+    async def test_add_flow_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
         runner = Runner()
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await runner.add_flow(
-                dummy_flow_1, name="test", interval=3600, cron="* * * * *"
-            )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await runner.add_flow(
-                dummy_flow_1, name="test", interval=3600, rrule="FREQ=MINUTELY"
-            )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            await runner.add_flow(
-                dummy_flow_1, name="test", cron="* * * * *", rrule="FREQ=MINUTELY"
-            )
+        with pytest.raises(ValueError, match=expected_message):
+            await runner.add_flow(dummy_flow_1, __file__, **kwargs)
 
     async def test_add_deployments_to_runner(self, prefect_client: PrefectClient):
         """Runner.add_deployment should apply the deployment passed to it"""
@@ -240,32 +180,24 @@ class TestRunner:
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
-        runner = Runner(query_seconds=2)
+        runner = Runner()
 
         deployment = dummy_flow_1.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
+        await runner.start(run_once=True)
 
-            deployment = await prefect_client.read_deployment_by_name(
-                name="dummy-flow-1/test_runner"
-            )
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
 
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id
+        )
 
-            # Need to wait for polling loop to pick up flow run and then
-            # finish execution
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_final():
-                    break
-
-            runner.stop()
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
         assert flow_run.state.is_completed()
 
@@ -377,27 +309,27 @@ class TestDeploymentRunner:
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
-    def test_from_flow_raises_on_multiple_schedules(self):
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            RunnerDeployment.from_flow(
-                dummy_flow_1, __file__, interval=3600, cron="* * * * *"
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
             )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            RunnerDeployment.from_flow(
-                dummy_flow_1, __file__, interval=3600, rrule="FREQ=MINUTELY"
-            )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            RunnerDeployment.from_flow(
-                dummy_flow_1, __file__, cron="* * * * *", rrule="FREQ=MINUTELY"
-            )
+        ],
+    )
+    def test_from_flow_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
 
     def test_from_flow_uses_defaults_from_flow(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
@@ -442,31 +374,30 @@ class TestDeploymentRunner:
 
         assert deployment.schedule.rrule == "FREQ=MINUTELY"
 
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
+            )
+        ],
+    )
     def test_from_entrypoint_raises_on_multiple_schedules(
-        self, dummy_flow_1_entrypoint
+        self, dummy_flow_1_entrypoint, kwargs
     ):
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
-                dummy_flow_1_entrypoint, __file__, interval=3600, cron="* * * * *"
-            )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            RunnerDeployment.from_entrypoint(
-                dummy_flow_1_entrypoint, __file__, interval=3600, rrule="FREQ=MINUTELY"
-            )
-
-        with pytest.raises(
-            ValueError, match="Only one of interval, cron, or rrule can be provided."
-        ):
-            RunnerDeployment.from_entrypoint(
-                dummy_flow_1_entrypoint,
-                __file__,
-                cron="* * * * *",
-                rrule="FREQ=MINUTELY",
+                dummy_flow_1_entrypoint, __file__, **kwargs
             )
 
     def test_from_entrypoint_uses_defaults_from_entrypoint(

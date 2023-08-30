@@ -134,40 +134,51 @@ class RunnerDeployment(BaseModel):
             return deployment_id
 
     @staticmethod
-    def _construct_schedule(
+    def construct_schedule(
         interval: Optional[Union[int, float, timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
+        anchor_date: Optional[Union[datetime, str]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
     ) -> Optional[SCHEDULE_TYPES]:
-        schedule = None
+        """
+        Construct a schedule from the provided arguments.
 
+        Args:
+            interval: An interval on which to schedule runs. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            anchor_date: The start date for an interval schedule.
+            cron: A cron schedule for runs.
+            rrule: An rrule schedule of when to execute runs of this flow.
+        """
         num_schedules = sum(
-            1 for schedule in (interval, cron, rrule) if schedule is not None
+            1 for entry in (interval, cron, rrule, schedule) if entry is not None
         )
         if num_schedules > 1:
-            raise ValueError("Only one of interval, cron, or rrule can be provided.")
+            raise ValueError(
+                "Only one of interval, cron, rrule, or schedule can be provided."
+            )
 
         if anchor_date and not interval:
             raise ValueError(
                 "An anchor date can only be provided with an interval schedule"
             )
 
-        if timezone and num_schedules == 0:
-            raise ValueError("A timezone can only be provided with a schedule")
+        if timezone and not (interval or cron or rrule):
+            raise ValueError(
+                "A timezone can only be provided with interval, cron, or rrule"
+            )
 
-        schedule = None
+        schedule = schedule
         if interval:
             if isinstance(interval, (int, float)):
                 interval = timedelta(seconds=interval)
-            schedule = IntervalSchedule(
-                interval=interval, anchor_date=anchor_date, timezone=timezone
-            )
+            schedule = IntervalSchedule(interval=interval)
         elif cron:
-            schedule = CronSchedule(cron=cron, timezone=timezone)
+            schedule = CronSchedule(cron=cron)
         elif rrule:
-            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+            schedule = RRuleSchedule(rrule=rrule)
 
         return schedule
 
@@ -185,10 +196,9 @@ class RunnerDeployment(BaseModel):
         flow: Flow,
         name: str,
         interval: Optional[Union[int, float, timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
-        timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -203,10 +213,10 @@ class RunnerDeployment(BaseModel):
             name: A name for the deployment
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            timezone: Timezone to used scheduling flow runs e.g. 'America/New_York'
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -215,12 +225,8 @@ class RunnerDeployment(BaseModel):
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
         """
-        schedule = cls._construct_schedule(
-            interval=interval,
-            anchor_date=anchor_date,
-            cron=cron,
-            rrule=rrule,
-            timezone=timezone,
+        schedule = cls.construct_schedule(
+            interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
 
         deployment = cls(
@@ -265,10 +271,9 @@ class RunnerDeployment(BaseModel):
         entrypoint: str,
         name: str,
         interval: Optional[Union[int, float, timedelta]] = None,
-        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
-        timezone: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -284,10 +289,10 @@ class RunnerDeployment(BaseModel):
             name: A name for the deployment
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            timezone: Timezone to used scheduling flow runs e.g. 'America/New_York'
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -299,12 +304,11 @@ class RunnerDeployment(BaseModel):
         """
         flow = load_flow_from_entrypoint(entrypoint)
 
-        schedule = cls._construct_schedule(
+        schedule = cls.construct_schedule(
             interval=interval,
-            anchor_date=anchor_date,
             cron=cron,
             rrule=rrule,
-            timezone=timezone,
+            schedule=schedule,
         )
 
         deployment = cls(
