@@ -185,6 +185,7 @@ Consider setting to 300, especially if using a **serverless** type node pool, as
 
 You can configure the Kubernetes cluster to use for job creation by specifying a `KubernetesClusterConfig` block.
 Generally you should leave the cluster config blank as the worker should be provisioned with appropriate access and permissions.
+Typically this setting is used when a worker is deployed to a cluster that is different from the cluster where flow runs are executed.
 
 !!! Note "Advanced Settings"
   Want to modify the default base job template to add other fields or delete existing fields?
