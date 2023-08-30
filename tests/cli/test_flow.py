@@ -30,16 +30,6 @@ class TestFlowServe:
             ],
         )
 
-    def test_flow_serve_cli_requires_valid_entrypoint(self):
-        invoke_and_assert(
-            command=["flow", "serve", "invalid"],
-            expected_code=2,
-            expected_output_contains=[
-                "Entrypoint must be in the format",
-                "path/to/file.py:flow_name",
-            ],
-        )
-
     async def test_flow_serve_cli_creates_deployment(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):

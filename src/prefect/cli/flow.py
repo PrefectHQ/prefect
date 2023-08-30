@@ -2,7 +2,6 @@
 Command line interface for working with flows.
 """
 
-import re
 from typing import List, Optional
 
 import typer
@@ -51,17 +50,6 @@ async def ls(
     app.console.print(table)
 
 
-ENTRYPOINT_REGEX = re.compile(r"^([\w\-\./\:]+\.py):([\w\-\.]+)$")
-
-
-def entrypoint_callback(value: str) -> str:
-    if not ENTRYPOINT_REGEX.match(value):
-        raise typer.BadParameter(
-            "Entrypoint must be in the format 'path/to/file.py:flow_name'."
-        )
-    return value
-
-
 @flow_app.command()
 async def serve(
     entrypoint: str = typer.Argument(
@@ -70,7 +58,6 @@ async def serve(
             "The path to a file containing a flow and the name of the flow function in"
             " the format `./path/to/file.py:flow_func_name`."
         ),
-        callback=entrypoint_callback,
     ),
     name: str = typer.Option(
         ...,
