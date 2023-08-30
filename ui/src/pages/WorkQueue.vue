@@ -23,7 +23,7 @@
           <div class="work-queue__upcoming-runs">
             <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
             <template v-if="activeRunsBuildUp">
-              <p-button secondary class="work-queue__active-runs-button" @click="showActiveRuns">
+              <p-button class="work-queue__active-runs-button" @click="showActiveRuns">
                 Show active runs
               </p-button>
             </template>
