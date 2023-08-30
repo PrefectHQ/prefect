@@ -47,9 +47,9 @@ Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/
 
 ### Step 3: Write a flow
 
-The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment. Flows are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work. Deployments elevate flows to remotely configurable entities that have their own API, as we will see shortly.
+The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment. [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work. [Deployments](/concepts/deployments/) elevate flows to remotely configurable entities that have their own API, as we will see shortly.
 
-Here is an example flow named `"Repo Info"` that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect):
+Here is an example flow named "Repo Info" that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect:
 
 ```python title="my_flow.py"
 import httpx
@@ -128,7 +128,7 @@ This command creates a new run for this deployment that is then picked up by the
 
 ### Step 5: Add a schedule
 
-We can now configure our deployment as we like - for example, let's add a schedule to our deployment.  We could do this in one of two ways:
+We can now configure our deployment as we like - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  We could do this in one of two ways:
 
 - use the Prefect UI to create and attach the schedule
 - specify the schedule in code
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     repo_info.serve(name="my-first-deployment", cron="* * * * *")
 ```
 
-Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day.
+Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
 
 ![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 

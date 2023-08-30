@@ -180,13 +180,12 @@ nav:
           - Blocks: concepts/blocks.md
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
+          - Automations: concepts/automations.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
-                - Filesystems: concepts/filesystems.md
-          - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
           - Quickstart: cloud/cloud-quickstart.md
@@ -276,7 +275,7 @@ nav:
                 - api-ref/rest-api/index.md
                 - Prefect Cloud REST API Reference: https://app.prefect.cloud/api/docs
                 - Prefect Server REST API Reference: api-ref/rest-api-reference.md
-          - Server SDK:
+          - Server API:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
