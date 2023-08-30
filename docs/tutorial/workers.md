@@ -49,8 +49,8 @@ graph TD
     worker --> |creates| flow_run_infra
 ```
 
-!!! note "Security Note:"
-    Prefect provides execution through its hybrid model, which allows you to deploy workflows that run in the environments best suited to their execution while allowing you to keep your code and data completely private. There is no ingress required. For more information see [here.](https://www.prefect.io/security/overview/#overview)
+!!! note "Security Note"
+    Prefect provides execution through its hybrid model, which allows you to deploy workflows that run in the environments best suited to their execution while allowing you to keep your code and data completely private. There is no ingress required. For more information [read more about our hybrid model].(https://www.prefect.io/security/overview/#overview)
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
@@ -58,7 +58,7 @@ Now that we’ve reviewed the concepts of a work pool and worker, let’s create
 
 For this tutorial you will create a **Docker** type work pool via the CLI. 
 
-Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated docker container using a docker client available to the worker.
+Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated Docker container using a Docker client available to the worker.
 
 !!! tip "Other work pool types"
     There are work pool types for all major managed code execution platforms, such as Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
@@ -79,9 +79,9 @@ Let’s confirm that the work pool was successfully created by running the follo
 prefect work-pool ls 
 ```
 </div>
-Finally, let’s double check that you can see this work pool in your Prefect UI. Navigate to the Work Pool tab and verify that you see `my-docker-pool` listed.
+Finally, let’s double check that you can see this work pool in your Prefect UI. Navigate to the Work Pools tab and verify that you see `my-docker-pool` listed.
 
-When you click into the `my-docker-pool`, select the "Work Queues" tab. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Using and configuring work queues is an advanced deployment mode. You can learn more about them in the [work queue documentation.](/concepts/work-pools/#work-queues) 
+When you click into the `my-docker-pool`, select the "Work Queues" tab. You should see a red status icon listed for the default work queue signifying that this queue is not ready to submit work. Using and configuring work queues is an advanced deployment mode. You can learn more about them in the [work queue documentation](/concepts/work-pools/#work-queues).
 
 To get the work queue healthy and ready to submit flow runs, you need to start a worker.
 
@@ -95,11 +95,11 @@ Run the following command in this new terminal to start the worker:
 prefect worker start --pool my-docker-pool
 ```
 </div>
-You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. You’ll see your new worker listed in the UI under the worker tab of the Work Pool page with a recent last polled date. You should also be able to see a `Healthy` status indicator in the default work queue under the work queue tab - progress!
+You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. You’ll see your new worker listed in the UI under the Workers tab of the Work Pools page with a recent last polled date. You should also be able to see a `Healthy` status indicator in the default work queue under the work queue tab - progress!
 
-You will need to keep this terminal session active in order for the worker continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should be running as a daemonized or managed process. See next steps for more information on this.
+You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should be running as a daemonized or managed process. See next steps for more information on this.
 
-Now that we’ve set up your work pool and worker, we have what we need to kick off and execute flow runs of flows deployed to this work pool. Lets deploy your tutorial flow to `my-docker-pool`.
+Now that you’ve set up your work pool and worker, we have what we need to kick off and execute flow runs of flows deployed to this work pool. Lets deploy your tutorial flow to `my-docker-pool`.
 
 ## Create the deployment
 
@@ -135,7 +135,7 @@ When running `prefect deploy` interactively, the CLI will discover all flows in 
 7. **Image tag (latest):** Hit `Enter` to use the image tag default
 8. **Would you like to push this image to a remote registry? (y/n):** Select `n` for now; we can keep this image local
 
-Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn docker containers whenever this workflow needs to run; try it out:
+Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run; try it out:
 
 <div class="terminal">
 ```bash
@@ -146,7 +146,6 @@ prefect deployment run 'get_repo_info/my-first-deployment'
 !!! danger "Common Pitfalls"
     - When running `prefect deploy`, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
     - Ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
- 
 
 As you continue to use Prefect, you'll likely author many different flows and deployments of them. Check out the next section to learn about defining deployments in a `prefect.yaml` file.
 
@@ -157,7 +156,7 @@ As you continue to use Prefect, you'll likely author many different flows and de
 
 - Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file)
 - Check out some of our other [work pools](/concepts/work-pools/)
-- [Concepts](/concepts/) contain deep dives into Prefect components.
+- [Concepts](/concepts/) contain deep dives into Prefect components
 - [Guides](/guides/) provide step by step recipes for common Prefect operations including:
     - [Deploying on Kubernetes](/guides/deployment/helm-worker/)
     - [Deploying flows in Docker](/guides/deployment/docker/)

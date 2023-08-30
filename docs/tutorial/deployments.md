@@ -21,13 +21,13 @@ One of the most common reasons to use a tool like Prefect is [scheduling](/conce
 
 A deployed flow enhances a normal flow in many ways:
 
-- a deployment has an API for triggering work, cancelling active runs, pausing scheduled work, customizing parameters, and more
+- a deployment has an API for triggering work, [cancelling active runs](/concepts/flows/#cancel-a-flow-run), pausing scheduled work, customizing parameters, and more
 - you can remotely configure schedules and automation rules for your deployments
 - you can even use Prefect to dynamically provision infrastructure using [workers](/tutorials/workers/)
 
 ## What is a deployment?
 
-Deploying a flow is the act of specifying when, where, and how it will run. This information is encapsulated and sent to Prefect as a [Deployment](/concepts/deployments/) which contains the crucial metadata needed for remote orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
+Deploying a flow is the act of specifying when, where, and how it will run. This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) which contains the crucial metadata needed for remote orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to):
 
