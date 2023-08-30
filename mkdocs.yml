@@ -137,14 +137,16 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
+          - Quickstart: getting-started/quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md
           - Tasks: tutorial/tasks.md
           - Deploying Flows: tutorial/deployments.md
+          - Workers & Work Pools: tutorial/workers.md
     - Guides:
           - guides/index.md
-          - Deployment:
+          - Worker Deployment:
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -179,7 +181,6 @@ nav:
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
           - Automations: concepts/automations.md
-          - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
@@ -203,9 +204,9 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
-    - API References:
+    - API Reference:
           - api-ref/index.md
-          - Python SDK API:
+          - Python SDK:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
