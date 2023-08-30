@@ -78,10 +78,9 @@ async def serve(
         None, "-v", "--version", help="A version to give the created deployment."
     ),
     tags: Optional[List[str]] = typer.Option(
-        ...,
+        None,
         "-t",
         "--tag",
-        default_factory=list,
         help="One or more optional tags to apply to the created deployment.",
     ),
     cron: Optional[str] = typer.Option(
@@ -138,7 +137,7 @@ async def serve(
             name=name,
             schedule=schedule,
             description=description,
-            tags=tags,
+            tags=tags or [],
             version=version,
         )
     except (MissingFlowError, ValueError) as exc:
