@@ -12,7 +12,7 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks are atomic pieces of work that are executed independently within a flow. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe and understand. When a function becomes a task, it can be executed concurrently and its return value can be cached.
+A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow. You can think of a flow as a recipe for connecting a known sequence of tasks together. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  When a function becomes a task, it can be executed concurrently and its return value can be cached.
 
 
 Flows and tasks share some common features:
@@ -31,9 +31,9 @@ Network calls (such as our `GET` requests to the GitHub API) are particularly us
 
 Let's take our flow from before and move the request into a task:
 
-```python hl_lines="2 5-9 16"
+```python hl_lines="2 5-9 15" title="repo_info.py"
 import httpx
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
 
 
 @task
@@ -43,17 +43,13 @@ def get_url(url: str, params: dict = None):
     return response.json()
 
 
-@flow(retries=3, retry_delay_seconds=5)
+@flow(retries=3, retry_delay_seconds=5, log_prints=True)
 def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    repo = get_url(f"https://api.github.com/repos/{repo_name}")
-    logger = get_run_logger()
-    logger.info("PrefectHQ/prefect repository statistics 🤓:")
-    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
-    logger.info(f"Forks 🍴 : {repo['forks_count']}")
-
-
-if __name__ == "__main__":
-    get_repo_info()
+    url = f"https://api.github.com/repos/{repo_name}"
+    repo_stats = get_url(url)
+    print(f"{repo_name} repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
+    print(f"Forks 🍴 : {repo_stats['forks_count']}")
 ```
 
 Running the flow in your terminal will result in something like this:
@@ -71,6 +67,8 @@ Running the flow in your terminal will result in something like this:
 ```
 </div>
 
+And you should now see this task run tracked in the UI as well.
+
 ## Caching
 
 Tasks support the ability to cache their return value. This allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
@@ -84,12 +82,16 @@ from prefect import flow, task, get_run_logger
 from prefect.tasks import task_input_hash
 
 
-@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+@task(cache_key_fn=task_input_hash, 
+      cache_expiration=timedelta(hours=1),
+      )
 def get_url(url: str, params: dict = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
 ```
+
+You can test this caching behavior by using a personal repository as your workflow parameter - give it a star, or remove a star and see how the output of this task changes (or doesn't) by running your flow multiple times.
 
 !!! warning "Task results and caching"
     Task results are cached in memory during a flow run and persisted to your home directory by default. Prefect Cloud only stores the cache key, not the data itself.
@@ -98,10 +100,10 @@ def get_url(url: str, params: dict = None):
 
 Tasks enable concurrency, allowing you to execute multiple tasks asynchronously. This concurrency can greatly enhance the efficiency and performance of your workflows. Let's expand our script to calculate the average open issues per user. This will require making more requests:
 
-```python hl_lines="14-24 32-33 38"
+```python hl_lines="14-24 30-31 35" title="repo_info.py"
 import httpx
 from datetime import timedelta
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
 from prefect.tasks import task_input_hash
 
 
@@ -125,22 +127,15 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p]
 
 
-@flow(retries=3, retry_delay_seconds=5)
-def get_repo_info(
-    repo_name: str = "PrefectHQ/prefect"
-):
-    repo = get_url(f"https://api.github.com/repos/{repo_name}")
+@flow(retries=3, retry_delay_seconds=5, log_prints=True)
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    repo_stats = get_url(f"https://api.github.com/repos/{repo_name}")
     issues = get_open_issues(repo_name, repo["open_issues_count"])
     issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
-    logger = get_run_logger()
-    logger.info("PrefectHQ/prefect repository statistics 🤓:")
-    logger.info(f"Stars 🌠 : {repo['stargazers_count']}")
-    logger.info(f"Forks 🍴 : {repo['forks_count']}")
-    logger.info(f"Average open issues per user 💌 : {issues_per_user:.2f}")
-
-
-if __name__ == "__main__":
-    get_repo_info()
+    print(f"{repo_name} repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
+    print(f"Forks 🍴 : {repo_stats['forks_count']}")
+    print(f"Average open issues per user 💌 : {issues_per_user:.2f}")
 ```
 
 Now we're fetching the data we need, but the requests are happening sequentially. Tasks expose a [`submit`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method which changes the execution from sequential to concurrent. In our specific example, we also need to use the [`result`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method since we are unpacking a list of return values:
