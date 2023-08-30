@@ -89,13 +89,13 @@ class Runner:
                     print(f"goodbye {name}")
 
                 if __name__ == "__main__"
-                    runner = Runner(__file__)
+                    runner = Runner(name="my-runner")
 
                     # Will be runnable via the API
-                    runner.add(hello_flow)
+                    runner.add_flow(hello_flow)
 
                     # Run on a cron schedule
-                    runner.add(goodbye_flow, schedule={"cron": "0 * * * *"})
+                    runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
                     runner.start()
                 ```
@@ -140,7 +140,7 @@ class Runner:
         return deployment_id
 
     @sync_compatible
-    async def add(
+    async def add_flow(
         self,
         flow: Flow,
         name: str = None,
@@ -220,13 +220,13 @@ class Runner:
                 print(f"goodbye {name}")
 
             if __name__ == "__main__"
-                runner = Runner(__file__)
+                runner = Runner(name="my-runner")
 
                 # Will be runnable via the API
-                runner.add(hello_flow)
+                runner.add_flow(hello_flow)
 
                 # Run on a cron schedule
-                runner.add(goodbye_flow, schedule={"cron": "0 * * * *"})
+                runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
                 runner.start()
             ```

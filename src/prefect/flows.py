@@ -616,7 +616,7 @@ class Flow(Generic[P, R]):
         name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-        deployment_id = await runner.add(
+        deployment_id = await runner.add_flow(
             self,
             name=name,
             triggers=triggers,

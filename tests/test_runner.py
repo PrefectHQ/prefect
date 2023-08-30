@@ -139,8 +139,10 @@ class TestRunner:
         """Runner.add should create a deployment for the flow passed to it"""
         runner = Runner()
 
-        deployment_id_1 = await runner.add(dummy_flow_1, __file__, interval=3600)
-        deployment_id_2 = await runner.add(dummy_flow_2, __file__, cron="* * * * *")
+        deployment_id_1 = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+        deployment_id_2 = await runner.add_flow(
+            dummy_flow_2, __file__, cron="* * * * *"
+        )
 
         deployment_1 = await prefect_client.read_deployment(deployment_id_1)
         deployment_2 = await prefect_client.read_deployment(deployment_id_2)
@@ -159,19 +161,21 @@ class TestRunner:
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await runner.add(dummy_flow_1, name="test", interval=3600, cron="* * * * *")
+            await runner.add_flow(
+                dummy_flow_1, name="test", interval=3600, cron="* * * * *"
+            )
 
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await runner.add(
+            await runner.add_flow(
                 dummy_flow_1, name="test", interval=3600, rrule="FREQ=MINUTELY"
             )
 
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
-            await runner.add(
+            await runner.add_flow(
                 dummy_flow_1, name="test", cron="* * * * *", rrule="FREQ=MINUTELY"
             )
 
