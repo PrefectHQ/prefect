@@ -143,7 +143,9 @@ async def run_deployment(
             else task_run_ctx.task_run.flow_run_id
         )
         dynamic_key = (
-            _dynamic_key_for_task_run(flow_run_ctx, dummy_task) if flow_run_ctx else 0
+            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            if flow_run_ctx
+            else task_run_ctx.task_run.dynamic_key
         )
         parent_task_run = await client.create_task_run(
             task=dummy_task,
