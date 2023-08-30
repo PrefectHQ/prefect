@@ -95,7 +95,11 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
-from anyio import start_blocking_portal
+
+try:
+    from anyio import start_blocking_portal
+except ImportError:
+    from anyio.from_thread import start_blocking_portal
 from typing_extensions import Literal
 
 import prefect
