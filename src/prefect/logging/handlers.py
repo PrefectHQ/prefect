@@ -26,6 +26,7 @@ from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_LOGGING_COLORS,
+    PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
@@ -51,11 +52,15 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     async def _handle_batch(self, items: List):
         try:
             await self._client.create_logs(items)
-        except Exception:
+        except Exception as e:
             # Roughly replicate the behavior of the stdlib logger error handling
             if logging.raiseExceptions and sys.stderr:
                 sys.stderr.write("--- Error logging to API ---\n")
-                traceback.print_exc(file=sys.stderr)
+                if PREFECT_LOGGING_INTERNAL_LEVEL.value() == "DEBUG":
+                    traceback.print_exc(file=sys.stderr)
+                else:
+                    # Only log the exception message in non-DEBUG mode
+                    sys.stderr.write(f"{e}")
 
     @asynccontextmanager
     async def _lifespan(self):

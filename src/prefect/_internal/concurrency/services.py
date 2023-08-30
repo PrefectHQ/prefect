@@ -3,6 +3,7 @@ import asyncio
 import atexit
 import concurrent.futures
 import contextlib
+import logging
 import queue
 import sys
 import threading
@@ -149,8 +150,12 @@ class QueueService(abc.ABC, Generic[T]):
                 logger.debug("Service %r handling item %r", self, item)
                 await self._handle(item)
             except Exception:
-                logger.exception(
-                    "Service %r failed to process item %r", type(self).__name__, item
+                log_traceback = logger.isEnabledFor(logging.DEBUG)
+                logger.error(
+                    "Service %r failed to process item %r",
+                    type(self).__name__,
+                    item,
+                    exc_info=log_traceback,
                 )
 
     @abc.abstractmethod
@@ -313,10 +318,12 @@ class BatchedQueueService(QueueService[T]):
             try:
                 await self._handle_batch(batch)
             except Exception:
-                logger.exception(
+                log_traceback = logger.isEnabledFor(logging.DEBUG)
+                logger.error(
                     "Service %r failed to process batch of size %s",
                     self,
                     batch_size,
+                    exc_info=log_traceback,
                 )
 
     @abc.abstractmethod
