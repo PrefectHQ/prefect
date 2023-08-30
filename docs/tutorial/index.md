@@ -16,15 +16,15 @@ search:
 ---
 # Tutorial Overview
 
-This tutorial provides a step by step walk-through of Prefect core concepts and instructions on how to use them.
+This tutorial provides a guided walk-through of Prefect core concepts and instructions on how to use them.
 
 By the end of this tutorial you will have:
 
-1. [Created a Flow](/tutorial/flows/)
-2. [Added Tasks to It](/tutorial/tasks/)
-3. [Created a Work Pool](/tutorial/deployments/)
-4. [Started a Worker](/tutorial/deployments/)
-5. [Deployed and run the Flow](/tutorial/deployments/)
+1. [Created a flow](/tutorial/flows/)
+2. [Added tasks to it](/tutorial/tasks/)
+3. [Deployed and run the flow](/tutorial/deployments/)
+4. [Created a work pool & worker](/tutorial/deployments/)
+5. [Run the flow with a worker](/tutorial/deployments/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
@@ -35,7 +35,7 @@ If you're looking for examples of more advanced operations (like [deploying on K
 
 2. Create a GitHub repository for your tutorial, let's call it `prefect-tutorial`.
 
-3. This tutorial requires a Prefect Server instance, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
+3. This tutorial requires the Prefect API, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
 
 ## What is Prefect?
 
@@ -45,6 +45,6 @@ Prefect also provides error handling, retry mechanisms, and a user-friendly dash
 
 Just bring your Python code, sprinkle in a few decorators, and go!
 
-## [Next: Flows](/tutorial/flows/)
+## [First steps: Flows](/tutorial/flows/)
 
-Get started with learning how to create your first Prefect Flow.
+Begin by learning how to create your first Prefect flow.
