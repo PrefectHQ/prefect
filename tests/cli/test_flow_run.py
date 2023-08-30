@@ -6,7 +6,9 @@ import pytest
 import prefect.exceptions
 from prefect import flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import LogCreate
+from prefect.deployments.runner import RunnerDeployment
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -703,3 +705,48 @@ class TestFlowRunLogs:
             ],
             expected_line_count=251,
         )
+
+
+class TestFlowRunExecute:
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
+        deployment_id = await RunnerDeployment.from_entrypoint(
+            entrypoint="flows/hello_world.py:hello", name="test"
+        ).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_execute_flow_run_via_environment_variable(
+        self, prefect_client: PrefectClient, monkeypatch
+    ):
+        deployment = RunnerDeployment.from_entrypoint(
+            entrypoint="flows/hello_world.py:hello", name="test"
+        )
+        deployment_id = await deployment.apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run.id))
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute"],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
