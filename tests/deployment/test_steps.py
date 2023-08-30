@@ -246,15 +246,24 @@ class TestRunSteps:
 
 
 class MockCredentials:
-    def __init__(self, token: str):
+    def __init__(self, token: str, username: str = None, password: str = None):
         self.token = token
-        self.data = {"value": {"token": self.token}}
+        self.username = username
+        self.password = password
+
+        self.data = {
+            "value": {
+                "token": self.token,
+                "username": self.username,
+                "password": self.password,
+            }
+        }
 
     async def save(self, name: str):
         pass
 
     async def load(self, name: str):
-        return MockCredentials("mock-token")
+        return MockCredentials(token="mock-token")
 
 
 class TestGitCloneStep:
@@ -640,6 +649,131 @@ class TestGitCloneStep:
             stderr=ANY,
             stdout=ANY,
         )
+
+    @pytest.mark.parametrize(
+        "access_token", ["x-token-auth:example-token", "username:example-token"]
+    )
+    async def test_git_clone_with_bitbucket_server_repo_with_access_token(
+        self, monkeypatch, access_token
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": (
+                        "https://bitbucketserver.com/scm/projectname/teamsinspace.git"
+                    ),
+                    "access_token": access_token,
+                }
+            }
+        )
+
+        formatted_token = (
+            f"x-token-auth:{access_token}" if ":" not in access_token else access_token
+        )
+
+        assert output["directory"] == "teamsinspace"
+        subprocess_mock.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                f"https://{formatted_token}@bitbucketserver.com/scm/projectname/teamsinspace.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    async def test_git_clone_with_bitbucket_server_repo_with_invalid_access_token_raises(
+        self, monkeypatch
+    ):
+        subprocess_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            subprocess_mock,
+        )
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Please prefix your BitBucket Server access_token with a username, e.g."
+                " 'username:token'"
+            ),
+        ):
+            await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://bitbucketserver.com/scm/projectname/teamsinspace.git",
+                        "access_token": "example-token",
+                    }
+                }
+            )
+
+    @pytest.mark.parametrize("token", (["username:example-token", "example-token"]))
+    async def test_git_clone_with_bitbucket_server_repo_with_valid_bitbucket_credentials_block(
+        self, monkeypatch, token
+    ):
+        mock_subprocess = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.subprocess",
+            mock_subprocess,
+        )
+        blocks = {
+            "bitbucket-credentials": {
+                "my-bitbucket-creds-block": MockCredentials(
+                    token=token, username="username"
+                )
+            }
+        }
+
+        async def mock_read_block_document(self, name: str, block_type_slug: str):
+            return blocks[block_type_slug][name]
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_block_document_by_name",
+            mock_read_block_document,
+        )
+
+        await MockCredentials(token=token, username="username").save(
+            "my-bitbucket-creds-block"
+        )
+
+        output = await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": (
+                        "https://bitbucketserver.com/scm/projectname/teamsinspace.git"
+                    ),
+                    "credentials": (
+                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block }}"
+                    ),
+                }
+            }
+        )
+
+        assert output["directory"] == "teamsinspace"
+        mock_subprocess.check_call.assert_called_once_with(
+            [
+                "git",
+                "clone",
+                "https://username:example-token@bitbucketserver.com/scm/projectname/teamsinspace.git",
+                "--depth",
+                "1",
+            ],
+            shell=False,
+            stderr=ANY,
+            stdout=ANY,
+        )
+
+    async def test_git_clone_with_bitbucket_server_repo_with_invalid_bitbucket_credentials_block_raises(
+        self, monkeypatch
+    ):
+        pass
 
     @pytest.mark.parametrize("access_token", ["example-token", "oauth2:example-token"])
     async def test_git_clone_with_gitlab_access_token(self, access_token, monkeypatch):

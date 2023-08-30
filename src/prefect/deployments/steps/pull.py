@@ -29,6 +29,66 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
+def _format_token(url_components, access_token, username, password, token) -> str:
+    """
+    Formats the access token for the git provider.
+
+    Bitbucket supports the following syntax:
+        git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
+        git clone https://username:<token>@bitbucketserver.com/scm/projectname/teamsinspace.git
+
+        For Bitbucket Server we seemingly need the username. If they pass a credentials block and we don't have both a username and at
+        least one of a password or token and they don't provide a header themselves,
+        we can raise the approriate error to avoid the wrong format for BitBucket Server.
+    """
+    if "bitbucketserver" in url_components.netloc:
+        if access_token:
+            if ":" in access_token:
+                return access_token
+            else:
+                raise ValueError(
+                    "Please prefix your BitBucket Server access_token with a username,"
+                    " e.g. 'username:token'."
+                )
+
+        elif username and (token or password):
+            if token:
+                return f"{username}:{token}" if username not in token else token
+            return f"{username}:{password}"
+
+        for item in [token, password]:
+            if ":" in item:
+                return item
+        raise ValueError(
+            "Please provide a `username` and a `password` or `token` in your"
+            " BitBucketCredentials block to clone a repo from BitBucket Server."
+        )
+
+    elif "bitbucket" in url_components.netloc:
+        user_provided_token = access_token or token or password
+        contains_header = (
+            user_provided_token.startswith("x-token-auth:")
+            or ":" in user_provided_token
+        )
+        return (
+            f"x-token-auth:{user_provided_token}"
+            if not contains_header
+            else user_provided_token
+        )
+
+    elif "gitlab" in url_components.netloc:
+        user_provided_token = access_token or token
+        if user_provided_token:
+            return (
+                f"oauth2:{user_provided_token}"
+                if not user_provided_token.startswith("oauth2:")
+                else user_provided_token
+            )
+
+    else:
+        return access_token or token
+
+
 def git_clone(
     repository: str,
     branch: Optional[str] = None,
@@ -110,20 +170,16 @@ def git_clone(
             "Please provide either an access token or credentials but not both."
         )
 
-    if credentials:
-        if credentials.get("token"):
-            access_token = credentials["token"]
-        elif credentials.get("username") and credentials.get("password"):
-            access_token = f"{credentials['username']}:{credentials['password']}"
-
     url_components = urllib.parse.urlparse(repository)
 
-    if "bitbucket" in url_components.netloc:
-        if access_token and not access_token.startswith("x-token-auth:"):
-            access_token = f"x-token-auth:{access_token}"
-    elif "gitlab" in url_components.netloc:
-        if access_token and not access_token.startswith("oauth2:"):
-            access_token = f"oauth2:{access_token}"
+    if access_token or credentials:
+        username = credentials.get("username") if credentials else None
+        password = credentials.get("password") if credentials else None
+        token = credentials.get("token") if credentials else None
+
+        access_token = _format_token(
+            url_components, access_token, username, password, token
+        )
 
     if url_components.scheme == "https" and access_token is not None:
         updated_components = url_components._replace(
