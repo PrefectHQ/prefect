@@ -174,4 +174,4 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 ## [Next: Tasks](/tutorial/tasks/)
 
 As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow. 
-In the next section, you'll supercharge this flow by using tasks to break down the workflow's complexity and make it more performant and observable.
+In the next section, you'll supercharge this flow by using tasks to break down the workflow's complexity and make it more performant and observable - [click here to continue](/tutorial/tasks/).

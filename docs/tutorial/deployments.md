@@ -152,8 +152,8 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 ## Next Steps
 
-Take your understanding of Prefect deployments even further:
+Congratulations! You now have your first working deployment. 
+You can pause here and begin exploring Prefect's features, or take your understanding of Prefect deployments even further:
 
+- learn how to dynamically provision infrastructure with [the workers and work pools tutorial](/tutorial/workers/)
 - review the [deployments concept documentation](/concepts/deployments/)
-- build a Docker image for your workflows to run in remote infrastructure
-- learn how to dynamically provision infrastructure using [workers and work pools](/tutorial/workers/)

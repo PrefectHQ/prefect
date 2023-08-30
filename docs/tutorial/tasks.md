@@ -219,4 +219,4 @@ Whenever we run the parent flow, a new run will be generated for related functio
 
 ## [Next: Deployments](/tutorial/deployments/)
 
-We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure.
+We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure - [click here to learn how to create your first deployment](/tutorial/deployments/).

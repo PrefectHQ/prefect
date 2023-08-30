@@ -23,8 +23,12 @@ By the end of this tutorial you will have:
 1. [Created a flow](/tutorial/flows/)
 2. [Added tasks to it](/tutorial/tasks/)
 3. [Deployed and run the flow](/tutorial/deployments/)
-4. [Created a work pool & worker](/tutorial/workers/)
-5. [Run the flow with a worker](/tutorial/workers/)
+
+These three topics will get most users ready for their first production deployment. 
+
+Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
+
+4. [Creating a work pool & worker](/tutorial/workers/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
@@ -33,9 +37,7 @@ If you're looking for examples of more advanced operations (like [deploying on K
 1. Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
       1. See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-2. Create a GitHub repository for your tutorial, let's call it `prefect-tutorial`.
-
-3. This tutorial requires the Prefect API, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
+2. This tutorial requires the Prefect API, so sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect Server](/host/).
 
 ## What is Prefect?
 
@@ -47,4 +49,4 @@ Just bring your Python code, sprinkle in a few decorators, and go!
 
 ## [First steps: Flows](/tutorial/flows/)
 
-Begin by learning how to create your first Prefect flow.
+Let's begin by learning how to create your first Prefect flow - [click here to get started](/tutorial/flows/).
