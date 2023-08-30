@@ -13,17 +13,17 @@ search:
 # Deploying Flows
 
 !!! note "Reminder to start a Prefect API"
-    Some features in this tutorial such as scheduling require a Prefect server to be running; if using a self-hosted setup, simply run `prefect server start` to run both the webserver and UI; if using Prefect Cloud, make sure you have [successfully configured your local profile](/cloud/cloud-quickstart/).
+    Some features in this tutorial, such as scheduling, require a Prefect server to be running; if using a self-hosted setup, simply run `prefect server start` to run both the webserver and UI; if using Prefect Cloud, make sure you have [successfully configured your local profile](/cloud/cloud-quickstart/).
 
 ## Why deployments?
 
 One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/). Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs. You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
 
-A deployed flow enhances a normal flow in many ways:
+Deploying a flow exposes an API and UI so that you can:
 
-- a deployment has an API for triggering work, [cancelling active runs](/concepts/flows/#cancel-a-flow-run), pausing scheduled work, customizing parameters, and more
-- you can remotely configure schedules and automation rules for your deployments
-- you can even use Prefect to dynamically provision infrastructure using [workers](/tutorials/workers/)
+- trigger new runs, [cancel active runs](/concepts/flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
+- remotely configure schedules and automation rules for your deployments
+- dynamically provision infrastructure using [workers](/tutorials/workers/)
 
 ## What is a deployment?
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
 A few observations are in order:
 
-- flow's `to_deployment` interface exposes the _exact same_ options as `flow.serve`; this method produces a deployment object
+- the `flow.to_deployment` interface exposes the _exact same_ options as `flow.serve`; this method produces a deployment object
 - the deployments are only registered with the API once `serve(...)` is called
 - when serving multiple deployments, the only requirement is that they share a Python environment; they can be executed and scheduled independently of each other
 

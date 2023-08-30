@@ -97,7 +97,7 @@ prefect worker start --pool my-docker-pool
 </div>
 You should see the worker start - it's now polling the Prefect API to request any scheduled flow runs it should pick up and then submit for execution. You’ll see your new worker listed in the UI under the Workers tab of the Work Pools page with a recent last polled date. You should also be able to see a `Healthy` status indicator in the default work queue under the work queue tab - progress!
 
-You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should be running as a daemonized or managed process. See next steps for more information on this.
+You will need to keep this terminal session active in order for the worker to continue to pick up jobs. Since you are running this worker locally, the worker will terminate if you close the terminal. Therefore, in a production setting this worker should run as a daemonized or managed process. See next steps for more information on this.
 
 Now that you’ve set up your work pool and worker, we have what we need to kick off and execute flow runs of flows deployed to this work pool. Lets deploy your tutorial flow to `my-docker-pool`.
 
@@ -150,7 +150,7 @@ prefect deployment run 'get_repo_info/my-first-deployment'
 As you continue to use Prefect, you'll likely author many different flows and deployments of them. Check out the next section to learn about defining deployments in a `prefect.yaml` file.
 
 !!! tip "Did you know?"
-    A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple different schedules.
+    A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple schedules.
 
 ## Next Steps
 
