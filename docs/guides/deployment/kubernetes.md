@@ -152,7 +152,8 @@ Let's look at a few popular configuration options.
 **Environment Variables**
 
 Add environment variables to set when starting a flow run.
-You can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
+So long as you are using a Prefect-maintained image and haven't overwritten the image's entrypoint, you can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. 
+For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
 Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
 As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
 
