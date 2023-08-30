@@ -170,7 +170,6 @@ class RunnerDeployment(BaseModel):
                 "A timezone can only be provided with interval, cron, or rrule"
             )
 
-        schedule = schedule
         if interval:
             if isinstance(interval, (int, float)):
                 interval = timedelta(seconds=interval)

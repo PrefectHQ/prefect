@@ -51,7 +51,7 @@ async def ls(
     app.console.print(table)
 
 
-ENTRYPOINT_REGEX = re.compile(r"^([\\w\\-\\./\\:]+\\.py):([\\w\\-\\.]+)$")
+ENTRYPOINT_REGEX = re.compile(r"^([\w\-\./\:]+\.py):([\w\-\.]+)$")
 
 
 def entrypoint_callback(value: str) -> str:
