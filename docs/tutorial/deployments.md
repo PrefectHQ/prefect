@@ -17,7 +17,9 @@ search:
 
 ## Why deployments?
 
-One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/). Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs. You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
+One of the most common reasons to use a tool like Prefect is [scheduling](/concepts/schedules) or [event-based triggering](/concepts/automations/). 
+Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs. 
+You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
 
 Deploying a flow exposes an API and UI so that you can:
 
@@ -27,7 +29,9 @@ Deploying a flow exposes an API and UI so that you can:
 
 ## What is a deployment?
 
-Deploying a flow is the act of specifying when, where, and how it will run. This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) which contains the crucial metadata needed for remote orchestration. Deployments elevate workflows from functions that you call manually to API-managed entities.
+Deploying a flow is the act of specifying when, where, and how it will run. 
+This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) that contains the crucial metadata needed for remote orchestration. 
+Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Attributes of a deployment include (but are not limited to):
 
@@ -65,26 +69,30 @@ Running this script will do two things:
 - stay running to listen for flow runs for this deployment; when a run is found, it will be _asynchronously executed within a subprocess_
 
 !!! warning "Deployments must be defined in static files"
-    Flows can be defined and run interactively, that is, within REPLs or Notebooks; deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups).  
+    Flows can be defined and run interactively, that is, within REPLs or Notebooks.
+    Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups).  
 
-Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it; let's use the CLI (in a separate terminal window) to see what happens:
+Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it. 
+Let's use the CLI (in a separate terminal window) to see what happens:
 <div class="terminal">
 ```bash
 prefect deployment run 'get_repo_info/my-first-deployment'
 ```
 </div>
 
-If you are watching either your terminal or your UI, you should see the newly created run execute successfully!  Let's take this further by adding a schedule and additional metadata.
+If you are watching either your terminal or your UI, you should see the newly created run execute successfully!  
+Let's take this example further by adding a schedule and additional metadata.
 
 
 ### Additional options
 
-The `serve` method on flows exposes many options for your deployment; let's use a few of these options now:
+The `serve` method on flows exposes many options for your deployment.
+Let's use a few of these options now:
 
 - `cron`: a keyword that allows us to set a cron string schedule for the deployment; see [schedules](/concepts/schedules/) for more advanced scheduling options
 - `tags`: a keyword that allows us to tag this deployment and its runs for bookkeeping and filtering purposes
 - `description`: a keyword that allows us to document what this deployment does; by default the description is set from the docstring of the flow function, but we did not document our flow
-- `version`: a keyword that allows us to track changes to our deployment; by default a hash of the file containing the flow is used. Popular options include semver tags or git commit hashes
+- `version`: a keyword that allows us to track changes to our deployment; by default a hash of the file containing the flow is used; popular options include semver tags or git commit hashes
 
 Setting these fields is simple:
 ```python

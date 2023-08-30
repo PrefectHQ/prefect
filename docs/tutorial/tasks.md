@@ -12,7 +12,10 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow. You can think of a flow as a recipe for connecting a known sequence of tasks together. Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  When a function becomes a task, it can be executed concurrently and its return value can be cached.
+A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow. 
+You can think of a flow as a recipe for connecting a known sequence of tasks together. 
+Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  
+When a function becomes a task, it can be executed concurrently and its return value can be cached.
 
 
 Flows and tasks share some common features:
@@ -71,7 +74,8 @@ And you should now see this task run tracked in the UI as well.
 
 ## Caching
 
-Tasks support the ability to cache their return value. This allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
+Tasks support the ability to cache their return value. 
+Caching allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
 
