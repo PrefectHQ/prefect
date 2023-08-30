@@ -51,8 +51,7 @@ The fastest way to get started with Prefect is to add a `@flow` decorator to any
 
 Here is an example flow named "Repo Info" that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect:
 
-```python
-# my_flow.py
+```python title="my_flow.py"
 import httpx
 from prefect import flow, task
 

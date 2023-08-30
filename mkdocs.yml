@@ -143,6 +143,7 @@ nav:
           - Flows: tutorial/flows.md
           - Tasks: tutorial/tasks.md
           - Deploying Flows: tutorial/deployments.md
+          - Workers & Work Pools: tutorial/workers.md
     - Guides:
           - guides/index.md
           - Worker Deployment:
