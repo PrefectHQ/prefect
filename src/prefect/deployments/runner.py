@@ -13,9 +13,7 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
+    construct_schedule,
 )
 from prefect.events.schemas import DeploymentTrigger
 from prefect.flows import Flow, load_flow_from_entrypoint
@@ -134,7 +132,7 @@ class RunnerDeployment(BaseModel):
             return deployment_id
 
     @staticmethod
-    def construct_schedule(
+    def _construct_schedule(
         interval: Optional[Union[int, float, timedelta]] = None,
         anchor_date: Optional[Union[datetime, str]] = None,
         cron: Optional[str] = None,
@@ -145,12 +143,18 @@ class RunnerDeployment(BaseModel):
         """
         Construct a schedule from the provided arguments.
 
+        This is a single path for all serve schedules. If schedule is provided,
+        it is returned. Otherwise, the other arguments are used to construct a schedule.
+
         Args:
             interval: An interval on which to schedule runs. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             anchor_date: The start date for an interval schedule.
             cron: A cron schedule for runs.
             rrule: An rrule schedule of when to execute runs of this flow.
+            timezone: A timezone to use for the schedule.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
         """
         num_schedules = sum(
             1 for entry in (interval, cron, rrule, schedule) if entry is not None
@@ -160,26 +164,18 @@ class RunnerDeployment(BaseModel):
                 "Only one of interval, cron, rrule, or schedule can be provided."
             )
 
-        if anchor_date and not interval:
-            raise ValueError(
-                "An anchor date can only be provided with an interval schedule"
+        if schedule:
+            return schedule
+        elif interval or cron or rrule:
+            return construct_schedule(
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                timezone=timezone,
+                anchor_date=anchor_date,
             )
-
-        if timezone and not (interval or cron or rrule):
-            raise ValueError(
-                "A timezone can only be provided with interval, cron, or rrule"
-            )
-
-        if interval:
-            if isinstance(interval, (int, float)):
-                interval = timedelta(seconds=interval)
-            schedule = IntervalSchedule(interval=interval)
-        elif cron:
-            schedule = CronSchedule(cron=cron)
-        elif rrule:
-            schedule = RRuleSchedule(rrule=rrule)
-
-        return schedule
+        else:
+            return None
 
     def _set_defaults_from_flow(self, flow: Flow):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -224,7 +220,7 @@ class RunnerDeployment(BaseModel):
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
         """
-        schedule = cls.construct_schedule(
+        schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
 
@@ -303,7 +299,7 @@ class RunnerDeployment(BaseModel):
         """
         flow = load_flow_from_entrypoint(entrypoint)
 
-        schedule = cls.construct_schedule(
+        schedule = cls._construct_schedule(
             interval=interval,
             cron=cron,
             rrule=rrule,
