@@ -516,9 +516,7 @@ class TestGitCloneStep:
             stdout=ANY,
         )
 
-    async def test_git_clone_with_bitbucket_credentials_block_succeeds(
-        self, monkeypatch
-    ):
+    async def test_git_clone_with_bitbucket_credentials_block(self, monkeypatch):
         mock_subprocess = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.pull.subprocess",
@@ -567,7 +565,7 @@ class TestGitCloneStep:
             stdout=ANY,
         )
 
-    async def test_git_clone_with_bitbucket_credentials_block_old_format_succeeds(
+    async def test_git_clone_with_bitbucket_credentials_block_old_format(
         self, monkeypatch
     ):
         mock_subprocess = MagicMock()
@@ -699,7 +697,7 @@ class TestGitCloneStep:
             stdout=ANY,
         )
 
-    async def test_git_clone_with_gitlab_credentials_block_succeeds(self, monkeypatch):
+    async def test_git_clone_with_gitlab_credentials_block(self, monkeypatch):
         mock_subprocess = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.pull.subprocess",
@@ -746,7 +744,7 @@ class TestGitCloneStep:
             stdout=ANY,
         )
 
-    async def test_git_clone_with_gitlab_credentials_block_old_format_succeeds(
+    async def test_git_clone_with_gitlab_credentials_block_old_format(
         self, monkeypatch
     ):
         mock_subprocess = MagicMock()
