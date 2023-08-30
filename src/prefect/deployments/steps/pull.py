@@ -29,7 +29,7 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
-def _format_token(url_components, access_token, username, password, token) -> str:
+def _format_token(netloc: str, access_token: str, credentials: dict) -> str:
     """
     Formats the access token for the git provider.
 
@@ -37,9 +37,12 @@ def _format_token(url_components, access_token, username, password, token) -> st
         git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
         git clone https://username:<token>@bitbucketserver.com/scm/projectname/teamsinspace.git
     """
+    username = credentials.get("username") if credentials else None
+    password = credentials.get("password") if credentials else None
+    token = credentials.get("token") if credentials else None
 
-    if "bitbucketserver" in url_components.netloc:
-        # If they pass a header themselves, we can just use that.
+    if "bitbucketserver" in netloc:
+        # If they pass a header themselves, we can use it as-is
         if access_token:
             if ":" in access_token:
                 return access_token
@@ -51,33 +54,36 @@ def _format_token(url_components, access_token, username, password, token) -> st
 
         # If they pass a BitBucketCredentials block and we don't have both a username and at
         # least one of a password or token and they don't provide a header themselves,
-        # we can raise the approriate error to avoid the wrong format for BitBucket Server.
-        elif username and (token or password):
-            if token:
-                return f"{username}:{token}" if username not in token else token
-            return f"{username}:{password}"
+        # we can raise the appropriate error to avoid the wrong format for BitBucket Server.
+        user_provided_token = token or password
+        if username and user_provided_token:
+            return (
+                f"{username}:{user_provided_token}"
+                if username not in user_provided_token
+                else user_provided_token
+            )
+        # If no username was provided but they did provide the username in the token or password
+        elif user_provided_token and ":" in user_provided_token:
+            return user_provided_token
+        else:
+            raise ValueError(
+                "Please provide a `username` and a `password` or `token` in your"
+                " BitBucketCredentials block to clone a repo from BitBucket Server."
+            )
 
-        for item in [token, password]:
-            if ":" in item:
-                return item
-        raise ValueError(
-            "Please provide a `username` and a `password` or `token` in your"
-            " BitBucketCredentials block to clone a repo from BitBucket Server."
-        )
-
-    elif "bitbucket" in url_components.netloc:
+    elif "bitbucket" in netloc:
         user_provided_token = access_token or token or password
-        contains_header = (
-            user_provided_token.startswith("x-token-auth:")
-            or ":" in user_provided_token
-        )
-        return (
-            f"x-token-auth:{user_provided_token}"
-            if not contains_header
-            else user_provided_token
-        )
+        if user_provided_token:
+            contains_header = (
+                user_provided_token.startswith("x-token-auth:")
+                or ":" in user_provided_token
+            )
+            if contains_header:
+                return user_provided_token
+            else:
+                return f"x-token-auth:{user_provided_token}"
 
-    elif "gitlab" in url_components.netloc:
+    elif "gitlab" in netloc:
         user_provided_token = access_token or token
         if user_provided_token:
             return (
@@ -86,8 +92,11 @@ def _format_token(url_components, access_token, username, password, token) -> st
                 else user_provided_token
             )
 
-    else:
-        return access_token or token
+    # all other cases (GitHub, etc.)
+    elif access_token:
+        return access_token
+    elif token:
+        return token
 
 
 def git_clone(
@@ -174,13 +183,7 @@ def git_clone(
     url_components = urllib.parse.urlparse(repository)
 
     if access_token or credentials:
-        username = credentials.get("username") if credentials else None
-        password = credentials.get("password") if credentials else None
-        token = credentials.get("token") if credentials else None
-
-        access_token = _format_token(
-            url_components, access_token, username, password, token
-        )
+        access_token = _format_token(url_components.netloc, access_token, credentials)
 
     if url_components.scheme == "https" and access_token is not None:
         updated_components = url_components._replace(
