@@ -12,6 +12,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.client.schemas.schedules import construct_schedule
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
 from prefect.exceptions import MissingFlowError
@@ -126,13 +127,15 @@ async def serve(
     """
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
     try:
-        schedule = RunnerDeployment.construct_schedule(
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            timezone=timezone,
-            anchor_date=interval_anchor,
-        )
+        schedule = None
+        if interval or cron or rrule:
+            schedule = construct_schedule(
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                timezone=timezone,
+                anchor_date=interval_anchor,
+            )
         runner_deployment = RunnerDeployment.from_entrypoint(
             entrypoint=entrypoint,
             name=name,
