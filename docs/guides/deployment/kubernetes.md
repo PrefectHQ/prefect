@@ -162,7 +162,9 @@ Set the Kubernetes namespace to create jobs within, such as `prefect`. By defaul
 
 **Image**
 
-Specify the Docker container image for created jobs. If not set, the latest Prefect 2 image will be used.
+Specify the Docker container image for created jobs.
+If not set, the latest Prefect 2 image will be used (i.e. `prefecthq/prefect:2-latest`).
+Note that you can override this on each deployment through `job_variables`.
 
 **Image Pull Policy**
 
