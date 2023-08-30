@@ -142,7 +142,7 @@ if __name__ == "__main__":
     repo_info.serve(name="my-first-deployment", cron="* * * * *")
 ```
 
-Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day.
+Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
 
 ![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 
