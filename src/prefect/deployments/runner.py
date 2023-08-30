@@ -154,6 +154,9 @@ class RunnerDeployment(BaseModel):
                 "An anchor date can only be provided with an interval schedule"
             )
 
+        if timezone and num_schedules == 0:
+            raise ValueError("A timezone can only be provided with a schedule")
+
         schedule = None
         if interval:
             if isinstance(interval, (int, float)):

@@ -145,8 +145,10 @@ class Runner:
         flow: Flow,
         name: str = None,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        anchor_date: Optional[Union[str, datetime]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
+        timezone: Optional[str] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[DeploymentTrigger]] = None,
         description: Optional[str] = None,
@@ -165,8 +167,10 @@ class Runner:
                 of the runner.
             interval: An interval on which to execute the current flow. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
+            anchor_date: A datetime to anchor the interval on. Defaults to the current time.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -188,8 +192,10 @@ class Runner:
         deployment = flow.to_deployment(
             name=name,
             interval=interval,
+            anchor_date=anchor_date,
             cron=cron,
             rrule=rrule,
+            timezone=timezone,
             triggers=triggers,
             parameters=parameters,
             description=description,
