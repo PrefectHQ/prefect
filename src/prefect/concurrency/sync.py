@@ -8,8 +8,8 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
 from .asyncio import (
-    acquire_concurrency_slots,
-    release_concurrency_slots,
+    _acquire_concurrency_slots,
+    _release_concurrency_slots,
 )
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -22,7 +22,7 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
     names = names if isinstance(names, list) else [names]
 
     limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-        acquire_concurrency_slots, names, occupy
+        _acquire_concurrency_slots, names, occupy
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -34,7 +34,7 @@ def concurrency(names: Union[str, List[str]], occupy: int = 1):
             pendulum.now("UTC") - acquisition_time
         ).total_seconds()
         _call_async_function_from_sync(
-            release_concurrency_slots, names, occupy, occupancy_seconds
+            _release_concurrency_slots, names, occupy, occupancy_seconds
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
@@ -50,7 +50,7 @@ def rate_limit(names: Union[str, List[str]], occupy: int = 1):
     """
     names = names if isinstance(names, list) else [names]
     limits = _call_async_function_from_sync(
-        acquire_concurrency_slots, names, occupy, mode="rate_limit"
+        _acquire_concurrency_slots, names, occupy, mode="rate_limit"
     )
     _emit_concurrency_acquisition_events(limits, occupy)
 
