@@ -142,7 +142,7 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 ## Retries
 
 So far our script works, but in the future unexpected errors may occur; for example the GitHub API may be temporarily unavailable or rate limited. [Retries](/concepts/flows/#flow-settings) help make our flow more resilient. Let's add retry functionality to our example above:
-```python hl_lines="5"
+```python hl_lines="5" title="repo_info.py"
 import httpx
 from prefect import flow
 
