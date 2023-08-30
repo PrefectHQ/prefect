@@ -38,14 +38,13 @@ class TestServe:
         prefect_client: PrefectClient,
     ):
         async with anyio.create_task_group() as tg:
-            with anyio.CancelScope(shield=True):
-                deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-                deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+            deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+            deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
-                tg.start_soon(serve, deployment_1, deployment_2)
+            tg.start_soon(serve, deployment_1, deployment_2)
 
-                await anyio.sleep(1)
-                tg.cancel_scope.cancel()
+            await anyio.sleep(1)
+            tg.cancel_scope.cancel()
 
         deployment = await prefect_client.read_deployment_by_name(
             name="dummy-flow-1/test_runner"

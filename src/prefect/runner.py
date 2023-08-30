@@ -810,7 +810,6 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
-        self._runs_task_group = None
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

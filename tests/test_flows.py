@@ -3048,15 +3048,7 @@ class TestFlowHooksOnCrashed:
 
 
 class TestFlowToDeployment:
-    @pytest.fixture
-    def test_flow(self):
-        @flow
-        def test_flow(name: str):
-            print(name)
-
-        return test_flow
-
-    async def test_to_deployment_returns_runner_deployment(self, test_flow):
+    async def test_to_deployment_returns_runner_deployment(self):
         deployment = test_flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
@@ -3096,23 +3088,23 @@ class TestFlowToDeployment:
             )
         ]
 
-    async def test_to_deployment_accepts_interval(self, test_flow):
+    async def test_to_deployment_accepts_interval(self):
         deployment = test_flow.to_deployment(name="test", interval=3600)
 
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
-    async def test_to_deployment_accepts_cron(self, test_flow):
+    async def test_to_deployment_accepts_cron(self):
         deployment = test_flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
-    async def test_to_deployment_accepts_rrule(self, test_flow):
+    async def test_to_deployment_accepts_rrule(self):
         deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
-    async def test_to_deployment_errors_with_multiple_schedules(self, test_flow):
+    async def test_to_deployment_errors_with_multiple_schedules(self):
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):
@@ -3132,15 +3124,7 @@ class TestFlowToDeployment:
 
 
 class TestFlowServe:
-    @pytest.fixture
-    def test_flow(self):
-        @flow
-        def test_flow(name: str):
-            print(name)
-
-        return test_flow
-
-    async def test_serve_prints_message(self, test_flow, capsys):
+    async def test_serve_prints_message(self, capsys):
         async with anyio.create_task_group() as tg:
             tg.start_soon(test_flow.serve, "test")
 
@@ -3155,9 +3139,7 @@ class TestFlowServe:
         )
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
-    async def test_serve_creates_deployment(
-        self, test_flow, prefect_client: PrefectClient
-    ):
+    async def test_serve_creates_deployment(self, prefect_client: PrefectClient):
         async with anyio.create_task_group() as tg:
             test_serve = partial(
                 test_flow.serve,
@@ -3184,9 +3166,7 @@ class TestFlowServe:
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
 
-    async def test_serve_handles__file__(
-        self, test_flow, prefect_client: PrefectClient
-    ):
+    async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         async with anyio.create_task_group() as tg:
             tg.start_soon(test_flow.serve, __file__)
             await anyio.sleep(1)
@@ -3199,7 +3179,7 @@ class TestFlowServe:
         assert deployment.name == "test_flows"
 
     async def test_serve_creates_deployment_with_interval_schedule(
-        self, test_flow, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", interval=3600)
@@ -3214,7 +3194,7 @@ class TestFlowServe:
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_serve_creates_deployment_with_cron_schedule(
-        self, test_flow, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", cron="* * * * *")
@@ -3228,7 +3208,7 @@ class TestFlowServe:
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_serve_creates_deployment_with_rrule_schedule(
-        self, test_flow, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient
     ):
         async with anyio.create_task_group() as tg:
             test_serve = partial(test_flow.serve, "test", rrule="FREQ=MINUTELY")
@@ -3241,7 +3221,7 @@ class TestFlowServe:
         assert deployment is not None
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
-    async def test_to_deployment_errors_with_multiple_schedules(self, test_flow):
+    async def test_to_deployment_errors_with_multiple_schedules(self):
         with pytest.raises(
             ValueError, match="Only one of interval, cron, or rrule can be provided."
         ):

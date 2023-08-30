@@ -2,6 +2,7 @@
 Command line interface for working with flows.
 """
 
+import re
 from typing import List, Optional
 
 import typer
@@ -9,10 +10,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
+from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
 
@@ -48,14 +51,26 @@ async def ls(
     app.console.print(table)
 
 
+ENTRYPOINT_REGEX = re.compile(r"^([\\w\\-\\./\\:]+\\.py):([\\w\\-\\.]+)$")
+
+
+def entrypoint_callback(value: str) -> str:
+    if not ENTRYPOINT_REGEX.match(value):
+        raise typer.BadParameter(
+            "Entrypoint must be in the format 'path/to/file.py:flow_name'."
+        )
+    return value
+
+
 @flow_app.command()
 async def serve(
     entrypoint: str = typer.Argument(
-        None,
+        ...,
         help=(
             "The path to a file containing a flow and the name of the flow function in"
             " the format `./path/to/file.py:flow_func_name`."
         ),
+        callback=entrypoint_callback,
     ),
     name: str = typer.Option(
         ...,
@@ -123,18 +138,21 @@ async def serve(
     Serve a flow via an entrypoint.
     """
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
-    runner_deployment = RunnerDeployment.from_entrypoint(
-        entrypoint=entrypoint,
-        name=name,
-        interval=interval,
-        anchor_date=interval_anchor,
-        cron=cron,
-        rrule=rrule,
-        timezone=timezone,
-        description=description,
-        tags=tags,
-        version=version,
-    )
+    try:
+        runner_deployment = RunnerDeployment.from_entrypoint(
+            entrypoint=entrypoint,
+            name=name,
+            interval=interval,
+            anchor_date=interval_anchor,
+            cron=cron,
+            rrule=rrule,
+            timezone=timezone,
+            description=description,
+            tags=tags,
+            version=version,
+        )
+    except MissingFlowError as exc:
+        exit_with_error(str(exc))
     deployment_id = await runner.add_deployment(runner_deployment)
 
     help_message = (
