@@ -318,9 +318,24 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
+    env_var_api_key = PREFECT_API_KEY.value()
 
-    if key and PREFECT_API_KEY.value() == key:
-        exit_with_success("This profile is already authenticated with that key.")
+    if env_var_api_key and key and env_var_api_key != key:
+        exit_with_error(
+            "Cannot log in with a key when a different PREFECT_API_KEY is present as an"
+            " environment variable that will override it."
+        )
+
+    if env_var_api_key and env_var_api_key == key:
+        is_valid_key = await check_key_is_valid_for_login(key)
+        is_correct_key_format = key.startswith("pnu_") or key.startswith("pnb_")
+        if not is_valid_key:
+            help_message = "Please ensure your credentials are correct and unexpired."
+            if not is_correct_key_format:
+                help_message = "Your key is not in our expected format."
+            exit_with_error(
+                f"Unable to authenticate with Prefect Cloud. {help_message}"
+            )
 
     already_logged_in_profiles = []
     for name, profile in profiles.items():
@@ -395,10 +410,14 @@ async def login(
                     " (https://cloud.prefect.io). Make sure that you generate API key"
                     " using Cloud 2 (https://app.prefect.cloud)"
                 )
-            elif not key.startswith("pnu"):
-                help_message = "Your key is not in our expected format."
+            elif not key.startswith("pnu_") and not key.startswith("pnb_"):
+                help_message = (
+                    "Your key is not in our expected format: 'pnu_' or 'pnb_'."
+                )
             else:
-                help_message = "Please ensure your credentials are correct."
+                help_message = (
+                    "Please ensure your credentials are correct and unexpired."
+                )
             exit_with_error(
                 f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
