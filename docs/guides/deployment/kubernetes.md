@@ -170,6 +170,7 @@ Select from the dropdown options to specify when to pull the image.
 
 **Finished Job TTL**
 
+Number of seconds before finished jobs are automatically cleaned up by Kubernetes' controller. 
 You may want to set to 60 so that completed flow runs are cleaned up after a minute.
 
 **Pod Watch Timeout Seconds**
