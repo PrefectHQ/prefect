@@ -137,7 +137,6 @@ nav:
     - Getting Started:
           - index.md
           - Installation: getting-started/installation.md
-          - Quickstart: getting-started/quickstart.md
     - Tutorial:
           - tutorial/index.md
           - Flows: tutorial/flows.md
@@ -145,7 +144,7 @@ nav:
           - Deploying Flows: tutorial/deployments.md
     - Guides:
           - guides/index.md
-          - Worker Deployment:
+          - Deployment:
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -179,13 +178,13 @@ nav:
           - Blocks: concepts/blocks.md
           - Task Runners: concepts/task-runners.md
           - Events: concepts/events.md
+          - Automations: concepts/automations.md
+          - Filesystems: concepts/filesystems.md
           - Block and Agent-Based Deployments:
                 - Deployments: concepts/deployments-block-based.md
                 - Infrastructure: concepts/infrastructure.md
                 - Storage: concepts/storage.md
                 - Agents: concepts/agents.md
-                - Filesystems: concepts/filesystems.md
-          - Automations: concepts/automations.md
     - Cloud:
           - cloud/index.md
           - Quickstart: cloud/cloud-quickstart.md
@@ -204,9 +203,9 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
-    - API Reference:
+    - API References:
           - api-ref/index.md
-          - Python SDK:
+          - Python SDK API:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
@@ -275,7 +274,7 @@ nav:
                 - api-ref/rest-api/index.md
                 - Prefect Cloud REST API Reference: https://app.prefect.cloud/api/docs
                 - Prefect Server REST API Reference: api-ref/rest-api-reference.md
-          - Server SDK:
+          - Server API:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
