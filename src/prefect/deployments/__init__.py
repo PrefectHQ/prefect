@@ -12,3 +12,4 @@ from prefect.deployments.deployments import (
     load_deployments_from_yaml,
     Deployment,
 )
+from prefect.deployments.runner import RunnerDeployment
