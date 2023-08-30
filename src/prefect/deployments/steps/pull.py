@@ -33,15 +33,13 @@ def _format_token(url_components, access_token, username, password, token) -> st
     """
     Formats the access token for the git provider.
 
-    Bitbucket supports the following syntax:
+    BitBucket supports the following syntax:
         git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
         git clone https://username:<token>@bitbucketserver.com/scm/projectname/teamsinspace.git
-
-        For Bitbucket Server we seemingly need the username. If they pass a credentials block and we don't have both a username and at
-        least one of a password or token and they don't provide a header themselves,
-        we can raise the approriate error to avoid the wrong format for BitBucket Server.
     """
+
     if "bitbucketserver" in url_components.netloc:
+        # If they pass a header themselves, we can just use that.
         if access_token:
             if ":" in access_token:
                 return access_token
@@ -51,6 +49,9 @@ def _format_token(url_components, access_token, username, password, token) -> st
                     " e.g. 'username:token'."
                 )
 
+        # If they pass a BitBucketCredentials block and we don't have both a username and at
+        # least one of a password or token and they don't provide a header themselves,
+        # we can raise the approriate error to avoid the wrong format for BitBucket Server.
         elif username and (token or password):
             if token:
                 return f"{username}:{token}" if username not in token else token
