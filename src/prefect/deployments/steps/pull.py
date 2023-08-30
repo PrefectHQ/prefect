@@ -118,10 +118,10 @@ def git_clone(
 
     url_components = urllib.parse.urlparse(repository)
 
-    if "bitbucket.org" in url_components.netloc:
+    if "bitbucket" in url_components.netloc:
         if not access_token.startswith("x-token-auth:"):
             access_token = f"x-token-auth:{access_token}"
-    elif "gitlab.com" in url_components.netloc:
+    elif "gitlab" in url_components.netloc:
         if not access_token.startswith("oauth2:"):
             access_token = f"oauth2:{access_token}"
 
