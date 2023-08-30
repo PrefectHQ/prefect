@@ -647,7 +647,7 @@ class Flow(Generic[P, R]):
             if PREFECT_UI_URL:
                 help_message += (
                     "\nYou can also run your flow via the Prefect UI:"
-                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
                 )
 
             console = Console()

@@ -8,6 +8,9 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.table import Table
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -32,6 +35,7 @@ from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
@@ -849,6 +853,7 @@ def _use_threaded_child_watcher():
 async def serve(
     *args: RunnerDeployment,
     pause_on_shutdown: bool = True,
+    print_starting_message: bool = True,
     **kwargs,
 ):
     """
@@ -863,5 +868,32 @@ async def serve(
     runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
     for deployment in args:
         await runner.add_deployment(deployment)
+
+    if print_starting_message:
+        help_message_top = (
+            "[green]Your deployments are being served and polling for"
+            " scheduled runs!\n[/]"
+        )
+
+        table = Table(title="Deployments", show_header=False)
+
+        table.add_column(style="blue", no_wrap=True)
+
+        for deployment in args:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}")
+
+        help_message_bottom = (
+            "\nTo trigger any of these deployments, use the"
+            " following command:\n[blue]\n\t$ prefect deployment run"
+            " [DEPLOYMENT_NAME]\n[/]"
+        )
+        if PREFECT_UI_URL:
+            help_message_bottom += (
+                "\nYou can also trigger your deployments via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+            )
+
+        console = Console()
+        console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()

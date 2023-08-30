@@ -42,6 +42,24 @@ class TestServe:
         monkeypatch.setattr("prefect.runner.Runner.start", mock)
         return mock
 
+    async def test_serve_prints_help_message_on_startup(self, capsys):
+        await serve(
+            dummy_flow_1.to_deployment(__file__),
+            dummy_flow_2.to_deployment(__file__),
+            tired_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "dummy-flow-1/test_runner" in captured.out
+        assert "dummy-flow-2/test_runner" in captured.out
+        assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
     async def test_serve_can_create_multiple_deployments(
         self,
         prefect_client: PrefectClient,
