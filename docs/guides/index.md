@@ -19,6 +19,7 @@ This section of the documentation contains guides for common workflows and use c
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Docker](/guides/deployment/docker/) | Deploy flows with Docker containers. |
+| [Automations](/guides/automations/) |  Streamline process to respond to workflows or state changes |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Execute flows on serverless infrastructure like AWS ECS, Azure Container Instances, or Google Cloud Run without a worker. |
