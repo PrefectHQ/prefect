@@ -868,6 +868,22 @@ The following options are available:
 - "ignore": Do not log a warning message or raise an error.
 """
 
+PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
+    int,
+    default=None,
+)
+"""
+Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+"""
+
+PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
+    int,
+    default=None,
+)
+"""
+Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
+"""
+
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
