@@ -79,10 +79,9 @@ async def serve(
         None, "-v", "--version", help="A version to give the created deployment."
     ),
     tags: Optional[List[str]] = typer.Option(
-        ...,
+        None,
         "-t",
         "--tag",
-        default_factory=list,
         help="One or more optional tags to apply to the created deployment.",
     ),
     cron: Optional[str] = typer.Option(
@@ -141,7 +140,7 @@ async def serve(
             name=name,
             schedule=schedule,
             description=description,
-            tags=tags,
+            tags=tags or [],
             version=version,
         )
     except (MissingFlowError, ValueError) as exc:
@@ -157,7 +156,7 @@ async def serve(
     if PREFECT_UI_URL:
         help_message += (
             "\nYou can also run your flow via the Prefect UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+            f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
         )
     app.console.print(Panel(help_message))
     await runner.start()
