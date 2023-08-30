@@ -731,7 +731,7 @@ def _construct_schedule(
             not ci
             and is_interactive()
             and confirm(
-                "Would you like to schedule when this flow runs?",
+                "Would you like to configure a schedule for this deployment?",
                 default=True,
                 console=app.console,
             )
