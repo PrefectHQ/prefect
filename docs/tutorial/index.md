@@ -23,8 +23,8 @@ By the end of this tutorial you will have:
 1. [Created a flow](/tutorial/flows/)
 2. [Added tasks to it](/tutorial/tasks/)
 3. [Deployed and run the flow](/tutorial/deployments/)
-4. [Created a work pool & worker](/tutorial/deployments/)
-5. [Run the flow with a worker](/tutorial/deployments/)
+4. [Created a work pool & worker](/tutorial/workers/)
+5. [Run the flow with a worker](/tutorial/workers/)
 
 If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/helm-worker/)), check out Prefect's [guides](/guides/).
 
