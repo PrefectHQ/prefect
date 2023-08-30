@@ -383,7 +383,7 @@ class TestGitCloneStep:
         assert "super-secret-42".upper() not in str(exc.getrepr())
 
     @pytest.mark.asyncio
-    async def test_git_clone_with_valid_credentials_block_succeeds(self, monkeypatch):
+    async def test_git_clone_with_github_credentials_block_succeeds(self, monkeypatch):
         mock_subprocess = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.pull.subprocess",
@@ -431,7 +431,7 @@ class TestGitCloneStep:
         )
 
     @pytest.mark.asyncio
-    async def test_github_clone_with_invalid_credentials_block_raises(
+    async def test_git_clone_with_invalid_github_credentials_block_raises(
         self, monkeypatch
     ):
         blocks = {
