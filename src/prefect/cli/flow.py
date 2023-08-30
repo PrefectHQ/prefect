@@ -127,13 +127,15 @@ async def serve(
     """
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
     try:
-        schedule = construct_schedule(
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            timezone=timezone,
-            anchor_date=interval_anchor,
-        )
+        schedule = None
+        if interval or cron or rrule:
+            schedule = construct_schedule(
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                timezone=timezone,
+                anchor_date=interval_anchor,
+            )
         runner_deployment = RunnerDeployment.from_entrypoint(
             entrypoint=entrypoint,
             name=name,
