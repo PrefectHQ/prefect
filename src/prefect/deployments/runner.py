@@ -164,13 +164,18 @@ class RunnerDeployment(BaseModel):
                 "Only one of interval, cron, rrule, or schedule can be provided."
             )
 
-        return schedule or construct_schedule(
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            timezone=timezone,
-            anchor_date=anchor_date,
-        )
+        if schedule:
+            return schedule
+        elif interval or cron or rrule:
+            return construct_schedule(
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                timezone=timezone,
+                anchor_date=anchor_date,
+            )
+        else:
+            return None
 
     def _set_defaults_from_flow(self, flow: Flow):
         self._parameter_openapi_schema = parameter_schema(flow)
