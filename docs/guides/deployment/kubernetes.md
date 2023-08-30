@@ -52,7 +52,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 === "GCP"
 
     You can get a GKE cluster up and running with a few commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). 
-    We'll show how to build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment. 
+    We'll build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment. 
     To deploy the cluster, your project must have a VPC network configured.
 
     First, authenticate to GCP by setting the following configuration options.
