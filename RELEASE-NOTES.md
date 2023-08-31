@@ -48,7 +48,7 @@ See the following pull requests for details:
 
 ### A fresh look and feel
 
-The Prefect UI just got a fresh coat of paint across the entire interface! We've carefully redesigned colors throughout the UI to ensure a more cohesive and visually appealing experience. Whether you're a fan of the light or dark side (or switch between both), you'll notice our interfaces now shine brighter and feel more harmonious. Dive in and explore the new hues!
+The Prefect UI just got a fresh coat of paint! We've carefully updated colors throughout the UI to ensure a more cohesive and visually appealing experience. Whether you're a fan of the light or dark side (or switch between both), you'll notice our interfaces now shine brighter and feel more harmonious. Dive in and explore the new hues!
 
 ![Updated Prefect UI in light and dark modes](https://github.com/PrefectHQ/prefect/assets/42048900/c526619c-22d3-44e6-82ee-255ae1233035)
 
