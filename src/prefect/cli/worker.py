@@ -212,7 +212,9 @@ async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) 
 
         if work_pool.is_push_pool:
             exit_with_error(
-                "Workers are not required to run flows with push work pools."
+                "Workers are not required for push work pools. "
+                "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/"
+                "for more details."
             )
 
     except ObjectNotFound:

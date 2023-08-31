@@ -304,6 +304,32 @@ async def test_worker_discovers_work_pool_type(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_does_not_run_with_push_pool(push_work_pool):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            push_work_pool.name,
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            (
+                f"Discovered type {push_work_pool.type!r} for work pool"
+                f" {push_work_pool.name!r}."
+            ),
+            (
+                "Workers are not required for push work pools. "
+                "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/"
+                "for more details."
+            ),
+        ],
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 async def test_start_worker_without_type_creates_process_work_pool(
     prefect_client: PrefectClient,
 ):
