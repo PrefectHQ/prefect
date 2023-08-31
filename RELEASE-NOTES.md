@@ -73,6 +73,7 @@ See the following pull requests for implementation details:
 
 ### Fixes
 - Pin `Anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
+- Add upper bounds to core requirements to prevent major version upgrades https://github.com/PrefectHQ/prefect/pull/10592
 - Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
 - Fix `cloud login` false success when `PREFECT_API_KEY` set as environment variable or expired — https://github.com/PrefectHQ/prefect/pull/8641
 - Fix ability to view deployments page tags on larger screens - https://github.com/PrefectHQ/prefect/pull/10566
