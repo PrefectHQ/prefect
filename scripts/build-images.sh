@@ -10,7 +10,7 @@ FULL_REPO="${ACCOUNT}/${REPO}"
 
 echo $FULL_REPO
 
-docker build -f ../Dockerfile .. -t ${FULL_REPO}:${VERSION}-${ARCH}
+docker build --build-arg PYTHON_VERSION=3.11 --build-arg BUILD_PYTHON_VERSION=3.11 -f ../Dockerfile .. -t ${FULL_REPO}:${VERSION}-${ARCH}
 
 docker push ${FULL_REPO}:${VERSION}-${ARCH}
 
