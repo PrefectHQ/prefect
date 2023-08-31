@@ -51,9 +51,8 @@
   import { media } from '@prefecthq/prefect-design'
   import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
-  import { useToast } from '@/compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
@@ -61,7 +60,6 @@
   const deploymentIds = computed(() => [deploymentId.value])
   const router = useRouter()
   const api = useWorkspaceApi()
-  const showToast = useToast()
 
   const subscriptionOptions = {
     interval: 300000,
@@ -78,7 +76,7 @@
     { label: 'Description' },
   ])
   const tab = useRouteQueryParam('tab', 'Details')
-  const { tabs } = useTabs(computedTabs)
+  const { tabs } = useTabs(computedTabs, tab)
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
