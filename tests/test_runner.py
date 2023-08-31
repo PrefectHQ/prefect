@@ -159,7 +159,7 @@ class TestRunner:
         assert deployment_2.schedule.cron == "* * * * *"
 
     async def test_runner_can_pause_schedules_on_stop(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, caplog
     ):
         runner = Runner()
 
@@ -192,6 +192,9 @@ class TestRunner:
         assert not deployment_1.is_schedule_active
 
         assert not deployment_2.is_schedule_active
+
+        assert "Pausing schedules for all deployments" in caplog.text
+        assert "All deployment schedules have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):

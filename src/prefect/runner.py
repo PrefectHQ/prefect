@@ -141,7 +141,7 @@ class Runner:
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
         self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
-        self._logger = get_logger()
+        self._logger = get_logger("runner")
 
         self.started = False
         self.pause_on_shutdown = pause_on_shutdown
@@ -485,8 +485,11 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
+        self._logger.info("Pausing schedules for all deployments...")
         for deployment_id in self._deployment_ids:
+            self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
             await self._client.update_schedule(deployment_id, active=False)
+        self._logger.info("All deployment schedules have been paused!")
 
     async def _get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
