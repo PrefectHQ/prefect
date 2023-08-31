@@ -446,10 +446,10 @@ prefect-kubernetes>=0.2.11
 The directory should now look something like this:
 
 ```
-prefect.yaml
-flows
-  ├── hello.py
-  └── requirements.txt
+├── prefect.yaml
+└── flows
+    ├── requirements.txt
+    └── hello.py
 ```
 
 ### Tag images with a Git SHA
