@@ -59,7 +59,7 @@ def _format_token_from_access_token(netloc: str, access_token: str) -> str:
 
 def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
     """
-    Formats the access token for the git provider.
+    Formats the credentials block for the git provider.
 
     BitBucket supports the following syntax:
         git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
@@ -74,7 +74,7 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
     if not user_provided_token:
         raise ValueError(
             "Please provide a `token` or `password` in your Credentials block to clone"
-            " a repo from a repo."
+            " a repo."
         )
 
     if "bitbucketserver" in netloc:
@@ -94,11 +94,6 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
         )
 
     elif "bitbucket" in netloc:
-        if not user_provided_token:
-            raise ValueError(
-                "Please provide a `token` or `password` in your BitBucketCredentials"
-                " block to clone a repo from BitBucket."
-            )
         return (
             user_provided_token
             if user_provided_token.startswith("x-token-auth:")
@@ -107,11 +102,6 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
         )
 
     elif "gitlab" in netloc:
-        if not user_provided_token:
-            raise ValueError(
-                "Please provide a `token` in your GitLabCredentials block to clone a"
-                " repo from GitLab."
-            )
         return (
             f"oauth2:{user_provided_token}"
             if not user_provided_token.startswith("oauth2:")
