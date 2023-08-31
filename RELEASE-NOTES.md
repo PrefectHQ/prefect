@@ -114,6 +114,7 @@ For those aiming to optimize their flows using Kubernetes, this guide provides a
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10133
 - https://github.com/PrefectHQ/prefect/pull/10368
+- https://github.com/PrefectHQ/prefect/pull/10591
 
 ### Enhancements
 - Warn users upon setting a misconfigured `PREFECT_API_URL` — https://github.com/PrefectHQ/prefect/pull/10450
