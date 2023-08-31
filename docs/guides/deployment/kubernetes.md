@@ -121,7 +121,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       kubectl get nodes
     ```
 
-    !!! note Note:
+    !!! Note Note:
       - If you don't already have an SSH key under `~/.ssh/` and you don't explicitly point to one, `az aks create` fails. Add `--generate-ssh-keys` to generate one.
 
 ## Create a container registry
