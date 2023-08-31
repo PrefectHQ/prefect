@@ -47,11 +47,12 @@ See the following pull requests for details:
 
 
 ### Possible second highlight
-- Update Prefect UI with new color scheme for light and dark modes — https://github.com/PrefectHQ/prefect/pull/10546
-- update favicons — https://github.com/PrefectHQ/prefect/pull/10578
-- remove nav icons — https://github.com/PrefectHQ/prefect/pull/10584
-- bump deps and use sticky token — https://github.com/PrefectHQ/prefect/pull/10583
-- fix flow run graph bg — https://github.com/PrefectHQ/prefect/pull/10588
+See the following pull requests for implementation details;
+    - https://github.com/PrefectHQ/prefect/pull/10546
+    - https://github.com/PrefectHQ/prefect/pull/10578
+    - https://github.com/PrefectHQ/prefect/pull/10584
+    - https://github.com/PrefectHQ/prefect/pull/10583
+    - https://github.com/PrefectHQ/prefect/pull/10588
 
 ### Enhancements
 - Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
