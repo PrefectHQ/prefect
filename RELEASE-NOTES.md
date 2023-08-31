@@ -46,13 +46,18 @@ See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10585
 
 
-### Possible second highlight
-See the following pull requests for implementation details;
-    - https://github.com/PrefectHQ/prefect/pull/10546
-    - https://github.com/PrefectHQ/prefect/pull/10578
-    - https://github.com/PrefectHQ/prefect/pull/10584
-    - https://github.com/PrefectHQ/prefect/pull/10583
-    - https://github.com/PrefectHQ/prefect/pull/10588
+### An updated Prefect UI
+
+TBD
+
+![Updated Prefect UI in light and dark modes](https://github.com/PrefectHQ/prefect/assets/42048900/c526619c-22d3-44e6-82ee-255ae1233035)
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10546
+- https://github.com/PrefectHQ/prefect/pull/10578
+- https://github.com/PrefectHQ/prefect/pull/10584
+- https://github.com/PrefectHQ/prefect/pull/10583
+- https://github.com/PrefectHQ/prefect/pull/10588
 
 ### Enhancements
 - Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
