@@ -268,7 +268,7 @@ class RunnerDeployment(BaseModel):
             no_file_location_error = (
                 "Flows defined interactively cannot be deployed. Check out the"
                 " quickstart guide for help getting started:"
-                " https://docs.prefect.io/latest/getting-started/quickstart."
+                " https://docs.prefect.io/latest/getting-started/quickstart"
             )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
