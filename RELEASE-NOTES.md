@@ -3,7 +3,10 @@
 ## Release 2.12.0
 
 ### Highlight: flow.serve() - TBD
-- Adds the ability to serve flows — https://github.com/PrefectHQ/prefect/pull/10534
+
+See the following pull requests for details:
+- https://github.com/PrefectHQ/prefect/pull/10534
+- https://github.com/PrefectHQ/prefect/pull/10549
 
 ### Enhancements
 - Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
@@ -28,11 +31,13 @@
 - Serialize concurrency requests — https://github.com/PrefectHQ/prefect/pull/10545
 
 ### Documentation
-- Docs prep work — https://github.com/PrefectHQ/prefect/pull/10520
-- Add block and agent-based deployments back to left nav — https://github.com/PrefectHQ/prefect/pull/10528
-- add cloud button link to header of docs — https://github.com/PrefectHQ/prefect/pull/10537
-- Expand work pool discussion in K8s guide — https://github.com/PrefectHQ/prefect/pull/10516
-- Update quickstart to use serve — https://github.com/PrefectHQ/prefect/pull/10549
+- Add quickstart documentation, simplify welcome page and API reference overview — https://github.com/PrefectHQ/prefect/pull/10520
+- Add block and agent-based deployments to leftside navigation — https://github.com/PrefectHQ/prefect/pull/10528
+- Add `Try Prefect Cloud` button to documentation header — https://github.com/PrefectHQ/prefect/pull/10537
+
+- Add Kubernetes work pool usage in Kubernetes guide — https://github.com/PrefectHQ/prefect/pull/10516
+
+
 - Introduce `flow.serve` into the tutorial — https://github.com/PrefectHQ/prefect/pull/10556
 - Remove blank menu bar at top of docs — https://github.com/PrefectHQ/prefect/pull/10565
 - Put serve utilities into API reference — https://github.com/PrefectHQ/prefect/pull/10574
