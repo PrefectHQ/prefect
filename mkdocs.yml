@@ -146,26 +146,28 @@ nav:
           - Workers & Work Pools: tutorial/workers.md
     - Guides:
           - guides/index.md
-          - Worker Deployment:
+          - Development:
+            - Hosting: guides/host.md
+            - Profiles & Settings: guides/settings.md
+            - Logging: guides/logs.md
+            - Testing: guides/testing.md
+            - Runtime Context: guides/runtime-context.md
+            - Variables: guides/variables.md
+          - Execution:
+            - Webhooks: guides/webhooks.md
+            - State Change Hooks: guides/state-change-hooks.md
+            - Dask & Ray: guides/dask-ray-task-runners.md
+            - Moving data: guides/moving-data.md
+          - Workers and agents:
+                - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Storage: guides/deployment/storage-guide.md
                 - Docker: guides/deployment/docker.md
-                - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
-          - Profiles & Configuration: guides/settings.md
-          - Logging: guides/logs.md
-          - Testing: guides/testing.md
           - Troubleshooting: guides/troubleshooting.md
-          - Runtime Context: guides/runtime-context.md
-          - Variables: guides/variables.md
-          - Webhooks: guides/webhooks.md
-          - State Change Hooks: guides/state-change-hooks.md
-          - Dask & Ray: guides/dask-ray-task-runners.md
-          - Moving data: guides/moving-data.md
-          - Hosting: guides/host.md
           - Recipes: recipes/recipes.md
     - Concepts:
           - concepts/index.md
