@@ -1,5 +1,103 @@
 # Prefect Release Notes
 
+## Release 2.12.0
+
+### Introducing `Flow.serve()`
+
+We're excited to introduce a radically simple way to deploy flows. 
+
+The new `.serve()` method available on every flow allows you to take your existing flows and schedule or trigger runs via the Prefect UI and CLI. 
+
+This addition makes it easier than it's ever been to deploy flows with Prefect:
+
+```python title="hello.py"
+from prefect import flow
+
+@flow
+def hello(name = "Marvin"):
+    print(f"Hello {name}!")
+
+if __name__ == "__main__":
+    # Creates a deployment named 'hello/hourly-greeting'
+    # which will run the 'hello' flow once an hour
+    hello.serve(name="hourly-greeting", interval=3600)
+```
+
+Running this script will start a process that will run the `hello` flow every hour and make it triggerable via the Prefect UI or CLI:
+
+```
+> python hello.py
+╭─────────────────────────────────────────────────────────────────────────────────────╮
+│ Your flow 'hello' is being served and polling for scheduled runs!                   │
+│                                                                                     │
+│ To trigger a run for this flow, use the following command:                          │
+│                                                                                     │
+│         $ prefect deployment run 'hello/hourly-greeting'                            │
+│                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+To start serving your flows, check out our newly updated [quickstart](https://docs.prefect.io/latest/getting-started/quickstart/) and [tutorial](https://docs.prefect.io/latest/tutorial/).
+
+See the following pull requests for details:
+- https://github.com/PrefectHQ/prefect/pull/10534
+- https://github.com/PrefectHQ/prefect/pull/10549
+- https://github.com/PrefectHQ/prefect/pull/10574
+- https://github.com/PrefectHQ/prefect/pull/10585
+
+
+### A fresh look and feel
+
+The Prefect UI just got a fresh coat of paint! We've carefully updated colors throughout the UI to ensure a more cohesive and visually appealing experience. Whether you're a fan of the light or dark side (or switch between both), you'll notice our interfaces now shine brighter and feel more harmonious. Dive in and explore the new hues!
+
+![Updated Prefect UI in light and dark modes](https://github.com/PrefectHQ/prefect/assets/42048900/c526619c-22d3-44e6-82ee-255ae1233035)
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10546
+- https://github.com/PrefectHQ/prefect/pull/10578
+- https://github.com/PrefectHQ/prefect/pull/10584
+- https://github.com/PrefectHQ/prefect/pull/10583
+- https://github.com/PrefectHQ/prefect/pull/10588
+
+### Enhancements
+- Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
+- Improve validation for `Flow.name` — https://github.com/PrefectHQ/prefect/pull/10463
+- Add a Docker image for conda for Python 3.11 — https://github.com/PrefectHQ/prefect/pull/10532
+- Increase default `PREFECT_API_REQUEST_TIMEOUT` setting to 60 seconds — https://github.com/PrefectHQ/prefect/pull/10543
+- Remove missing work queue warning from the deployment page — https://github.com/PrefectHQ/prefect/pull/10550
+- Add `PREFECT_SQLALCHEMY_POOL_SIZE` and `PREFECT_SQLALCHEMY_MAX_OVERFLOW` settings to configure SQLAlchemy connection pool size — https://github.com/PrefectHQ/prefect/pull/10348
+- Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
+- Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
+- Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
+- Improve CLI output for push work pools https://github.com/PrefectHQ/prefect/pull/10582
+
+### Fixes
+- Pin `anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
+- Add upper bounds to core requirements to prevent major version upgrades https://github.com/PrefectHQ/prefect/pull/10592
+- Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
+- Fix `cloud login` false success when `PREFECT_API_KEY` set as environment variable or expired — https://github.com/PrefectHQ/prefect/pull/8641
+- Fix ability to view deployments page tags on larger screens - https://github.com/PrefectHQ/prefect/pull/10566
+- Properly indent `docker-git` recipe `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10519
+- Fix Slack community invitation link — https://github.com/PrefectHQ/prefect/pull/10509
+
+### Experimental
+- Serialize concurrency requests — https://github.com/PrefectHQ/prefect/pull/10545
+
+### Documentation
+- Detail Kubernetes work pool usage in Kubernetes guide — https://github.com/PrefectHQ/prefect/pull/10516
+- Add quickstart documentation, simplify welcome page and API reference overview — https://github.com/PrefectHQ/prefect/pull/10520
+- Add block and agent-based deployments to leftside navigation — https://github.com/PrefectHQ/prefect/pull/10528
+- Add `Try Prefect Cloud` button to documentation header — https://github.com/PrefectHQ/prefect/pull/10537
+- Remove blank menu bar in documentation header — https://github.com/PrefectHQ/prefect/pull/10565
+- Fix link to guide on moving data to and from cloud providers — https://github.com/PrefectHQ/prefect/pull/10521
+- Shorten push work pools description in guides index — https://github.com/PrefectHQ/prefect/pull/10589
+- Organize guides index into sections: Development, Execution, Workers and Agents, and Other Guides — https://github.com/PrefectHQ/prefect/pull/10587
+
+### Contributors
+- @mattklein
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.5...2.12.0
+
 ## Release 2.11.5
 
 ### New Guides
@@ -17,6 +115,7 @@ For those aiming to optimize their flows using Kubernetes, this guide provides a
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10133
 - https://github.com/PrefectHQ/prefect/pull/10368
+- https://github.com/PrefectHQ/prefect/pull/10591
 
 ### Enhancements
 - Warn users upon setting a misconfigured `PREFECT_API_URL` — https://github.com/PrefectHQ/prefect/pull/10450
