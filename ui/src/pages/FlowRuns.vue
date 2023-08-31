@@ -56,7 +56,7 @@
   import { Getter, PEmptyResults, media } from '@prefecthq/prefect-design'
   import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRunsInfiniteScroll, useOffsetStickyRootMargin } from '@prefecthq/prefect-ui-library'
   import { UsePositionStickyObserverOptions, useDebouncedRef, usePositionStickyObserver, useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref, watch } from 'vue'
+  import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
@@ -95,11 +95,6 @@
     rootMargin: margin.value,
   })
   const { stuck } = usePositionStickyObserver(listControls, stickyObserverOptions)
-
-  console.log({ margin: margin.value, stuck: stuck.value })
-  watch([margin, stuck], () => {
-    console.log({ margin: margin.value, stuck: stuck.value })
-  })
 
   const classes = computed(() => ({
     listControls: {
