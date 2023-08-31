@@ -487,6 +487,20 @@ async def process_work_pool(session):
 
 
 @pytest.fixture
+async def push_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="push-work-pool",
+            type="push-work-pool:push",
+            base_job_template={},
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def prefect_agent_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,

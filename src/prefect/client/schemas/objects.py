@@ -1318,6 +1318,10 @@ class WorkPool(ObjectBaseModel):
         None, description="The id of the pool's default queue."
     )
 
+    @property
+    def is_push_pool(self) -> bool:
+        return self.type.endswith(":push")
+
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_name_with_banned_characters(v)
