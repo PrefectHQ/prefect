@@ -289,7 +289,7 @@ async def test_worker_discovers_work_pool_type(
         expected_code=0,
         expected_output_contains=[
             (
-                f"Discovered worker type {process_work_pool.type!r} for work pool"
+                f"Discovered type {process_work_pool.type!r} for work pool"
                 f" {process_work_pool.name!r}."
             ),
             "Worker 'test-worker' started!",
