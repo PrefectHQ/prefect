@@ -94,37 +94,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
       ```
 
-=== "Azure"
-
-    You can quickly create an AKS cluster using the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli) or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com). Creating the cluster runs for 3-5.
-
-    First, authenticate to Azure if not already done
-
-    ```bash
-      az login
-    ```
-
-    Next, deploy the cluster - this command will take ~4 minutes to complete. Once the cluster has been created, authenticate to the cluster.
-
-    ```bash
-
-      # Create a Resource Group with a name and at the desired location, e.g. westus
-      az group create  --name <RESOURCE-GROUP-NAME> --location <LOCATION>
-
-      # Create a kubernetes cluster with default kubernetes version, default SKU load balancer (Standard) and default vm set type (VirtualMachineScaleSets)
-      az aks create --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME>
-
-      # Configure kubectl to connect to your Kubernetes cluster
-      az aks get-credentials --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME>
-
-      # Verify the connection by listing the cluster nodes
-      kubectl get nodes
-    ```
-    
-    <details>
-      <summary>Note</summary>
-      - If you don't already have an SSH key under `~/.ssh/` and you don't explicitly point to one, `az aks create` fails. Add `--generate-ssh-keys` to generate one.
-    </details>
+<!-- === "Azure"
+    TODO -->
 
 ## Create a container registry
 
@@ -160,26 +131,11 @@ If you already have a registry, skip ahead to the next section.
     gcloud auth configure-docker us-docker.pkg.dev
     ```
 
-=== "Azure"
-    Let's create a registry using the Azure CLI and authenticate the docker daemon to said registry:
-
-    ```bash
-    # Name must be a lower-case alphanumeric
-    # Tier SKU can easily be updated later, e.g. az acr update --name <REPOSITORY-NAME> --sku Standard
-    az acr create --resource-group <RESOURCE-GROUP-NAME> \
-      --name <REPOSITORY-NAME> \
-      --sku Basic
-
-    # Attach ACR to AKS cluster
-    # Note: As per Azure docs, you need Owner, Account Administrator, or Co-Administrator role on your Azure subscription.
-    az aks update --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --attach-acr <REPOSITORY-NAME>
-
-    ```
-
+<!-- === "Azure"
+    TODO -->
 
 ## Create a Kubernetes work pool
 
-<<<<<<< Updated upstream
 [Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.
 We'll configure the default values for our Kubernetes base job template.
 Note that these values can be overridden by individual deployments.
@@ -272,20 +228,6 @@ After configuring the work pool settings, move to the next screen.
 Give the work pool a name and save.
 
 Our new Kubernetes work pool should now appear in the list of work pools.
-=======
-Now let's switch over to Prefect Cloud, where we'll create a new work pool.
-Hit the plus button on the work pools page and choose Kubernetes from the list of options.
-On the next page, set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times.
-You may also want to set a custom namespace, such as `prefect`.
-Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions.
-Finally, leave the image field blank as we'll override that in each deployment, and continue to finish the process.
-
-## Create a Prefect Cloud API key
-
-While still in Prefect Cloud, let's create a Prefect Cloud API key from your profile if you don't already have one.
-Click on your Profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
-Make sure to store it safely along with your other passwords, ideally via a password manager.
->>>>>>> Stashed changes
 
 ## Deploy a worker using Helm
 
@@ -357,10 +299,6 @@ kubectl get pods -n prefect
 
 Let's start simple with a flow that just logs a message.
 In a directory named `flows`, create a file named `hello.py` with the following contents:
-
-```bash
-    mkdir flows
-```
 
 ```py
 from prefect import flow, get_run_logger, tags
@@ -451,18 +389,18 @@ This specification is often necessary when images are built on Macs with M serie
 Let's make sure we define our requirements in a `requirements.txt` file:
 
 ```
-prefect=2.11.0
-prefect-docker=0.3.11
-prefect-kubernetes=0.2.11
+prefect>=2.11.0
+prefect-docker>=0.3.11
+prefect-kubernetes>=0.2.11
 ```
 
 The directory should now look something like this:
 
 ```
-prefect.yaml
 flows
-  ├── hello.py
-  └── requirements.txt
+├── hello.py
+├── prefect.yaml
+└── requirements.txt
 ```
 
 ### Tag images with a Git SHA
@@ -510,7 +448,7 @@ This example uses a virtual environment to ensure consistency across environment
 virtualenv prefect-demo
 source prefect-demo/bin/activate
 
-# Install dependencies of your flow
+# Install your flow's dependencies
 prefect-demo/bin/pip install -r requirements.txt
 
 # Authenticate to Prefect & select the appropriate 
@@ -536,12 +474,8 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
     export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
     ```
 
-=== "Azure"
-
-
-    ```bash
-    export PREFECT_IMAGE_NAME=<REPOSITORY-NAME>.azurecr.io/<IMAGE-NAME>
-    ```
+<!-- === "Azure"
+    TODO -->
 
 In order to deploy your flows, ensure your Docker daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
 
