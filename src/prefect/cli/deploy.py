@@ -388,7 +388,6 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
     deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
-    work_pool = None
 
     # determine work pool
     if get_from_dict(deploy_config, "work_pool.name"):
