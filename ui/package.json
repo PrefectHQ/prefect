@@ -11,11 +11,11 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/graphs": "^1.0.7",
-    "@prefecthq/prefect-design": "1.11.7",
-    "@prefecthq/prefect-ui-library": "1.6.45",
-    "@prefecthq/vue-charts": "1.0.1",
-    "@prefecthq/vue-compositions": "1.5.7",
+    "@prefecthq/graphs": "2.0.3",
+    "@prefecthq/prefect-design": "2.0.0",
+    "@prefecthq/prefect-ui-library": "2.0.0",
+    "@prefecthq/vue-charts": "2.0.1",
+    "@prefecthq/vue-compositions": "1.5.8",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
     "lodash.debounce": "4.0.8",
@@ -24,14 +24,14 @@
     "vue-router": "4.2.4"
   },
   "devDependencies": {
-    "@playwright/test": "1.37.0",
+    "@playwright/test": "1.37.1",
     "@prefecthq/eslint-config": "1.0.27",
-    "@vitejs/plugin-vue": "4.2.3",
+    "@vitejs/plugin-vue": "4.3.3",
     "autoprefixer": "10.4.15",
     "dotenv": "16.3.1",
-    "eslint": "^8.47.0",
+    "eslint": "^8.48.0",
     "ts-node": "10.9.1",
-    "typescript": "^5.1.6",
+    "typescript": "^5.2.2",
     "vite": "4.4.9",
     "vue-tsc": "^1.8.8"
   }

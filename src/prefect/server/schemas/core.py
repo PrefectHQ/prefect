@@ -2,7 +2,6 @@
 Full schemas of Prefect REST API objects.
 """
 import datetime
-import json
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -18,7 +17,6 @@ from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBa
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
-from prefect.utilities.templating import find_placeholders
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -1083,39 +1081,6 @@ class WorkPool(ORMBaseModel):
                 "`default_queue_id` is a required field. If you are "
                 "creating a new WorkPool and don't have a queue "
                 "ID yet, use the `actions.WorkPoolCreate` model instead."
-            )
-        return v
-
-    @validator("base_job_template")
-    def validate_base_job_template(cls, v):
-        if v == dict():
-            return v
-
-        job_config = v.get("job_configuration")
-        variables = v.get("variables")
-        if not (job_config and variables):
-            raise ValueError(
-                "The `base_job_template` must contain both a `job_configuration` key"
-                " and a `variables` key."
-            )
-        template_variables = set()
-        for template in job_config.values():
-            # find any variables inside of double curly braces, minus any whitespace
-            # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
-            # convert to json string to handle nested objects and lists
-            found_variables = find_placeholders(json.dumps(template))
-            template_variables.update(
-                {placeholder.name for placeholder in found_variables}
-            )
-
-        provided_variables = set(variables["properties"].keys())
-        if not template_variables.issubset(provided_variables):
-            missing_variables = template_variables - provided_variables
-            raise ValueError(
-                "The variables specified in the job configuration template must be "
-                "present as properties in the variables schema. "
-                "Your job configuration uses the following undeclared "
-                f"variable(s): {' ,'.join(missing_variables)}."
             )
         return v
 

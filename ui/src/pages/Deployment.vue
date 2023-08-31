@@ -9,7 +9,7 @@
       />
     </template>
 
-    <p-tabs v-if="deployment" :tabs="tabs">
+    <p-tabs v-if="deployment" v-model:selected="tab" :tabs="tabs">
       <template #description>
         <p-content secondary>
           <DeploymentDeprecatedMessage v-if="deployment.deprecated" />
@@ -50,7 +50,7 @@
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
   import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
@@ -77,6 +77,7 @@
     { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
     { label: 'Description' },
   ])
+  const tab = useRouteQueryParam('tab', 'Details')
   const { tabs } = useTabs(computedTabs)
 
   function routeToDeployments(): void {
@@ -101,13 +102,6 @@
     return `Deployment: ${deployment.value.name}`
   })
   usePageTitle(title)
-
-  watch(deployment, () => {
-    // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
-    if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
-      showToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
-    }
-  })
 </script>
 
 <style>
