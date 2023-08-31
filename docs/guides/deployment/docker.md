@@ -1,5 +1,5 @@
 ---
-description: Learn how to store your flow code in a Docker image and build Prefect deployments that create flow runs in Docker containers.
+description: Learn how to store your flow code in a Docker image and serve your flow on any docker-compatible infrastructure.
 tags:
     - Docker
     - containers
@@ -12,129 +12,227 @@ search:
 
 # Running flows with Docker
 
-In the [Deployments](/tutorial/deployments/) tutorial, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
+In the [Deployments](/tutorial/deployments/) tutorial, we looked at serving a flow that enables scheduling or creating flow runs via the Prefect API.
 
-In this guide, we will "bake" your code directly into a Docker image. This will allow for easy storage and allow you to deploy flow code without the need for a storage block. Then, we'll configure the deployment so flow runs are executed in a Docker container based on that image. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
-
+With our Python script in hand, we can build a Docker image for our script, allowing us to serve our flow in various remote environments. We'll use Kubernetes in this guide, but you can use any Docker-compatible infrastructure.
 
 In this guide we'll:
 
-- Create a Docker image that stores your Prefect flow code.
-- Configure a [build step](/concepts/deployments#build) which will build a docker image on our behalf.
-- Build and register a new `log_flow.py` deployment that uses the new image.
-- Create a flow run from this deployment that spins up a Docker container and executes, logging a message.
+- Write a Dockerfile to build an image that stores our Prefect flow code.
+- Build a Docker image for our flow.
+- Deploy and run our Docker image on a Kubernetes cluster.
 
 ## Prerequisites
 
-To run a deployed flow in a Docker container, you'll need the following:
+To complete this guide, you'll need the following:
 
-- We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
-- You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
-- You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
+- A Python script that declares and serves a flow. 
+  - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
+- Access to a running Prefect API server.
+  - You sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
+- [Docker Desktop](https://docs.docker.com/desktop/) installed on your machine.
 
-[Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
+## Writing a Dockerfile
 
-!!! note "Run a Prefect server"
-    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorial/deployments/) tutorial.
-    
-    If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
+First let's write a directory to work from, `prefect-docker-guide`.
 
-## Storing Prefect Flow Code in a Docker Image 
-
-First let's create a directory to work from, `docker-tutorial`.
-
-In this directory, you will create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial. In this case, I've named the flow `docker-tutorial-flow.py`.
-
-The next file you will add to the `docker-tutorial` directory is a `requirements.txt`.  In this file make sure to include all dependencies that are required for your `docker-tutorial-flow.py` script.  
-
-Next, you will create a `Dockerfile` that will be used to create a Docker image that will also store the flow code.  This `Dockerfile` should look similar to the following:  
-
+<div class="terminal">
 ```bash
+mkdir prefect-docker-guide
+cd prefect-docker-guide
+```
+</div>
+
+In this directory, we'll create a sub-directory named `flows` and put our flow script from the [Deployments](/tutorial/deployments/) tutorial in it.
+
+<div class="terminal">
+```bash
+mkdir flows
+cd flows
+touch prefect-docker-guide-flow.py
+```
+</div>
+
+Here's the flow code for reference:
+
+```python title="prefect-docker-guide-flow.py"
+import httpx
+from prefect import flow
+
+
+@flow(log_prints=True)
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    url = f"https://api.github.com/repos/{repo_name}"
+    response = httpx.get(url)
+    response.raise_for_status()
+    repo = response.json()
+    print(f"{repo_name} repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo['stargazers_count']}")
+    print(f"Forks 🍴 : {repo['forks_count']}")
+
+
+if __name__ == "__main__":
+    get_repo_info.serve(name="prefect-docker-guide")
+```
+
+The next file we'll add to the `prefect-docker-guide` directory is a `requirements.txt`. We'll include all dependencies required for our `prefect-docker-guide-flow.py` script in the Docker image we'll build.
+
+<div class="terminal">
+```bash
+touch requirements.txt
+```
+</div>
+
+Here's what we'll put in our `requirements.txt` file:
+
+```txt title="requirements.txt"
+httpx
+```
+
+Next, we'll create a `Dockerfile` that we'll use to create a Docker image that will also store the flow code. 
+
+<div class="terminal">
+```bash
+touch Dockerfile
+```
+</div>
+
+We'll add the following content to our `Dockerfile`:
+
+```dockerfile title="Dockerfile"
+# We're using the latest version of Prefect with Python 3.9
 FROM prefecthq/prefect:2-python3.9
+
+# Add our requirements.txt file to the image and install dependencies
 COPY requirements.txt .
 RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-dir
-ADD flows /opt/prefect/flows
+
+# Add our flow code to the image
+COPY flows /opt/prefect/flows
+
+# Run our flow script when the container starts
+CMD ["python", "flows/prefect-docker-guide-flow.py"]
 ```
 
-Finally, we build this image by running: 
+## Building a Docker image
 
-```bash
-docker build -t docker-tutorial-image .
-```
-
-This will create a Docker image in your Docker repository with your Prefect flow stored in the image.  
-
-## Prefect.yaml File
-
-Now that you have created a Docker image that stores your Prefect flow code, you're going to make use of Prefect's deployment recipes. In your terminal, run:
+Now that we have a Dockerfile we can build our image by running: 
 
 <div class="terminal">
 ```bash
-prefect init --recipe docker
+docker build -t prefect-docker-guide-image .
 ```
 </div>
 
-You will see a prompt to input values for image name and tag, lets use:
-```
-image_name: docker-tutorial-image
-tag: latest
-```
-
-This will create a `prefect.yaml` file for us populated with some fields. By default, it will look like this:
-
-```yaml
-# Welcome to your prefect.yaml file! You can use this file for storing and managing
-# configuration for deploying your flows. We recommend committing this file to source
-# control along with your flow code.
-
-# Generic metadata about this project
-name: docker-tutorial
-prefect-version: 2.10.16
-
-# build section allows you to manage and build docker images
-build:
-- prefect_docker.deployments.steps.build_docker_image:
-    id: build_image
-    requires: prefect-docker>=0.3.0
-    image_name: docker-tutorial-image
-    tag: latest
-    dockerfile: auto
-    push: true
-
-# push section allows you to manage if and how this project is uploaded to remote locations
-push: null
-
-# pull section allows you to provide instructions for cloning this project in remote locations
-pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /opt/prefect/docker-tutorial
-
-# the deployments section allows you to provide configuration for deploying flows
-deployments:
-- name: null
-  version: null
-  tags: []
-  description: null
-  schedule: {}
-  flow_name: null
-  entrypoint: null
-  parameters: {}
-  work_pool:
-    name: null
-    work_queue_name: null
-    job_variables:
-      image: '{{ build_image.image }}'
-```
-
-Once you have made any updates you would like to this `prefect.yaml` file, in your terminal run: 
+And we can check that our image works by running:
 
 <div class="terminal">
 ```bash
-prefect deploy
+docker run -e PREFECT_API_URL=YOUR_PREFECT_API_URL -e PREFECT_API_KEY=YOUR_API_KEY prefect-docker-guide-image
 ```
 </div>
 
-The Prefect deployment wizard will walk you through the deployment experience to deploy your flow in either Prefect Cloud or your local Prefect Server.  Once the flow is deployed, you can even save the configuration to your `prefect.yaml` file for faster deployment in the future.
-## Cleaning up
+The container should start up and serve the flow within the container!
 
-When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.
+!!!tip Prefect API URL and API key
+    In the `docker run` command above, we're passing in the Prefect API URL and API key as environment variables.
+
+    If you are using Prefect Cloud, you will need an Prefect API URL and API key for your served flow to be able to communicate with the Prefect API. You can get an API key from the [API Keys](https://docs.prefect.io/2.12.0/cloud/users/api-keys/) section of the user settings in the Prefect UI.
+
+    You can get the Prefect API URL for your current setup by running `prefect config view` in your terminal.
+
+## Deploying to a remote environment
+
+Now that we have a Docker image with our flow code embedded, we can deploy it to a remote environment! 
+
+For this guide, we'll simulate a remote environment by using Kubernetes locally with Docker Desktop. You can use the [instructions provided by Docker to set up Kubernetes locally.](https://docs.docker.com/desktop/kubernetes/) 
+
+### Creating a Kubernetes deployment manifest
+
+To ensure the process serving our flow is always running, we'll create a [Kubernetes deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). If our flow's container ever crashes, Kubernetes will automatically restart it, thus ensuring that we won't miss any scheduled runs.
+
+First, we'll create a `deployment.yaml` file in our `prefect-docker-guide` directory:
+
+<div class="terminal">
+```bash
+touch deployment.yaml
+```
+</div>
+
+And we'll add the following content to our `deployment.yaml` file:
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-docker-guide
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      flow: get-repo-info
+  template:
+    metadata:
+      labels:
+        flow: get-repo-info
+    spec:
+      containers:
+      - name: flow-container
+        image: prefect-docker-guide-image:latest
+        env:
+        - name: PREFECT_API_URL
+          value: YOUR_PREFECT_API_URL
+        - name: PREFECT_API_KEY
+          value: YOUR_API_KEY
+        # Never pull the image because we're using a local image
+        imagePullPolicy: Never
+```
+
+This manifest defines how our image will run when deployed in our Kubernetes cluster. Note that we will be running a single replica of our flow container. If you want to run multiple replicas of your flow container to keep up with an active schedule, or because our flow is resource-intensive, you can increase the `replicas` value.
+
+!!!tip Keep your API key secret
+    In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
+
+### Deploying our flow to the cluster
+
+Now that we have a deployment manifest, we can deploy our flow to the cluster by running:
+
+<div class="terminal">
+```bash
+kubectl apply -f deployment.yaml
+```
+</div>
+
+We can monitor the status of our deployment by running:
+
+<div class="terminal">
+```bash
+kubectl get deployments
+```
+</div>
+
+Once the deployment has successfully started, we can check the logs of our flow container by running the following:
+
+<div class="terminal">
+```bash
+kubectl logs -l flow=get-repo-info
+```
+</div>
+
+Now that we're serving our flow in our cluster, we can trigger a flow run by running:
+
+<div class="terminal">
+```bash
+prefect deployment run get-repo-info/prefect-docker-guide
+```
+</div>
+
+If we navigate to the URL provided by the `prefect deployment run` command, we can follow the flow run via the logs in the Prefect UI!
+
+## Conclusion
+
+After going through this guide you should be armed with the knowledge to serve your flows in various environments using Docker.
+
+We only served a single flow in this guide, but you can extended this guide to serve multiple flows in a single Docker image by updating your Python script to using `flow.to_deployment` and `serve` to serve multiple flows or the same flow with different configuration.
+
+To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc!
