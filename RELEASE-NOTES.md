@@ -18,6 +18,8 @@ def hello(name = "Marvin"):
     print(f"Hello {name}!")
 
 if __name__ == "__main__":
+    # Creates a deployment named 'hello/hourly-greeting'
+    # which will run the 'hello' flow once an hour
     hello.serve(name="hourly-greeting", interval=3600)
 ```
 
