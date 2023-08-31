@@ -96,9 +96,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 === "Azure"
 
-    You can quickly create an AKS cluster using the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli) or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com). Creating the cluster runs for 3-5.
+    You can quickly create an AKS cluster using the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli), or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com).
 
-    First, authenticate to Azure if not already done
+    First, authenticate to Azure if not already done.
 
     ```bash
       az login
@@ -272,7 +272,7 @@ Our new Kubernetes work pool should now appear in the list of work pools.
 ## Create a Prefect Cloud API key
 
 While still in Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
-Click on your Profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
+Click on your profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
 Make sure to store it safely along with your other passwords, ideally via a password manager.
 ## Deploy a worker using Helm
 
