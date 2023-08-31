@@ -37,7 +37,7 @@ Running this script will start a process that will run the `hello` flow every ho
 ╰─────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-If you're excited to start serving your flows, check out our newly updated [quickstart](https://docs.prefect.io/latest/getting-started/quickstart/) and [tutorial](https://docs.prefect.io/latest/tutorial/) to get started.
+To start serving your flows, check out our newly updated [quickstart](https://docs.prefect.io/latest/getting-started/quickstart/) and [tutorial](https://docs.prefect.io/latest/tutorial/).
 
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10534
