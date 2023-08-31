@@ -67,7 +67,7 @@
     }
     return `Your work pool ${workPool.value.name} is ready to go!`
   })
-  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPool.value?.name}`)
+  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool "${workPool.value?.name}"`)
   const codeBannerSubtitle = computed(() => `Work pools organize work that ${isAgentWorkPool.value ? 'Prefect agents' : 'Prefect workers'} can pull from.`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
