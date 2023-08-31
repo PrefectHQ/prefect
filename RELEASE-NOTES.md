@@ -46,7 +46,7 @@ See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10585
 
 
-### An updated Prefect UI
+### A fresh look and feel
 
 The Prefect UI just got a fresh coat of paint across the entire interface! We've carefully redesigned colors throughout the UI to ensure a more cohesive and visually appealing experience. Whether you're a fan of the light or dark side (or switch between both), you'll notice our interfaces now shine brighter and feel more harmonious. Dive in and explore the new hues!
 
