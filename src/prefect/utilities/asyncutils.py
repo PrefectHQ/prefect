@@ -26,7 +26,11 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import sniffio
-from anyio.from_thread import start_blocking_portal
+
+try:
+    from anyio import start_blocking_portal
+except ImportError:
+    from anyio.from_thread import start_blocking_portal
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
 T = TypeVar("T")
