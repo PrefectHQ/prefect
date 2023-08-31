@@ -7,6 +7,11 @@
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10534
 - https://github.com/PrefectHQ/prefect/pull/10549
+- https://github.com/PrefectHQ/prefect/pull/10574
+
+### Possible second highlight
+- Update Prefect UI with new color scheme for light and dark modes — https://github.com/PrefectHQ/prefect/pull/10546
+- update favicons — https://github.com/PrefectHQ/prefect/pull/10578
 
 ### Enhancements
 - Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
@@ -18,32 +23,25 @@ See the following pull requests for details:
 - Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
 - Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
 - Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
-- Update Prefect UI with new color scheme for light and dark modes — https://github.com/PrefectHQ/prefect/pull/10546
 
 ### Fixes
+- Pin `Anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
 - Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
 - Fix `cloud login` false success when `PREFECT_API_KEY` set as environment variable or expired — https://github.com/PrefectHQ/prefect/pull/8641
 - Fix ability to view deployments page tags on larger screens - https://github.com/PrefectHQ/prefect/pull/10566
-- Pin `Anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
 - Properly indent `docker-git` recipe `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10519
+- Fix Slack community invitation link — https://github.com/PrefectHQ/prefect/pull/10509
 
 ### Experimental
 - Serialize concurrency requests — https://github.com/PrefectHQ/prefect/pull/10545
 
 ### Documentation
+- Detail Kubernetes work pool usage in Kubernetes guide — https://github.com/PrefectHQ/prefect/pull/10516
 - Add quickstart documentation, simplify welcome page and API reference overview — https://github.com/PrefectHQ/prefect/pull/10520
 - Add block and agent-based deployments to leftside navigation — https://github.com/PrefectHQ/prefect/pull/10528
 - Add `Try Prefect Cloud` button to documentation header — https://github.com/PrefectHQ/prefect/pull/10537
-
-- Add Kubernetes work pool usage in Kubernetes guide — https://github.com/PrefectHQ/prefect/pull/10516
-
-
-- Introduce `flow.serve` into the tutorial — https://github.com/PrefectHQ/prefect/pull/10556
-- Remove blank menu bar at top of docs — https://github.com/PrefectHQ/prefect/pull/10565
-- Put serve utilities into API reference — https://github.com/PrefectHQ/prefect/pull/10574
-- Update slack link — https://github.com/PrefectHQ/prefect/pull/10509
-- Fix broken moving data link — https://github.com/PrefectHQ/prefect/pull/10521
-- update favicons — https://github.com/PrefectHQ/prefect/pull/10578
+- Remove blank menu bar in documentation header — https://github.com/PrefectHQ/prefect/pull/10565
+- Fix link to guide on moving data to and from cloud providers — https://github.com/PrefectHQ/prefect/pull/10521
 
 ### Contributors
 - @mattklein
