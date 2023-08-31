@@ -251,8 +251,8 @@ class Runner:
             run_once: If True, the runner will through one query loop and then exit.
 
         Examples:
-
             Initialize a Runner, add two flows, and serve them by starting the Runner:
+
             ```python
             from prefect import flow, Runner
 
