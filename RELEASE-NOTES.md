@@ -15,7 +15,7 @@
 - Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
 - Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
 - Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
-- Rebrand – Update to V2 styles — https://github.com/PrefectHQ/prefect/pull/10546
+- Update Prefect UI with new color scheme for light and dark modes — https://github.com/PrefectHQ/prefect/pull/10546
 
 ### Fixes
 - Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
