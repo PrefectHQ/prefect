@@ -2,7 +2,40 @@
 
 ## Release 2.12.0
 
-### Highlight: flow.serve() - TBD
+### Introducing `Flow.serve()`
+
+We're excited to introduce a radically simple way to deploy flows. 
+
+The new `.serve()` method available on every flow allows you to take your existing flows and schedule or trigger runs via the Prefect UI and CLI. 
+
+This addition makes it easier than it's ever been to get started with Prefect:
+
+```python title="hello.py"
+from prefect import flow
+
+@flow
+def hello(name = "Marvin"):
+    print(f"Hello {name}!")
+
+if __name__ == "__main__":
+    hello.serve(name="hourly-greeting", interval=3600)
+```
+
+Running this script will start a process that will run the `hello` flow every hour and make it triggerable via the Prefect UI or CLI:
+
+```
+> python hello.py
+╭─────────────────────────────────────────────────────────────────────────────────────╮
+│ Your flow 'hello' is being served and polling for scheduled runs!                   │
+│                                                                                     │
+│ To trigger a run for this flow, use the following command:                          │
+│                                                                                     │
+│         $ prefect deployment run 'hello/hourly-greeting'                            │
+│                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+If you're excited to start serving your flows, check out our newly updated [quickstart](https://docs.prefect.io/latest/getting-started/quickstart/) and [tutorial](https://docs.prefect.io/latest/tutorial/) to get started.
 
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10534
@@ -15,7 +48,6 @@ See the following pull requests for details:
 - remove nav icons — https://github.com/PrefectHQ/prefect/pull/10584
 - bump deps and use sticky token — https://github.com/PrefectHQ/prefect/pull/10583
 - fix flow run graph bg — https://github.com/PrefectHQ/prefect/pull/10588
-
 
 ### Enhancements
 - Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
