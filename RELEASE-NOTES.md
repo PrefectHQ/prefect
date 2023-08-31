@@ -1,5 +1,50 @@
 # Prefect Release Notes
 
+## Release 2.12.0
+
+### Highlight: flow.serve() - TBD
+- Adds the ability to serve flows — https://github.com/PrefectHQ/prefect/pull/10534
+
+### Enhancements
+- Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
+- Improve validation for `Flow.name` — https://github.com/PrefectHQ/prefect/pull/10463
+- Add a Docker image for conda for Python 3.11 — https://github.com/PrefectHQ/prefect/pull/10532
+- Increase default `PREFECT_API_REQUEST_TIMEOUT` setting to 60 seconds — https://github.com/PrefectHQ/prefect/pull/10543
+- Remove missing work queue warning from the deployment page — https://github.com/PrefectHQ/prefect/pull/10550
+- Add `PREFECT_SQLALCHEMY_POOL_SIZE` and `PREFECT_SQLALCHEMY_MAX_OVERFLOW` settings to configure SQLAlchemy connection pool size — https://github.com/PrefectHQ/prefect/pull/10348
+- Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
+- Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
+- Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
+- Rebrand – Update to V2 styles — https://github.com/PrefectHQ/prefect/pull/10546
+
+### Fixes
+- Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
+- Fix `cloud login` false success when `PREFECT_API_KEY` set as environment variable or expired — https://github.com/PrefectHQ/prefect/pull/8641
+- Fix ability to view deployments page tags on larger screens - https://github.com/PrefectHQ/prefect/pull/10566
+- Pin `Anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
+- Properly indent `docker-git` recipe `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10519
+
+### Experimental
+- Serialize concurrency requests — https://github.com/PrefectHQ/prefect/pull/10545
+
+### Documentation
+- Docs prep work — https://github.com/PrefectHQ/prefect/pull/10520
+- Add block and agent-based deployments back to left nav — https://github.com/PrefectHQ/prefect/pull/10528
+- add cloud button link to header of docs — https://github.com/PrefectHQ/prefect/pull/10537
+- Expand work pool discussion in K8s guide — https://github.com/PrefectHQ/prefect/pull/10516
+- Update quickstart to use serve — https://github.com/PrefectHQ/prefect/pull/10549
+- Introduce `flow.serve` into the tutorial — https://github.com/PrefectHQ/prefect/pull/10556
+- Remove blank menu bar at top of docs — https://github.com/PrefectHQ/prefect/pull/10565
+- Put serve utilities into API reference — https://github.com/PrefectHQ/prefect/pull/10574
+- Update slack link — https://github.com/PrefectHQ/prefect/pull/10509
+- Fix broken moving data link — https://github.com/PrefectHQ/prefect/pull/10521
+- update favicons — https://github.com/PrefectHQ/prefect/pull/10578
+
+### Contributors
+- @mattklein
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.5...2.12.0
+
 ## Release 2.11.5
 
 ### New Guides
