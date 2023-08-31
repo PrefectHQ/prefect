@@ -2,7 +2,7 @@
   <div class="flow-run-graphs" :class="classes.root">
     <div class="flow-run-graphs__graphs" :class="classes.graph">
       <FlowRunTimeline
-        class="flow-run-graphs__timeline"
+        class="flow-run-graphs__timeline p-background"
         :flow-run="flowRun"
         height="340px"
         :selected-node="selectedNode"
@@ -132,7 +132,7 @@
   }
   .flow-run-graphs--fullscreen .flow-run-graphs__graphs--panel-open { @apply
     w-full
-    z-20
+    z-40
   }
 }
 </style>
