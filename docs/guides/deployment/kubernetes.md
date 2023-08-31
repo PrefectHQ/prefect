@@ -345,10 +345,6 @@ kubectl get pods -n prefect
 Let's start simple with a flow that just logs a message.
 In a directory named `flows`, create a file named `hello.py` with the following contents:
 
-```bash
-    mkdir flows
-```
-
 ```py
 from prefect import flow, get_run_logger, tags
 
