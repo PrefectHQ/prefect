@@ -62,12 +62,12 @@ def exception_traceback(exc: Exception) -> str:
 
 @contextmanager
 def _collapse_excgroups():
-    """
-    TODO: (review) better integration with engine?
+    """Unwrap single-exception groups to their underlying exception.
 
-    # https://github.com/agronholm/anyio/blob/master/docs/versionhistory.rst
+    anyio 4.0.0+ wraps exceptions from task groups in `BaseExceptionGroup`
+      details: https://github.com/agronholm/anyio/blob/master/docs/versionhistory.rst
 
-    Unwrap single-exception groups to their underlying exception.
+    🚨 this is an exploratory fix for this behavior 🚨
 
     If a caught exception is an instance of BaseExceptionGroup and contains only one
     underlying exception, this context manager will re-raise that single exception.
@@ -75,8 +75,9 @@ def _collapse_excgroups():
     try:
         yield
     except BaseException as exc:
-        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
-            exc = exc.exceptions[0]
+        if BaseExceptionGroup is not None:
+            while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+                exc = exc.exceptions[0]
         raise exc
 
 
