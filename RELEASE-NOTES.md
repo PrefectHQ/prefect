@@ -8,7 +8,7 @@ We're excited to introduce a radically simple way to deploy flows.
 
 The new `.serve()` method available on every flow allows you to take your existing flows and schedule or trigger runs via the Prefect UI and CLI. 
 
-This addition makes it easier than it's ever been to get started with Prefect:
+This addition makes it easier than it's ever been to deploy flows with Prefect:
 
 ```python title="hello.py"
 from prefect import flow
