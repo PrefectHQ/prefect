@@ -434,9 +434,9 @@ This specification is often necessary when images are built on Macs with M serie
 Let's make sure we define our requirements in a `requirements.txt` file:
 
 ```
-prefect=2.11.0
-prefect-docker=0.3.11
-prefect-kubernetes=0.2.11
+prefect>=2.11.0
+prefect-docker>=0.3.11
+prefect-kubernetes>=0.2.11
 ```
 
 The directory should now look something like this:
