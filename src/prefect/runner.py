@@ -923,7 +923,7 @@ async def serve(
                 "hello", tags=["dev"], interval=datetime.timedelta(days=1)
             )
 
-            # Run every Sunday at 4:05 AM
+            # Run every Sunday at 4:00 AM
             bye_deploy = my_other_flow.to_deployment(
                 "goodbye", tags=["dev"], cron="0 4 * * sun"
             )
