@@ -2,7 +2,17 @@
 Prefect-specific exceptions.
 """
 import inspect
+import sys
+
+if sys.version_info >= (3, 11):
+    from builtins import BaseExceptionGroup
+else:
+    try:
+        from exceptiongroup import BaseExceptionGroup
+    except ImportError:
+        BaseExceptionGroup = None
 import traceback
+from contextlib import contextmanager
 from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
@@ -48,6 +58,16 @@ def exception_traceback(exc: Exception) -> str:
     """
     tb = traceback.TracebackException.from_exception(exc)
     return "".join(list(tb.format()))
+
+
+@contextmanager
+def collapse_excgroups():
+    try:
+        yield
+    except BaseException as exc:
+        while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+            exc = exc.exceptions[0]
+        raise exc
 
 
 class PrefectException(Exception):

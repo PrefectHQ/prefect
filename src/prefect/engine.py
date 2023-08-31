@@ -140,6 +140,7 @@ from prefect.exceptions import (
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
+    collapse_excgroups,
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
@@ -1914,12 +1915,14 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
     """
 
     try:
-        yield
+        with collapse_excgroups():
+            yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
         state = await exception_to_crashed_state(exc)
+        print(state)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
