@@ -179,9 +179,7 @@ If you already have a registry, skip ahead to the next section.
 
 ## Create a Kubernetes work pool
 
-<<<<<<< Updated upstream
-[Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.
-We'll configure the default values for our Kubernetes base job template.
+Updated upstream [Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.  We'll configure the default values for our Kubernetes base job template.
 Note that these values can be overridden by individual deployments.
 
 Let's switch to the Prefect Cloud UI, where we'll create a new Kubernetes work pool (alternatively, you could use the Prefect CLI to create a work pool).
@@ -272,21 +270,12 @@ After configuring the work pool settings, move to the next screen.
 Give the work pool a name and save.
 
 Our new Kubernetes work pool should now appear in the list of work pools.
-=======
-Now let's switch over to Prefect Cloud, where we'll create a new work pool.
-Hit the plus button on the work pools page and choose Kubernetes from the list of options.
-On the next page, set Finished Job TTL to 60 so that completed flow runs are cleaned up, and set Pod Watch Timeout Seconds to 300, especially if you are using a __serverless__ type node pool since these tend to have longer startup times.
-You may also want to set a custom namespace, such as `prefect`.
-Generally you should leave the cluster config blank as the worker will already be provisioned with appropriate access and permissions.
-Finally, leave the image field blank as we'll override that in each deployment, and continue to finish the process.
 
 ## Create a Prefect Cloud API key
 
 While still in Prefect Cloud, let's create a Prefect Cloud API key from your profile if you don't already have one.
 Click on your Profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
 Make sure to store it safely along with your other passwords, ideally via a password manager.
->>>>>>> Stashed changes
-
 ## Deploy a worker using Helm
 
 With our cluster and work pool created, it's time to deploy a worker, which will set up Kubernetes infrastructure to run our flows.
