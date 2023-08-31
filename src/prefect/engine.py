@@ -140,7 +140,7 @@ from prefect.exceptions import (
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
-    collapse_excgroups,
+    _collapse_excgroups,
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
@@ -1915,7 +1915,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
     """
 
     try:
-        with collapse_excgroups():
+        with _collapse_excgroups():
             yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes

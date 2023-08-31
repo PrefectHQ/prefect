@@ -61,7 +61,15 @@ def exception_traceback(exc: Exception) -> str:
 
 
 @contextmanager
-def collapse_excgroups():
+def _collapse_excgroups():
+    """
+    TODO: better integration with engine?
+
+    Unwrap single-exception groups to their underlying exception.
+
+    If a caught exception is an instance of BaseExceptionGroup and contains only one
+    underlying exception, this context manager will re-raise that single exception.
+    """
     try:
         yield
     except BaseException as exc:
