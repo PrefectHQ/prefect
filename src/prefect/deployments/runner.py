@@ -264,19 +264,31 @@ class RunnerDeployment(BaseModel):
             version=version,
         )
 
-        # TODO: better error messages with doc links
         if not deployment.entrypoint:
+            no_file_location_error = (
+                "Flows defined interactively cannot be deployed. Check out the"
+                " quickstart guide for help getting started:"
+                " https://docs.prefect.io/latest/getting-started/quickstart."
+            )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
             if not flow_file:
                 if not mod_name:
-                    # todo, check if the file location was manually set already
-                    raise ValueError("Could not determine flow's file location.")
-                module = importlib.import_module(mod_name)
-                flow_file = getattr(module, "__file__", None)
+                    raise ValueError(no_file_location_error)
+                try:
+                    module = importlib.import_module(mod_name)
+                    flow_file = getattr(module, "__file__", None)
+                except ModuleNotFoundError as exc:
+                    if "__prefect_loader__" in str(exc):
+                        raise ValueError(
+                            "Cannot create a RunnerDeployment from a flow that has been"
+                            " loaded from an entrypoint. To deploy a flow via"
+                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                        )
+                    raise ValueError(no_file_location_error)
                 if not flow_file:
-                    raise ValueError("Could not determine flow's file location.")
+                    raise ValueError(no_file_location_error)
 
             # set entrypoint
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
