@@ -497,18 +497,18 @@ class Flow(Generic[P, R]):
         version: Optional[str] = None,
     ):
         """
-        Creates a deployment object for this flow.
+        Creates a runner deployment object for this flow.
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the current flow. Accepts either a number
+            interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this flow.
-            rrule: An rrule schedule of when to execute runs of this flow.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            triggers: A list of triggers that should kick of a run of this flow.
-            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
@@ -572,14 +572,14 @@ class Flow(Generic[P, R]):
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the current flow. Accepts either a number
+            interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
-            cron: A cron schedule of when to execute runs of this flow.
-            rrule: An rrule schedule of when to execute runs of this flow.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
             timezone: A timezone to use for the schedule. Defaults to UTC.
-            triggers: A list of triggers that should kick of a run of this flow.
-            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
@@ -600,7 +600,7 @@ class Flow(Generic[P, R]):
                 print(f"hello {name}")
 
             if __name__ == "__main__":
-                my_flow.serve(__file__)
+                my_flow.serve("example-deployment")
             ```
 
             Serve a flow and run it every hour:
@@ -613,7 +613,7 @@ class Flow(Generic[P, R]):
                 print(f"hello {name}")
 
             if __name__ == "__main__":
-                my_flow.serve(__file__, interval=3600)
+                my_flow.serve("example-deployment", interval=3600)
             ```
         """
         from prefect.runner import Runner

@@ -1,5 +1,32 @@
 """
-Objects for specifying deployments and utilities for loading flows from deployments.
+Objects for creating and configuring deployments for flows using `serve` functionality.
+
+Example:
+    ```python
+    import time
+    from prefect import flow, serve
+
+
+    @flow
+    def slow_flow(sleep: int = 60):
+        "Sleepy flow - sleeps the provided amount of time (in seconds)."
+        time.sleep(sleep)
+
+
+    @flow
+    def fast_flow():
+        "Fastest flow this side of the Mississippi."
+        return
+
+
+    if __name__ == "__main__":
+        # to_deployment creates RunnerDeployment instances
+        slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+        fast_deploy = fast_flow.to_deployment(name="fast")
+
+        serve(slow_deploy, fast_deploy)
+    ```
+
 """
 
 import importlib
@@ -19,6 +46,8 @@ from prefect.events.schemas import DeploymentTrigger
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+
+__all__ = ["RunnerDeployment"]
 
 
 class RunnerDeployment(BaseModel):
