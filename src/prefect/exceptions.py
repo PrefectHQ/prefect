@@ -63,7 +63,9 @@ def exception_traceback(exc: Exception) -> str:
 @contextmanager
 def _collapse_excgroups():
     """
-    TODO: better integration with engine?
+    TODO: (review) better integration with engine?
+
+    # https://github.com/agronholm/anyio/blob/master/docs/versionhistory.rst
 
     Unwrap single-exception groups to their underlying exception.
 
