@@ -141,7 +141,7 @@ class Runner:
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
         self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
-        self._logger = get_logger()
+        self._logger = get_logger("runner")
 
         self.started = False
         self.pause_on_shutdown = pause_on_shutdown
@@ -251,8 +251,8 @@ class Runner:
             run_once: If True, the runner will through one query loop and then exit.
 
         Examples:
-
             Initialize a Runner, add two flows, and serve them by starting the Runner:
+
             ```python
             from prefect import flow, Runner
 
@@ -485,8 +485,11 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
+        self._logger.info("Pausing schedules for all deployments...")
         for deployment_id in self._deployment_ids:
+            self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
             await self._client.update_schedule(deployment_id, active=False)
+        self._logger.info("All deployment schedules have been paused!")
 
     async def _get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
@@ -897,6 +900,36 @@ async def serve(
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
         **kwargs: Additional keyword arguments to pass to the runner.
+
+    Examples:
+        Prepare two deployments and serve them:
+
+        ```python
+        import datetime
+
+        from prefect import flow, serve
+
+        @flow
+        def my_flow(name):
+            print(f"hello {name}")
+
+        @flow
+        def my_other_flow(name):
+            print(f"goodbye {name}")
+
+        if __name__ == "__main__":
+            # Run once a day
+            hello_deploy = my_flow.to_deployment(
+                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+            )
+
+            # Run every Sunday at 4:00 AM
+            bye_deploy = my_other_flow.to_deployment(
+                "goodbye", tags=["dev"], cron="0 4 * * sun"
+            )
+
+            serve(hello_deploy, bye_deploy)
+        ```
     """
     runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
     for deployment in args:
