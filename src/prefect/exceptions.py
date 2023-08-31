@@ -67,7 +67,7 @@ def _collapse_excgroups():
     anyio 4.0.0+ wraps exceptions from task groups in `BaseExceptionGroup`
       details: https://github.com/agronholm/anyio/blob/master/docs/versionhistory.rst
 
-    🚨 this is an exploratory fix for this behavior 🚨
+    🚨 this is an exploratory attempt to handle this behavior 🚨
 
     If a caught exception is an instance of BaseExceptionGroup and contains only one
     underlying exception, this context manager will re-raise that single exception.

@@ -27,6 +27,8 @@ import anyio
 import anyio.abc
 import sniffio
 
+from prefect.exceptions import _collapse_excgroups
+
 try:
     from anyio import start_blocking_portal
 except ImportError:
@@ -156,16 +158,17 @@ async def run_sync_in_interruptible_worker_thread(
             raise_async_exception_in_thread(thread, anyio.get_cancelled_exc_class())
             raise
 
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(send_interrupt_to_thread)
-        tg.start_soon(
-            partial(
-                anyio.to_thread.run_sync,
-                capture_worker_thread_and_result,
-                cancellable=True,
-                limiter=get_thread_limiter(),
+    with _collapse_excgroups():
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(send_interrupt_to_thread)
+            tg.start_soon(
+                partial(
+                    anyio.to_thread.run_sync,
+                    capture_worker_thread_and_result,
+                    cancellable=True,
+                    limiter=get_thread_limiter(),
+                )
             )
-        )
 
     assert result is not NotSet
     return result
