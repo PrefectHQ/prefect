@@ -1922,7 +1922,6 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
         raise
     except BaseException as exc:
         state = await exception_to_crashed_state(exc)
-        print(state)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
