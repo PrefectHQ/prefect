@@ -388,6 +388,7 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
     deploy_config["schedule"] = _construct_schedule(deploy_config, ci=ci)
+    work_pool = None
 
     # determine work pool
     if get_from_dict(deploy_config, "work_pool.name"):
@@ -445,8 +446,9 @@ async def _run_single_deploy(
 
     build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
 
+    work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+
     if is_interactive() and not docker_build_step_exists and not build_step_set_to_null:
-        work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
         docker_based_infrastructure = "image" in work_pool.base_job_template.get(
             "variables", {}
         ).get("properties", {})
@@ -622,16 +624,16 @@ async def _run_single_deploy(
                     " file."
                 ),
             )
-
-    app.console.print(
-        "\nTo execute flow runs from this deployment, start a worker in a"
-        " separate terminal that pulls work from the"
-        f" {deploy_config['work_pool']['name']!r} work pool:"
-    )
-    app.console.print(
-        f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
-        style="blue",
-    )
+    if not work_pool.is_push_pool:
+        app.console.print(
+            "\nTo execute flow runs from this deployment, start a worker in a"
+            " separate terminal that pulls work from the"
+            f" {deploy_config['work_pool']['name']!r} work pool:"
+        )
+        app.console.print(
+            f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
+            style="blue",
+        )
     app.console.print(
         "\nTo schedule a run for this deployment, use the following command:"
     )
