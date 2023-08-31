@@ -173,6 +173,9 @@ If you already have a registry, skip ahead to the next section.
     # You need Owner, Account Administrator, or Co-Administrator role on your Azure subscription as per Azure docs
     az aks update --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --attach-acr <REPOSITORY-NAME>
 
+    # You can verify AKS can now reach ACR
+    az aks check-acr --resource-group RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --acr <REPOSITORY-NAME>.azurecr.io
+
     ```
 
 
