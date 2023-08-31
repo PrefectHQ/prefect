@@ -43,6 +43,8 @@ See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10534
 - https://github.com/PrefectHQ/prefect/pull/10549
 - https://github.com/PrefectHQ/prefect/pull/10574
+- https://github.com/PrefectHQ/prefect/pull/10585
+
 
 ### Possible second highlight
 - Update Prefect UI with new color scheme for light and dark modes — https://github.com/PrefectHQ/prefect/pull/10546
@@ -61,6 +63,7 @@ See the following pull requests for details:
 - Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
 - Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
 - Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
+- Improve CLI output for push work pools https://github.com/PrefectHQ/prefect/pull/10582
 
 ### Fixes
 - Pin `Anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
