@@ -736,7 +736,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## Serving a flow
 
-The simplest way to create a [deployment](/concepts/deployments/) for your flow is by calling its [`serve` method](/api-ref/prefect/flows/#prefect.flows.Flow.serve).  This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server.  When work is found, it is executed within its own isolated subprocess.
+The simplest way to create a [deployment](/concepts/deployments/) for your flow is by calling its [`serve` method](/api-ref/prefect/flows/#prefect.flows.Flow.serve). This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server. When work is found, it is executed within its own isolated subprocess.
 
 ```python title="hello_world.py"
 from prefect import flow
