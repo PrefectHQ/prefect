@@ -1690,6 +1690,21 @@ class TestProjectDeploy:
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_with_push_pool_no_worker_start_message(self, push_work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f" {push_work_pool.name} --interval 3600"
+            ),
+            expected_code=0,
+            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            expected_output_does_not_contain=[
+                f"$ prefect worker start --pool {push_work_pool.name!r}",
+            ],
+        )
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_no_available_work_pool_interactive(self, prefect_client):
         await run_sync_in_worker_thread(
             invoke_and_assert,
