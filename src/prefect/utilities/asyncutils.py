@@ -26,6 +26,7 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import sniffio
+from anyio.from_thread import start_blocking_portal
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
 T = TypeVar("T")
@@ -284,7 +285,7 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
             "`sync` called from an asynchronous context; "
             "you should `await` the async function directly instead."
         )
-        with anyio.start_blocking_portal() as portal:
+        with start_blocking_portal() as portal:
             return portal.call(partial(__async_fn, *args, **kwargs))
     elif in_async_worker_thread():
         # In a sync context but we can access the event loop thread; send the async
