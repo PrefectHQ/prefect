@@ -64,9 +64,10 @@
 .app-router-view { @apply
   flex
   flex-col
-  bg-no-repeat;
+  bg-no-repeat
+  overflow-auto;
   --prefect-scroll-margin: theme('spacing.20');
-  min-height: 100vh;
+  height: 100vh;
   background-image: url('/decorative_iso-pixel-grid_light.svg');
   background-attachment: fixed;
   background-position: bottom -140px left -140px;
@@ -87,10 +88,7 @@
   cursor-pointer
 }
 
-.app-router-view__view { @apply
-  relative
-  z-0;
-
+.app-router-view__view {
   /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
   flex: 1 0 1px;
   height: 100%;
