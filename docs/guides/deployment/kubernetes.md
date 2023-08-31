@@ -108,8 +108,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
     ```bash
 
-      # Create a Resource Group with a name and at the desired location, e.g. westus
-      az group create  --name <RESOURCE-GROUP-NAME> --location <LOCATION>
+      # Create a Resource Group at the desired location, e.g. westus
+      az group create --name <RESOURCE-GROUP-NAME> --location <LOCATION>
 
       # Create a kubernetes cluster with default kubernetes version, default SKU load balancer (Standard) and default vm set type (VirtualMachineScaleSets)
       az aks create --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME>
@@ -121,10 +121,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       kubectl get nodes
     ```
 
-    <details>
-      <summary>Note</summary>
+    !!! note Note:
       - If you don't already have an SSH key under `~/.ssh/` and you don't explicitly point to one, `az aks create` fails. Add `--generate-ssh-keys` to generate one.
-    </details>
 
 ## Create a container registry
 
@@ -171,7 +169,7 @@ If you already have a registry, skip ahead to the next section.
       --sku Basic
 
     # Attach ACR to AKS cluster
-    # Note: As per Azure docs, you need Owner, Account Administrator, or Co-Administrator role on your Azure subscription.
+    # You need Owner, Account Administrator, or Co-Administrator role on your Azure subscription as per Azure docs
     az aks update --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --attach-acr <REPOSITORY-NAME>
 
     ```
@@ -273,7 +271,7 @@ Our new Kubernetes work pool should now appear in the list of work pools.
 
 ## Create a Prefect Cloud API key
 
-While still in Prefect Cloud, let's create a Prefect Cloud API key from your profile if you don't already have one.
+While still in Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
 Click on your Profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
 Make sure to store it safely along with your other passwords, ideally via a password manager.
 ## Deploy a worker using Helm
