@@ -177,7 +177,8 @@ If you already have a registry, skip ahead to the next section.
 
 ## Create a Kubernetes work pool
 
-Updated upstream [Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.  We'll configure the default values for our Kubernetes base job template.
+[Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.
+We'll configure the default values for our Kubernetes base job template.
 Note that these values can be overridden by individual deployments.
 
 Let's switch to the Prefect Cloud UI, where we'll create a new Kubernetes work pool (alternatively, you could use the Prefect CLI to create a work pool).
@@ -442,6 +443,7 @@ prefect-kubernetes>=0.2.11
 The directory should now look something like this:
 
 ```
+.
 ├── prefect.yaml
 └── flows
     ├── requirements.txt
