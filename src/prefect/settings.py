@@ -1268,6 +1268,11 @@ PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
 Whether or not to warn when experimental Prefect visualize is used.
 """
 
+PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
+"""
+Maximum number of processes a runner will execute in parallel.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
