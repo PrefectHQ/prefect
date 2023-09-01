@@ -66,6 +66,7 @@ from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
     get_current_settings,
 )
@@ -145,13 +146,15 @@ class Runner:
 
         self.started = False
         self.pause_on_shutdown = pause_on_shutdown
+        self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._limiter: Optional[anyio.CapacityLimiter] = (
-            anyio.CapacityLimiter(limit) if limit is not None else None
+
+        self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
+            self.limit
         )
         self._client = get_client()
         self._submitting_flow_run_ids = set()

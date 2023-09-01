@@ -13,6 +13,7 @@ from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import RunnerDeployment
 from prefect.flows import load_flow_from_entrypoint
 from prefect.runner import Runner
+from prefect.settings import PREFECT_RUNNER_PROCESS_LIMIT, temporary_settings
 from prefect.testing.utilities import AsyncMock
 
 
@@ -34,6 +35,19 @@ def tired_flow():
     for _ in range(100):
         print("zzzzz...")
         sleep(5)
+
+
+class TestInit:
+    async def test_runner_respects_limit_setting(self):
+        runner = Runner()
+        assert runner.limit == PREFECT_RUNNER_PROCESS_LIMIT.value()
+
+        runner = Runner(limit=50)
+        assert runner.limit == 50
+
+        with temporary_settings({PREFECT_RUNNER_PROCESS_LIMIT: 100}):
+            runner = Runner()
+            assert runner.limit == 100
 
 
 class TestServe:
