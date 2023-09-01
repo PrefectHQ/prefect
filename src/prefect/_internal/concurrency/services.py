@@ -122,10 +122,12 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
             # The logging call yields to another thread, so we must remove the instance
             # before reporting the failure to prevent retrieval of a dead instance
-            logger.exception(
+            log_traceback = logger.isEnabledFor(logging.DEBUG)
+            logger.error(
                 "Service %r failed with %s pending items.",
                 type(self).__name__,
                 self._queue.qsize(),
+                exc_info=log_traceback,
             )
         finally:
             self._remove_instance()

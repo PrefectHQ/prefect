@@ -380,7 +380,7 @@ def test_batched_queue_service_min_interval():
 @pytest.mark.parametrize(
     "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
 )
-def test_queue_service_contains_traceback_only_at_debug(
+def test_queue_service_item_failure_contains_traceback_only_at_debug(
     caplog: pytest.LogCaptureFixture, level: str, expected: bool
 ):
     class ExceptionOnHandleService(QueueService[int]):
@@ -392,7 +392,7 @@ def test_queue_service_contains_traceback_only_at_debug(
     with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
         instance = ExceptionOnHandleService.instance()
         instance.send(1)
-        instance.drain_all()
+        instance.drain()
 
     assert (ExceptionOnHandleService.exception_msg in caplog.text) == expected
 
@@ -400,7 +400,7 @@ def test_queue_service_contains_traceback_only_at_debug(
 @pytest.mark.parametrize(
     "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
 )
-def test_batched_queue_service_contains_traceback_only_at_debug(
+def test_batched_queue_service_item_failure_contains_traceback_only_at_debug(
     caplog: pytest.LogCaptureFixture, level: str, expected: bool
 ):
     class ExceptionOnHandleBatchService(BatchedQueueService[int]):
@@ -413,6 +413,28 @@ def test_batched_queue_service_contains_traceback_only_at_debug(
     with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
         instance = ExceptionOnHandleBatchService.instance()
         instance.send(1)
-        instance.drain_all()
+        instance.drain()
 
     assert (ExceptionOnHandleBatchService.exception_msg in caplog.text) == expected
+
+
+@pytest.mark.parametrize(
+    "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
+)
+def test_queue_service_start_failure_contains_traceback_only_at_debug(
+    caplog: pytest.LogCaptureFixture, level: str, expected: bool
+):
+    class ExceptionOnHandleService(QueueService[int]):
+        exception_msg = "Oh no!"
+
+        async def _handle(self):
+            ...
+
+        async def _main_loop(self):
+            raise Exception(self.exception_msg)
+
+    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+        instance = ExceptionOnHandleService.instance()
+        instance.drain()
+
+    assert (ExceptionOnHandleService.exception_msg in caplog.text) == expected
