@@ -26,15 +26,15 @@ In this guide we'll:
 
 To complete this guide, you'll need the following:
 
-- A Python script that declares and serves a flow. 
+- A Python script that defines and serves a flow. 
   - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
 - Access to a running Prefect API server.
-  - You sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
+  - You can sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
 - [Docker Desktop](https://docs.docker.com/desktop/) installed on your machine.
 
 ## Writing a Dockerfile
 
-First let's write a directory to work from, `prefect-docker-guide`.
+First let's make a clean directory to work from, `prefect-docker-guide`.
 
 <div class="terminal">
 ```bash
@@ -86,6 +86,7 @@ touch requirements.txt
 Here's what we'll put in our `requirements.txt` file:
 
 ```txt title="requirements.txt"
+prefect>=2.12.0
 httpx
 ```
 
@@ -151,17 +152,17 @@ For this guide, we'll simulate a remote environment by using Kubernetes locally 
 
 To ensure the process serving our flow is always running, we'll create a [Kubernetes deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). If our flow's container ever crashes, Kubernetes will automatically restart it, thus ensuring that we won't miss any scheduled runs.
 
-First, we'll create a `deployment.yaml` file in our `prefect-docker-guide` directory:
+First, we'll create a `deployment-manifest.yaml` file in our `prefect-docker-guide` directory:
 
 <div class="terminal">
 ```bash
-touch deployment.yaml
+touch deployment-manifest.yaml
 ```
 </div>
 
-And we'll add the following content to our `deployment.yaml` file:
+And we'll add the following content to our `deployment-manifest.yaml` file:
 
-```yaml title="deployment.yaml"
+```yaml title="deployment-manifest.yaml"
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -199,11 +200,11 @@ Now that we have a deployment manifest, we can deploy our flow to the cluster by
 
 <div class="terminal">
 ```bash
-kubectl apply -f deployment.yaml
+kubectl apply -f deployment-manifest.yaml
 ```
 </div>
 
-We can monitor the status of our deployment by running:
+We can monitor the status of our Kubernetes deployment by running:
 
 <div class="terminal">
 ```bash
