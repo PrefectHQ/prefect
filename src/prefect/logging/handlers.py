@@ -60,7 +60,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
                     traceback.print_exc(file=sys.stderr)
                 else:
                     # Only log the exception message in non-DEBUG mode
-                    sys.stderr.write(f"{e}")
+                    sys.stderr.write(str(e))
 
     @asynccontextmanager
     async def _lifespan(self):
