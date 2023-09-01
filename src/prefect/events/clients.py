@@ -169,15 +169,17 @@ class PrefectCloudEventsClient(EventsClient):
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
 
     async def _emit(self, event: Event) -> None:
-        assert self._websocket
-
         for i in range(self._reconnection_attempts + 1):
             try:
-                # after the first time through this loop, we're recovering from a
-                # ConnectionClosed, so reconnect now, resending any unconfirmed
+                # If we're here and the websocket is None, then we've had a failure in a
+                # previous reconnection attempt.
+                #
+                # Otherwise, after the first time through this loop, we're recovering
+                # from a ConnectionClosed, so reconnect now, resending any unconfirmed
                 # events before we send this one.
-                if i > 0:
+                if not self._websocket or i > 0:
                     await self._reconnect()
+                    assert self._websocket
 
                 await self._websocket.send(event.json())
                 await self._checkpoint(event)
