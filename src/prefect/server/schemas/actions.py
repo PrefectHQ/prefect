@@ -11,7 +11,6 @@ import jsonschema
 from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.experimental import experimental_field
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
@@ -25,6 +24,7 @@ from prefect.server.utilities.schemas import (
 )
 from prefect.utilities.pydantic import get_class_fields_only
 from prefect.utilities.templating import find_placeholders
+from prefect.utilities.validation import validate_values_conform_to_schema
 
 
 def validate_block_type_slug(value):
@@ -85,11 +85,6 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
@@ -174,12 +169,15 @@ class DeploymentCreate(ActionBaseModel):
 
             jsonschema.validate(self.infra_overrides, variables_schema)
 
+    @root_validator
+    def _validate_parameters_conform_to_schema(cls, values):
+        """Validate that the parameters conform to the parameter schema."""
+        validate_values_conform_to_schema(
+            values.get("parameters"), values.get("parameter_openapi_schema")
+        )
+        return values
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None,
-)
+
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""

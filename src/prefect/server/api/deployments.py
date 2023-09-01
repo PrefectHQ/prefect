@@ -20,6 +20,7 @@ from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.utilities.validation import validate_values_conform_to_schema
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -161,11 +162,28 @@ async def update_deployment(
                     detail=f"Error creating deployment: {exc!r}",
                 )
 
-        result = await models.deployments.update_deployment(
+        if deployment.parameters:
+            # ensure that the new parameters conform to the existing schema
+            read_deployment = await models.deployments.read_deployment(
+                session=session, deployment_id=deployment_id
+            )
+            if not read_deployment:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+                )
+
+            try:
+                validate_values_conform_to_schema(
+                    deployment.parameters, read_deployment.parameter_openapi_schema
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, detail=f"Error updating deployment: {exc}"
+                )
+
+        await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
-    if not result:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
 
 @router.get("/name/{flow_name}/{deployment_name}")
@@ -407,6 +425,15 @@ async def create_flow_run_from_deployment(
 
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
+
+        try:
+            validate_values_conform_to_schema(
+                parameters, deployment.parameter_openapi_schema
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc!r}"
+            )
 
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id
