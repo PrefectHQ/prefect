@@ -101,8 +101,8 @@ touch Dockerfile
 We'll add the following content to our `Dockerfile`:
 
 ```dockerfile title="Dockerfile"
-# We're using the latest version of Prefect with Python 3.9
-FROM prefecthq/prefect:2-python3.9
+# We're using the latest version of Prefect with Python 3.10
+FROM prefecthq/prefect:2-python3.10
 
 # Add our requirements.txt file to the image and install dependencies
 COPY requirements.txt .
@@ -125,22 +125,40 @@ docker build -t prefect-docker-guide-image .
 ```
 </div>
 
-And we can check that our image works by running:
+We can check that our build worked by running a container from our new image.
 
-<div class="terminal">
-```bash
-docker run -e PREFECT_API_URL=YOUR_PREFECT_API_URL -e PREFECT_API_KEY=YOUR_API_KEY prefect-docker-guide-image
-```
-</div>
+=== "Cloud"
 
-The container should start up and serve the flow within the container!
+    Our container will need an API URL and and API key to communicate with Prefect Cloud. 
+    
+    - You can get an API key from the [API Keys](https://docs.prefect.io/2.12.0/cloud/users/api-keys/) section of the user settings in the Prefect UI. 
 
-!!!tip Prefect API URL and API key
-    In the `docker run` command above, we're passing in the Prefect API URL and API key as environment variables.
+    - You can get your API URL by running `prefect config view` and copying the `PREFECT_API_URL` value.
 
-    If you are using Prefect Cloud, you will need an Prefect API URL and API key for your served flow to be able to communicate with the Prefect API. You can get an API key from the [API Keys](https://docs.prefect.io/2.12.0/cloud/users/api-keys/) section of the user settings in the Prefect UI.
+    We'll provide both these values to our container by passing them as environment variables with the `-e` flag.
 
-    You can get the Prefect API URL for your current setup by running `prefect config view` in your terminal.
+    <div class="terminal">
+    ```bash
+    docker run -e PREFECT_API_URL=YOUR_PREFECT_API_URL -e PREFECT_API_KEY=YOUR_API_KEY prefect-docker-guide-image
+    ```
+    </div>
+
+    After running the above command, the container should start up and serve the flow within the container!
+
+=== "Self-hosted"
+
+    Our container will need an API URL and network access to communicate with the Prefect API. 
+    
+    For this guide, we'll assume the Prefect API is running on the same machine that we'll run our container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/guides/host/) for information on how to connect to your Prefect API instance.
+    
+    To ensure that our flow container can communicate with the Prefect API, we'll set our `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, you'll need to set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
+
+    <div class="terminal">
+    ```bash
+    docker run --network="host" -e PREFECT_API_URL=http://host.docker.internal:4200/api prefect-docker-guide-image
+    ```
+
+    After running the above command, the container should start up and serve the flow within the container!
 
 ## Deploying to a remote environment
 
@@ -150,7 +168,7 @@ For this guide, we'll simulate a remote environment by using Kubernetes locally 
 
 ### Creating a Kubernetes deployment manifest
 
-To ensure the process serving our flow is always running, we'll create a [Kubernetes deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). If our flow's container ever crashes, Kubernetes will automatically restart it, thus ensuring that we won't miss any scheduled runs.
+To ensure the process serving our flow is always running, we'll create a [Kubernetes deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). If our flow's container ever crashes, Kubernetes will automatically restart it, ensuring that we won't miss any scheduled runs.
 
 First, we'll create a `deployment-manifest.yaml` file in our `prefect-docker-guide` directory:
 
@@ -230,10 +248,8 @@ prefect deployment run get-repo-info/prefect-docker-guide
 
 If we navigate to the URL provided by the `prefect deployment run` command, we can follow the flow run via the logs in the Prefect UI!
 
-## Conclusion
+## Next Steps
 
-After going through this guide you should be armed with the knowledge to serve your flows in various environments using Docker.
-
-We only served a single flow in this guide, but you can extended this guide to serve multiple flows in a single Docker image by updating your Python script to using `flow.to_deployment` and `serve` to serve multiple flows or the same flow with different configuration.
+We only served a single flow in this guide, but you can extend this setup to serve multiple flows in a single Docker image by updating your Python script to using `flow.to_deployment` and `serve` to [serve multiple flows or the same flow with different configuration](/concepts/flows#serving-multiple-flows-at-once).
 
 To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc!
