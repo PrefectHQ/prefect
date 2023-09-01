@@ -317,6 +317,9 @@ class Runner:
         the flow run process has exited.
         """
         async with self:
+            if not self._acquire_limit_slot(flow_run_id):
+                return
+
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
                     self._submitting_flow_run_ids.add(flow_run_id)
@@ -626,6 +629,31 @@ class Runner:
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
+    def _acquire_limit_slot(self, flow_run_id: str) -> bool:
+        """
+        Enforces flow run limit set on runner.
+
+        Returns:
+            - bool: True if a slot was acquired, False otherwise.
+        """
+        try:
+            if self._limiter:
+                self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+            return True
+        except anyio.WouldBlock:
+            self._logger.info(
+                f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                " in progress."
+            )
+            return False
+
+    def _release_limit_slot(self, flow_run_id: str) -> None:
+        """
+        Frees up a slot taken by the given flow run id.
+        """
+        if self._limiter:
+            self._limiter.release_on_behalf_of(flow_run_id)
+
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]
     ) -> List["FlowRun"]:
@@ -638,16 +666,8 @@ class Runner:
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-            try:
-                if self._limiter:
-                    self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
-            except anyio.WouldBlock:
-                self._logger.info(
-                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                    " in progress."
-                )
-                break
-            else:
+
+            if self._acquire_limit_slot(flow_run.id):
                 run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.info(
                     f"Runner '{self.name}' submitting flow run '{flow_run.id}'"
@@ -657,6 +677,8 @@ class Runner:
                     self._submit_run,
                     flow_run,
                 )
+            else:
+                break
 
         return list(
             filter(
@@ -684,8 +706,7 @@ class Runner:
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
             # If the run is not ready to submit, release the concurrency slot
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         self._submitting_flow_run_ids.remove(flow_run.id)
 
@@ -718,8 +739,7 @@ class Runner:
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
             self._flow_run_process_map.pop(flow_run.id, None)
 
         if status_code != 0:
