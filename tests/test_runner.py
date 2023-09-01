@@ -297,6 +297,33 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_completed()
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_respects_set_limit(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        runner = Runner(limit=1)
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        good_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        bad_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        runner._acquire_limit_slot(good_run.id)
+        await runner.execute_flow_run(bad_run.id)
+        assert "run limit reached" in caplog.text
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+        assert flow_run.state.is_scheduled()
+
+        runner._release_limit_slot(good_run.id)
+        await runner.execute_flow_run(bad_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+        assert flow_run.state.is_completed()
+
 
 class TestRunnerDeployment:
     @pytest.fixture
