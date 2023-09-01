@@ -66,6 +66,7 @@ from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
     get_current_settings,
 )
@@ -141,17 +142,19 @@ class Runner:
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
         self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
-        self._logger = get_logger()
+        self._logger = get_logger("runner")
 
         self.started = False
         self.pause_on_shutdown = pause_on_shutdown
+        self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._limiter: Optional[anyio.CapacityLimiter] = (
-            anyio.CapacityLimiter(limit) if limit is not None else None
+
+        self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
+            self.limit
         )
         self._client = get_client()
         self._submitting_flow_run_ids = set()
@@ -251,8 +254,8 @@ class Runner:
             run_once: If True, the runner will through one query loop and then exit.
 
         Examples:
-
             Initialize a Runner, add two flows, and serve them by starting the Runner:
+
             ```python
             from prefect import flow, Runner
 
@@ -314,6 +317,9 @@ class Runner:
         the flow run process has exited.
         """
         async with self:
+            if not self._acquire_limit_slot(flow_run_id):
+                return
+
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
                     self._submitting_flow_run_ids.add(flow_run_id)
@@ -485,8 +491,11 @@ class Runner:
         """
         Pauses all deployment schedules.
         """
+        self._logger.info("Pausing schedules for all deployments...")
         for deployment_id in self._deployment_ids:
+            self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
             await self._client.update_schedule(deployment_id, active=False)
+        self._logger.info("All deployment schedules have been paused!")
 
     async def _get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
@@ -620,6 +629,32 @@ class Runner:
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
 
+    def _acquire_limit_slot(self, flow_run_id: str) -> bool:
+        """
+        Enforces flow run limit set on runner.
+
+        Returns:
+            - bool: True if a slot was acquired, False otherwise.
+        """
+        try:
+            if self._limiter:
+                self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+            return True
+        except anyio.WouldBlock:
+            self._logger.info(
+                f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                " in progress. You can control this limit by adjusting the"
+                " PREFECT_RUNNER_PROCESS_LIMIT setting."
+            )
+            return False
+
+    def _release_limit_slot(self, flow_run_id: str) -> None:
+        """
+        Frees up a slot taken by the given flow run id.
+        """
+        if self._limiter:
+            self._limiter.release_on_behalf_of(flow_run_id)
+
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List["FlowRun"]
     ) -> List["FlowRun"]:
@@ -632,16 +667,8 @@ class Runner:
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-            try:
-                if self._limiter:
-                    self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
-            except anyio.WouldBlock:
-                self._logger.info(
-                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                    " in progress."
-                )
-                break
-            else:
+
+            if self._acquire_limit_slot(flow_run.id):
                 run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.info(
                     f"Runner '{self.name}' submitting flow run '{flow_run.id}'"
@@ -651,6 +678,8 @@ class Runner:
                     self._submit_run,
                     flow_run,
                 )
+            else:
+                break
 
         return list(
             filter(
@@ -678,8 +707,7 @@ class Runner:
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
             # If the run is not ready to submit, release the concurrency slot
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         self._submitting_flow_run_ids.remove(flow_run.id)
 
@@ -712,8 +740,7 @@ class Runner:
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
             self._flow_run_process_map.pop(flow_run.id, None)
 
         if status_code != 0:
@@ -897,6 +924,36 @@ async def serve(
         pause_on_shutdown: A boolean for whether or not to automatically pause
             deployment schedules on shutdown.
         **kwargs: Additional keyword arguments to pass to the runner.
+
+    Examples:
+        Prepare two deployments and serve them:
+
+        ```python
+        import datetime
+
+        from prefect import flow, serve
+
+        @flow
+        def my_flow(name):
+            print(f"hello {name}")
+
+        @flow
+        def my_other_flow(name):
+            print(f"goodbye {name}")
+
+        if __name__ == "__main__":
+            # Run once a day
+            hello_deploy = my_flow.to_deployment(
+                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+            )
+
+            # Run every Sunday at 4:00 AM
+            bye_deploy = my_other_flow.to_deployment(
+                "goodbye", tags=["dev"], cron="0 4 * * sun"
+            )
+
+            serve(hello_deploy, bye_deploy)
+        ```
     """
     runner = Runner(pause_on_shutdown=pause_on_shutdown, **kwargs)
     for deployment in args:
