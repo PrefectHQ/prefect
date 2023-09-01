@@ -2,7 +2,7 @@
 
 ## Release 2.12.1
 
-This release includes some important fixes and enhancements. In particular, it resolves an issue preventing the flow run graph from rendering coreecting in some cases.
+This release includes some important fixes and enhancements. In particular, it resolves an issue preventing the flow run graph from rendering correctly in some cases.
 
 ### Enhancements
 - Reduce logging noise on QueueServices startup failures and item processing failures — https://github.com/PrefectHQ/prefect/pull/10564
