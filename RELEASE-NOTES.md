@@ -1,5 +1,23 @@
 # Prefect Release Notes
 
+## Release 2.12.1
+
+### Enhancements
+- Reduce logging noise on QueueServices startup failures and item processing failures — https://github.com/PrefectHQ/prefect/pull/10564
+- Expose a setting for configuring a process limit on served flows — https://github.com/PrefectHQ/prefect/pull/10602
+
+### Fixes
+- Improve failure recovery for websockets — https://github.com/PrefectHQ/prefect/pull/10597
+- Fix flow run graph rendering issues — https://github.com/PrefectHQ/prefect/pull/10606
+
+### Documentation
+- Update Docker guide to include with `flow.serve()` — https://github.com/PrefectHQ/prefect/pull/10596
+
+### Contributors
+* @urimandujano made their first contribution in https://github.com/PrefectHQ/prefect/pull/10564
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.0...2.12.1
+
 ## Release 2.12.0
 
 ### Introducing `Flow.serve()`
