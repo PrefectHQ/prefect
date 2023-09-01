@@ -271,7 +271,7 @@ Our new Kubernetes work pool should now appear in the list of work pools.
 
 ## Create a Prefect Cloud API key
 
-While still in Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
+While in the Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
 Click on your profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
 Make sure to store it safely along with your other passwords, ideally via a password manager.
 ## Deploy a worker using Helm
