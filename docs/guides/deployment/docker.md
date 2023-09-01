@@ -180,37 +180,68 @@ touch deployment-manifest.yaml
 
 And we'll add the following content to our `deployment-manifest.yaml` file:
 
-```yaml title="deployment-manifest.yaml"
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: prefect-docker-guide
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      flow: get-repo-info
-  template:
+=== "Cloud"
+    ```yaml title="deployment-manifest.yaml"
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        flow: get-repo-info
+      name: prefect-docker-guide
     spec:
-      containers:
-      - name: flow-container
-        image: prefect-docker-guide-image:latest
-        env:
-        - name: PREFECT_API_URL
-          value: YOUR_PREFECT_API_URL
-        - name: PREFECT_API_KEY
-          value: YOUR_API_KEY
-        # Never pull the image because we're using a local image
-        imagePullPolicy: Never
-```
+      replicas: 1
+      selector:
+        matchLabels:
+          flow: get-repo-info
+      template:
+        metadata:
+          labels:
+            flow: get-repo-info
+        spec:
+          containers:
+          - name: flow-container
+            image: prefect-docker-guide-image:latest
+            env:
+            - name: PREFECT_API_URL
+              value: YOUR_PREFECT_API_URL
+            - name: PREFECT_API_KEY
+              value: YOUR_API_KEY
+            # Never pull the image because we're using a local image
+            imagePullPolicy: Never
+    ```
+
+    !!!tip "Keep your API key secret"
+          In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
+
+
+=== "Self-hosted"
+    ```yaml title="deployment-manifest.yaml"
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: prefect-docker-guide
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          flow: get-repo-info
+      template:
+        metadata:
+          labels:
+            flow: get-repo-info
+        spec:
+          containers:
+          - name: flow-container
+            image: prefect-docker-guide-image:latest
+            env:
+            - name: PREFECT_API_URL
+              value: http://host.docker.internal:4200/api
+            # Never pull the image because we're using a local image
+            imagePullPolicy: Never
+    ```
+
+    !!!tip "Linux users"
+        If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.
 
 This manifest defines how our image will run when deployed in our Kubernetes cluster. Note that we will be running a single replica of our flow container. If you want to run multiple replicas of your flow container to keep up with an active schedule, or because our flow is resource-intensive, you can increase the `replicas` value.
-
-!!!tip Keep your API key secret
-    In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
 
 ### Deploying our flow to the cluster
 
