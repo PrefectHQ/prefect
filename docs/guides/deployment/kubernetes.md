@@ -94,8 +94,32 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
       ```
 
-<!-- === "Azure"
-    TODO -->
+=== "Azure"
+
+    You can quickly create an AKS cluster using the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli), or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com).
+
+    First, authenticate to Azure if not already done.
+
+    ```bash
+      az login
+    ```
+
+    Next, deploy the cluster - this command will take ~4 minutes to complete. Once the cluster has been created, authenticate to the cluster.
+
+    ```bash
+
+      # Create a Resource Group at the desired location, e.g. westus
+      az group create --name <RESOURCE-GROUP-NAME> --location <LOCATION>
+
+      # Create a kubernetes cluster with default kubernetes version, default SKU load balancer (Standard) and default vm set type (VirtualMachineScaleSets)
+      az aks create --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME>
+
+      # Configure kubectl to connect to your Kubernetes cluster
+      az aks get-credentials --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME>
+
+      # Verify the connection by listing the cluster nodes
+      kubectl get nodes
+    ```
 
 ## Create a container registry
 
@@ -131,8 +155,25 @@ If you already have a registry, skip ahead to the next section.
     gcloud auth configure-docker us-docker.pkg.dev
     ```
 
-<!-- === "Azure"
-    TODO -->
+=== "Azure"
+    Let's create a registry using the Azure CLI and authenticate the docker daemon to said registry:
+
+    ```bash
+    # Name must be a lower-case alphanumeric
+    # Tier SKU can easily be updated later, e.g. az acr update --name <REPOSITORY-NAME> --sku Standard
+    az acr create --resource-group <RESOURCE-GROUP-NAME> \
+      --name <REPOSITORY-NAME> \
+      --sku Basic
+
+    # Attach ACR to AKS cluster
+    # You need Owner, Account Administrator, or Co-Administrator role on your Azure subscription as per Azure docs
+    az aks update --resource-group <RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --attach-acr <REPOSITORY-NAME>
+
+    # You can verify AKS can now reach ACR
+    az aks check-acr --resource-group RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --acr <REPOSITORY-NAME>.azurecr.io
+
+    ```
+
 
 ## Create a Kubernetes work pool
 
@@ -229,6 +270,11 @@ Give the work pool a name and save.
 
 Our new Kubernetes work pool should now appear in the list of work pools.
 
+## Create a Prefect Cloud API key
+
+While in the Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
+Click on your profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
+Make sure to store it safely along with your other passwords, ideally via a password manager.
 ## Deploy a worker using Helm
 
 With our cluster and work pool created, it's time to deploy a worker, which will set up Kubernetes infrastructure to run our flows.
@@ -397,10 +443,11 @@ prefect-kubernetes>=0.2.11
 The directory should now look something like this:
 
 ```
-flows
-├── hello.py
+.
 ├── prefect.yaml
-└── requirements.txt
+└── flows
+    ├── requirements.txt
+    └── hello.py
 ```
 
 ### Tag images with a Git SHA
@@ -448,7 +495,7 @@ This example uses a virtual environment to ensure consistency across environment
 virtualenv prefect-demo
 source prefect-demo/bin/activate
 
-# Install your flow's dependencies
+# Install dependencies of your flow
 prefect-demo/bin/pip install -r requirements.txt
 
 # Authenticate to Prefect & select the appropriate 
@@ -474,8 +521,12 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
     export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
     ```
 
-<!-- === "Azure"
-    TODO -->
+=== "Azure"
+
+
+    ```bash
+    export PREFECT_IMAGE_NAME=<REPOSITORY-NAME>.azurecr.io/<IMAGE-NAME>
+    ```
 
 In order to deploy your flows, ensure your Docker daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
 
