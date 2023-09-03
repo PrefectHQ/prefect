@@ -57,10 +57,6 @@ class Deployment:
     work_queue_name: str = None
     infra_overrides: dict = None
     pull_steps: dict = None
-
-    # agent-specific fields
-    infrastructure_document_id: UUID = None
-    storage_document_id: UUID = None
 ``` 
 
 All methods for creating Prefect deployments are interfaces for populating this schema correctly. Let us look at each section in turn.
@@ -122,29 +118,74 @@ Versions, descriptions and tags are essentially omnipresent fields throughout Pr
 All of these bits of metadata can be leveraged to great effect by injecting them into the processes that Prefect is orchestrating. For example you can use both run ID and versions to organize files that you produce from your workflows, or by associating your flow run's tags with the metadata of a job it orchestrates. 
 This metadata is available during execution through [Prefect runtime](/guides/runtime-context/).
 
-!!! warning "Everything has a version"
-    Deployments aren't the only entity in Prefect with a version attached; both flows and tasks also have versions that can be set through their respective decorators. These versions will be sent to the API anytime the flow or task is run.
-    This allows you to debug your work by cross-referencing across 
+!!! tip "Everything has a version"
+    Deployments aren't the only entity in Prefect with a version attached; both flows and tasks also have versions that can be set through their respective decorators. These versions will be sent to the API anytime the flow or task is run and thereby allow you to audit your changes across all levels.
 
 ### Workers and Work Pools
 
-Advanced 
+[Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure per-workflow run. 
+In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
+To do this, a deployment using workers needs to consider the following fields:
+
+- **`work_pool_name`**: the name of the work pool this deployment will be associated with. Work pool types mirror infrastructure types and therefore the decision here affects the options available for the other fields.
+- **`work_queue_name`**: if you are using work queues to either manage priority or concurrency, you can associate a deployment with a specific queue within a work pool using this field.
+- **`infra_overrides`**: often called `job_variables` within various interfaces, this field allows deployment authors to customize whatever infrastructure options have been exposed on this work pool. Typically this field is used for things like Docker image name, Kubernetes annotations and limits, and environment variables.
+- **`pull_steps`**: a JSON description of steps that should be performed in order to retrieve flow code or configuration and prepare the runtime environment for workflow execution.
+
+Pull steps allow users to highly decouple their workflow architecture. 
+For example, a common use of pull steps is to dynamically pull code from remote filesystems such as GitHub with each run of their deployment.
+
+For more information see [the guide to deploying with a worker](/guides/prefect-deploy/).
 
 ## Two approaches to deployments
 
-There are two primary ways to categorize deployments
+There are two primary types of deployments within Prefect, differentiated by how much control Prefect has over the infrastructure in which the workflows run.
 
-based on whether Prefect is aware of their infrastructure or not.
+In one setup, deploying Prefect flows is directly analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
+
+In the other setup, users do a little extra work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
+
+Both setups are supported in production environments, and the choice ultimately boils down to use case and preference. Read further to decide which setup is right for your situation.
 
 ### Long-lived infrastructure
 
-### Dynamically defined infrastructure
+The simplest way to deploy a Prefect flow is to use [the `serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously. 
 
-Mention paths and remote filesystems
+Once you have authored your flow and decided on its deployment settings as described above, all that's left is to run this long-running process in a location of your choosing.
+The process will stay in communication with the Prefect API, monitoring for work and submitting each run within an individual subprocess.
+Note that because runs are submitted to subprocesses, any external infrastructure configuration will need to be setup beforehand and kept associated with this process.
 
-!!! warning "Agents are no longer recommended"
-    Blocks got too messy
+This approach has many benefits:
 
-## Conclusion
+- Users are in complete control of their infrastructure, and anywhere the "serve" Python process can run is a suitable deployment environment.
+- It is simple to reason about.
+- Creating deployments requires a minimal set of decisions.
+- Iteration speed is fast.
 
-The end.
+However, there are a few reasons a user might consider moving to workers and work pools:
+
+- Workflows that have expensive infrastructure needs will be more costly in this setup due to the long-running process.
+- Workflows with heterogeneous infrastructure needs across runs will be more difficult to configure and schedule.
+- Large volumes of deployments can be harder to track.
+- If your internal team structure requires that deployment authors be a different team than the team managing infrastructure, the work pool interface may be preferred.
+
+### Dynamically provisioned infrastructure
+
+The paradigm of [workers and work pools](/concepts/work-pools/) allows Prefect to take greater control of the infrastructure in which flows runs. 
+This allows you to essentially "scale to zero" when nothing is scheduled to run, as the worker process is lightweight and does not need the same resources that your workflows do.
+
+With this approach:
+
+- You can configure and monitor infrastructure configuration within the Prefect UI.
+- Infrastructure is ephemeral and dynamically provisioned.
+- Prefect is more infrastructure-aware and therefore collects more event data from your infrastructure by default.
+- Highly decoupled setups are possible.
+
+Of course complexity always has a price, and the worker approach can be more difficult to debug and understand.
+
+!!! note "You don't have to commit to one approach"
+    There is nothing that requires you to use one and only one of these approaches for your deployments - you can mix and match as your use cases evolve. 
+    For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller more frequent file-processing pipelines.
+
+
+
