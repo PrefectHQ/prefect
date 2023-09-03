@@ -236,31 +236,31 @@ Typically this setting is used when a worker is deployed to a cluster that is di
 
   For example, to set a CPU request, add the following section under variables:
 
-    ```json
-      "cpu_request": {
-        "title": "CPU Request",
-        "description": "The CPU allocation to request for this pod.",
-        "default": "default",
-        "type": "string"
-      },
-    ```
+  ```json
+  "cpu_request": {
+    "title": "CPU Request",
+    "description": "The CPU allocation to request for this pod.",
+    "default": "default",
+    "type": "string"
+  },
+  ```
 
   Next add the following to the first `containers` item under `job_configuration`:
 
-    ```json
-            ...
-            "containers": [
-              {
-                ...,
-                "resources": {
-                  "requests": {
-                    "cpu": {{ cpu_request }}"
-                  }
-                }
-              }
-            ],
-            ...
-    ```
+  ```json
+  ...
+  "containers": [
+    {
+      ...,
+      "resources": {
+        "requests": {
+          "cpu": {{ cpu_request }}"
+        }
+      }
+    }
+  ],
+  ...
+  ```
 
   Running deployments with this work pool will now request the specified CPU.
 
