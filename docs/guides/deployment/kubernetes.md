@@ -254,7 +254,7 @@ Typically this setting is used when a worker is deployed to a cluster that is di
       ...,
       "resources": {
         "requests": {
-          "cpu": {{ cpu_request }}"
+          "cpu": "{{ cpu_request }}"
         }
       }
     }
