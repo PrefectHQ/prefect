@@ -25,7 +25,10 @@ from prefect.cli._prompts import (
     prompt_entrypoint,
     prompt_push_custom_docker_image,
     prompt_schedule,
+    prompt_select_blob_bucket_and_folder,
+    prompt_select_blob_storage_credentials,
     prompt_select_from_table,
+    prompt_select_remote_flow_storage,
     prompt_select_work_pool,
 )
 from prefect.cli._utilities import (
@@ -498,6 +501,24 @@ async def _run_single_deploy(
                 style="yellow",
             )
 
+    ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
+    if (
+        is_interactive()
+        and not ci
+        and confirm(
+            (
+                "Your Prefect workers will need access to this flow's code in order to"
+                " run it. Would you like your workers to pull your flow code from a"
+                " remote storage location?"
+            ),
+            default=True,
+            console=app.console,
+        )
+    ):
+        actions = await _generate_actions_for_remote_flow_storage(
+            console=app.console, deploy_config=deploy_config, actions=actions
+        )
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
@@ -795,7 +816,12 @@ async def _generate_git_clone_pull_step(
 ):
     branch = _get_git_branch() or "main"
 
-    if not confirm(
+    if not remote_url:
+        remote_url = prompt(
+            "Please enter the URL to pull your flow code from", console=console
+        )
+
+    elif not confirm(
         f"Is [green]{remote_url}[/] the correct URL to pull your flow code from?",
         default=True,
         console=console,
@@ -909,6 +935,72 @@ async def _check_for_build_docker_image_step(
     return None
 
 
+async def _generate_actions_for_blob_storage(
+    console: Console, storage_provider: str, deploy_config: Dict, actions: List[Dict]
+) -> dict[str, list[dict]]:
+    storage_provider_to_collection = {
+        "s3": "prefect-aws",
+        "gcs": "prefect-gcp",
+        "azure_blob_storage": "prefect-azure",
+    }
+
+    bucket, folder = await prompt_select_blob_bucket_and_folder(
+        console=console,
+        storage_provider=storage_provider,
+    )
+
+    credentials = await prompt_select_blob_storage_credentials(
+        console=console,
+        storage_provider=storage_provider,
+    )
+
+    step_fields = {
+        "bucket": bucket,
+        "folder": folder,
+        "credentials": credentials,
+    }
+
+    actions["pull"] = [
+        {
+            f"{storage_provider_to_collection[storage_provider]}.deployments.steps.pull_from_{storage_provider}": (
+                step_fields
+            )
+        }
+    ]
+
+    actions["push"] = [
+        {
+            f"{storage_provider_to_collection[storage_provider]}.deployments.steps.push_to_{storage_provider}": (
+                step_fields
+            )
+        }
+    ]
+
+    return actions
+
+
+async def _generate_actions_for_remote_flow_storage(
+    console: Console, deploy_config: Dict, actions: List[Dict], remote_url: str
+) -> dict[str, list[dict]]:
+    selected_flow_storage = await prompt_select_remote_flow_storage(console=console)
+
+    if selected_flow_storage == "git":
+        pull_step = await _generate_git_clone_pull_step(
+            console=console,
+            deploy_config=deploy_config,
+            remote_url=remote_url,
+        )
+        actions["pull"] = pull_step
+    elif selected_flow_storage in ["s3", "gcs", "azure_blob_storage"]:
+        actions = await _generate_actions_for_blob_storage(
+            console=console,
+            storage_provider=selected_flow_storage,
+            deploy_config=deploy_config,
+            actions=actions,
+        )
+    return actions
+
+
 async def _generate_default_pull_action(
     console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
@@ -943,23 +1035,6 @@ async def _generate_default_pull_action(
                 return await _generate_pull_step_for_build_docker_image(
                     console, deploy_config, auto=False
                 )
-
-    if (
-        is_interactive()
-        and not ci
-        and remote_url
-        and confirm(
-            (
-                "Your Prefect workers will need access to this flow's code in order to"
-                " run it. Would you like your workers to pull your flow code from its"
-                " remote repository when running this flow?"
-            ),
-            default=True,
-            console=console,
-        )
-    ):
-        return await _generate_git_clone_pull_step(console, deploy_config, remote_url)
-
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(

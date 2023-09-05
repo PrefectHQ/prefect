@@ -16,6 +16,7 @@ from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
 from rich.text import Text
 
+from prefect.blocks.core import BlockDocument, BlockType
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
@@ -28,8 +29,10 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.client.utilities import inject_client
 from prefect.deployments.base import _search_for_flow_functions
+from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
 from prefect.utilities.slugify import slugify
 
@@ -624,3 +627,155 @@ async def prompt_entrypoint(console: Console) -> str:
             console=console,
         )
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
+
+
+async def prompt_select_remote_flow_storage(console: Console) -> str:
+    flow_storage_options = [
+        {
+            "type": "GitHub",
+            "slug": "github",
+            "description": "Use a GitHub repository.",
+        },
+        {
+            "type": "S3",
+            "slug": "s3",
+            "description": "Use an AWS S3 bucket.",
+        },
+        {
+            "type": "GCS",
+            "slug": "gcs",
+            "description": "Use a Google Cloud Storage bucket.",
+        },
+        {
+            "type": "Azure Blob Storage",
+            "slug": "azure_blob_storage",
+            "description": "Use an Azure Blob Storage bucket.",
+        },
+    ]
+    selected_flow_storage_row = prompt_select_from_table(
+        console,
+        prompt="Please select a remote code storage option.",
+        columns=[
+            {"header": "Storage Type", "key": "type"},
+            {"header": "Description", "key": "description"},
+        ],
+        data=[
+            {
+                "type": option["type"],
+                "description": option["description"],
+            }
+            for option in flow_storage_options
+        ],
+    )
+
+    return selected_flow_storage_row["slug"]
+
+
+async def prompt_select_blob_bucket_and_folder():
+    bucket = prompt("Bucket name")
+    folder = prompt("Folder name", default="")
+    return bucket, folder
+
+
+@inject_client
+async def prompt_select_blob_storage_credentials(
+    console: Console, storage_provider: str, client: PrefectClient = None
+) -> str:
+    """
+    Prompt the user for blob storage credentials.
+
+    Returns a jinja template string that references a credentials block.
+    """
+    collection_to_storage_creds_block_slug = {
+        "s3": "aws-credentials",
+        "gcs": "gcp-credentials",
+        "azure_blob_storage": "azure-blob-storage-credentials",
+    }
+    storage_provider_slug = storage_provider.replace("_", "-")
+    pretty_storage_provider = storage_provider.replace("_", " ").upper()
+
+    credentials_block_type: BlockType = await client.read_block_type_by_slug(
+        collection_to_storage_creds_block_slug[storage_provider]
+    )
+
+    existing_credentials_blocks = await client.read_block_documents()
+
+    # print(credentials_block_schema)
+
+    if existing_credentials_blocks:
+        selected_credentials_block = prompt_select_from_table(
+            console,
+            prompt=(
+                f"Select from your existing {pretty_storage_provider} credential blocks"
+            ),
+            columns=[
+                {
+                    "header": f"{pretty_storage_provider} Credentials Blocks",
+                    "key": "name",
+                }
+            ],
+            data=[{"name": block.name} for block in existing_credentials_blocks],
+            opt_out_message="Create a new credentials block",
+        )
+
+        if selected_credentials_block and (
+            selected_block := selected_credentials_block.get("name")
+        ):
+            return (
+                "{{"
+                f" prefect.blocks.{storage_provider_slug}-credentials.{selected_block} }}}}"
+            )
+
+    fields_without_defaults = [
+        field
+        for field in credentials_block_type.__fields__.values()
+        if field.default is None
+    ]
+
+    console.print(
+        f"\nProvide details on your new {pretty_storage_provider} credentials:"
+    )
+    {
+        field.name: prompt(f"{field.name} [yellow]({field.type_.__name__})[/]")
+        for field in fields_without_defaults
+    }
+    credentials_block: BlockDocument = BlockDocument.parse_obj
+
+    console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
+
+    credentials_block_name = prompt(
+        "Give a name to your new credentials block",
+        default=f"{storage_provider_slug}-storage-credentials",
+    )
+
+    try:
+        uuid = await credentials_block.save(name=credentials_block_name)
+    except (ObjectAlreadyExists, ValueError) as e:
+        if "already in use" in str(e):
+            if confirm(
+                (
+                    f"A credentials block named {credentials_block_name!r} already"
+                    " exists. Would you like to overwrite it?"
+                ),
+            ):
+                uuid = await credentials_block.save(
+                    name=credentials_block_name, overwrite=True
+                )
+            else:
+                different_name = prompt(
+                    "Please provide a different name for this credentials block",
+                    default=f"{storage_provider}-storage-credentials",
+                )
+                uuid = await credentials_block.save(name=different_name)
+        else:
+            raise
+
+    if PREFECT_UI_URL:
+        console.print(
+            "\nView your new credentials block in the UI:"
+            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{uuid}[/]\n"
+        )
+    return (
+        "{{"
+        f" prefect.blocks.{storage_provider_slug}-credentials.{credentials_block_name} }}}}"
+    )
