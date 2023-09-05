@@ -32,7 +32,7 @@ With Prefect you gain:
 </ul>
 
 <figure markdown>
-![screenshot of Cloud UI timeline view with menu](img/ui/dashboard-cloud.png)
+![screenshot of Prefect Cloud dashboard](img/ui/cloud-dashboard.png)
 </figure>
 
 #### New to Prefect?
