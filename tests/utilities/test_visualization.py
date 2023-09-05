@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from prefect import flow, task
-from prefect.settings import PREFECT_EXPERIMENTAL_WARN_VISUALIZE, temporary_settings
 from prefect.utilities.visualization import (
     TaskVizTracker,
     VisualizationUnsupportedError,
@@ -11,13 +10,6 @@ from prefect.utilities.visualization import (
     _track_viz_task,
     get_task_viz_tracker,
 )
-
-
-@pytest.fixture(autouse=True)
-def disable_warn_visualize():
-    """Disable the warning that is printed when a flow is visualized"""
-    with temporary_settings({PREFECT_EXPERIMENTAL_WARN_VISUALIZE: 0}):
-        yield
 
 
 class TestTaskVizTracker:

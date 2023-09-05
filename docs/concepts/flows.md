@@ -254,7 +254,7 @@ Hello Marvin!
 ```
 </div>
 
-## Visualizing Flow Structure <span class="badge experimental"></span>
+## Visualizing Flow Structure
 
 You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
 

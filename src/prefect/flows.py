@@ -37,7 +37,6 @@ from rich.console import Console
 from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
@@ -799,7 +798,6 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
     async def visualize(self, *args, **kwargs):
         """
         Generates a graphviz object representing the current flow. In IPython notebooks,
