@@ -152,7 +152,7 @@ Select the flow you want to deploy, and the deployment wizard will walk you thro
 8. **Would you like to push this image to a remote registry? (y/n):** Select `n` for now; we can keep this image local.
 
 !!! tip "Disable interactive mode"
-    You can disable interactive mode during `prefect deploy` by passing in the `--no-prompt` flag, e.g. `prefect --no-prompt deploy -n my-deployment-name`. Alternatively, you can enable the prompts by passing in the `--prompt` flag. This can be used for all `prefect` commands. To disable interactive mode for all `prefect` commands, set the `PREFECT_CLI_PROMPT` setting to 0. 
+    You can disable interactive mode during `prefect deploy` by passing in the `--no-prompt` flag, e.g. `prefect --no-prompt deploy -n my-deployment-name`. Alternatively, you can enable it by passing in the `--prompt` flag. This can be used for all `prefect` commands. To disable interactive mode for all `prefect` commands, set the `PREFECT_CLI_PROMPT` setting to 0. 
 
 Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run. 
 Try it out:
