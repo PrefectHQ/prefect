@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from typing import List
 from unittest.mock import Mock
 
 import pendulum
@@ -11,6 +12,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow
 from prefect.deployments import Deployment
+from prefect.events.schemas import DeploymentTrigger, ResourceSpecification
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 from prefect.testing.cli import invoke_and_assert
@@ -631,7 +633,7 @@ class TestEntrypoint:
     def test_entrypoint_works_with_flow_func_with_underscores(self):
         flow_code = """
         from prefect import flow
-        
+
         @flow
         def dog_flow_func():
             pass
@@ -1201,6 +1203,116 @@ class TestOutputFlag:
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
         assert build_kwargs["output"] == Path(output_path + ".yaml")
+
+
+class TestTrigger:
+    def _get_base_cmd(self, tmp_path) -> List[str]:
+        return [
+            "deployment",
+            "build",
+            "fake-path.py:fn-n",
+            "-n",
+            "TEST",
+            "-o",
+            str(tmp_path / "test.yaml"),
+            "--skip-upload",
+        ]
+
+    def _get_deployment_trigger(self) -> str:
+        return "\n".join(
+            [
+                "triggers:",
+                "  - enabled: true",
+                "    match:",
+                "      prefect.resource.id: my.external.resource",
+                "    expect:",
+                "      - external.resource.pinged",
+                "    parameters:",
+                "      param_1: '{{ event }}'",
+            ]
+        )
+
+    def _get_deployment_trigger_minified(self) -> str:
+        return (
+            "{triggers: [{"
+            "enabled: true, "
+            "match: {prefect.resource.id: my.external.resource}, "
+            "expect: [external.resource.pinged], "
+            "parameters: {param_1: '{{ event }}'}"
+            "}]}"
+        )
+
+    def _get_deployment_trigger_spec(self) -> DeploymentTrigger:
+        return DeploymentTrigger(
+            name="TEST__automation_1",
+            enabled=True,
+            match=ResourceSpecification(
+                __root__={"prefect.resource.id": "my.external.resource"}
+            ),
+            expect={"external.resource.pinged"},
+            parameters={"param_1": "{{ event }}"},
+        )
+
+    def test_trigger_no_yaml_nor_path(self, patch_import, tmp_path):
+        cmd = self._get_base_cmd(tmp_path)
+        cmd.extend(["--triggers", "definetly no yaml"])
+
+        invoke_and_assert(
+            command=cmd,
+            expected_code=1,
+            temp_dir=tmp_path,
+        )
+
+    def test_trigger_yaml_without_triggers(self, patch_import, tmp_path):
+        cmd = self._get_base_cmd(tmp_path)
+        cmd.extend(["--triggers", "{no_triggers: [{enabled: true}]}"])
+
+        invoke_and_assert(
+            command=cmd,
+            expected_code=1,
+            temp_dir=tmp_path,
+        )
+
+    def test_trigger_yaml_with_false_triggers(self, patch_import, tmp_path):
+        cmd = self._get_base_cmd(tmp_path)
+        cmd.extend(["--triggers", "{no_triggers: [{enabled: true}]}"])
+
+        invoke_and_assert(
+            command=cmd,
+            expected_code=1,
+            temp_dir=tmp_path,
+        )
+
+    def test_trigger_from_yaml_string(self, patch_import, tmp_path):
+        cmd = self._get_base_cmd(tmp_path)
+        cmd.extend(["--triggers", self._get_deployment_trigger_minified()])
+
+        invoke_and_assert(
+            command=cmd,
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert len(deployment.triggers) == 1
+        assert deployment.triggers[0] == self._get_deployment_trigger_spec()
+
+    def test_trigger_from_yaml_file(self, patch_import, tmp_path):
+        Path(tmp_path / "trigger.yaml").write_text(self._get_deployment_trigger())
+
+        cmd = self._get_base_cmd(tmp_path)
+        cmd.extend(["--triggers", tmp_path / "trigger.yaml"])
+
+        invoke_and_assert(
+            command=cmd,
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+
+        assert len(deployment.triggers) == 1
+        assert deployment.triggers[0] == self._get_deployment_trigger_spec()
 
 
 class TestOtherStuff:

@@ -30,6 +30,7 @@ from prefect.client.schemas.schedules import (
 from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     ObjectAlreadyExists,
     ObjectNotFound,
@@ -998,6 +999,14 @@ async def build(
             ' --params=\'{"question": "ultimate", "answer": 42}\''
         ),
     ),
+    triggers: str = typer.Option(
+        None,
+        "--triggers",
+        help=(
+            "An optional trigger to create an automation that runs the deployment e.g."
+            " --triggers triggers.yaml or --triggers '{triggers: [...]}'."
+        ),
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -1127,6 +1136,35 @@ async def build(
     if params is not None:
         parameters = json.loads(params)
 
+    if triggers:
+        triggers_yaml: yaml = None
+        try:  # try to load trigger defs from a yaml file
+            with Path(triggers).open(mode="r") as trigger_file:
+                triggers_yaml = yaml.safe_load(trigger_file)
+        except Exception:
+            pass
+
+        if triggers_yaml is None:
+            try:  # try to load trigger defs from a string
+                triggers_yaml = yaml.safe_load(triggers)
+            except Exception:
+                pass
+
+        if triggers_yaml is None:
+            exit_with_error(
+                "You passed the trigger argument but we could not load and parse it."
+            )
+
+        if "triggers" not in triggers_yaml:
+            exit_with_error(
+                "We could not find any trigger definition in the parsed trigger yaml."
+            )
+
+        triggers_spec: List[DeploymentTrigger] = []
+        for i, spec in enumerate(triggers_yaml["triggers"], start=1):
+            spec.setdefault("name", f"{name}__automation_{i}")
+            triggers_spec.append(DeploymentTrigger(**spec))
+
     # set up deployment object
     entrypoint = (
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
@@ -1158,6 +1196,8 @@ async def build(
         init_kwargs.update(work_queue_name=work_queue_name)
     if work_pool_name:
         init_kwargs.update(work_pool_name=work_pool_name)
+    if len(triggers_spec) > 0:
+        init_kwargs.update(triggers=triggers_spec)
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     deployment = await Deployment.build_from_flow(
