@@ -6,19 +6,19 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
-from collections import deque
 import inspect
-import weakref
 import queue
 import threading
+import weakref
+from collections import deque
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 import anyio
 
+from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
-from prefect._internal.concurrency import logger
 
 T = TypeVar("T")
 
@@ -36,7 +36,22 @@ def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
     Returns `None` if one does not exist.
     """
     waiters = _WAITERS_BY_THREAD.get(thread)
-    return waiters[-1] if waiters else None
+
+    if waiters:
+        idx = -1
+        while abs(idx) <= len(waiters):
+            try:
+                waiter = waiters[idx]
+                if not waiter.call_is_done():
+                    return waiter
+                idx = idx - 1
+            # It is possible that items are being added or removed
+            # from the deque, so the index we're using may not always
+            # be valid.
+            except IndexError:
+                break
+
+    return None
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
@@ -67,6 +82,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         # Set the waiter for the current thread
         add_waiter_for_thread(self, self._owner_thread)
         super().__init__()
+
+    def call_is_done(self) -> bool:
+        return self._call.future.done()
 
     @abc.abstractmethod
     def wait(self) -> Union[Awaitable[None], None]:
@@ -106,7 +124,7 @@ class SyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self._call.future.done():
+        if self.call_is_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         self._queue.put_nowait(call)
@@ -176,7 +194,7 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if self._call.future.done():
+        if self.call_is_done():
             raise RuntimeError(f"The call {self._call} is already done.")
 
         call.set_runner(self)

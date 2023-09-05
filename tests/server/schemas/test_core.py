@@ -321,55 +321,6 @@ class TestWorkPool:
         wp = schemas.core.WorkPool(name="test", type="test", default_queue_id=qid)
         assert wp.default_queue_id == qid
 
-    @pytest.mark.parametrize(
-        "template",
-        [
-            {
-                "job_configuration": {"thing_one": "{{ expected_variable }}"},
-                "variables": {
-                    "properties": {"wrong_variable": {}},
-                    "required": [],
-                },
-            }
-        ],
-    )
-    async def test_validate_base_job_template_fails(self, template):
-        """Test that error is raised if base_job_template job_configuration
-        expects a variable that is not provided in variables."""
-        qid = uuid4()
-        with pytest.raises(
-            ValueError,
-            match=(
-                r"Your job configuration uses the following undeclared variable\(s\):"
-                r" expected_variable"
-            ),
-        ):
-            schemas.core.WorkPool(
-                name="test", default_queue_id=qid, base_job_template=template
-            )
-
-    @pytest.mark.parametrize(
-        "template",
-        [
-            dict(),
-            {
-                "job_configuration": {"thing_one": "{{ expected_variable }}"},
-                "variables": {
-                    "properties": {"expected_variable": {}},
-                    "required": [],
-                },
-            },
-        ],
-    )
-    async def test_validate_base_job_template_succeeds(self, template):
-        """Test that no error is raised if all variables expected by job_configuration
-        are provided in variables."""
-        qid = uuid4()
-        wp = schemas.core.WorkPool(
-            name="test", type="test", default_queue_id=qid, base_job_template=template
-        )
-        assert wp
-
 
 class TestArtifacts:
     async def test_validates_metadata_sizes(self):

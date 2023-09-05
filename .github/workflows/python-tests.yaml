@@ -45,6 +45,12 @@ jobs:
       - name: Is internal team?
         id: isinternal
         run: |
+          # Treat dependabot as an internal user
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            echo "status=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           echo "actor: ${{ github.actor }}"
           curl -iL \
             -H "Accept: application/vnd.github+json" \
@@ -61,7 +67,6 @@ jobs:
   run-tests:
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
     needs: isinternal
-
     strategy:
       matrix:
         database:
@@ -220,6 +225,22 @@ jobs:
           # Do not run Kubernetes service tests, we do not have a cluster available
           pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
 
+      - name: Create and Upload failure flag
+        if: ${{ failure() }}
+        id: create_failure_flag
+        run: |
+          sanitized_name="${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.database }}-${{ matrix.pytest-options }}"
+          sanitized_name="${sanitized_name//:/-}"
+          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
+          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
+
+      - name: Upload failure flag
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
+          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
+
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
         if: always()
@@ -227,3 +248,41 @@ jobs:
           docker container inspect postgres
           && docker container logs postgres
           || echo "Ignoring bad exit code"
+
+  notify-tests-failing-on-main:
+    needs: run-tests
+    if: github.ref == 'refs/heads/main' && failure()
+    runs-on: ubuntu-latest
+    env:
+      FAILURE_THRESHOLD: 3
+    steps:
+      - name: Download all failure flags
+        uses: actions/download-artifact@v2
+        with:
+          path: failure-flags/
+
+      - name: Check for failure flags
+        id: check_failure
+        run: |
+          failure_count=$(ls -1q failure-flags/*/*.txt | wc -l)
+
+          if [ $failure_count -gt $FAILURE_THRESHOLD ]; then
+            too_many_tests_failed="true"
+          else
+            too_many_tests_failed="false"
+          fi
+          echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
+
+      - name: Send Slack Notification
+        if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: repo,message
+          custom_payload: |
+            {
+              text: "More than ${{ env.FAILURE_THRESHOLD }} unit test jobs are failing on main :oh-noo:",
+              channel: "#engineering-review",
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}

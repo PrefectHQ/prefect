@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@master \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@5919087eaf7694d98cc9d86d5736095cb1d2beeb \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -424,6 +424,10 @@ from = "/concepts/deployments-ux/"
 to = "/concepts/deployments/"
 status = 301
 
+[[redirects]]
+from = "/guides/deployment/helm-worker"
+to = "/guides/deployment/kubernetes"
+status = 301
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.

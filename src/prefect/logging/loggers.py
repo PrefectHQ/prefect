@@ -1,10 +1,10 @@
 import io
 import logging
 import sys
+import warnings
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-import warnings
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
 import prefect
@@ -32,8 +32,8 @@ class PrefectLogAdapter(logging.LoggerAdapter):
         kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
 
         from prefect._internal.compatibility.deprecated import (
-            generate_deprecation_message,
             PrefectDeprecationWarning,
+            generate_deprecation_message,
         )
 
         if "send_to_orion" in kwargs["extra"]:

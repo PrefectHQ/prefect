@@ -1,8 +1,9 @@
+import json
 import re
+from unittest import mock
 from uuid import uuid4
 
 import httpx
-import json
 import pendulum
 import pytest
 import respx
@@ -13,11 +14,12 @@ from pydantic.error_wrappers import ValidationError
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow, task
-from prefect.events.schemas import DeploymentTrigger
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
+from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -1058,6 +1060,38 @@ class TestRunDeployment:
                 timeout=0,
                 poll_interval=0,
             )
+
+        parent_state = await foo(return_state=True)
+        child_flow_run = await parent_state.result()
+        assert child_flow_run.parent_task_run_id is not None
+        task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
+        assert task_run.flow_run_id == parent_state.state_details.flow_run_id
+        assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_links_to_parent_flow_run_when_used_in_task_without_flow_context(
+        self, test_deployment, prefect_client
+    ):
+        """
+        Regression test for deployments in a task on Dask and Ray task runners
+        which do not have access to the flow run context - https://github.com/PrefectHQ/prefect/issues/9135
+        """
+        d, deployment_id = test_deployment
+
+        @task
+        async def yeet_deployment():
+            with mock.patch.object(FlowRunContext, "get", return_value=None):
+                assert FlowRunContext.get() is None
+                result = await run_deployment(
+                    f"{d.flow_name}/{d.name}",
+                    timeout=0,
+                    poll_interval=0,
+                )
+                return result
+
+        @flow
+        async def foo():
+            return await yeet_deployment()
 
         parent_state = await foo(return_state=True)
         child_flow_run = await parent_state.result()

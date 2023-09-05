@@ -1,16 +1,14 @@
 import asyncio
 import contextlib
-import time
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
 
-from prefect._internal.concurrency.api import from_async
-
 import pytest
 
-from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.services import (
     BatchedQueueService,
     QueueService,
@@ -18,6 +16,7 @@ from prefect._internal.concurrency.services import (
     drain_on_exit_async,
 )
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
+from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL, temporary_settings
 
 
 class MockService(QueueService[int]):
@@ -376,3 +375,66 @@ def test_batched_queue_service_min_interval():
     IntervalMockBatchedService.mock.assert_has_calls(
         [call(instance, [1]), call(instance, [2])]
     )
+
+
+@pytest.mark.parametrize(
+    "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
+)
+def test_queue_service_item_failure_contains_traceback_only_at_debug(
+    caplog: pytest.LogCaptureFixture, level: str, expected: bool
+):
+    class ExceptionOnHandleService(QueueService[int]):
+        exception_msg = "Oh no!"
+
+        async def _handle(self, _):
+            raise Exception(self.exception_msg)
+
+    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+        instance = ExceptionOnHandleService.instance()
+        instance.send(1)
+        instance.drain()
+
+    assert (ExceptionOnHandleService.exception_msg in caplog.text) == expected
+
+
+@pytest.mark.parametrize(
+    "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
+)
+def test_batched_queue_service_item_failure_contains_traceback_only_at_debug(
+    caplog: pytest.LogCaptureFixture, level: str, expected: bool
+):
+    class ExceptionOnHandleBatchService(BatchedQueueService[int]):
+        exception_msg = "Oh no!"
+        _max_batch_size = 2
+
+        async def _handle_batch(self, _):
+            raise Exception(self.exception_msg)
+
+    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+        instance = ExceptionOnHandleBatchService.instance()
+        instance.send(1)
+        instance.drain()
+
+    assert (ExceptionOnHandleBatchService.exception_msg in caplog.text) == expected
+
+
+@pytest.mark.parametrize(
+    "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
+)
+def test_queue_service_start_failure_contains_traceback_only_at_debug(
+    caplog: pytest.LogCaptureFixture, level: str, expected: bool
+):
+    class ExceptionOnHandleService(QueueService[int]):
+        exception_msg = "Oh no!"
+
+        async def _handle(self):
+            ...
+
+        async def _main_loop(self):
+            raise Exception(self.exception_msg)
+
+    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+        instance = ExceptionOnHandleService.instance()
+        instance.drain()
+
+    assert (ExceptionOnHandleService.exception_msg in caplog.text) == expected

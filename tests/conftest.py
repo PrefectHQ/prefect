@@ -19,8 +19,8 @@ WARNING: Prefect settings cannot be modified in async fixtures.
 import asyncio
 import logging
 import pathlib
-import sys
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Generator, Optional
@@ -37,7 +37,6 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
-
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,

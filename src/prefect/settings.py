@@ -61,6 +61,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 
 import pydantic
 import toml
@@ -368,6 +369,47 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def warn_on_misconfigured_api_url(values):
+    """
+    Validator for settings warning if the API URL is misconfigured.
+    """
+    api_url = values["PREFECT_API_URL"]
+    if api_url is not None:
+        misconfigured_mappings = {
+            "app.prefect.cloud": (
+                "`PREFECT_API_URL` points to `app.prefect.cloud`. Did you"
+                " mean `api.prefect.cloud`?"
+            ),
+            "account/": (
+                "`PREFECT_API_URL` uses `/account/` but should use `/accounts/`."
+            ),
+            "workspace/": (
+                "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
+            ),
+        }
+        warnings_list = []
+
+        for misconfig, warning in misconfigured_mappings.items():
+            if misconfig in api_url:
+                warnings_list.append(warning)
+
+        parsed_url = urlparse(api_url)
+        if parsed_url.path and not parsed_url.path.startswith("/api"):
+            warnings_list.append(
+                "`PREFECT_API_URL` should have `/api` after the base URL."
+            )
+
+        if warnings_list:
+            example = (
+                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            )
+            warnings_list.append(example)
+
+            warnings.warn("\n".join(warnings_list), stacklevel=2)
+
+    return values
+
+
 def default_database_connection_url(settings, value):
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 
@@ -582,7 +624,7 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 )
 """
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
 """
 
@@ -632,7 +674,7 @@ Note: PREFECT_UI_URL will be workspace specific and will be usable in the open s
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
-    default=30.0,
+    default=60.0,
 )
 """The default timeout for requests to the API"""
 
@@ -824,6 +866,22 @@ The following options are available:
 - "warn": Log a warning message.
 - "error": Raise an error.
 - "ignore": Do not log a warning message or raise an error.
+"""
+
+PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
+    int,
+    default=None,
+)
+"""
+Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+"""
+
+PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
+    int,
+    default=None,
+)
+"""
+Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
 """
 
 PREFECT_LOGGING_COLORS = Setting(
@@ -1203,6 +1261,16 @@ Whether or not to enable experimental Prefect workers.
 PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect visualize is used.
+"""
+
+PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
+"""
+Maximum number of processes a runner will execute in parallel.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
@@ -1768,6 +1836,7 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
+        values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
