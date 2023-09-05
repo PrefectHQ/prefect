@@ -1263,7 +1263,7 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
-PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect visualize is used.
 """
