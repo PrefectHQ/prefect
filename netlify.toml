@@ -431,7 +431,7 @@ to = "/guides/deployment/kubernetes/"
 status = 301
 
 [[redirects]]
-from = "/guides/deployments/docker/"
+from = "/guides/deployment/docker/"
 to = "/guides/docker/"
 status = 301
 

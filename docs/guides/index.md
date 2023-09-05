@@ -39,7 +39,7 @@ This section of the documentation contains guides for common workflows and use c
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
-| [Docker](/guides/deployment/docker/) | Deploy flows with Docker containers. |
+| [Docker](/guides/docker/) | Deploy flows with Docker containers. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Run flows on serverless infrastructure without a worker. |
 | [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
