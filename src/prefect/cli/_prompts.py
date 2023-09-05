@@ -29,7 +29,6 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.client.utilities import inject_client
 from prefect.deployments.base import _search_for_flow_functions
-from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import PREFECT_UI_URL
@@ -658,14 +657,9 @@ async def prompt_select_remote_flow_storage(console: Console) -> str:
         columns=[
             {"header": "Storage Type", "key": "type"},
             {"header": "Description", "key": "description"},
+            {"header": "Slug", "key": "slug", "visible": False},
         ],
-        data=[
-            {
-                "type": option["type"],
-                "description": option["description"],
-            }
-            for option in flow_storage_options
-        ],
+        data=flow_storage_options,
     )
 
     return selected_flow_storage_row["slug"]
@@ -691,16 +685,13 @@ async def prompt_select_blob_storage_credentials(
         "gcs": "gcp-credentials",
         "azure_blob_storage": "azure-blob-storage-credentials",
     }
+    block_type_slug = collection_to_storage_creds_block_slug[storage_provider]
     storage_provider_slug = storage_provider.replace("_", "-")
     pretty_storage_provider = storage_provider.replace("_", " ").upper()
 
-    credentials_block_type: BlockType = await client.read_block_type_by_slug(
-        collection_to_storage_creds_block_slug[storage_provider]
+    existing_credentials_blocks = await client.read_block_documents_by_type(
+        block_type_slug=block_type_slug
     )
-
-    existing_credentials_blocks = await client.read_block_documents()
-
-    # print(credentials_block_schema)
 
     if existing_credentials_blocks:
         selected_credentials_block = prompt_select_from_table(
@@ -726,20 +717,23 @@ async def prompt_select_blob_storage_credentials(
                 f" prefect.blocks.{storage_provider_slug}-credentials.{selected_block} }}}}"
             )
 
-    fields_without_defaults = [
-        field
-        for field in credentials_block_type.__fields__.values()
-        if field.default is None
-    ]
+    credentials_block_schema = next(
+        iter(
+            [
+                schema
+                for schema in await client.read_block_schemas()
+                if schema.block_type.slug == block_type_slug
+            ]
+        )
+    )
 
     console.print(
         f"\nProvide details on your new {pretty_storage_provider} credentials:"
     )
-    {
+    hydrated_fields = {
         field.name: prompt(f"{field.name} [yellow]({field.type_.__name__})[/]")
-        for field in fields_without_defaults
+        for field in credentials_block_schema.fields
     }
-    credentials_block: BlockDocument = BlockDocument.parse_obj
 
     console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
 
@@ -748,34 +742,25 @@ async def prompt_select_blob_storage_credentials(
         default=f"{storage_provider_slug}-storage-credentials",
     )
 
-    try:
-        uuid = await credentials_block.save(name=credentials_block_name)
-    except (ObjectAlreadyExists, ValueError) as e:
-        if "already in use" in str(e):
-            if confirm(
-                (
-                    f"A credentials block named {credentials_block_name!r} already"
-                    " exists. Would you like to overwrite it?"
-                ),
-            ):
-                uuid = await credentials_block.save(
-                    name=credentials_block_name, overwrite=True
-                )
-            else:
-                different_name = prompt(
-                    "Please provide a different name for this credentials block",
-                    default=f"{storage_provider}-storage-credentials",
-                )
-                uuid = await credentials_block.save(name=different_name)
-        else:
-            raise
+    credentials_block: BlockDocument = BlockDocument.parse_obj(
+        {
+            "name": credentials_block_name,
+            "slug": f"{storage_provider_slug}-credentials",
+            "type": BlockType(slug=f"{storage_provider_slug}-credentials"),
+            "fields": hydrated_fields,
+        }
+    )
+
+    new_block_document = await client.create_block_document(
+        block_document=credentials_block
+    )
 
     if PREFECT_UI_URL:
         console.print(
             "\nView your new credentials block in the UI:"
-            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{uuid}[/]\n"
+            f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{new_block_document.id}[/]\n"
         )
     return (
         "{{"
-        f" prefect.blocks.{storage_provider_slug}-credentials.{credentials_block_name} }}}}"
+        f" prefect.blocks.{storage_provider_slug}-credentials.{new_block_document.name} }}}}"
     )
