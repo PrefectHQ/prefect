@@ -388,6 +388,7 @@ class Block(BaseModel, ABC):
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
         is_anonymous: Optional[bool] = None,
+        overwrite: bool = False,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -442,9 +443,16 @@ class Block(BaseModel, ABC):
                     "$ref": {"block_document_id": field_value._block_document_id}
                 }
 
+        if name is None and is_anonymous and overwrite:
+            # default to a known name that can easily be constructed for overwriting
+            name = f"anonymous-{self._block_schema_id}-{self._block_type_id}"
+        else:
+            # use None as a name if is_anonymous otherwise use provided name
+            name = (name or self._block_document_name) if not is_anonymous else None
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
-            name=(name or self._block_document_name) if not is_anonymous else None,
+            name=name,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=block_document_data,
@@ -945,11 +953,11 @@ class Block(BaseModel, ABC):
         # Ensure block type and schema are registered before saving block document.
         await self.register_type_and_schema(client=client)
 
+        new_block_doc = self._to_block_document(name=name, overwrite=overwrite)
         try:
-            block_document = await client.create_block_document(
-                block_document=self._to_block_document(name=name)
-            )
+            block_document = await client.create_block_document(new_block_doc)
         except prefect.exceptions.ObjectAlreadyExists as err:
+            name = new_block_doc.name
             if overwrite:
                 block_document_id = self._block_document_id
                 if block_document_id is None:
