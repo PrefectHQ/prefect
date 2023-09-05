@@ -45,6 +45,12 @@ jobs:
       - name: Is internal team?
         id: isinternal
         run: |
+          # Treat dependabot as an internal user
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            echo "status=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           echo "actor: ${{ github.actor }}"
           curl -iL \
             -H "Accept: application/vnd.github+json" \
@@ -218,7 +224,7 @@ jobs:
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
           pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term --cov-config=setup.cfg ${{ matrix.pytest-options }}
-    
+
       - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
@@ -259,7 +265,7 @@ jobs:
         id: check_failure
         run: |
           failure_count=$(ls -1q failure-flags/*/*.txt | wc -l)
-          
+
           if [ $failure_count -gt $FAILURE_THRESHOLD ]; then
             too_many_tests_failed="true"
           else
