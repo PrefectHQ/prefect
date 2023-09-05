@@ -296,6 +296,10 @@ class TestRemoteFileSystem:
         )
         copied_files = set(fs.filesystem.glob("/flat/**"))
 
+        # fsspec>=2023.9 includes the root directory when performing a ** glob, which
+        # isn't relevant to this test, we're just looking at files beneath the root
+        copied_files.discard("/flat")
+
         assert copied_files == {
             "/flat/explicit_relative.py",
             "/flat/implicit_relative.py",
@@ -311,6 +315,10 @@ class TestRemoteFileSystem:
             ),
         )
         copied_files = set(fs.filesystem.glob("/tree/**"))
+
+        # fsspec>=2023.9 includes the root directory when performing a ** glob, which
+        # isn't relevant to this test, we're just looking at files beneath the root
+        copied_files.discard("/tree")
 
         assert copied_files == {
             "/tree/imports",
