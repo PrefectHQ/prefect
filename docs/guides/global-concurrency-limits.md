@@ -9,7 +9,7 @@ search:
 
 # Global concurrency limits and rate limits
 
-Global concurrency Limits allow you to manage task execution efficiently, controlling how many tasks can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
+Global concurrency limits allow you to manage task execution efficiently, controlling how many tasks can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
 
 Rate Limits ensure system stability by governing the frequency of requests or operations. They are suitable for preventing overuse, ensuring fairness, and handling errors gracefully.
 
@@ -37,7 +37,7 @@ Global concurrency limits can be in either an `active` or `inactive` state.
 
 Global concurrency limits in can be configured with `slot decay`. This is used when the concurrency limit is used as a rate limit, and it controls the rate at which these slots are released.
 
-The rate of slot decay is determined by the parameter `slot decay per second`. This parameter defines how quickly slots become available again after being consumed. For example, if you set slot decay per second to 0.5, one slot will become available again every second.
+The rate of slot decay is determined by the parameter `slot decay per second`. This parameter defines how quickly slots become available again after being consumed. For example, if you set slot decay per second to 0.5, one slot will become available again every two seconds.
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the concurrency of your workflow based on your specific requirements.
 
@@ -156,8 +156,8 @@ if __name__ == "__main__":
     asyncio.run(my_flow())
 ```
 
-1. The code imports the necessary modules and the concurrency context manager. Use the `prefect.concurrency.sync` module for sync usage and the `prefect.concurrency.asyncio` module for async usage.
-2. It defines a `make_http_request` task. Inside this task, the `rate_limit` function to ensure that the requests are made at a controlled pace.
+1. The code imports the necessary modules and the `rate_limit` function. Use the `prefect.concurrency.sync` module for sync usage and the `prefect.concurrency.asyncio` module for async usage.
+2. It defines a `make_http_request` task. Inside this task, the `rate_limit` function is used to ensure that the requests are made at a controlled pace.
 3. A flow named `my_flow` is defined. Within this flow the `make_http_request` task is submitted 10 times.
 
 ## Using `concurrency` and `rate_limit` outside of a flow
