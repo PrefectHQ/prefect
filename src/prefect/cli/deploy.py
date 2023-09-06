@@ -25,7 +25,6 @@ from prefect.cli._prompts import (
     prompt_entrypoint,
     prompt_push_custom_docker_image,
     prompt_schedule,
-    prompt_select_blob_bucket_and_folder,
     prompt_select_blob_storage_credentials,
     prompt_select_from_table,
     prompt_select_remote_flow_storage,
@@ -509,7 +508,7 @@ async def _run_single_deploy(
             (
                 "Your Prefect workers will need access to this flow's code in order to"
                 " run it. Would you like your workers to pull your flow code from a"
-                " remote storage location?"
+                " remote storage location when running this flow?"
             ),
             default=True,
             console=app.console,
@@ -538,7 +537,7 @@ async def _run_single_deploy(
             await run_steps(build_steps, step_outputs, print_function=app.console.print)
         )
 
-    if push_steps:
+    if push_steps := push_steps or actions.get("push"):
         app.console.print("Running deployment push steps...")
         step_outputs.update(
             await run_steps(push_steps, step_outputs, print_function=app.console.print)
@@ -937,73 +936,61 @@ async def _check_for_build_docker_image_step(
     return None
 
 
-async def _generate_actions_for_blob_storage(
-    console: Console, storage_provider: str, deploy_config: Dict, actions: List[Dict]
-) -> dict[str, list[dict]]:
-    storage_provider_to_collection = {
-        "s3": "prefect-aws",
-        "gcs": "prefect-gcp",
-        "azure_blob_storage": "prefect-azure",
-    }
-
-    bucket, folder = await prompt_select_blob_bucket_and_folder()
-
-    credentials = await prompt_select_blob_storage_credentials(
-        console=console,
-        storage_provider=storage_provider,
-    )
-
-    step_fields = {
-        "bucket": bucket,
-        "folder": folder,
-        "credentials": credentials,
-    }
-
-    actions["pull"] = [
-        {
-            f"{storage_provider_to_collection[storage_provider]}.deployments.steps.pull_from_{storage_provider}": (
-                step_fields
-            )
-        }
-    ]
-
-    actions["push"] = [
-        {
-            f"{storage_provider_to_collection[storage_provider]}.deployments.steps.push_to_{storage_provider}": (
-                step_fields
-            )
-        }
-    ]
-
-    return actions
-
-
 async def _generate_actions_for_remote_flow_storage(
     console: Console, deploy_config: Dict, actions: List[Dict], remote_url: str = None
 ) -> dict[str, list[dict]]:
-    selected_flow_storage = await prompt_select_remote_flow_storage(console=console)
+    storage_provider_to_collection = {
+        "s3": "prefect_aws",
+        "gcs": "prefect_gcp",
+        "azure_blob_storage": "prefect_azure",
+    }
+    selected_storage_provider = await prompt_select_remote_flow_storage(console=console)
 
-    if selected_flow_storage == "git":
-        pull_step = await _generate_git_clone_pull_step(
+    if selected_storage_provider == "git":
+        actions["pull"] = await _generate_git_clone_pull_step(
             console=console,
             deploy_config=deploy_config,
-            remote_url=remote_url,
+            remote_url=_get_git_remote_origin_url(),
         )
-        actions["pull"] = pull_step
-    elif selected_flow_storage in ["s3", "gcs", "azure_blob_storage"]:
-        actions = await _generate_actions_for_blob_storage(
+
+    elif selected_storage_provider in storage_provider_to_collection.keys():
+        collection = storage_provider_to_collection[selected_storage_provider]
+
+        bucket, folder = prompt("Bucket name"), prompt("Folder name")
+
+        credentials = await prompt_select_blob_storage_credentials(
             console=console,
-            storage_provider=selected_flow_storage,
-            deploy_config=deploy_config,
-            actions=actions,
+            storage_provider=selected_storage_provider,
         )
+
+        step_fields = {
+            "bucket": bucket,
+            "folder": folder,
+            "credentials": credentials,
+        }
+
+        actions["push"] = [
+            {
+                f"{collection}.deployments.steps.push_to_{selected_storage_provider}": (
+                    step_fields
+                )
+            }
+        ]
+
+        actions["pull"] = [
+            {
+                f"{collection}.deployments.steps.pull_from_{selected_storage_provider}": (
+                    step_fields
+                )
+            }
+        ]
+
     return actions
 
 
 async def _generate_default_pull_action(
     console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
 ):
-    remote_url = _get_git_remote_origin_url()
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]
     )
@@ -1013,27 +1000,19 @@ async def _generate_default_pull_action(
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
-        else:
-            if is_interactive():
-                if remote_url and confirm(
-                    "Would you like to pull your flow code from its remote"
-                    " repository when running your deployment?"
-                ):
-                    return await _generate_git_clone_pull_step(
-                        console, deploy_config, remote_url
-                    )
-                if not confirm(
-                    "Does your Dockerfile have a line that copies the current working"
-                    " directory into your image?"
-                ):
-                    exit_with_error(
-                        "Your flow code must be copied into your Docker image to run"
-                        " your deployment.\nTo do so, you can copy this line into your"
-                        " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
-                    )
-                return await _generate_pull_step_for_build_docker_image(
-                    console, deploy_config, auto=False
+        if is_interactive():
+            if not confirm(
+                "Does your Dockerfile have a line that copies the current working"
+                " directory into your image?"
+            ):
+                exit_with_error(
+                    "Your flow code must be copied into your Docker image to run"
+                    " your deployment.\nTo do so, you can copy this line into your"
+                    " Dockerfile: [yellow]COPY . /opt/prefect/[/yellow]"
                 )
+            return await _generate_pull_step_for_build_docker_image(
+                console, deploy_config, auto=False
+            )
     else:
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(

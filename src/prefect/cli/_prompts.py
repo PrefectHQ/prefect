@@ -9,6 +9,7 @@ from getpass import GetPassWarning
 from typing import Any, Dict, List, Optional
 
 import readchar
+from pydantic import parse_obj_as
 from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -29,9 +30,9 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.client.utilities import inject_client
 from prefect.deployments.base import _search_for_flow_functions
+from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
-from prefect.server.api.collections import get_collection_view
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
 from prefect.utilities.slugify import slugify
@@ -632,9 +633,9 @@ async def prompt_entrypoint(console: Console) -> str:
 async def prompt_select_remote_flow_storage(console: Console) -> str:
     flow_storage_options = [
         {
-            "type": "GitHub",
-            "slug": "github",
-            "description": "Use a GitHub repository.",
+            "type": "Git Repo",
+            "slug": "git",
+            "description": "Use a Git repository.",
         },
         {
             "type": "S3",
@@ -666,12 +667,6 @@ async def prompt_select_remote_flow_storage(console: Console) -> str:
     return selected_flow_storage_row["slug"]
 
 
-async def prompt_select_blob_bucket_and_folder() -> tuple[str, str]:
-    bucket = prompt("Bucket name")
-    folder = prompt("Folder name", default="")
-    return bucket, folder
-
-
 @inject_client
 async def prompt_select_blob_storage_credentials(
     console: Console, storage_provider: str, client: PrefectClient = None
@@ -681,27 +676,16 @@ async def prompt_select_blob_storage_credentials(
 
     Returns a jinja template string that references a credentials block.
     """
-    storage_provider_to_metadata = {
-        "s3": {
-            "credentials": "aws-credentials",
-            "collection": "prefect-aws",
-        },
-        "gcs": {
-            "credentials": "gcp-credentials",
-            "collection": "prefect-gcp",
-        },
-        "azure_blob_storage": {
-            "credentials": "azure-blob-storage-credentials",
-            "collection": "prefect-azure",
-        },
+    storage_provider_to_creds_block = {
+        "s3": "aws-credentials",
+        "gcs": "gcp-credentials",
+        "azure_blob_storage": "azure-blob-storage-credentials",
     }
     storage_provider_slug = storage_provider.replace("_", "-")
     pretty_storage_provider = storage_provider.replace("_", " ").upper()
 
-    creds_block_type_slug = storage_provider_to_metadata[storage_provider][
-        "credentials"
-    ]
-    collection = storage_provider_to_metadata[storage_provider]["collection"]
+    creds_block_type_slug = storage_provider_to_creds_block[storage_provider]
+    pretty_creds_block_type = creds_block_type_slug.replace("-", " ").title()
 
     existing_credentials_blocks = await client.read_block_documents_by_type(
         block_type_slug=creds_block_type_slug
@@ -711,7 +695,7 @@ async def prompt_select_blob_storage_credentials(
         selected_credentials_block = prompt_select_from_table(
             console,
             prompt=(
-                f"Select from your existing {pretty_storage_provider} credential blocks"
+                f"Select from your existing {pretty_creds_block_type} credential blocks"
             ),
             columns=[
                 {
@@ -726,36 +710,23 @@ async def prompt_select_blob_storage_credentials(
         if selected_credentials_block and (
             selected_block := selected_credentials_block.get("name")
         ):
-            return (
-                "{{"
-                f" prefect.blocks.{storage_provider_slug}-credentials.{selected_block} }}}}"
-            )
+            return f"{{{{ prefect.blocks.{creds_block_type_slug}.{selected_block} }}}}"
 
-    collection_block_type_view = (
-        (await get_collection_view("aggregate-block-metadata"))
-        .get(collection)
-        .get("block_types")
-    )
-    credentials_block_type_metadata = collection_block_type_view.get(
-        creds_block_type_slug
-    )
+    credentials_block_type = await client.read_block_type_by_slug(creds_block_type_slug)
 
-    if not (
-        credentials_block_schema_dict := credentials_block_type_metadata.get(
-            "block_schema"
+    credentials_block_schemas = (
+        await client._client.post(
+            "/block_schemas/filter",
+            json={
+                "block_schemas": {
+                    "block_type_id": {"any_": [str(credentials_block_type.id)]}
+                },
+                "limit": 1,
+            },
         )
-    ):
-        raise ValueError(
-            f"Could not find a credentials block schema for {storage_provider}"
-        )
+    ).json()
 
-    credentials_block_type_id = (
-        await client.read_block_type_by_slug(creds_block_type_slug)
-    ).id
-
-    credentials_block_schema = BlockSchema(
-        block_type_id=credentials_block_type_id, **credentials_block_schema_dict
-    )
+    credentials_block_schema = parse_obj_as(BlockSchema, credentials_block_schemas[0])
 
     console.print(
         f"\nProvide details on your new {pretty_storage_provider} credentials:"
@@ -775,32 +746,37 @@ async def prompt_select_blob_storage_credentials(
         default=f"{storage_provider_slug}-storage-credentials",
     )
 
-    print(
-        {
-            "name": credentials_block_name,
-            "data": hydrated_fields,
-            "block_schema_id": credentials_block_schema.id,
-            "block_type_id": credentials_block_type_id,
-        }
-    )
-
-    print(f"\n\n{credentials_block_type_id}")
-
-    new_block_document = await client.create_block_document(
-        block_document=BlockDocumentCreate(
-            name=credentials_block_name,
-            data=hydrated_fields,
-            block_schema_id=credentials_block_schema.id,
-            block_type_id=credentials_block_type_id,
+    try:
+        new_block_document = await client.create_block_document(
+            block_document=BlockDocumentCreate(
+                name=credentials_block_name,
+                data=hydrated_fields,
+                block_schema_id=credentials_block_schema.id,
+                block_type_id=credentials_block_type.id,
+            )
         )
-    )
+    except ObjectAlreadyExists:
+        credentials_block_name = prompt(
+            (
+                f"A {pretty_creds_block_type!r} block named"
+                f" {credentials_block_name!r} already exists. Please choose another"
+                " name"
+            ),
+            default=f"{storage_provider_slug}-storage-credentials",
+        )
+
+        new_block_document = await client.create_block_document(
+            block_document=BlockDocumentCreate(
+                name=credentials_block_name,
+                data=hydrated_fields,
+                block_schema_id=credentials_block_schema.id,
+                block_type_id=credentials_block_type.id,
+            )
+        )
 
     if PREFECT_UI_URL:
         console.print(
-            "\nView your new credentials block in the UI:"
+            "\nView/Edit your new credentials block in the UI:"
             f"\n[blue]{PREFECT_UI_URL.value()}/blocks/block/{new_block_document.id}[/]\n"
         )
-    return (
-        "{{"
-        f" prefect.blocks.{storage_provider_slug}-credentials.{new_block_document.name} }}}}"
-    )
+    return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"

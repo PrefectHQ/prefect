@@ -29,7 +29,7 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.events.schemas import Posture
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.server.schemas.schedules import CronSchedule
@@ -119,9 +119,12 @@ def project_dir_with_single_deployment_format(tmp_path):
 
 @pytest.fixture
 async def default_agent_pool(prefect_client):
-    return await prefect_client.create_work_pool(
-        WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
-    )
+    try:
+        return await prefect_client.create_work_pool(
+            WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
+        )
+    except ObjectAlreadyExists:
+        return await prefect_client.read_work_pool("default-agent-pool")
 
 
 @pytest.fixture
@@ -157,6 +160,18 @@ async def mock_prompt(monkeypatch):
 
     original_prompt = prefect.cli._prompts.prompt
     monkeypatch.setattr("prefect.cli._prompts.prompt", new_prompt)
+
+
+@pytest.fixture
+def mock_provide_password(monkeypatch):
+    def new_prompt(message, password=False, **kwargs):
+        if password:
+            return "my-token"
+        else:
+            return original_prompt(message, password=password, **kwargs)
+
+    original_prompt = prefect.cli._prompts.prompt
+    monkeypatch.setattr("prefect.cli.deploy.prompt", new_prompt)
 
 
 @pytest.fixture
@@ -747,7 +762,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Accept discovered URL
@@ -764,8 +782,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -806,7 +824,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Reject discovered URL
@@ -833,8 +854,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -851,10 +872,14 @@ class TestProjectDeploy:
             ]
 
         @pytest.mark.usefixtures(
-            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+            "interactive_console",
+            "uninitialized_project_dir_with_git_with_remote",
+            "mock_provide_password",
         )
         async def test_project_deploy_with_no_prefect_yaml_git_repo_with_token(
-            self, work_pool, prefect_client
+            self,
+            work_pool,
+            prefect_client,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -865,7 +890,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Accept discovered URL
@@ -885,8 +913,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -947,6 +975,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
+                    # Decline pulling from remote storage
+                    "n"
+                    + readchar.key.ENTER
+                    +
                     # Accept saving the deployment configuration
                     "y"
                     + readchar.key.ENTER
@@ -1023,9 +1055,11 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
-                    "y"
-                    + readchar.key.ENTER
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
+                    readchar.key.ENTER
                     +
                     # Accept discovered URL
                     readchar.key.ENTER
@@ -1042,8 +1076,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     "Is this a private repository?",
                     "prefect deployment run 'An important name/test-name'",
@@ -1134,8 +1168,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     (
                         "Does your Dockerfile have a line that copies the current"
@@ -1221,8 +1255,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     (
                         "Does your Dockerfile have a line that copies the current"
@@ -1594,10 +1628,17 @@ class TestProjectDeploy:
                 f"deploy ./flows/hello.py:my_flow -p {work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input="test-prompt-name"
-            + readchar.key.ENTER
-            + "n"
-            + readchar.key.ENTER,
+            user_input=(
+                # Provide a deployment name
+                "test-prompt-name"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Deployment name",
             ],
@@ -1630,7 +1671,16 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Select only existing work pool
+                readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Which work pool would you like to deploy this flow to?",
             ],
@@ -1672,7 +1722,16 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Accept only existing work pool
+                readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 (
                     "You've chosen a work pool with type 'prefect-agent' which cannot"
@@ -1698,7 +1757,14 @@ class TestProjectDeploy:
                 f" {push_work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_does_not_contain=[
                 f"$ prefect worker start --pool {push_work_pool.name!r}",
             ],
@@ -1713,14 +1779,15 @@ class TestProjectDeploy:
             user_input=(
                 # Accept creating a new work pool
                 readchar.key.ENTER
-                +
                 # Select the first work pool type
-                readchar.key.ENTER
-                +
-                # Enter a name for the new work pool
-                "test-created-via-deploy"
                 + readchar.key.ENTER
-                # Decline save
+                # Enter a name for the new work pool
+                + "test-created-via-deploy"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline save the deployment configuration
                 + "n"
                 + readchar.key.ENTER
             ),
@@ -1889,6 +1956,11 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name",
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+            ),
             expected_code=0,
         )
 
@@ -1925,6 +1997,11 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy -n test-name",
             expected_code=0,
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+            ),
             expected_output_does_not_contain="Would you like to build a Docker image?",
         )
 
@@ -2170,6 +2247,9 @@ class TestSchedules:
                 # Enter valid interval
                 "42"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Decline save
                 + "n"
                 + readchar.key.ENTER
@@ -2217,8 +2297,11 @@ class TestSchedules:
                 # Select default timezone
                 readchar.key.ENTER
                 +
-                # Decline save
+                # Decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -2265,6 +2348,10 @@ class TestSchedules:
                 # Select default timezone
                 readchar.key.ENTER
                 +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # Decline save
                 "n"
                 + readchar.key.ENTER
@@ -2290,6 +2377,9 @@ class TestSchedules:
             user_input=(
                 # Decline schedule creation
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Decline save
                 + "n"
@@ -2676,7 +2766,20 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy --all",
             expected_code=0,
-            user_input="y" + readchar.key.ENTER + "test-name-2" + readchar.key.ENTER,
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Confirm unnamed deployment creation
+                + "y"
+                + readchar.key.ENTER
+                # Provide a name
+                + "test-name-2"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Discovered unnamed deployment.",
                 "Would you like to give this deployment a name and deploy it?",
@@ -2720,7 +2823,14 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy --all",
             expected_code=0,
-            user_input="n" + readchar.key.ENTER,
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Decline unnamed deployment creation
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Discovered unnamed deployment.",
                 "Would you like to give this deployment a name and deploy it?",
