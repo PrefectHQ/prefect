@@ -1313,68 +1313,6 @@ Whether or not to warn when the experimental workspace dashboard is enabled.
 # Deprecated settings ------------------------------------------------------------------
 
 
-PREFECT_LOGGING_ORION_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_ENABLED,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_ENABLED instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_INTERVAL` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_INTERVAL instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_SIZE,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_SIZE instead.
-"""
-
-PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-)
-
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
-PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
-    Optional[Literal["warn", "error", "ignore"]],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
-
 PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
     Optional[bool],
     default=None,
