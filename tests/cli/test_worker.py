@@ -161,6 +161,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         work_queues=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -188,6 +189,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         work_queues=[],
         prefetch_seconds=30,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -214,6 +216,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         work_queues=[],
         prefetch_seconds=100,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -241,6 +244,7 @@ def test_start_worker_with_limit(monkeypatch):
         work_queues=[],
         prefetch_seconds=10,
         limit=5,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -361,7 +365,7 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
-async def test_worker_reports_heartbeat_interval(session, kubernetes_work_pool):
+async def test_worker_reports_heartbeat_interval(session, process_work_pool):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -369,7 +373,7 @@ async def test_worker_reports_heartbeat_interval(session, kubernetes_work_pool):
             "start",
             "--run-once",
             "-p",
-            kubernetes_work_pool.name,
+            process_work_pool.name,
             "-n",
             "test-worker",
         ],
@@ -381,7 +385,7 @@ async def test_worker_reports_heartbeat_interval(session, kubernetes_work_pool):
     )
 
     workers = await models.workers.read_workers(
-        session=session, work_pool_id=kubernetes_work_pool.id
+        session=session, work_pool_id=process_work_pool.id
     )
     assert len(workers) == 1
     assert workers[0].name == "test-worker"
