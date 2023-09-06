@@ -1,11 +1,17 @@
 import asyncio
+import threading
 import time
+
 import pytest
 
 from prefect._internal.concurrency.calls import Call
-from prefect._internal.concurrency.threads import WorkerThread
 from prefect._internal.concurrency.cancellation import CancelledError
-from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
+from prefect._internal.concurrency.threads import WorkerThread
+from prefect._internal.concurrency.waiters import (
+    AsyncWaiter,
+    SyncWaiter,
+    get_waiter_for_thread,
+)
 
 
 def fake_fn(*args, **kwargs):
@@ -33,6 +39,20 @@ def sleep_repeatedly(seconds: int):
     # for cancellation between sleep calls
     for i in range(seconds * 10):
         time.sleep(float(i) / 10)
+
+
+async def test_get_waiter_with_call_done():
+    call = Call.new(identity, 1)
+    waiter = AsyncWaiter(call)
+
+    # patch to always return True
+    def call_is_done():
+        return True
+
+    waiter.call_is_done = call_is_done
+
+    waiter_for_thread = get_waiter_for_thread(threading.current_thread())
+    assert waiter_for_thread is None
 
 
 @pytest.mark.parametrize("cls", [AsyncWaiter, SyncWaiter])

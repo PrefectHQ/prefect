@@ -16,9 +16,9 @@ from typing_extensions import Self
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
-    PREFECT_CLIENT_MAX_RETRIES,
 )
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
@@ -154,10 +154,7 @@ class PrefectResponse(httpx.Response):
 class PrefectHttpxClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
-    for:
-
-    - 429 CloudFlare-style rate limiting
-    - 503 Service unavailable
+    for the provided status codes (typically 429, 502 and 503).
 
     Additionally, this client will always call `raise_for_status` on responses.
 
@@ -246,6 +243,14 @@ class PrefectHttpxClient(httpx.AsyncClient):
         return response
 
     async def send(self, *args, **kwargs) -> Response:
+        """
+        Send a request with automatic retry behavior for the following status codes:
+
+        - 429 CloudFlare-style rate limiting
+        - 502 Bad Gateway
+        - 503 Service unavailable
+        """
+
         api_request = partial(super().send, *args, **kwargs)
 
         response = await self._send_with_retry(

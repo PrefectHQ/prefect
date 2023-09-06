@@ -1,6 +1,6 @@
 name: 🛠️ Track a maintenence task
 description: These are for changes that are not user or product related for maintenance of this repository.
-labels: ["status:backlog", "maintenance"]
+labels: ["maintenance"]
 body:
   - type: checkboxes
     id: checks

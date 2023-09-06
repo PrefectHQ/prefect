@@ -47,6 +47,11 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.visualization import (
+    VisualizationUnsupportedError,
+    get_task_viz_tracker,
+    track_viz_task,
+)
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -169,6 +174,7 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -205,6 +211,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -336,6 +343,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.viz_return_value = viz_return_value
 
     def with_options(
         self,
@@ -366,6 +374,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -400,6 +409,7 @@ class Task(Generic[P, R]):
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
+            viz_return_value: An optional value to return when the task dependency tree is visualized.
 
         Returns:
             A new `Task` instance.
@@ -487,6 +497,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            viz_return_value=viz_return_value or self.viz_return_value,
         )
 
     @overload
@@ -534,6 +545,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return_type = "state" if return_state else "result"
+
+        task_run_tracker = get_task_viz_tracker()
+        if task_run_tracker:
+            return track_viz_task(
+                self.isasync, self.name, parameters, self.viz_return_value
+            )
 
         return enter_task_run_engine(
             self,
@@ -732,6 +749,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.submit()` is not currently supported by `flow.visualize()`"
+            )
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -903,6 +926,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.map()` is not currently supported by `flow.visualize()`"
+            )
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -946,6 +975,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -978,6 +1008,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    viz_return_value: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1033,6 +1064,7 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1082,6 +1114,7 @@ def task(
         >>> def my_task():
         >>>     return "hello"
     """
+
     if __fn:
         return cast(
             Task[P, R],
@@ -1107,6 +1140,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_return_value=viz_return_value,
             ),
         )
     else:
@@ -1134,5 +1168,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                viz_return_value=viz_return_value,
             ),
         )

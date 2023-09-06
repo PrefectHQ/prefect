@@ -6,8 +6,8 @@ import pytest
 
 from prefect.utilities.filesystem import (
     filter_files,
-    relative_path_to_current_platform,
     get_open_file_limit,
+    relative_path_to_current_platform,
 )
 
 

@@ -1486,6 +1486,12 @@ class PrefectClient:
 
         return UUID(deployment_id)
 
+    async def update_schedule(self, deployment_id: UUID, active: bool = True):
+        path = "set_schedule_active" if active else "set_schedule_inactive"
+        await self._client.post(
+            f"/deployments/{deployment_id}/{path}",
+        )
+
     async def update_deployment(
         self,
         deployment: Deployment,
@@ -2546,11 +2552,15 @@ class PrefectClient:
         )
 
     async def release_concurrency_slots(
-        self, names: List[str], slots: int
+        self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
-            json={"names": names, "slots": slots},
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
         )
 
     async def __aenter__(self):

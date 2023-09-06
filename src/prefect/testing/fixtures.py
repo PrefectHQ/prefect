@@ -2,7 +2,7 @@ import os
 import socket
 import sys
 from contextlib import contextmanager
-from typing import AsyncGenerator, List, Optional, Union
+from typing import AsyncGenerator, Generator, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -13,6 +13,8 @@ from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
+from prefect.events.clients import AssertingEventsClient
+from prefect.events.worker import EventsWorker
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
@@ -251,3 +253,21 @@ async def events_server(
 @pytest.fixture
 def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"
+
+
+@pytest.fixture
+def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
+    worker = EventsWorker.instance(AssertingEventsClient)
+    # Always yield the asserting worker when new instances are retrieved
+    monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
+    try:
+        yield worker
+    finally:
+        worker.drain()
+
+
+@pytest.fixture
+def reset_worker_events(asserting_events_worker: EventsWorker):
+    yield
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    asserting_events_worker._client.events = []

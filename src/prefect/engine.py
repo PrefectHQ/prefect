@@ -85,9 +85,8 @@ import contextlib
 import logging
 import os
 import signal
-import prefect.plugins
-import threading
 import sys
+import threading
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
@@ -102,11 +101,10 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 import prefect.plugins
-from prefect.states import is_state
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect._internal.concurrency.cancellation import CancelledError, get_deadline
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -165,6 +163,7 @@ from prefect.states import (
     exception_to_crashed_state,
     exception_to_failed_state,
     get_state_exception,
+    is_state,
     return_value_to_state,
 )
 from prefect.task_runners import (
@@ -1264,6 +1263,9 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
         elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+        # Expressions inside quotes should not be traversed
+        elif isinstance(obj, quote):
+            raise StopVisiting
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
