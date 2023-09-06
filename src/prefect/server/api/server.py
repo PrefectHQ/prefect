@@ -30,7 +30,6 @@ import prefect
 import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
@@ -210,11 +209,6 @@ async def prefect_object_not_found_exception_handler(
     return JSONResponse(
         content={"exception_message": str(exc)}, status_code=status.HTTP_404_NOT_FOUND
     )
-
-
-@deprecated_callable(start_date="May 2023", help="Use `create_api_app` instead.")
-def create_orion_api(*args, **kwargs) -> FastAPI:
-    return create_orion_api(*args, **kwargs)
 
 
 def create_api_app(
