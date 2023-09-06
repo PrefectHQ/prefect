@@ -518,7 +518,18 @@ async def _run_single_deploy(
         actions = await _generate_actions_for_remote_flow_storage(
             console=app.console, deploy_config=deploy_config, actions=actions
         )
-    print(actions)
+
+    pull_steps = (
+        deploy_config.get("pull")
+        or actions.get("pull")
+        or await _generate_default_pull_action(
+            app.console,
+            deploy_config=deploy_config,
+            actions=actions,
+            ci=ci,
+        )
+    )
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     if build_steps:
@@ -555,17 +566,6 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedule"] = _schedule
 
-    # prepare the pull step
-    pull_steps = (
-        deploy_config.get("pull")
-        or actions.get("pull")
-        or await _generate_default_pull_action(
-            app.console,
-            deploy_config=deploy_config,
-            actions=actions,
-            ci=ci,
-        )
-    )
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
@@ -946,10 +946,7 @@ async def _generate_actions_for_blob_storage(
         "azure_blob_storage": "prefect-azure",
     }
 
-    bucket, folder = await prompt_select_blob_bucket_and_folder(
-        console=console,
-        storage_provider=storage_provider,
-    )
+    bucket, folder = await prompt_select_blob_bucket_and_folder()
 
     credentials = await prompt_select_blob_storage_credentials(
         console=console,

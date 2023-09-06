@@ -16,11 +16,11 @@ from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
 from rich.text import Text
 
-from prefect.blocks.core import BlockDocument, BlockType
+from prefect.blocks.core import BlockSchema
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     CronSchedule,
@@ -31,6 +31,7 @@ from prefect.client.utilities import inject_client
 from prefect.deployments.base import _search_for_flow_functions
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
+from prefect.server.api.collections import get_collection_view
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import run_process
 from prefect.utilities.slugify import slugify
@@ -665,7 +666,7 @@ async def prompt_select_remote_flow_storage(console: Console) -> str:
     return selected_flow_storage_row["slug"]
 
 
-async def prompt_select_blob_bucket_and_folder():
+async def prompt_select_blob_bucket_and_folder() -> tuple[str, str]:
     bucket = prompt("Bucket name")
     folder = prompt("Folder name", default="")
     return bucket, folder
@@ -680,17 +681,30 @@ async def prompt_select_blob_storage_credentials(
 
     Returns a jinja template string that references a credentials block.
     """
-    collection_to_storage_creds_block_slug = {
-        "s3": "aws-credentials",
-        "gcs": "gcp-credentials",
-        "azure_blob_storage": "azure-blob-storage-credentials",
+    storage_provider_to_metadata = {
+        "s3": {
+            "credentials": "aws-credentials",
+            "collection": "prefect-aws",
+        },
+        "gcs": {
+            "credentials": "gcp-credentials",
+            "collection": "prefect-gcp",
+        },
+        "azure_blob_storage": {
+            "credentials": "azure-blob-storage-credentials",
+            "collection": "prefect-azure",
+        },
     }
-    block_type_slug = collection_to_storage_creds_block_slug[storage_provider]
     storage_provider_slug = storage_provider.replace("_", "-")
     pretty_storage_provider = storage_provider.replace("_", " ").upper()
 
+    creds_block_type_slug = storage_provider_to_metadata[storage_provider][
+        "credentials"
+    ]
+    collection = storage_provider_to_metadata[storage_provider]["collection"]
+
     existing_credentials_blocks = await client.read_block_documents_by_type(
-        block_type_slug=block_type_slug
+        block_type_slug=creds_block_type_slug
     )
 
     if existing_credentials_blocks:
@@ -717,22 +731,41 @@ async def prompt_select_blob_storage_credentials(
                 f" prefect.blocks.{storage_provider_slug}-credentials.{selected_block} }}}}"
             )
 
-    credentials_block_schema = next(
-        iter(
-            [
-                schema
-                for schema in await client.read_block_schemas()
-                if schema.block_type.slug == block_type_slug
-            ]
+    collection_block_type_view = (
+        (await get_collection_view("aggregate-block-metadata"))
+        .get(collection)
+        .get("block_types")
+    )
+    credentials_block_type_metadata = collection_block_type_view.get(
+        creds_block_type_slug
+    )
+
+    if not (
+        credentials_block_schema_dict := credentials_block_type_metadata.get(
+            "block_schema"
         )
+    ):
+        raise ValueError(
+            f"Could not find a credentials block schema for {storage_provider}"
+        )
+
+    credentials_block_type_id = (
+        await client.read_block_type_by_slug(creds_block_type_slug)
+    ).id
+
+    credentials_block_schema = BlockSchema(
+        block_type_id=credentials_block_type_id, **credentials_block_schema_dict
     )
 
     console.print(
         f"\nProvide details on your new {pretty_storage_provider} credentials:"
     )
+
     hydrated_fields = {
-        field.name: prompt(f"{field.name} [yellow]({field.type_.__name__})[/]")
-        for field in credentials_block_schema.fields
+        field_name: prompt(f"{field_name} [yellow]({props.get('type')})[/]")
+        for field_name, props in credentials_block_schema.fields.get(
+            "properties"
+        ).items()
     }
 
     console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
@@ -742,17 +775,24 @@ async def prompt_select_blob_storage_credentials(
         default=f"{storage_provider_slug}-storage-credentials",
     )
 
-    credentials_block: BlockDocument = BlockDocument.parse_obj(
+    print(
         {
             "name": credentials_block_name,
-            "slug": f"{storage_provider_slug}-credentials",
-            "type": BlockType(slug=f"{storage_provider_slug}-credentials"),
-            "fields": hydrated_fields,
+            "data": hydrated_fields,
+            "block_schema_id": credentials_block_schema.id,
+            "block_type_id": credentials_block_type_id,
         }
     )
 
+    print(f"\n\n{credentials_block_type_id}")
+
     new_block_document = await client.create_block_document(
-        block_document=credentials_block
+        block_document=BlockDocumentCreate(
+            name=credentials_block_name,
+            data=hydrated_fields,
+            block_schema_id=credentials_block_schema.id,
+            block_type_id=credentials_block_type_id,
+        )
     )
 
     if PREFECT_UI_URL:
