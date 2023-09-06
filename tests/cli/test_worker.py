@@ -14,6 +14,7 @@ from typer import Exit
 import prefect
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.server import models
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -357,6 +358,34 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
     workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_reports_heartbeat_interval(session, kubernetes_work_pool):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            kubernetes_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await models.workers.read_workers(
+        session=session, work_pool_id=kubernetes_work_pool.id
+    )
+    assert len(workers) == 1
+    assert workers[0].name == "test-worker"
+    assert workers[0].heartbeat_interval_seconds == 30
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")

@@ -692,6 +692,20 @@ class TestWorkerProcess:
         assert len(workers_response.json()) == 1
         assert workers_response.json()[0]["name"] == "another-worker"
 
+    async def test_heartbeat_accepts_heartbeat_interval(
+        self, client, work_pool, session
+    ):
+        await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker", heartbeat_interval_seconds=60),
+        )
+
+        workers = await models.workers.read_workers(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(workers) == 1
+        assert workers[0].heartbeat_interval_seconds == 60
+
 
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)

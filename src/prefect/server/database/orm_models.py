@@ -1254,6 +1254,7 @@ class ORMWorker:
         default=lambda: pendulum.now("UTC"),
         index=True,
     )
+    heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
 
     @declared_attr
     def __table_args__(cls):

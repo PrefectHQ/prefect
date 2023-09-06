@@ -132,6 +132,7 @@ async def start(
         work_queues=work_queues,
         limit=limit,
         prefetch_seconds=prefetch_seconds,
+        heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
     ) as worker:
         app.console.print(f"Worker {worker.name!r} started!", style="green")
         async with anyio.create_task_group() as tg:
@@ -153,7 +154,7 @@ async def start(
                 partial(
                     critical_service_loop,
                     workload=worker.sync_with_backend,
-                    interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+                    interval=worker.heartbeat_interval_seconds,
                     run_once=run_once,
                     printer=app.console.print,
                     jitter_range=0.3,

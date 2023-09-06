@@ -528,6 +528,9 @@ async def delete_work_queue(
 async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
     name: str = Body(..., description="The worker process name", embed=True),
+    heartbeat_interval_seconds: Optional[int] = Body(
+        None, description="The worker's heartbeat interval in seconds", embed=True
+    ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
@@ -540,6 +543,7 @@ async def worker_heartbeat(
             session=session,
             work_pool_id=work_pool_id,
             worker_name=name,
+            heartbeat_interval_seconds=heartbeat_interval_seconds,
             db=db,
         )
 
