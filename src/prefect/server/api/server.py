@@ -49,7 +49,6 @@ API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
 SERVER_API_VERSION = "0.8.4"
-ORION_API_VERSION = SERVER_API_VERSION  # Deprecated. Available for compatibility.
 
 logger = get_logger("server")
 
