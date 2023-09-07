@@ -177,7 +177,9 @@ $ prefect init --recipe docker
 </div>
 
 !!! tip "Use `--field` to avoid the interactive experience"
-    We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control; however, sometimes you may need to initialize programmatically and avoid the interactive prompts.  To do so, provide all required fields for your recipe using the `--field` flag:
+    We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control. 
+    However, sometimes you may need to initialize programmatically and avoid the interactive prompts.  
+    To do so, provide all required fields for your recipe using the `--field` flag:
     <div class="terminal">
     ```bash
     $ prefect init --recipe docker \
