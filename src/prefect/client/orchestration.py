@@ -2139,7 +2139,12 @@ class PrefectClient:
 
         return await resolve_inner(datadoc)
 
-    async def send_worker_heartbeat(self, work_pool_name: str, worker_name: str):
+    async def send_worker_heartbeat(
+        self,
+        work_pool_name: str,
+        worker_name: str,
+        heartbeat_interval_seconds: Optional[float] = None,
+    ):
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -2149,7 +2154,10 @@ class PrefectClient:
         """
         await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={"name": worker_name},
+            json={
+                "name": worker_name,
+                "heartbeat_interval_seconds": heartbeat_interval_seconds,
+            },
         )
 
     async def read_workers_for_work_pool(
