@@ -9,7 +9,7 @@ import pytest
 from pydantic import Field
 
 import prefect
-import prefect.server.schemas as schemas
+import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
@@ -477,7 +477,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -516,7 +516,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 

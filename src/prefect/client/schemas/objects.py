@@ -64,6 +64,21 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+class WorkPoolStatus(AutoEnum):
+    """Enumeration of work pool statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+
+
+class WorkerStatus(AutoEnum):
+    """Enumeration of worker statuses."""
+
+    ONLINE = AutoEnum.auto()
+    OFFLINE = AutoEnum.auto()
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -1311,6 +1326,9 @@ class WorkPool(ObjectBaseModel):
     concurrency_limit: Optional[conint(ge=0)] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    status: Optional[WorkPoolStatus] = Field(
+        default=None, description="The current status of the work pool."
+    )
 
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
@@ -1357,6 +1375,16 @@ class Worker(ObjectBaseModel):
     )
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
+    )
+    heartbeat_interval_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of seconds to expect between heartbeats sent by the worker."
+        ),
+    )
+    status: WorkerStatus = Field(
+        WorkerStatus.OFFLINE,
+        description="Current status of the worker.",
     )
 
 

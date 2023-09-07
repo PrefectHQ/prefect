@@ -576,6 +576,7 @@ async def worker_heartbeat(
     work_pool_id: UUID,
     worker_name: str,
     db: PrefectDBInterface,
+    heartbeat_interval_seconds: Optional[int] = None,
 ) -> bool:
     """
     Record a worker process heartbeat.
@@ -590,19 +591,27 @@ async def worker_heartbeat(
 
     """
     now = pendulum.now("UTC")
+    # Values that won't change between heart beats
+    base_values = dict(
+        work_pool_id=work_pool_id,
+        name=worker_name,
+    )
+    # Values that can and will change between heartbeats
+    update_values = dict(
+        last_heartbeat_time=now,
+    )
+    if heartbeat_interval_seconds is not None:
+        update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
+
     insert_stmt = (
         (await db.insert(db.Worker))
-        .values(
-            work_pool_id=work_pool_id,
-            name=worker_name,
-            last_heartbeat_time=now,
-        )
+        .values(**base_values, **update_values)
         .on_conflict_do_update(
             index_elements=[
                 db.Worker.work_pool_id,
                 db.Worker.name,
             ],
-            set_=dict(last_heartbeat_time=now),
+            set_=update_values,
         )
     )
 

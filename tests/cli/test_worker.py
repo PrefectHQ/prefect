@@ -160,6 +160,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         work_queues=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -187,6 +188,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         work_queues=[],
         prefetch_seconds=30,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -213,6 +215,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         work_queues=[],
         prefetch_seconds=100,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -240,6 +243,7 @@ def test_start_worker_with_limit(monkeypatch):
         work_queues=[],
         prefetch_seconds=10,
         limit=5,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -357,6 +361,36 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
     workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_reports_heartbeat_interval(
+    prefect_client: PrefectClient, process_work_pool
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            process_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await prefect_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert len(workers) == 1
+    assert workers[0].name == "test-worker"
+    assert workers[0].heartbeat_interval_seconds == 30
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
