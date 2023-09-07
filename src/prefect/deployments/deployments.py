@@ -24,7 +24,7 @@ from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
-from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
@@ -110,7 +110,8 @@ async def run_deployment(
         deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx:
+    task_run_ctx = TaskRunContext.get()
+    if flow_run_ctx or task_run_ctx:
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
             Pending,
@@ -136,10 +137,20 @@ async def run_deployment(
         )
         # Override the default task key to include the deployment name
         dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
+        flow_run_id = (
+            flow_run_ctx.flow_run.id
+            if flow_run_ctx
+            else task_run_ctx.task_run.flow_run_id
+        )
+        dynamic_key = (
+            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            if flow_run_ctx
+            else task_run_ctx.task_run.dynamic_key
+        )
         parent_task_run = await client.create_task_run(
             task=dummy_task,
-            flow_run_id=flow_run_ctx.flow_run.id,
-            dynamic_key=_dynamic_key_for_task_run(flow_run_ctx, dummy_task),
+            flow_run_id=flow_run_id,
+            dynamic_key=dynamic_key,
             task_inputs=task_inputs,
             state=Pending(),
         )

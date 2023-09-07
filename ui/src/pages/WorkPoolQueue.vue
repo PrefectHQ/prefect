@@ -9,7 +9,7 @@
         <CodeBanner :command="codeBannerCliCommand" :title="codeBannerTitle" :subtitle="codeBannerSubtitle" />
       </template>
 
-      <p-tabs :tabs="tabs">
+      <p-tabs v-model:selected="tab" :tabs="tabs">
         <template #details>
           <WorkPoolQueueDetails :work-pool-name="workPoolName" :work-pool-queue="workPoolQueue" />
         </template>
@@ -32,8 +32,8 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
-  import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useFlowRunsFilter, useTabs } from '@prefecthq/prefect-ui-library'
+  import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
@@ -59,7 +59,7 @@
     }
     return `Your work pool ${workPoolQueue.value.name} is ready to go!`
   })
-  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
+  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool "${workPoolName.value}" --work-queue "${workPoolQueueName.value}"`)
   const codeBannerSubtitle = computed(() => `Work queues are scoped to a work pool to allow ${isAgentWorkPool.value ? 'agents' : 'workers'} to pull from groups of queues with different priorities.`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
@@ -71,15 +71,14 @@
     },
   })
 
-  const tabs = computed(() => {
-    const values = ['Upcoming Runs', 'Runs']
+  const computedTabs = computed(() => [
+    { label: 'Details', hidden: media.xl },
+    { label: 'Upcoming Runs' },
+    { label: 'Runs' },
+  ])
 
-    if (!media.xl) {
-      values.unshift('Details')
-    }
-
-    return values
-  })
+  const tab = useRouteQueryParam('tab', 'Details')
+  const { tabs } = useTabs(computedTabs, tab)
 
   const title = computed(() => {
     if (!workPoolQueueName.value) {

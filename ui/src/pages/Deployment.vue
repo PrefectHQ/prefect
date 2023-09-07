@@ -9,7 +9,7 @@
       />
     </template>
 
-    <p-tabs v-if="deployment" :tabs="tabs">
+    <p-tabs v-if="deployment" v-model:selected="tab" :tabs="tabs">
       <template #description>
         <p-content secondary>
           <DeploymentDeprecatedMessage v-if="deployment.deprecated" />
@@ -50,10 +50,9 @@
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
   import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
-  import { useToast } from '@/compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
@@ -61,7 +60,6 @@
   const deploymentIds = computed(() => [deploymentId.value])
   const router = useRouter()
   const api = useWorkspaceApi()
-  const showToast = useToast()
 
   const subscriptionOptions = {
     interval: 300000,
@@ -77,7 +75,8 @@
     { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
     { label: 'Description' },
   ])
-  const { tabs } = useTabs(computedTabs)
+  const tab = useRouteQueryParam('tab', 'Details')
+  const { tabs } = useTabs(computedTabs, tab)
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
@@ -101,13 +100,6 @@
     return `Deployment: ${deployment.value.name}`
   })
   usePageTitle(title)
-
-  watch(deployment, () => {
-    // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
-    if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
-      showToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
-    }
-  })
 </script>
 
 <style>

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from websockets.exceptions import ConnectionClosed
 
@@ -126,3 +128,101 @@ async def test_handles_api_url_with_trailing_slash(
     assert recorder.connections == 1
     assert recorder.path == "/accounts/A/workspaces/W/events/in"
     assert recorder.events == [example_event_1]
+
+
+async def test_recovers_from_temporary_error_reconnecting(
+    events_api_url: str,
+    example_event_1: Event,
+    example_event_2: Event,
+    example_event_3: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Regression test for an error where the client encountered assertion errors in
+    PrefectCloudEventsClient._emit because the websocket was None"""
+    client = PrefectCloudEventsClient(
+        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=3
+    )
+    async with client:
+        assert recorder.connections == 1
+
+        puppeteer.hard_disconnect_after = example_event_1.id
+        await client.emit(example_event_1)
+
+        # Emulate an error happening during reconnection that may leave the websocket
+        # as None.  This may not be the exact cause of the trouble, but it emulates the
+        # same condition the client saw
+        assert client._connect is not None
+        with mock.patch.object(
+            client._connect, "__aexit__", side_effect=ValueError("newp")
+        ):
+            with pytest.raises(ValueError, match="newp"):
+                await client.emit(example_event_2)
+
+        assert recorder.connections == 1
+
+        # The condition we're testing for is that the client can recover from the
+        # websocket being None, so make sure that we've created that condition here
+        assert not client._websocket
+
+        # We're not going to make the server refuse connections, so we should expect the
+        # client to automatically reconnect and continue emitting events
+
+        await client.emit(example_event_3)
+
+    assert recorder.connections == 1 + 1  # initial, reconnect
+    assert recorder.events == [
+        example_event_1,
+        example_event_2,
+        example_event_3,
+    ]
+
+
+async def test_recovers_from_long_lasting_error_reconnecting(
+    events_api_url: str,
+    example_event_1: Event,
+    example_event_2: Event,
+    example_event_3: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Regression test for an error where the client encountered assertion errors in
+    PrefectCloudEventsClient._emit because the websocket was None"""
+    client = PrefectCloudEventsClient(
+        events_api_url, "my-token", checkpoint_every=1, reconnection_attempts=3
+    )
+    async with client:
+        assert recorder.connections == 1
+
+        puppeteer.hard_disconnect_after = example_event_1.id
+        await client.emit(example_event_1)
+
+        # Emulate an error happening during reconnection that may leave the websocket
+        # as None.  This may not be the exact cause of the trouble, but it emulates the
+        # same condition the client saw
+        assert client._connect is not None
+        with mock.patch.object(
+            client._connect, "__aexit__", side_effect=ValueError("newp")
+        ):
+            with pytest.raises(ValueError, match="newp"):
+                await client.emit(example_event_2)
+
+        assert recorder.connections == 1
+
+        # The condition we're testing for is that the client can recover from the
+        # websocket being None, so make sure that we've created that condition here
+        assert not client._websocket
+
+        # This is what makes it "long-lasting", that the server will start refusing any
+        # further connections, so we should expect up to N attempts to reconnect before
+        # raising the underlying error
+        puppeteer.refuse_any_further_connections = True
+        with pytest.raises(ConnectionClosed):
+            await client.emit(example_event_3)
+
+    assert recorder.connections == 1 + 1 + 3  # initial, reconnect, three more attempts
+    assert recorder.events == [
+        example_event_1,
+        # event 2 never made it because we cause that error during reconnection
+        # event 3 never made it because we told the server to refuse future connects
+    ]

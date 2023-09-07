@@ -15,7 +15,7 @@ search:
 
 <div class="terminal">
 ```bash
-pip install -U prefect
+pip install -U "prefect>=2.11.6"
 ```
 </div>
 
@@ -45,25 +45,20 @@ Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/
         </div>
 
 
+### Step 3: Write a flow
 
-### Step 3: Create a flow
-**The fastest way to get started with Prefect is to add a `@flow` decorator to any python function**.
+The fastest way to get started with Prefect is to add a `@flow` decorator to any Python function and call its `serve` method to create a deployment. [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work. [Deployments](/concepts/deployments/) elevate flows to remotely configurable entities that have their own API, as we will see shortly.
 
-!!! tip "Rules of Thumb"
-    - At a minimum, you need to define at least one [flow](/tutorial/flows/) function.
-    - Your flows can be segmented by introducing [task](/tutorial/tasks/) (`@task`) functions, which can be invoked from within these flows.
-    - A [task](/concepts/tasks/) represents a discrete unit of Python code, whereas flows are more akin to parent functions accommodating a broad range of workflow logic.
-    - [Flows](/concepts/flows) can be called inside of other flows (we call these [subflows](/concepts/flows/#composing-flows)) but a task **cannot** be run inside of another task or from outside the context of a flow.
+Here is an example flow named "Repo Info" that contains two [tasks](/concepts/tasks/), which are the smallest unit of observed and orchestrated work in Prefect:
 
-Here is an example flow named `Repo Info` that contains two tasks:
-```python
-# my_flow.py
+```python title="my_flow.py"
 import httpx
 from prefect import flow, task
 
+
 @task(retries=2)
 def get_repo_info(repo_owner: str, repo_name: str):
-    """ Get info about a repo - will retry twice after failing """
+    """Get info about a repo - will retry twice after failing"""
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
     api_response = httpx.get(url)
     api_response.raise_for_status()
@@ -79,29 +74,30 @@ def get_contributors(repo_info: dict):
     contributors = response.json()
     return contributors
 
-@flow(name="Repo Info", log_prints=True)  
-def repo_info(
-    repo_owner: str = "PrefectHQ", repo_name: str = "prefect"
-):
-    # call our `get_repo_info` task
+
+@flow(name="Repo Info", log_prints=True)
+def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+    """
+    Given a GitHub repository, logs the number of stargazers
+    and contributors for that repo.
+    """
     repo_info = get_repo_info(repo_owner, repo_name)
     print(f"Stars 🌠 : {repo_info['stargazers_count']}")
 
-    # call our `get_contributors` task, 
-    # passing in the upstream result
     contributors = get_contributors(repo_info)
-    print(
-        f"Number of contributors 👷: {len(contributors)}"
-    )
+    print(f"Number of contributors 👷: {len(contributors)}")
 
 
 if __name__ == "__main__":
-    # Call a flow function for a local flow run!
-    repo_info()
+    # create your first deployment
+    repo_info.serve(name="my-first-deployment")
 ```
 
-### Step 4: Run your flow locally
-Call any function that you've decorated with a `@flow` decorator to see a local instance of a flow run.
+Notice that we can write standard Python code within our flow _or_ break it down into component tasks, depending on the level of control and observability we want.
+
+### Step 4: Create a deployment
+
+When we run this script, Prefect will automatically create a flow deployment that you can interact with via the UI and API. The script will stay running so that it can listen for scheduled or triggered runs of this flow; once a run is found, it will be executed within a subprocess.
 
 <div class="terminal">
 ```bash
@@ -109,74 +105,45 @@ python my_flow.py
 ```
 </div> 
 
+You should see a link directing you to the deployment page that you can use to begin interacting with your newly created deployment!
+
+For example, you can trigger a run of this deployment by either clicking the "Run" button in the top right of the deployment page in the UI, or by running the following CLI command in your terminal:
+
 <div class="terminal">
 ```bash
-18:21:40.235 | INFO    | prefect.engine - Created flow run 'fine-gorilla' for flow 'Repo Info'
-18:21:40.237 | INFO    | Flow run 'fine-gorilla' - View at https://app.prefect.cloud/account/0ff44498-d380-4d7b-bd68-9b52da03823f/workspace/c859e5b6-1539-4c77-81e0-444c2ddcaafe/flow-runs/flow-run/c5a85193-69ea-4577-aa0e-e11adbf1f659
-18:21:40.837 | INFO    | Flow run 'fine-gorilla' - Created task run 'get_repo_info-0' for task 'get_repo_info'
-18:21:40.838 | INFO    | Flow run 'fine-gorilla' - Executing 'get_repo_info-0' immediately...
-18:21:41.468 | INFO    | Task run 'get_repo_info-0' - Finished in state Completed()
-18:21:41.477 | INFO    | Flow run 'fine-gorilla' - Stars 🌠 : 12340
-18:21:41.606 | INFO    | Flow run 'fine-gorilla' - Created task run 'get_contributors-0' for task 'get_contributors'
-18:21:41.607 | INFO    | Flow run 'fine-gorilla' - Executing 'get_contributors-0' immediately...
-18:21:42.225 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
-18:21:42.232 | INFO    | Flow run 'fine-gorilla' - Number of contributors 👷: 30
-18:21:42.383 | INFO    | Flow run 'fine-gorilla' - Finished in state Completed('All states completed.')
+prefect deployment run 'Repo Info/my-first-deployment'  
 ```
-</div>
+</div> 
 
-
-You'll find a link directing you to the flow run page conveniently positioned at the top of your flow logs.
+This command creates a new run for this deployment that is then picked up by the process running `repo_info.serve`.
 
 ![Flow run timeline](/img/ui/flow-run-diagram.jpg)
 
-Local flow run execution is great for development and testing, but to [schedule flow runs](/concepts/schedules/) or [trigger them based on events](/cloud/automations/), you’ll need to [deploy](/concepts/deployments/) your flows.
+!!! tip "Getting started tips"
+    - You can call your flow function directly like any other Python function and its execution will be registered and monitored with the Prefect API and visible in the UI
+    - [Flows](/concepts/flows) can be called inside of other flows (Prefect designates these ["subflows"](/concepts/flows/#composing-flows)) but a task _cannot_ be run inside of another task or from outside the context of a flow
+    - Elevating a flow to a [deployment](/concepts/deployments/) exposes a Prefect-backed API for remotely managing and configuring your workflow with things such as [scheduling rules](/concepts/schedules/), [trigger rules](/cloud/automations/), and cancellation 
+    - Deployments require that flow functions are defined in static files, and therefore calling the `serve` method on an interactively defined flow will raise an error
 
 
-### Step 5: Deploy the flow
+### Step 5: Add a schedule
 
-[Deploying](/tutorial/deployments/) your flows informs the Prefect API of where, how, and when to run your flows.
+We can now configure our deployment as we like - for example, let's add a [schedule](/concepts/schedules/) to our deployment.  We could do this in one of two ways:
 
-!!! warning "Always run `prefect deploy` commands from the **root** level of your repo!"
+- use the Prefect UI to create and attach the schedule
+- specify the schedule in code
 
-When you run the `deploy` command, Prefect will automatically detect any flows defined in your repository. Select the one you wish to deploy. Then, follow the 🧙 wizard to name your deployment, add an optional [schedule](/concepts/schedules/), create a [work pool](/tutorial/deployments/#why-work-pools-and-workers), optionally configure [remote flow code storage](/concepts/deployments/#the-pull-action), and more!
+It's generally best practice to keep your configuration defined within code, so let's update the script above to specify a schedule:
 
-<div class="terminal">
-```bash
-prefect deploy
+```python
+if __name__ == "__main__":
+    # create your first scheduled deployment
+    repo_info.serve(name="my-first-deployment", cron="* * * * *")
 ```
-</div>
 
-!!! note "It's recommended to save the configuration for the deployment."
-    Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments-ux/) for this repo. 
+Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
 
-
-### Step 5: Start a [worker](/tutorial/deployments/#why-work-pools-and-workers) and [run the deployed flow](/concepts/deployments/#create-a-flow-run-from-a-deployment)
-
-Start a [worker](/concepts/work-pools/#worker-overview) to manage local flow execution. Each worker polls its assigned [work pool](/tutorial/deployments/#why-work-pools-and-workers).
-
-In a new terminal, run:
-<div class="terminal">
-```bash
-prefect worker start --pool '<work-pool-name>'
-```
-</div>
-
-Now that your worker is running, you are ready to [kick off deployed flow runs from the UI](/concepts/deployments/#create-a-flow-run-with-prefect-ui) or by running:
-
-<div class="terminal">
-```bash
-prefect deployment run '<flow-name>/<deployment-name>'
-```
-</div>
-
-Check out this flow run's logs from the Flow Runs page in the UI or from the worker logs. Congrats on your first successfully deployed flow run! 🎉
-
-You've seen:
-
-- how to define your flows and tasks using decorators
-- how to deploy a flow
-- how to start a worker
+![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 
 ## Next Steps
 

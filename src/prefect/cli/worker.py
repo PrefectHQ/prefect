@@ -117,6 +117,7 @@ async def start(
         )
 
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
+
     if worker_cls is None:
         exit_with_error(
             "Unable to start worker. Please ensure you have the necessary dependencies"
@@ -206,10 +207,19 @@ async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) 
     try:
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+
         worker_type = work_pool.type
         app.console.print(
-            f"Discovered worker type {worker_type!r} for work pool {work_pool.name!r}."
+            f"Discovered type {worker_type!r} for work pool {work_pool.name!r}."
         )
+
+        if work_pool.is_push_pool:
+            exit_with_error(
+                "Workers are not required for push work pools. "
+                "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/ "
+                "for more details."
+            )
+
     except ObjectNotFound:
         app.console.print(
             (

@@ -624,7 +624,7 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 )
 """
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
 """
 
@@ -674,7 +674,7 @@ Note: PREFECT_UI_URL will be workspace specific and will be usable in the open s
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
-    default=30.0,
+    default=60.0,
 )
 """The default timeout for requests to the API"""
 
@@ -866,6 +866,22 @@ The following options are available:
 - "warn": Log a warning message.
 - "error": Raise an error.
 - "ignore": Do not log a warning message or raise an error.
+"""
+
+PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
+    int,
+    default=None,
+)
+"""
+Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+"""
+
+PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
+    int,
+    default=None,
+)
+"""
+Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
 """
 
 PREFECT_LOGGING_COLORS = Setting(
@@ -1247,9 +1263,14 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
-PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect visualize is used.
+"""
+
+PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
+"""
+Maximum number of processes a runner will execute in parallel.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
