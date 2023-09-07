@@ -83,7 +83,7 @@ The Prefect database persists data to track the state of your flow runs and rela
 - Storage blocks for flow and task results
 - Variables
 - Artifacts
-- Work pool and work queue configuration and status
+- Work pool status
 
 Currently Prefect supports the following databases:
 
@@ -245,7 +245,7 @@ Prefect supports sending notifications via:
 - Email (requires your own server)
 
 !!! cloud-ad "Notifications in Prefect Cloud"
-    Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work queue health.
+    Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work pool status.
 
 ### Configure notifications
 
