@@ -66,7 +66,7 @@ All methods for creating Prefect deployments are interfaces for populating this 
 Deployments universally require both a `name` and a reference to an underlying `Flow`. 
 In almost all instances of deployment creation, users do not need to concern themselves with the `flow_id` as most interfaces will only need the flow's name. 
 Note that the deployment name is not required to be unique across all deployments but is required to be unique for a given flow ID.
-As a consequence you will often see references to the deployment's unique identifying name `{FLOW_NAME}/{DEPLOYMENT_NAME}`. 
+As a consequence, you will often see references to the deployment's unique identifying name `{FLOW_NAME}/{DEPLOYMENT_NAME}`. 
 For example, triggering a run of a deployment from the Prefect CLI can be done via:
 
 <div class="terminal">
@@ -88,7 +88,7 @@ Flows defined within interactive REPLs or notebooks cannot currently be deployed
 !!! info "Deployments do not contain code definitions"
     Deployment metadata references code that exists in potentially diverse locations within your environment; this separation of concerns means that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets and the Prefect backend (including [Prefect Cloud](/cloud/)). 
+    This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/cloud/)). 
 
 ### Scheduling and parametrization
 
@@ -127,7 +127,7 @@ This metadata is available during execution through [Prefect runtime](/guides/ru
 
 ### Workers and Work Pools
 
-[Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure per-workflow run. 
+[Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure for each flow run. 
 In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
 To do this, a deployment using workers needs to consider the following fields:
 
@@ -145,11 +145,11 @@ For more information see [the guide to deploying with a worker](/guides/prefect-
 
 ## Two approaches to deployments
 
-There are two primary types of deployments within Prefect, differentiated by how much control Prefect has over the infrastructure in which the workflows run.
+There are two primary ways to deploy flows with Prefect, differentiated by how much control Prefect has over the infrastructure in which the flows run.
 
 In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
 
-In the other setup, users do a little extra work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. 
+In the other setup, you do a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. 
 Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
 
 Both setups can support production workloads. The choice ultimately boils down to your use case and preferences. Read further to decide which setup is right for your situation.
@@ -171,15 +171,15 @@ This approach has many benefits:
 
 However, there are a few reasons you might consider running flows on dynamically provisioned infrastructure with workers and work pools instead:
 
-- Workflows that have expensive infrastructure needs may be more costly in this setup due to the long-running process.
-- Workflows with heterogeneous infrastructure needs across runs will be more difficult to configure and schedule.
+- Flows that have expensive infrastructure needs may be more costly in this setup due to the long-running process.
+- Flows with heterogeneous infrastructure needs across runs will be more difficult to configure and schedule.
 - Large volumes of deployments can be harder to track.
 - If your internal team structure requires that deployment authors be members of a different team than the team managing infrastructure, the work pool interface may be preferred.
 
 ### Dynamically provisioning infrastructure with workers
 
-[Work pools and workers](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure in which flows runs. 
-This setup allows you to essentially "scale to zero" when nothing is scheduled to run, as the worker process is lightweight and does not need the same resources that your workflows do.
+[Work pools and workers](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure on which flows run. 
+This setup allows you to essentially "scale to zero" when nothing is running, as the worker process is lightweight and does not need the same resources that your workflows do.
 
 With this approach:
 
