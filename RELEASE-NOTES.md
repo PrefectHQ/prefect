@@ -12,8 +12,28 @@ Control task execution and system stability with Prefect's new Global Concurrenc
 
 Choose Concurrency Limits for resource optimization and task management, and opt for Rate Limits to maintain system stability and fair access to services. To begin using global concurrency limits check out our [guide](https://docs.prefect.io/guides/global-concurrency-limits/).
 
-### Enhancements
-- Add status to work pools and workers — https://github.com/PrefectHQ/prefect/pull/10636
+### Introducing work pool and worker status
+
+Work pools and workers are critical components of Prefect's distributed execution model. To help you monitor and manage your work pools and workers, we've added status indicators to the Prefect UI.
+
+Work pools can now have one of three statuses:
+- `Ready` -  at least on online worker is polling the work pool and the work pool is ready to accept work.
+- `Not Ready` - no online workers are polling the work pool and indicates that action needs to be taken to allow the work pool to accept work.
+- `Paused` - the work pool is paused and work will not be executed until it is unpaused.
+
+![Prefect dashboard showing work pool health](https://user-images.githubusercontent.com/12350579/265874237-7fae81e0-1b1a-460b-9fc5-92d969326d22.png)
+
+
+Workers can now have one of two statuses:
+- `Online` - the worker is polling the work pool and is ready to accept work.
+- `Offline` - the worker is not polling the work pool and is not ready to accept work. Indicates that the process running the worker has stopped or crashed.
+
+![worker table showing status](https://user-images.githubusercontent.com/12350579/265815336-c8a03c06-2b48-47c5-be93-1dbde0e5bf0d.png)
+
+With the introduction of work pool and worker status, we are deprecating work queue health. Work queue health indicators will be removed in a future release.
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10636
 
 ### Fixes
 - Fix an issue with `prefect server start` in Windows - https://github.com/PrefectHQ/prefect/pull/10547
