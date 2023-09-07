@@ -18,6 +18,10 @@ Choose Concurrency Limits for resource optimization and task management, and opt
 ### Fixes
 - Fix an issue with `prefect server start` in Windows - https://github.com/PrefectHQ/prefect/pull/10547
 
+### Deprecations
+- Remove deprecated `create_orion_api` — https://github.com/PrefectHQ/prefect/pull/10648
+- Remove deprecated `orion` references — https://github.com/PrefectHQ/prefect/pull/10642
+
 ### Documentation
 - Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
 - Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
