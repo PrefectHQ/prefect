@@ -15,6 +15,8 @@ From the Automations tutorial, we were able to see the capabilities of what an a
 
 In this guide, we will showcase common usecases where automations can shine when responding to your workflows. We will create a simple notificaiton automation first. Then build upon that with an event based automation. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
 
+TODO: create a warning saying it is only available for Prefect Cloud
+
 # Cleaning data Example
 TODO: Find dataset to use or can pull from an api
 Automations are great when handling mixed outcome workflows, as you are able to respond to specific actions done by the orchestrator. 
@@ -58,12 +60,32 @@ if __name__ == "__main__":
 ```
 TODO: concurrently write to a list with the new names
 
+From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our MLOPS pipeline.
+
+TODO: make the dataframe more complex -> with more features?
+
 # Failed run notification example
 - Can fail on exceptions thrown
 - or send notification for a long flow 
 
+Now let us try to send a notification based off a failed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
+
+Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
+
+Let us navigate to the blocks page on the UI, and lets click into creating an email notification block. 
+
+Now that we have created the notification block, we can move towards the automations page. 
+
+Easily we can create an automation in the UI that allows us to click through the set up steps. First we start off by navigating to the automations page within the UI. 
+
+Next we try to find the trigger type, in this case let us do a flow failure (keep in mind task failures get cascading upstream back to the parent flow). 
+
+Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the failure. 
+
 # Event based deployment example 
 - Based off of certain failures or long flow run, kick off another flow job 
+- Showcase creating an automation via the rest api based on a trigger from an event
+- Automation kicks off another deployment
 - New deployment -> Alternate data location to pull data from
 # Combining both? 
-- Longer script that sends notifications on failures, and kicks off deployments based off events emitted
+- Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
