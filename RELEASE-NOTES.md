@@ -2,9 +2,9 @@
 
 ## Release 2.13.0
 
-### Introducing `Global concurrency limits`
+### Introducing global concurrency limits
 
-Control task execution and system stability with Prefect's new Global Concurrency Limits and Rate Limits. 
+Control task execution and system stability with Prefect's new Global Concurrency and Rate Limits. 
 
 - **Concurrency Limits:** Manage task execution efficiently, controlling how many tasks can run simultaneously. Ideal for optimizing resource usage and customizing task execution.
 
@@ -102,19 +102,19 @@ See the following pull request for details:
 - Remove deprecated `orion` references — https://github.com/PrefectHQ/prefect/pull/10642
 
 ### Fixes
-- Fix an issue with `prefect server start` in Windows - https://github.com/PrefectHQ/prefect/pull/10547
+- Fix an issue with `prefect server start` on Windows - https://github.com/PrefectHQ/prefect/pull/10547
 
 ### Documentation
 - Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
 - Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
 - Add information on `--no-prompt` and `PREFECT_CLI_PROMPT` to deployment documentation — https://github.com/PrefectHQ/prefect/pull/10600
-- Remove link to nowhere in api-keys.md — https://github.com/PrefectHQ/prefect/pull/10658
+- Remove invalid link in API keys documentation — https://github.com/PrefectHQ/prefect/pull/10658
 - Update quickstart screenshots and add cli log output — https://github.com/PrefectHQ/prefect/pull/10659
 - Add documentation for global concurrency limits — https://github.com/PrefectHQ/prefect/pull/10496
 - Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
 - Add work pool and worker status documentation — https://github.com/PrefectHQ/prefect/pull/10654
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.1...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.1...2.13.0
 
 ## Release 2.12.1
 
