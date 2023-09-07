@@ -109,7 +109,6 @@ These can be overwritten through a trigger or when manually creating a custom ru
 
 !!! tip "Scheduling is asynchronous and decoupled" 
     Because deployments are nothing more than metadata, runs can be created at anytime.
-    As we can see, deployments are nothing more than metadata - they do not contain code, but they do reference it. scheduling then...
     note that pausing a schedule, updating your deployment, and other actions reset your auto scheduled runs.
 
 ### Versioning and bookkeeping
