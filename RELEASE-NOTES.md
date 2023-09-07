@@ -109,7 +109,7 @@ See the following pull request for details:
 - Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
 - Add information on `--no-prompt` and `PREFECT_CLI_PROMPT` to deployment documentation — https://github.com/PrefectHQ/prefect/pull/10600
 - Remove invalid link in API keys documentation — https://github.com/PrefectHQ/prefect/pull/10658
-- Update quickstart screenshots and add cli log output — https://github.com/PrefectHQ/prefect/pull/10659
+- Update screenshots and CLI log output in quickstart documentation — https://github.com/PrefectHQ/prefect/pull/10659
 - Add documentation for global concurrency limits — https://github.com/PrefectHQ/prefect/pull/10496
 - Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
 - Add work pool and worker status documentation — https://github.com/PrefectHQ/prefect/pull/10654
