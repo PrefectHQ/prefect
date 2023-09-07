@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import Field
 from typing_extensions import TYPE_CHECKING, Literal
 
+import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
 from prefect.server.utilities.schemas import (
@@ -288,6 +289,34 @@ class WorkPoolResponse(schemas.core.WorkPool):
     status: Optional[schemas.statuses.WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
     )
+
+    @classmethod
+    async def from_orm(cls, orm_work_pool, session):
+        work_pool = super().from_orm(orm_work_pool)
+        if work_pool.type == "prefect-agent":
+            work_pool.status = None
+        elif work_pool.is_paused:
+            work_pool.status = schemas.statuses.WorkPoolStatus.PAUSED
+        else:
+            read_workers = await models.workers.read_workers(
+                session=session,
+                work_pool_id=work_pool.id,
+            )
+            online_workers = [
+                worker
+                for worker in read_workers
+                if schemas.responses.WorkerResponse.from_orm(worker).status
+                == schemas.statuses.WorkerStatus.ONLINE
+            ]
+            if len(online_workers) > 0:
+                work_pool.status = schemas.statuses.WorkPoolStatus.READY
+            else:
+                work_pool.status = schemas.statuses.WorkPoolStatus.NOT_READY
+        return work_pool
+
+
+DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30
+INACTIVITY_HEARTBEAT_MULTIPLE = 3
 
 
 class WorkerResponse(schemas.core.Worker):

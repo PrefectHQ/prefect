@@ -110,34 +110,6 @@ class WorkerLookups:
 
         return work_queue.id
 
-    async def _read_online_workers(
-        self, session: AsyncSession, work_pool: schemas.responses.WorkPoolResponse
-    ):
-        read_workers = await models.workers.read_workers(
-            session=session,
-            work_pool_id=work_pool.id,
-        )
-        return [
-            worker
-            for worker in read_workers
-            if schemas.responses.WorkerResponse.from_orm(worker).status
-            == schemas.statuses.WorkerStatus.ONLINE
-        ]
-
-    async def _determine_work_pool_status(
-        self, session: AsyncSession, work_pool: schemas.responses.WorkPoolResponse
-    ) -> Optional[schemas.statuses.WorkPoolStatus]:
-        if work_pool.type == "prefect-agent":
-            return None
-        elif work_pool.is_paused:
-            return schemas.statuses.WorkPoolStatus.PAUSED
-        else:
-            online_workers = await self._read_online_workers(session, work_pool)
-            if len(online_workers) > 0:
-                return schemas.statuses.WorkPoolStatus.READY
-            else:
-                return schemas.statuses.WorkPoolStatus.NOT_READY
-
 
 # -----------------------------------------------------
 # --
@@ -175,13 +147,13 @@ async def create_work_pool(
             model = await models.workers.create_work_pool(
                 session=session, work_pool=work_pool, db=db
             )
+            return await schemas.responses.WorkPoolResponse.from_orm(model, session)
+
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A work pool with this name already exists.",
         )
-
-    return model
 
 
 @router.get("/{name}")
@@ -201,12 +173,7 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id, db=db
         )
-        response_work_pool = schemas.responses.WorkPoolResponse.from_orm(orm_work_pool)
-        response_work_pool.status = await worker_lookups._determine_work_pool_status(
-            session=session, work_pool=response_work_pool
-        )
-
-    return response_work_pool
+        return await schemas.responses.WorkPoolResponse.from_orm(orm_work_pool, session)
 
 
 @router.post("/filter")
@@ -228,19 +195,10 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        work_pools_response = []
-        for orm_work_pool in orm_work_pools:
-            work_pool_response = schemas.responses.WorkPoolResponse.from_orm(
-                orm_work_pool
-            )
-            work_pool_response.status = (
-                await worker_lookups._determine_work_pool_status(
-                    session=session, work_pool=work_pool_response
-                )
-            )
-            work_pools_response.append(work_pool_response)
-
-        return work_pools_response
+        return [
+            await schemas.responses.WorkPoolResponse.from_orm(w, session)
+            for w in orm_work_pools
+        ]
 
 
 @router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)
