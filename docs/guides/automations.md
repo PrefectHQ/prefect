@@ -87,5 +87,47 @@ Finally, let us create the actions that will be done once the triggered is hit. 
 - Showcase creating an automation via the rest api based on a trigger from an event
 - Automation kicks off another deployment
 - New deployment -> Alternate data location to pull data from
+
+```python
+def create_event_driven_auto():
+    api_url = "https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
+    todo = {
+    "name": "Event Driven Redeploy",
+    "description": "Programatically created an automation to redeploy a flow based on an event",
+    "enabled": "true",
+    "trigger": {
+    "match": {
+        "property1": "string",
+        "property2": "string"
+    },
+    "match_related": {
+        "property1": "string",
+        "property2": "string"
+    },
+    "after": [
+        "string"
+    ],
+    "expect": [
+        "string"
+    ],
+    "for_each": [
+        "string"
+    ],
+    "posture": "Reactive",
+    "threshold": 0,
+    "within": 0
+    },
+    "actions": [
+    {
+        "type": "do-nothing"
+    }
+    ],
+    "owner_resource": "string"
+        }
+    response = requests.post(api_url, json=todo)
+    
+    print(response.json())
+    return response.json()
+```
 # Combining both? 
 - Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
