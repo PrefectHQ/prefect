@@ -17,10 +17,10 @@ search:
 # Deployments
 
 Deployments are server-side representations of flows that contain the crucial metadata needed for remote orchestration. 
-They elevate workflows from functions that you call manually to API-managed entities.
+Deployments elevate workflows from functions that you call manually to API-managed entities.
 Deployments achieve this by storing all of the relevant metadata for _when_, _where_ and _how_ a workflow should run.
 
-Here we will focus largely on the metadata that defines a deployment and how it is used; different ways of creating a deployment populate these fields differently as we will see.
+Here we will focus largely on the metadata that defines a deployment and how it is used. Different ways of creating a deployment populate these fields differently.
 
 ## Overview
 
@@ -31,7 +31,7 @@ The complete schema that defines a deployment is as follows:
 ```python
 class Deployment:
     """
-    Structure of the schema defining a Deployment
+    Structure of the schema defining a deployment
     """
 
     # required defining data
@@ -59,13 +59,13 @@ class Deployment:
     pull_steps: dict = None
 ``` 
 
-All methods for creating Prefect deployments are interfaces for populating this schema correctly. Let us look at each section in turn.
+All methods for creating Prefect deployments are interfaces for populating this schema. Let's look at each section in turn.
 
 ### Required data 
 
-Deployments universally require both a `name` and a reference to an underlying `Flow`; these fields are self-explanatory. 
+Deployments universally require both a `name` and a reference to an underlying `Flow`. 
 In almost all instances of deployment creation, users do not need to concern themselves with the `flow_id` as most interfaces will only need the flow's name. 
-Note that the name is not required to be unique across all deployments but is required to be unique for a given flow ID.
+Note that the deployment name is not required to be unique across all deployments but is required to be unique for a given flow ID.
 As a consequence you will often see references to the deployment's unique identifying name `{FLOW_NAME}/{DEPLOYMENT_NAME}`. 
 For example, triggering a run of a deployment from the Prefect CLI can be done via:
 
@@ -80,10 +80,10 @@ The other two fields are less obvious:
 - **`path`**: the _path_ can generally be interpreted as the runtime working directory for the flow. For example, if a deployment references a workflow defined within a Docker image, the `path` will be the absolute path to the parent directory where that workflow will run anytime the deployment is triggered. This interpretation is more subtle in the case of flows defined in remote filesystems.
 - **`entrypoint`**: the _entrypoint_ of a deployment is a relative reference to a function decorated as a flow that exists on some filesystem. It is always specified relative to the `path`. Entrypoints use Python's standard path-to-object syntax (e.g., `path/to/file.py:function_name` or simply `path:object`).
 
-As one should expect, the entrypoint should reference the same flow as the flow ID. 
+The entrypoint must reference the same flow as the flow ID. 
 
-Note that Prefect assumes that deployments reference flows defined _within Python files_. 
-This implies that flows defined within interactive REPLs or notebooks are not currently candidates for Prefect deployments. They are still valid flows that will be monitored by the API anytime they are run, but you must bear the responsibility for triggering them.
+Note that Prefect requires that deployments reference flows defined _within Python files_. 
+Flows defined within interactive REPLs or notebooks cannot currently be deployed as such. They are still valid flows that will be monitored by the API and observable in the UI whenever they are run, but Prefect cannot trigger them.
 
 !!! info "Deployments do not contain code definitions"
     Deployment metadata references code that exists in potentially diverse locations within your environment; this separation of concerns means that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
@@ -93,23 +93,28 @@ This implies that flows defined within interactive REPLs or notebooks are not cu
 ### Scheduling and parametrization
 
 One of the primary motivations for creating deloyments of flows is to remotely _schedule_ and _trigger_ them. 
-And just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
+Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
 
 The five fields here capture the necessary metadata to perform such actions:
 
-- **`schedule`**: a [schedule object](/concepts/schedules/); most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves. For example, when [updating a deployment schedule in the UI](/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
-- **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment - for more information see [Automations](/concepts/automations/).
-- **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines the types and defaults for the flow's parameters; this is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
-- **`parameters`**: default values of flow parameters that this deployment will pass on each run. These can always be overwritten through a trigger or when manually creating a custom run.
+- **`schedule`**: a [schedule object](/concepts/schedules/).
+Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves. 
+For example, when [updating a deployment schedule in the UI](/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
+- **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment. 
+For more information see [Automations](/concepts/automations/).
+- **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines the types and defaults for the flow's parameters.
+This is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
+- **`parameters`**: default values of flow parameters that this deployment will pass on each run. 
+These can be overwritten through a trigger or when manually creating a custom run.
 
 !!! tip "Scheduling is asynchronous and decoupled" 
-    Because deployments are nothing more than metadata, runs can be created at anytime
+    Because deployments are nothing more than metadata, runs can be created at anytime.
     As we can see, deployments are nothing more than metadata - they do not contain code, but they do reference it. scheduling then...
     note that pausing a schedule, updating your deployment, and other actions reset your auto scheduled runs.
 
 ### Versioning and bookkeeping
 
-Versions, descriptions and tags are essentially omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay large dividends down the road.
+Versions, descriptions and tags are omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay large dividends down the road.
 
 - **`version`**: versions are always set by the client and can be any arbitrary string. We recommend tightly coupling this field on your deployments to your software development lifecycle. For example if you leverage `git` to manage code changes, use either a tag or commit hash in this field. If you don't set a value for the version, Prefect will compute a hash
 - **`description`**: the description field of a deployment is a place to provide rich reference material for downstream stakeholders such as intended use and parameter documentation. Markdown formatting will be rendered in the Prefect UI, allowing for section headers, links, tables, and other formatting. If not provided explicitly, Prefect will use the docstring of your flow function as a default value.
@@ -127,10 +132,12 @@ This metadata is available during execution through [Prefect runtime](/guides/ru
 In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
 To do this, a deployment using workers needs to consider the following fields:
 
-- **`work_pool_name`**: the name of the work pool this deployment will be associated with. Work pool types mirror infrastructure types and therefore the decision here affects the options available for the other fields.
+- **`work_pool_name`**: the name of the work pool this deployment will be associated with. 
+Work pool types mirror infrastructure types and therefore the decision here affects the options available for the other fields.
 - **`work_queue_name`**: if you are using work queues to either manage priority or concurrency, you can associate a deployment with a specific queue within a work pool using this field.
-- **`infra_overrides`**: often called `job_variables` within various interfaces, this field allows deployment authors to customize whatever infrastructure options have been exposed on this work pool. Typically this field is used for things like Docker image name, Kubernetes annotations and limits, and environment variables.
-- **`pull_steps`**: a JSON description of steps that should be performed in order to retrieve flow code or configuration and prepare the runtime environment for workflow execution.
+- **`infra_overrides`**: often called `job_variables` within various interfaces, this field allows deployment authors to customize whatever infrastructure options have been exposed on this work pool. 
+This field is often used for things such as Docker image names, Kubernetes annotations and limits, and environment variables.
+- **`pull_steps`**: a JSON description of steps that should be performed to retrieve flow code or configuration and prepare the runtime environment for workflow execution.
 
 Pull steps allow users to highly decouple their workflow architecture. 
 For example, a common use of pull steps is to dynamically pull code from remote filesystems such as GitHub with each run of their deployment.
@@ -141,13 +148,14 @@ For more information see [the guide to deploying with a worker](/guides/prefect-
 
 There are two primary types of deployments within Prefect, differentiated by how much control Prefect has over the infrastructure in which the workflows run.
 
-In one setup, deploying Prefect flows is directly analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
+In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
 
-In the other setup, users do a little extra work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
+In the other setup, users do a little extra work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. 
+Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
 
-Both setups are supported in production environments, and the choice ultimately boils down to use case and preference. Read further to decide which setup is right for your situation.
+Both setups can support production workloads. The choice ultimately boils down to your use case and preferences. Read further to decide which setup is right for your situation.
 
-### Long-lived infrastructure
+### Serving flows on long-lived infrastructure
 
 The simplest way to deploy a Prefect flow is to use [the `serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously. 
 
@@ -162,17 +170,17 @@ This approach has many benefits:
 - Creating deployments requires a minimal set of decisions.
 - Iteration speed is fast.
 
-However, there are a few reasons a user might consider moving to workers and work pools:
+However, there are a few reasons you might consider running flows on dynamically provisioned infrastructure with workers and work pools instead:
 
-- Workflows that have expensive infrastructure needs will be more costly in this setup due to the long-running process.
+- Workflows that have expensive infrastructure needs may be more costly in this setup due to the long-running process.
 - Workflows with heterogeneous infrastructure needs across runs will be more difficult to configure and schedule.
 - Large volumes of deployments can be harder to track.
-- If your internal team structure requires that deployment authors be a different team than the team managing infrastructure, the work pool interface may be preferred.
+- If your internal team structure requires that deployment authors be members of a different team than the team managing infrastructure, the work pool interface may be preferred.
 
 ### Dynamically provisioned infrastructure
 
-The paradigm of [workers and work pools](/concepts/work-pools/) allows Prefect to take greater control of the infrastructure in which flows runs. 
-This allows you to essentially "scale to zero" when nothing is scheduled to run, as the worker process is lightweight and does not need the same resources that your workflows do.
+[Work pools and workers](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure in which flows runs. 
+This setup allows you to essentially "scale to zero" when nothing is scheduled to run, as the worker process is lightweight and does not need the same resources that your workflows do.
 
 With this approach:
 
@@ -181,11 +189,11 @@ With this approach:
 - Prefect is more infrastructure-aware and therefore collects more event data from your infrastructure by default.
 - Highly decoupled setups are possible.
 
-Of course complexity always has a price, and the worker approach can be more difficult to debug and understand.
+Of course, complexity always has a price. The worker approach has more components and may be more difficult to debug and understand.
 
 !!! note "You don't have to commit to one approach"
     There is nothing that requires you to use one and only one of these approaches for your deployments - you can mix and match as your use cases evolve. 
-    For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller more frequent file-processing pipelines.
+    For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller, more frequent file-processing pipelines.
 
 
 
