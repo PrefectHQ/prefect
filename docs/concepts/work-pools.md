@@ -197,7 +197,7 @@ $ prefect work-pool preview 'test-pool' --hours 12
 
 
 ### Work Pool Status
-Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. If a work pool is paused, it will have a paused status. After resuming the work pool, it will reassigned the appropriate status.
+Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
 
 
 ### Pausing and deleting work pools
