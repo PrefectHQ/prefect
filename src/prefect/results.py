@@ -22,15 +22,14 @@ from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingContextError, MissingResult
 from prefect.filesystems import (
     LocalFileSystem,
-    RemoteFileSystem,
     ReadableFileSystem,
     WritableFileSystem,
 )
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings import (
-    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
 )
@@ -62,7 +61,7 @@ def get_default_result_storage() -> ResultStorage:
     """
 
     return (
-        RemoteFileSystem(basepath=PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+        LocalFileSystem(basepath=PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
         if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
         else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
     )

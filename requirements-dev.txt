@@ -28,7 +28,6 @@ pytest-xdist
 pytkdocs >= 0.14.2
 pyyaml
 requests
-s3fs
 setuptools != 60.9.0; python_version < '3.8'
 virtualenv
 watchfiles

@@ -34,9 +34,9 @@ from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
 )
 from prefect.states import State
 from prefect.utilities.annotations import NotSet

@@ -4,14 +4,14 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     temporary_settings,
 )
 from prefect.testing.utilities import assert_blocks_equal
@@ -88,7 +88,7 @@ def test_root_flow_default_remote_storage():
     def foo():
         return get_run_context().result_factory
 
-    fs = RemoteFileSystem(basepath="memory://root")
+    fs = LocalFileSystem(basepath="memory/root")
 
     with temporary_settings(
         {
