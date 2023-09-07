@@ -10,7 +10,7 @@ search:
 
 # Manage Prefect Cloud API Keys <span class="badge cloud"></span>
 
-API keys enable you to authenticate a local environment to work with Prefect Cloud. See [Configure execution environment](#configure-execution-environment) for details on how API keys are configured in your execution environment.
+API keys enable you to authenticate a local environment to work with Prefect Cloud.
 
 See [Configure Local Environments](/ui/cloud-local-environment/) for details on setting up access to Prefect Cloud from a local development environment or remote execution environment.
 
