@@ -403,9 +403,10 @@ def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable
 
 
 def get_sys_executable() -> str:
-    if os.name == "win32":
-        python_path = f'"{sys.executable}"'
+    # python executable needs to be quotable on windows
+    if os.name == "nt":
+        executable_path = f'"{sys.executable}"'
     else:
-        python_path = sys.executable
+        executable_path = sys.executable
 
-    return python_path
+    return executable_path
