@@ -16,7 +16,6 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -2623,10 +2622,3 @@ class PrefectClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectClient` instead.")
-class OrionClient(PrefectClient):
-    """
-    Deprecated. Use `PrefectClient` instead.
-    """
