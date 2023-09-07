@@ -4,13 +4,16 @@
 
 ### Introducing global concurrency limits
 
-Control task execution and system stability with Prefect's new Global Concurrency and Rate Limits. 
+Control task execution and system stability with Prefect's new global concurrency and rate limits. 
 
 - **Concurrency Limits:** Manage task execution efficiently, controlling how many tasks can run simultaneously. Ideal for optimizing resource usage and customizing task execution.
 
 - **Rate Limits:** Ensure system stability by governing the frequency of requests or operations. Perfect for preventing overuse, ensuring fairness, and handling errors gracefully.
 
-Choose Concurrency Limits for resource optimization and task management, and opt for Rate Limits to maintain system stability and fair access to services. To begin using global concurrency limits check out our [guide](https://docs.prefect.io/guides/global-concurrency-limits/).
+Choose concurrency limits for resource optimization and task management, and opt for rate limits to maintain system stability and fair access to services. To begin using global concurrency limits check out our [guide](https://docs.prefect.io/guides/global-concurrency-limits/).
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10496
 
 ### Introducing work pool and worker status
 
@@ -33,6 +36,7 @@ With the introduction of work pool and worker status, we are deprecating work qu
 
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10636
+- https://github.com/PrefectHQ/prefect/pull/10654
 
 ### Removing deprecated Orion references
 
@@ -105,14 +109,12 @@ See the following pull request for details:
 - Fix an issue with `prefect server start` on Windows - https://github.com/PrefectHQ/prefect/pull/10547
 
 ### Documentation
+- Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
 - Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
-- Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
 - Add information on `--no-prompt` and `PREFECT_CLI_PROMPT` to deployment documentation — https://github.com/PrefectHQ/prefect/pull/10600
+- Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
 - Remove invalid link in API keys documentation — https://github.com/PrefectHQ/prefect/pull/10658
 - Update screenshots and CLI log output in quickstart documentation — https://github.com/PrefectHQ/prefect/pull/10659
-- Add documentation for global concurrency limits — https://github.com/PrefectHQ/prefect/pull/10496
-- Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
-- Add work pool and worker status documentation — https://github.com/PrefectHQ/prefect/pull/10654
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.1...2.13.0
 
