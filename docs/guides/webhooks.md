@@ -162,7 +162,6 @@ end of their daily script:
 curl https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
 
-
 Each time the script hits the webhook, the webhook will produce a single
 Prefect event with that name and resource in your workspace.
 
