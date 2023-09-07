@@ -137,7 +137,9 @@ You can create deployments via the CLI command `prefect deploy` without ever nee
 
 ### Deployment Actions
 
-Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments. The three actions available are `build`, `push`, and `pull`. `pull` is the only required deployment action — it is used to define how Prefect will pull your deployment in remote execution environments.
+Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments. 
+The three actions available are `build`, `push`, and `pull`. 
+`pull` is the only required deployment action — it is used to define how Prefect will pull your deployment in remote execution environments.
 
 Each action is defined as a list of steps that are executing in sequence.
 
