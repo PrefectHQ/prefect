@@ -152,6 +152,7 @@ nav:
                 - Logging: guides/logs.md
                 - Testing: guides/testing.md
                 - Runtime Context: guides/runtime-context.md
+                - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
           - Execution:
                 - Docker: guides/docker.md
