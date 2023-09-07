@@ -63,7 +63,7 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
     See [Profiles & Configuration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
 
-## Prefect Database
+## Prefect database
 
 The Prefect database persists data to track the state of your flow runs and related Prefect concepts, including:
 
