@@ -133,7 +133,7 @@ deployments:
 
 The metadata fields are always pre-populated for you and are currently for bookkeeping purposes only.  The other sections are pre-populated based on recipe; if no recipe is provided, Prefect will attempt to guess an appropriate one based on local configuration.
 
-You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. However, it is useful for version-controlling your deployments and managing multiple deployments.
+You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. The `prefect.yaml` file facilitates version-controlling your deployment configuration and managing multiple deployments.
 
 ### Deployment Actions
 
