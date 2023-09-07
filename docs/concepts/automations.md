@@ -188,7 +188,7 @@ You can access properties of the underlying flow run objects including:
 - [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
 - [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
 - [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-# need to add in a reference to work pool once its added in as a template variable.
+- [work_pool](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool
 
 In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 
