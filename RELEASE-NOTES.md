@@ -20,7 +20,7 @@ See the following pull request for details:
 Work pools and workers are critical components of Prefect's distributed execution model. To help you monitor and manage your work pools and workers, we've added status indicators to the Prefect UI.
 
 Work pools can now have one of three statuses:
-- `Ready` -  at least on online worker is polling the work pool and the work pool is ready to accept work.
+- `Ready` -  at least one online worker is polling the work pool and the work pool is ready to accept work.
 - `Not Ready` - no online workers are polling the work pool and indicates that action needs to be taken to allow the work pool to accept work.
 - `Paused` - the work pool is paused and work will not be executed until it is unpaused.
 
