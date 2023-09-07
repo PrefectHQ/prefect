@@ -16,9 +16,8 @@ search:
 ---
 # Deployments
 
-Deployments are server-side representations of flows. Deployments contain the crucial metadata needed for remote orchestration. 
+Deployments are server-side representations of flows. They store the crucial metadata needed for remote orchestration including _when_, _where_ and _how_ a workflow should run.
 Deployments elevate workflows from functions that you must call manually to API-managed entities that can be triggered remotely.
-Deployments achieve this by storing all of the relevant metadata for _when_, _where_ and _how_ a workflow should run.
 
 Here we will focus largely on the metadata that defines a deployment and how it is used. Different ways of creating a deployment populate these fields differently.
 
@@ -109,11 +108,11 @@ These can be overwritten through a trigger or when manually creating a custom ru
 
 !!! tip "Scheduling is asynchronous and decoupled" 
     Because deployments are nothing more than metadata, runs can be created at anytime.
-    Note that pausing a schedule, updating your deployment, and other actions reset your auto scheduled runs.
+    Note that pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
 
 ### Versioning and bookkeeping
 
-Versions, descriptions and tags are omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay large dividends down the road.
+Versions, descriptions and tags are omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay dividends down the road.
 
 - **`version`**: versions are always set by the client and can be any arbitrary string. We recommend tightly coupling this field on your deployments to your software development lifecycle. For example if you leverage `git` to manage code changes, use either a tag or commit hash in this field. If you don't set a value for the version, Prefect will compute a hash
 - **`description`**: the description field of a deployment is a place to provide rich reference material for downstream stakeholders such as intended use and parameter documentation. Markdown formatting will be rendered in the Prefect UI, allowing for section headers, links, tables, and other formatting. If not provided explicitly, Prefect will use the docstring of your flow function as a default value.
@@ -191,7 +190,7 @@ With this approach:
 Of course, complexity always has a price. The worker approach has more components and may be more difficult to debug and understand.
 
 !!! note "You don't have to commit to one approach"
-    There is nothing that requires you to use one and only one of these approaches for your deployments. You can mix and match based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
+    You are not required to use only one of these approaches for your deployments. You can mix and match approaches based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
     For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller, more frequent file-processing pipelines.
 
 

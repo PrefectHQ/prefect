@@ -16,7 +16,7 @@ tags:
 search:
   boost: 2
 ---
-# The complete guide to `prefect deploy`
+# Deploying flows to dynamically provisioned infrastructure
 
 In this guide, we will dive deep into configuring a deployment for a worker and work pool using `prefect deploy`.
 
