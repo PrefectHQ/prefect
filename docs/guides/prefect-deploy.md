@@ -382,7 +382,7 @@ You can also run custom steps by packaging them. In the example below, `retrieve
 Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `prefect.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
-- **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`; it is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
+- **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`. It is highly recommended that you use block references for any sensitive information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
 - **variables**: [Prefect variables](/concepts/variables) can also be referenced with the special syntax `{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information such as a default image name or a default work pool name.
 - **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. This is especially useful for referencing environment variables that are set at runtime.
 
@@ -504,6 +504,7 @@ $ prefect deploy --all
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
 
     To provide overrides to a deployment via the CLI, you must deploy that deployment individually.
+    
 ### Reusing Configuration Across Deployments
 
 Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
@@ -618,7 +619,7 @@ Below are fields that can be added to a deployment declaration's `work_pool` sec
 
 ## Deployment mechanics
 
-Anytime you run `prefect deploy`, the following actions are taken in order:
+Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` file, the following actions are taken in order:
 
 - The `prefect.yaml` file is loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
 - Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
@@ -629,9 +630,9 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 !!! tip "Deployment Instruction Overrides"
     The `build`, `push`, and `pull` sections in deployment definitions take precedence over the corresponding sections above them in `prefect.yaml`.
 
-Anytime a step is run, the following actions are taken in order:
+Each time a step is run, the following actions are taken in order:
 
-- The step's inputs and block / variable references are resolved (see [the templating documentation above](#templating-options) for more details)
+- The step's inputs and block / variable references are resolved (see [the templating documentation above](#templating-options) for more details).
 - The step's function is imported; if it cannot be found, the special `requires` keyword is used to install the necessary packages
-- The step's function is called with the resolved inputs
-- The step's output is returned and used to resolve inputs for subsequent steps
+- The step's function is called with the resolved inputs.
+- The step's output is returned and used to resolve inputs for subsequent steps.
