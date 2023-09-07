@@ -1,5 +1,35 @@
 # Prefect Release Notes
 
+## Release 2.13.0
+
+### Introducing `Global concurrency limits`
+
+Control task execution and system stability with Prefect's new Global Concurrency Limits and Rate Limits. 
+
+- **Concurrency Limits:** Manage task execution efficiently, controlling how many tasks can run simultaneously. Ideal for optimizing resource usage and customizing task execution.
+
+- **Rate Limits:** Ensure system stability by governing the frequency of requests or operations. Perfect for preventing overuse, ensuring fairness, and handling errors gracefully.
+
+Choose Concurrency Limits for resource optimization and task management, and opt for Rate Limits to maintain system stability and fair access to services. To begin using global concurrency limits check out our [guide](https://docs.prefect.io/guides/global-concurrency-limits/).
+
+### Enhancements
+- Add status to work pools and workers — https://github.com/PrefectHQ/prefect/pull/10636
+
+### Fixes
+- Fix an issue with `prefect server start` in Windows - https://github.com/PrefectHQ/prefect/pull/10547
+
+### Documentation
+- Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
+- Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
+- Add information on `--no-prompt` and `PREFECT_CLI_PROMPT` to deployment documentation — https://github.com/PrefectHQ/prefect/pull/10600
+- Remove link to nowhere in api-keys.md — https://github.com/PrefectHQ/prefect/pull/10658
+- Update quickstart screenshots and add cli log output — https://github.com/PrefectHQ/prefect/pull/10659
+- Add documentation for global concurrency limits — https://github.com/PrefectHQ/prefect/pull/10496
+- Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
+- Add work pool and worker status documentation — https://github.com/PrefectHQ/prefect/pull/10654
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.1...preview
+
 ## Release 2.12.1
 
 This release includes some important fixes and enhancements. In particular, it resolves an issue preventing the flow run graph from rendering correctly in some cases.
