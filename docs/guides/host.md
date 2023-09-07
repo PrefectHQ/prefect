@@ -19,8 +19,6 @@ After you install Prefect you have a Python SDK client that can communicate with
 
 In this section you'll learn how to host your own Prefect server.
 
-![Prefect Server UI](/img/ui/flow-run-page-server.png)
-
 Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
 
 ```bash
@@ -29,7 +27,7 @@ prefect server start
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
 
-![Viewing the orchestrated flow runs in the Prefect UI.](/img/ui/self-hosted-server-dashboard.png)
+![Viewing the dashboard in the Prefect UI.](/img/ui/self-hosted-server-dashboard.png)
 
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
@@ -227,7 +225,7 @@ Prefect supports sending notifications via:
 
 To configure a notification in a Prefect server, go to the **Notifications** page and select **Create Notification** or the **+** button.
 
-![Creating a notification in the Prefect UI](/img/ui/create-slack-notification.png)
+![Creating a notification in the Prefect UI](/img/ui/create-email-notification.png)
 
 Notifications are structured just as you would describe them to someone. You can choose:
 
