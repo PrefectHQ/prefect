@@ -3314,6 +3314,9 @@ class TestMultiDeploy:
                 # Reject scheduling when flow runs
                 "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_contains=[
@@ -3497,8 +3500,14 @@ class TestMultiDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name-1",
-            # accept migration
-            user_input="y" + readchar.key.ENTER,
+            user_input=(
+                # accept migration
+                "y"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_code=0,
             expected_output_contains=[
                 "Successfully copied your deployment configurations into your"
@@ -3548,9 +3557,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3596,9 +3607,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3646,9 +3659,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3702,9 +3717,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3759,9 +3776,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3904,23 +3923,21 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
-                +
                 # decline schedule
-                "n"
+                + "n"
                 + readchar.key.ENTER
-                +
                 # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
                 + readchar.key.ENTER
-                +
+                # choose process work pool
+                + readchar.key.ENTER
+                # enter work pool name
+                + "inflatable"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3961,6 +3978,9 @@ class TestSaveUserInputs:
                 +
                 # accept create work pool
                 readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 +
                 # choose process work pool
                 readchar.key.ENTER
@@ -3968,13 +3988,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
-                +
                 # accept overwriting existing deployment that is found
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4013,9 +4031,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4043,33 +4063,28 @@ class TestSaveUserInputs:
                 # configure new deployment
                 "n"
                 + readchar.key.ENTER
-                +
                 # accept schedule
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # select interval schedule
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter interval schedule
-                "3600"
+                + "3600"
                 + readchar.key.ENTER
-                +
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter work pool name
-                "inflatable"
+                + "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
-                +
                 # reject overwriting existing deployment that is found
-                "n"
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4108,6 +4123,10 @@ class TestDeployWithoutEntrypoint:
                 +
                 # accept first work pool
                 readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
                 +
                 # decline save user inputs
                 "n"
@@ -4152,6 +4171,10 @@ class TestDeployWithoutEntrypoint:
                 +
                 # accept first work pool
                 readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
                 +
                 # decline save user inputs
                 "n"
@@ -4206,6 +4229,10 @@ class TestDeployWithoutEntrypoint:
                 # accept first work pool
                 readchar.key.ENTER
                 +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # decline save user inputs
                 "n"
                 + readchar.key.ENTER
@@ -4247,6 +4274,10 @@ class TestDeployWithoutEntrypoint:
                 +
                 # accept first work pool
                 readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
                 +
                 # decline save user inputs
                 "n"
@@ -4573,6 +4604,10 @@ class TestDeployDockerBuildSteps:
                 f" {docker_work_pool.name}"
             ),
             user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # Accept save configuration
                 "y"
                 + readchar.key.ENTER
@@ -4619,6 +4654,9 @@ class TestDeployDockerBuildSteps:
                 # Reject build custom docker image
                 "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -4652,6 +4690,9 @@ class TestDeployDockerBuildSteps:
             user_input=(
                 # Reject build custom docker image
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -4705,6 +4746,9 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -4777,6 +4821,9 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -4873,6 +4920,9 @@ class TestDeployDockerBuildSteps:
                 # Reject push to registry
                 + "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -4931,6 +4981,9 @@ class TestDeployDockerBuildSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -5002,6 +5055,9 @@ class TestDeployDockerBuildSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -5135,6 +5191,9 @@ class TestDeployDockerPushSteps:
                 # Reject push to registry
                 + "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -5195,6 +5254,9 @@ class TestDeployDockerPushSteps:
                 + "https://hub.docker.com"
                 + readchar.key.ENTER
                 # Reject private registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -5288,6 +5350,9 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Accept use existing creds
                 + "y"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5387,6 +5452,9 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Enter password
                 + "456"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5507,6 +5575,9 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Enter password
                 + "456"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"

@@ -504,6 +504,7 @@ async def _run_single_deploy(
     if (
         is_interactive()
         and not ci
+        # and some condition to check if docker build step exists?
         and confirm(
             (
                 "Your Prefect workers will need access to this flow's code in order to"
