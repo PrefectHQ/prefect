@@ -273,7 +273,7 @@ Anytime you run `prefect deploy`, this `push` section will be executed upon succ
 
 ### The Pull Action
 
-The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing your flows for a deployment run.  These instructions will be executed each time a deployment created within this folder is run via a worker.
+The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing your flows for a deployment run. These instructions will be executed each time a deployment created within this folder is run via a worker.
 
 There are three main types of steps that typically show up in a `pull` section:
 
