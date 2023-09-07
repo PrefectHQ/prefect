@@ -130,7 +130,7 @@ Inferred targets are deduced from the trigger itself.
 
 For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire. 
 
-Similarly, if a trigger fires on a work queue event and the action is to pause an inferred work queue, the work queue to pause is inferred as the unhealthy work queue that caused the trigger to fire. 
+Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the inferred work queue is the one that emitted the event.
 
 Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
 
