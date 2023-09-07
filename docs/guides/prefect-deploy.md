@@ -305,7 +305,8 @@ pull:
 ### Utility Steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
-- `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. This is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
+- `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. 
+This step is useful for scripts that require execution in a specific environment, or those which have specific input and output requirements.
 
 Here is an example of retrieving the short Git commit hash of the current repository to use as a Docker image tag:
 
