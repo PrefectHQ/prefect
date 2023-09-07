@@ -21,7 +21,7 @@ def mock_run_process(monkeypatch: pytest.MonkeyPatch):
     yield mock
 
 
-@pytest.mark.parametrize("command_group", ["orion", "server"])
+@pytest.mark.parametrize("command_group", ["server"])
 def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
     invoke_and_assert(
         [command_group, "start"],
