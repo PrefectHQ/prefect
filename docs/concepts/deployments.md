@@ -177,7 +177,7 @@ However, there are a few reasons you might consider running flows on dynamically
 - Large volumes of deployments can be harder to track.
 - If your internal team structure requires that deployment authors be members of a different team than the team managing infrastructure, the work pool interface may be preferred.
 
-### Dynamically provisioned infrastructure
+### Dynamically provisioning infrastructure with workers
 
 [Work pools and workers](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure in which flows runs. 
 This setup allows you to essentially "scale to zero" when nothing is scheduled to run, as the worker process is lightweight and does not need the same resources that your workflows do.
