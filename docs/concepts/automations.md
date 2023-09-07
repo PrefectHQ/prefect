@@ -48,7 +48,7 @@ Triggers specify the conditions under which your action should be performed. Tri
 
 - Flow run state change
     -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
-- Work queue health
+- Work pool status
 - Custom event triggers
 
 !!! note "Automations API"
@@ -59,9 +59,6 @@ Importantly, triggers can be configured not only in reaction to events, but also
 ![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
-
-!!! note "Work queue health"
-    A work queue is "unhealthy" if it has not been polled in over 60 seconds OR if it has one or more late runs.
 
 Custom Triggers
 
@@ -107,28 +104,6 @@ For example, if you would only like a trigger to execute an action if it receive
     ```
 
 
-Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
-
-```json
-{
-  "match": {
-    "prefect.resource.id": "prefect.work-queue.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
-  },
-  "match_related": {},
-  "for_each": [
-    "prefect.resource.id"
-  ],
-  "after": [
-    "prefect.work-queue.unhealthy"
-  ],
-  "expect": [
-    "prefect.work-queue.healthy"
-  ],
-  "posture": "Proactive",
-  "threshold": 1,
-  "within": 1800
-}
-```
 
 ### Actions
 
@@ -155,7 +130,7 @@ Inferred targets are deduced from the trigger itself.
 
 For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire. 
 
-Similarly, if a trigger fires on work queue health and the action is to pause an inferred work queue, the work queue to pause is inferred as the unhealthy work queue that caused the trigger to fire. 
+Similarly, if a trigger fires on a work queue event and the action is to pause an inferred work queue, the work queue to pause is inferred as the unhealthy work queue that caused the trigger to fire. 
 
 Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
 
@@ -203,7 +178,7 @@ Automation notifications support sending notifications via any predefined block 
 
 ## Templating notifications with Jinja
 
-The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or queue name. 
+The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or pool name. 
 
 Jinja templated variable syntax wraps the variable name in double curly brackets, like `{{ variable }}`.
 
@@ -213,6 +188,7 @@ You can access properties of the underlying flow run objects including:
 - [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
 - [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
 - [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+# need to add in a reference to work pool once its added in as a template variable.
 
 In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 
@@ -246,13 +222,13 @@ Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}
 ```
 
-An automation that reports on work queue health might include notifications using `work_queue` properties.
+An automation that reports on work pool status might include notifications using `work_pool` properties.
 
 ```
-Work queue health alert!
+Work pool status alert!
 
-Name: {{ work_queue.name }}
-Last polled: {{ work_queue.last_polled }}
+Name: {{ work_pool.name }}
+Last polled: {{ work_pool.last_polled }}
 ```
 
 In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations) for additional details.

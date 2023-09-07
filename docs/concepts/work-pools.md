@@ -195,6 +195,11 @@ $ prefect work-pool preview 'test-pool' --hours 12
 ```
 </div>
 
+
+### Work Pool Status
+Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. If a work pool is paused, it will have a paused status. After resuming the work pool, it will reassigned the appropriate status.
+
+
 ### Pausing and deleting work pools
 
 A work pool can be paused at any time to stop the delivery of work to workers. Workers will not receive any work when polling a paused pool.
@@ -294,6 +299,9 @@ You must start a worker within an environment that can access or create the infr
 
 !!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers"
     `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
+
+### Worker status
+Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it sends regular heartbeat messages to the Prefect API. If a worker has missed three heartbeats, it will be considered offline. In the default case, a worker would be considered offline a maximum of 90 seconds after it stopped sending heartbeats, but the threshold can be configured via PREFECT_WORKER_HEARTBEAT_SECONDS setting.
 
 ### Starting a worker
 
