@@ -50,7 +50,7 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/img/ui/prefect-dashboard.png)
+![Prefect UI](/img/ui/timeline-flows.png)
 
 ## Writing flows
 
