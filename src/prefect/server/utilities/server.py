@@ -9,8 +9,6 @@ from typing import Any, Callable, Coroutine, Iterable, Set, get_type_hints
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
-
 
 def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
     """
@@ -136,17 +134,3 @@ class PrefectRouter(APIRouter):
         if kwargs.get("response_model") is None:
             kwargs["response_model"] = get_type_hints(endpoint).get("return")
         return super().add_api_route(path, endpoint, **kwargs)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectRouter` instead.")
-class OrionRouter(PrefectRouter):
-    """
-    Deprecated. Use `PrefectRouter` instead.
-    """
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAPIRoute` instead.")
-class OrionAPIRoute(PrefectAPIRoute):
-    """
-    Deprecated. Use `PrefectAPIRoute` instead.
-    """

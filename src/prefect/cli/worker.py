@@ -1,5 +1,4 @@
 import os
-import sys
 import threading
 from enum import Enum
 from functools import partial
@@ -22,7 +21,11 @@ from prefect.settings import (
     PREFECT_WORKER_QUERY_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.processutils import run_process, setup_signal_handlers_worker
+from prefect.utilities.processutils import (
+    get_sys_executable,
+    run_process,
+    setup_signal_handlers_worker,
+)
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
@@ -241,7 +244,7 @@ async def _install_package(
     package: str, upgrade: bool = False
 ) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
-    command = [sys.executable, "-m", "pip", "install", package]
+    command = [get_sys_executable(), "-m", "pip", "install", package]
     if upgrade:
         command.append("--upgrade")
     await run_process(command, stream_output=True)
