@@ -438,6 +438,11 @@ async def _run_single_deploy(
         "prefect_docker.projects.steps.build_docker_image",
     ]
 
+    docker_push_steps = [
+        "prefect_docker.deployments.steps.push_docker_image",
+        "prefect_docker.projects.steps.push_docker_image",
+    ]
+
     docker_build_step_exists = any(
         any(step in action for step in docker_build_steps)
         for action in deploy_config.get("build", actions.get("build")) or []
@@ -484,6 +489,30 @@ async def _run_single_deploy(
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
 
+    docker_push_step_exists = any(
+        any(step in action for step in docker_push_steps)
+        for action in deploy_config.get("push", actions.get("push")) or []
+    )
+
+    ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
+    if (
+        is_interactive()
+        and not ci
+        and not docker_push_step_exists
+        and confirm(
+            (
+                "Your Prefect workers will need access to this flow's code in order to"
+                " run it. Would you like your workers to pull your flow code from a"
+                " remote storage location when running this flow?"
+            ),
+            default=True,
+            console=app.console,
+        )
+    ):
+        actions = await _generate_actions_for_remote_flow_storage(
+            console=app.console, deploy_config=deploy_config, actions=actions
+        )
+
     triggers: List[DeploymentTrigger] = []
     trigger_specs = deploy_config.get("triggers")
     if trigger_specs:
@@ -499,25 +528,6 @@ async def _run_single_deploy(
                 ),
                 style="yellow",
             )
-
-    ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
-    if (
-        is_interactive()
-        and not ci
-        # and some condition to check if docker build step exists?
-        and confirm(
-            (
-                "Your Prefect workers will need access to this flow's code in order to"
-                " run it. Would you like your workers to pull your flow code from a"
-                " remote storage location when running this flow?"
-            ),
-            default=True,
-            console=app.console,
-        )
-    ):
-        actions = await _generate_actions_for_remote_flow_storage(
-            console=app.console, deploy_config=deploy_config, actions=actions
-        )
 
     pull_steps = (
         deploy_config.get("pull")
@@ -938,8 +948,8 @@ async def _check_for_build_docker_image_step(
 
 
 async def _generate_actions_for_remote_flow_storage(
-    console: Console, deploy_config: Dict, actions: List[Dict], remote_url: str = None
-) -> dict[str, list[dict]]:
+    console: Console, deploy_config: dict, actions: list[dict]
+) -> dict[str, list[dict[str, Any]]]:
     storage_provider_to_collection = {
         "s3": "prefect_aws",
         "gcs": "prefect_gcp",

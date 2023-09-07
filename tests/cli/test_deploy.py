@@ -31,8 +31,14 @@ from prefect.deployments.base import (
 from prefect.events.schemas import Posture
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
-from prefect.server.schemas.actions import WorkPoolCreate
+from prefect.server.schemas.actions import (
+    BlockDocumentCreate,
+    BlockSchemaCreate,
+    BlockTypeCreate,
+    WorkPoolCreate,
+)
 from prefect.server.schemas.schedules import CronSchedule
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -185,6 +191,56 @@ def mock_build_docker_image(monkeypatch):
     )
 
     return mock_build
+
+
+@pytest.fixture
+async def aws_credentials(prefect_client):
+    aws_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="AWS Credentials",
+            slug="aws-credentials",
+        )
+    )
+
+    aws_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=aws_credentials_type.id,
+            fields={"properties": {"access_key_id": {"type": "string"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="bezos-creds",
+            block_type_id=aws_credentials_type.id,
+            block_schema_id=aws_credentials_schema.id,
+            data={"access_key_id": "AKIA1234"},
+        )
+    )
+
+
+@pytest.fixture
+def mock_prefect_aws_module():
+    class FakePrefectAWS:
+        class deployments:
+            class steps:
+                @staticmethod
+                def push_to_s3(*args, **kwargs):
+                    return "pushed to s3"
+
+    sys.modules["prefect_aws"] = FakePrefectAWS()
+    sys.modules["prefect_aws.deployments"] = FakePrefectAWS.deployments
+    sys.modules["prefect_aws.deployments.steps"] = FakePrefectAWS.deployments.steps
+    yield
+    del sys.modules["prefect_aws"]
+    del sys.modules["prefect_aws.deployments"]
+    del sys.modules["prefect_aws.deployments.steps"]
+
+
+@pytest.fixture
+def set_ui_url():
+    with temporary_settings({PREFECT_UI_URL: "http://gimmedata.com"}):
+        yield
 
 
 class TestProjectDeploySingleDeploymentYAML:
@@ -939,6 +995,122 @@ class TestProjectDeploy:
             assert token_block.get() == "my-token"
 
         @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+        async def test_deploy_with_blob_storage_select_existing_credentials(
+            self, work_pool, prefect_client, aws_credentials, mock_prefect_aws_module
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    # Select S3 bucket as storage (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Select existing credentials (first option)
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+
+            assert deployment.pull_steps == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+        async def test_deploy_with_blob_storage_create_credentials(
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            mock_prefect_aws_module,
+            set_ui_url,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    # Select S3 bucket as storage (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Create new credentials (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Enter access key id (only field in this hypothetical)
+                    + "my-access-key-id"
+                    + readchar.key.ENTER
+                    # Accept default name for new credentials block (s3-storage-credentials)
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    (
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
+                    ),
+                    "View/Edit your new credentials block in the UI:",
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+
+            assert deployment.pull_steps == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.s3-storage-credentials }}"
+                        ),
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
         async def test_build_docker_image_step_auto_build_dockerfile(
             self,
             work_pool,
@@ -1272,6 +1444,9 @@ class TestProjectDeploy:
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
                 import prefect_docker  # noqa
+
+    class TestGeneratedPushAction:
+        pass
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
@@ -5256,9 +5431,6 @@ class TestDeployDockerPushSteps:
                 # Reject private registry
                 + "n"
                 + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
-                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -5350,9 +5522,6 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Accept use existing creds
                 + "y"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5452,9 +5621,6 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Enter password
                 + "456"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5575,9 +5741,6 @@ class TestDeployDockerPushSteps:
                 + readchar.key.ENTER
                 # Enter password
                 + "456"
-                + readchar.key.ENTER
-                # Decline remote storage
-                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
