@@ -230,39 +230,39 @@ Generally you should leave the cluster config blank as the worker should be prov
 Typically this setting is used when a worker is deployed to a cluster that is different from the cluster where flow runs are executed.
 
 !!! Note "Advanced Settings"
-  Want to modify the default base job template to add other fields or delete existing fields?
+    Want to modify the default base job template to add other fields or delete existing fields?
 
-  Select the **Advanced** tab and edit the JSON representation of the base job template.
+    Select the **Advanced** tab and edit the JSON representation of the base job template.
 
-  For example, to set a CPU request, add the following section under variables:
-
-    ```json
-      "cpu_request": {
-        "title": "CPU Request",
-        "description": "The CPU allocation to request for this pod.",
-        "default": "default",
-        "type": "string"
-      },
-    ```
-
-  Next add the following to the first `containers` item under `job_configuration`:
+    For example, to set a CPU request, add the following section under variables:
 
     ```json
-            ...
-            "containers": [
-              {
-                ...,
-                "resources": {
-                  "requests": {
-                    "cpu": {{ cpu_request }}"
-                  }
-                }
-              }
-            ],
-            ...
+    "cpu_request": {
+      "title": "CPU Request",
+      "description": "The CPU allocation to request for this pod.",
+      "default": "default",
+      "type": "string"
+    },
     ```
 
-  Running deployments with this work pool will now request the specified CPU.
+    Next add the following to the first `containers` item under `job_configuration`:
+
+    ```json
+    ...
+    "containers": [
+      {
+        ...,
+        "resources": {
+          "requests": {
+            "cpu": "{{ cpu_request }}"
+          }
+        }
+      }
+    ],
+    ...
+    ```
+
+    Running deployments with this work pool will now request the specified CPU.
 
 After configuring the work pool settings, move to the next screen.
 
