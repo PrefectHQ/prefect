@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
 from prefect.server.database.orm_models import BaseORMConfiguration
@@ -365,10 +364,3 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def clear_configuration_value_cache_for_key(self, key: str):
         """Removes a configuration key from the cache."""
         return self.queries.clear_configuration_value_cache_for_key(key=key)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectDBInterface` instead.")
-class OrionDBInterface(PrefectDBInterface):
-    """
-    Deprecated. Use `PrefectDBInterface` instead.
-    """

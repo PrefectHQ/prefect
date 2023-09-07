@@ -11,7 +11,6 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
@@ -667,10 +666,3 @@ class PrefectAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
-class OrionAgent(PrefectAgent):
-    """
-    Deprecated. Use `PrefectAgent` instead.
-    """
