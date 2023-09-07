@@ -65,7 +65,7 @@ flowchart LR
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
-When creating a deployment, a user must answer *two* basic questions:
+When creating a deployment, we must answer *two* basic questions:
 
 - What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
