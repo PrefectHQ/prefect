@@ -34,6 +34,8 @@ Workers can now have one of two statuses:
 
 With the introduction of work pool and worker status, we are deprecating work queue health. Work queue health indicators will be removed in a future release.
 
+See the documentation on [work pool status](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-status) and [worker status](https://docs.prefect.io/latest/concepts/work-pools/#worker-status) for more information.
+
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10636
 - https://github.com/PrefectHQ/prefect/pull/10654
