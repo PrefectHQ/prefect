@@ -147,10 +147,10 @@ It's generally best practice to keep your configuration defined within code, so 
 ```python
 if __name__ == "__main__":
     # create your first scheduled deployment
-    repo_info.serve(name="my-first-deployment", cron="* * * * *")
+    repo_info.serve(name="my-first-deployment", cron="0 0 * * *")
 ```
 
-Once run, this will create a cron schedule for our deployment that instructs it to run every minute of every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
+Once run, this will create a cron schedule for our deployment that instructs it to run at noon every day. When you stop this script, Prefect will automatically pause your deployment's schedule for you.
 
 ![Deployment schedule](/img/ui/deployment-cron-schedule.png)
 
