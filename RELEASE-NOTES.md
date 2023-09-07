@@ -23,7 +23,6 @@ Work pools can now have one of three statuses:
 
 ![Prefect dashboard showing work pool health](https://user-images.githubusercontent.com/12350579/265874237-7fae81e0-1b1a-460b-9fc5-92d969326d22.png)
 
-
 Workers can now have one of two statuses:
 - `Online` - the worker is polling the work pool and is ready to accept work.
 - `Offline` - the worker is not polling the work pool and is not ready to accept work. Indicates that the process running the worker has stopped or crashed.
@@ -35,12 +34,75 @@ With the introduction of work pool and worker status, we are deprecating work qu
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10636
 
+### Removing deprecated Orion references
+
+Six months ago, we deprecated references to `orion` in our codebase. In this release, we're removing those references. If you still have references to `ORION` in your profile, run `prefect config validate` to automatically convert all of the settings in your *current* profile to the new names!
+
+For example:
+```bash
+❯ prefect config validate
+Updated 'PREFECT_ORION_DATABASE_CONNECTION_URL' to 'PREFECT_API_DATABASE_CONNECTION_URL'.
+Configuration valid!
+```
+
+#### Below is a full guide to the changes:
+##### Settings renamed:
+    - `PREFECT_LOGGING_ORION_ENABLED` → `PREFECT_LOGGING_TO_API_ENABLED`
+    - `PREFECT_LOGGING_ORION_BATCH_INTERVAL` → `PREFECT_LOGGING_TO_API_BATCH_INTERVAL`
+    - `PREFECT_LOGGING_ORION_BATCH_SIZE` → `PREFECT_LOGGING_TO_API_BATCH_SIZE`
+    - `PREFECT_LOGGING_ORION_MAX_LOG_SIZE` → `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE`
+    - `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` → `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
+    - `PREFECT_ORION_BLOCKS_REGISTER_ON_START` → `PREFECT_API_BLOCKS_REGISTER_ON_START`
+    - `PREFECT_ORION_DATABASE_CONNECTION_URL` → `PREFECT_API_DATABASE_CONNECTION_URL`
+    - `PREFECT_ORION_DATABASE_MIGRATE_ON_START` → `PREFECT_API_DATABASE_MIGRATE_ON_START`
+    - `PREFECT_ORION_DATABASE_TIMEOUT` → `PREFECT_API_DATABASE_TIMEOUT`
+    - `PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT` → `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS` → `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
+    - `PREFECT_ORION_API_DEFAULT_LIMIT` → `PREFECT_API_DEFAULT_LIMIT`
+    - `PREFECT_ORION_API_HOST` → `PREFECT_SERVER_API_HOST`
+    - `PREFECT_ORION_API_PORT` → `PREFECT_SERVER_API_PORT`
+    - `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` → `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT`
+    - `PREFECT_ORION_UI_ENABLED` → `PREFECT_UI_ENABLED`
+    - `PREFECT_ORION_UI_API_URL` → `PREFECT_UI_API_URL`
+    - `PREFECT_ORION_ANALYTICS_ENABLED` → `PREFECT_SERVER_ANALYTICS_ENABLED`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED` → `PREFECT_API_SERVICES_SCHEDULER_ENABLED`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED` → `PREFECT_API_SERVICES_LATE_RUNS_ENABLED`
+    - `PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` → `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED`
+    - `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` → `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED`
+##### Changes:
+    - Module `prefect.client.orion` → `prefect.client.orchestration`
+    - Command group `prefect orion` → `prefect server`
+    - Module `prefect.orion` → `prefect.server`
+    - Logger `prefect.orion` → `prefect.server`
+    - Constant `ORION_API_VERSION` → `SERVER_API_VERSION`
+    - Kubernetes deployment template application name changed from `prefect-orion` → `prefect-server`
+    - Command `prefect kubernetes manifest orion` → `prefect kubernetes manifest server`
+    - Log config handler `orion` → `api`
+    - Class `OrionLogWorker` → `APILogWorker`
+    - Class `OrionHandler` → `APILogHandler`
+    - Directory `orion-ui` → `ui`
+    - Class `OrionRouter` → `PrefectRouter`
+    - Class `OrionAPIRoute` → `PrefectAPIRoute`
+    - Class `OrionDBInterface` → `PrefectDBInterface`
+    - Class `OrionClient` → `PrefectClient`
+
+See the following pull request for details:
+- Remove deprecated `orion` references — https://github.com/PrefectHQ/prefect/pull/10642
+
 ### Fixes
 - Fix an issue with `prefect server start` in Windows - https://github.com/PrefectHQ/prefect/pull/10547
-
-### Deprecations
-- Remove deprecated `create_orion_api` — https://github.com/PrefectHQ/prefect/pull/10648
-- Remove deprecated `orion` references — https://github.com/PrefectHQ/prefect/pull/10642
 
 ### Documentation
 - Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
