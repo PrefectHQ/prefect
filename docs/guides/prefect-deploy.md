@@ -67,7 +67,8 @@ flowchart LR
 
 When creating a deployment, we must answer *two* basic questions:
 
-- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our workflow? 
+For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
 A deployment additionally enables you to:
