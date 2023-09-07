@@ -32,6 +32,7 @@ from anyio.streams.text import TextReceiveStream
 from typing_extensions import TypedDict
 
 from prefect.utilities.processutils import (
+    get_sys_executable,
     open_process,
     stream_text,
 )
@@ -231,7 +232,7 @@ async def pip_install_requirements(
     stderr_sink = io.StringIO()
 
     async with open_process(
-        [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+        [get_sys_executable(), "-m", "pip", "install", "-r", requirements_file],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=directory,

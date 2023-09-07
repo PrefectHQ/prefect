@@ -36,7 +36,7 @@ from pydantic import Field, validator
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.utilities.filesystem import relative_path_to_current_platform
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -98,7 +98,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env = {**os.environ, **self.env}
         self.command = (
-            f"{sys.executable} -m prefect.engine"
+            f"{get_sys_executable()} -m prefect.engine"
             if self.command == self._base_flow_run_command()
             else self.command
         )
@@ -150,7 +150,7 @@ class ProcessWorker(BaseWorker):
     ):
         command = configuration.command
         if not command:
-            command = f"{sys.executable} -m prefect.engine"
+            command = f"{get_sys_executable()} -m prefect.engine"
 
         flow_run_logger = self.get_flow_run_logger(flow_run)
 

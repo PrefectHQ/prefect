@@ -2,7 +2,6 @@
 Command line interface for working with Prefect
 """
 import os
-import sys
 import textwrap
 from functools import partial
 
@@ -26,7 +25,11 @@ from prefect.settings import (
     PREFECT_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import run_process, setup_signal_handlers_server
+from prefect.utilities.processutils import (
+    get_sys_executable,
+    run_process,
+    setup_signal_handlers_server,
+)
 
 server_app = PrefectTyper(
     name="server",
@@ -118,7 +121,7 @@ async def start(
             partial(
                 run_process,
                 command=[
-                    sys.executable,
+                    get_sys_executable(),
                     "-m",
                     "uvicorn",
                     "--app-dir",
