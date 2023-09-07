@@ -654,7 +654,7 @@ class TestWorkPoolStatus:
     async def test_work_pool_status_with_offline_worker(
         self, client, work_pool, session, db
     ):
-        """Work pools with an offline worker should have a status of NOT_READY."""
+        """Work pools with only offline workers should have a status of NOT_READY."""
         now = pendulum.now("UTC")
 
         insert_stmt = (await db.insert(db.Worker)).values(

@@ -284,13 +284,13 @@ class WorkQueueResponse(schemas.core.WorkQueue.subclass()):
         return response
 
 
-class WorkPoolResponse(schemas.core.WorkPool.subclass()):
+class WorkPoolResponse(schemas.core.WorkPool):
     status: Optional[schemas.statuses.WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
     )
 
 
-class WorkerResponse(schemas.core.Worker.subclass()):
+class WorkerResponse(schemas.core.Worker):
     status: schemas.statuses.WorkerStatus = Field(
         schemas.statuses.WorkerStatus.OFFLINE,
         description="Current status of the worker.",
