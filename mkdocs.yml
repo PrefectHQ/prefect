@@ -160,7 +160,7 @@ nav:
             - Dask & Ray: guides/dask-ray-task-runners.md
             - Moving data: guides/moving-data.md
           - Workers and agents:
-                - Deploying flows to dynamically provisioned infrastructure: guides/prefect-deploy.md
+                - Deploying flows to work pools and workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
                 - Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
