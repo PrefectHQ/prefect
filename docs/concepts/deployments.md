@@ -17,7 +17,7 @@ search:
 # Deployments
 
 Deployments are server-side representations of flows that contain the crucial metadata needed for remote orchestration. 
-Deployments elevate workflows from functions that you call manually to API-managed entities.
+Deployments elevate workflows from functions that you must call manually to API-managed entities that can be triggered remotely.
 Deployments achieve this by storing all of the relevant metadata for _when_, _where_ and _how_ a workflow should run.
 
 Here we will focus largely on the metadata that defines a deployment and how it is used. Different ways of creating a deployment populate these fields differently.
