@@ -18,7 +18,7 @@ from typing_extensions import Literal
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import get_sys_executable, run_process
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -238,7 +238,7 @@ class Process(Infrastructure):
         return {key: value for key, value in env.items() if value is not None}
 
     def _base_flow_run_command(self):
-        return [sys.executable, "-m", "prefect.engine"]
+        return [get_sys_executable(), "-m", "prefect.engine"]
 
 
 class ProcessResult(InfrastructureResult):
