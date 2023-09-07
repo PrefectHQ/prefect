@@ -16,7 +16,7 @@ search:
 ---
 # Deployments
 
-Deployments are server-side representations of flows. They store the crucial metadata needed for remote orchestration including _when_, _where_ and _how_ a workflow should run.
+Deployments are server-side representations of flows. They store the crucial metadata needed for remote orchestration including _when_, _where_, and _how_ a workflow should run.
 Deployments elevate workflows from functions that you must call manually to API-managed entities that can be triggered remotely.
 
 Here we will focus largely on the metadata that defines a deployment and how it is used. Different ways of creating a deployment populate these fields differently.

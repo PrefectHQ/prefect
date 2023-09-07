@@ -82,7 +82,7 @@ A deployment additionally enables you to:
 - Upload flow files to a defined storage location for retrieval at run time.
 - Specify run time infrastructure for flow runs, such as Docker or Kubernetes configuration.
 
-## Managing Deployments
+## Managing deployments
 
 You can manage one or more [flow deployments](/concepts/deployments/) by simply adding `prefect.yaml` file to your working directory:
 
@@ -135,7 +135,7 @@ The metadata fields are always pre-populated for you. These fields are for bookk
 
 You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. The `prefect.yaml` file facilitates version-controlling your deployment configuration and managing multiple deployments.
 
-### Deployment Actions
+### Deployment actions
 
 Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments. 
 The three actions available are `build`, `push`, and `pull`. 
@@ -164,7 +164,7 @@ Every step can optionally provide a `requires` field that Prefect will use to au
     This capability is useful with multiple deployments that require different deployment instructions.
 
 
-### The Build Action
+### The build action
 
 The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image. If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
@@ -271,7 +271,7 @@ push:
 
 Anytime you run `prefect deploy`, this `push` section will be executed upon successful completion of your `build` section. For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
-### The Pull Action
+### The pull action
 
 The pull section is the most important section within the `prefect.yaml` file. It contains instructions for preparing your flows for a deployment run. These instructions will be executed each time a deployment created within this folder is run via a worker.
 
@@ -302,7 +302,7 @@ pull:
         access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
 ```
 
-### Utility Steps
+### Utility steps
 Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
 
 - `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output and standard error of the script. 
@@ -377,7 +377,7 @@ You can also run custom steps by packaging them. In the example below, `retrieve
     access_token: '{{ get-access-token.access_token }}'
 ```
 
-### Templating Options
+### Templating options
 
 Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
@@ -505,7 +505,7 @@ $ prefect deploy --all
 
     To provide overrides to a deployment via the CLI, you must deploy that deployment individually.
     
-### Reusing Configuration Across Deployments
+### Reusing configuration across deployments
 
 Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) to reuse configuration across deployments.
 
