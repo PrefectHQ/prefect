@@ -18,7 +18,6 @@ In this guide, we will showcase common usecases where automations can shine when
 TODO: create a warning saying it is only available for Prefect Cloud
 
 # Cleaning data Example
-TODO: Find dataset to use or can pull from an api
 Automations are great when handling mixed outcome workflows, as you are able to respond to specific actions done by the orchestrator. 
 For example, let us try to grab data from an API and if we run into any issues, lets try react to the workflow end results. 
 
@@ -40,25 +39,24 @@ def fetch(url: str):
 
 @task
 def clean(raw_data: dict):
+    print(raw_data.get('results')[0])
     results = raw_data.get('results')[0]
     return results['name']
 
 @flow
-def build_names():
+def build_names(num: int):
     df = []
-    count = 10
     url = "https://randomuser.me/api/"
-    while count != 0:
+    while num != 0:
         raw_data = fetch(url)
         df.append(clean(raw_data))
-        count-=1
+        num-=1
     print(df)
     return df
 
 if __name__ == "__main__":
-    build_names()
+    build_names(10)
 ```
-TODO: concurrently write to a list with the new names
 
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our MLOPS pipeline.
 
@@ -68,7 +66,7 @@ TODO: make the dataframe more complex -> with more features?
 - Can fail on exceptions thrown
 - or send notification for a long flow 
 
-Now let us try to send a notification based off a failed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
+Now let us try to send a notification based off a completed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
 
 Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
 
@@ -80,7 +78,10 @@ Easily we can create an automation in the UI that allows us to click through the
 
 Next we try to find the trigger type, in this case let us do a flow failure (keep in mind task failures get cascading upstream back to the parent flow). 
 
-Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the failure. 
+Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
+
+TODO: put a better worded tip - 
+Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block.  
 
 # Event based deployment example 
 - Based off of certain failures or long flow run, kick off another flow job 
@@ -92,8 +93,8 @@ Finally, let us create the actions that will be done once the triggered is hit. 
 def create_event_driven_auto():
     api_url = "https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
     todo = {
-    "name": "Event Driven Redeploy",
-    "description": "Programatically created an automation to redeploy a flow based on an event",
+    "name": "Event Driven Redeployment",
+    "description": "Programatically created an automation to redeploy a flow based on an flow cancelled event",
     "enabled": "true",
     "trigger": {
     "match": {
@@ -129,5 +130,8 @@ def create_event_driven_auto():
     print(response.json())
     return response.json()
 ```
+
+
+
 # Combining both? 
 - Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
