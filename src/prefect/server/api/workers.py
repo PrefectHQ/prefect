@@ -1,7 +1,7 @@
 """
 Routes for interacting with work queue objects.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -30,9 +30,6 @@ router = PrefectRouter(
 # --
 # --
 # -----------------------------------------------------
-
-INACTIVITY_HEARTBEAT_MULTIPLE = 3
-DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30
 
 
 class WorkerLookups:
@@ -113,21 +110,6 @@ class WorkerLookups:
 
         return work_queue.id
 
-    def _determine_worker_status(
-        self,
-        worker: schemas.responses.WorkerResponse,
-    ) -> schemas.statuses.WorkerStatus:
-        offline_horizon = datetime.now(tz=timezone.utc) - timedelta(
-            seconds=(
-                worker.heartbeat_interval_seconds or DEFAULT_HEARTBEAT_INTERVAL_SECONDS
-            )
-            * INACTIVITY_HEARTBEAT_MULTIPLE
-        )
-        if worker.last_heartbeat_time > offline_horizon:
-            return schemas.statuses.WorkerStatus.ONLINE
-        else:
-            return schemas.statuses.WorkerStatus.OFFLINE
-
     async def _read_online_workers(
         self, session: AsyncSession, work_pool: schemas.responses.WorkPoolResponse
     ):
@@ -138,7 +120,7 @@ class WorkerLookups:
         return [
             worker
             for worker in read_workers
-            if self._determine_worker_status(worker)
+            if schemas.responses.WorkerResponse.from_orm(worker).status
             == schemas.statuses.WorkerStatus.ONLINE
         ]
 
@@ -630,7 +612,7 @@ async def read_workers(
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
-        orm_workers = await models.workers.read_workers(
+        return await models.workers.read_workers(
             session=session,
             work_pool_id=work_pool_id,
             worker_filter=workers,
@@ -638,12 +620,3 @@ async def read_workers(
             offset=offset,
             db=db,
         )
-        workers_response = []
-        for orm_worker in orm_workers:
-            worker_response = schemas.responses.WorkerResponse.from_orm(orm_worker)
-            worker_response.status = worker_lookups._determine_worker_status(
-                worker_response
-            )
-            workers_response.append(worker_response)
-
-        return workers_response

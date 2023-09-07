@@ -67,16 +67,16 @@ class StateType(AutoEnum):
 class WorkPoolStatus(AutoEnum):
     """Enumeration of work pool statuses."""
 
-    READY = "READY"
-    NOT_READY = "NOT_READY"
-    PAUSED = "PAUSED"
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
 
 
 class WorkerStatus(AutoEnum):
     """Enumeration of worker statuses."""
 
-    ONLINE = "ONLINE"
-    OFFLINE = "OFFLINE"
+    ONLINE = AutoEnum.auto()
+    OFFLINE = AutoEnum.auto()
 
 
 class StateDetails(PrefectBaseModel):

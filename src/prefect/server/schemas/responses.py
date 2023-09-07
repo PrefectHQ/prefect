@@ -295,3 +295,23 @@ class WorkerResponse(schemas.core.Worker):
         schemas.statuses.WorkerStatus.OFFLINE,
         description="Current status of the worker.",
     )
+
+    @classmethod
+    def from_orm(
+        cls, orm_worker: "prefect.server.database.orm_models.ORMWorker"
+    ) -> "WorkerResponse":
+        worker = super().from_orm(orm_worker)
+        offline_horizon = datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(
+            seconds=(
+                worker.heartbeat_interval_seconds or DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+            )
+            * INACTIVITY_HEARTBEAT_MULTIPLE
+        )
+        if worker.last_heartbeat_time > offline_horizon:
+            worker.status = schemas.statuses.WorkerStatus.ONLINE
+        else:
+            worker.status = schemas.statuses.WorkerStatus.OFFLINE
+
+        return worker
