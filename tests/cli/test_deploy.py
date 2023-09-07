@@ -220,24 +220,6 @@ async def aws_credentials(prefect_client):
 
 
 @pytest.fixture
-def mock_prefect_aws_module():
-    class FakePrefectAWS:
-        class deployments:
-            class steps:
-                @staticmethod
-                def push_to_s3(*args, **kwargs):
-                    return "pushed to s3"
-
-    sys.modules["prefect_aws"] = FakePrefectAWS()
-    sys.modules["prefect_aws.deployments"] = FakePrefectAWS.deployments
-    sys.modules["prefect_aws.deployments.steps"] = FakePrefectAWS.deployments.steps
-    yield
-    del sys.modules["prefect_aws"]
-    del sys.modules["prefect_aws.deployments"]
-    del sys.modules["prefect_aws.deployments.steps"]
-
-
-@pytest.fixture
 def set_ui_url():
     with temporary_settings({PREFECT_UI_URL: "http://gimmedata.com"}):
         yield
@@ -630,6 +612,27 @@ class TestProjectDeploySingleDeploymentYAML:
 
 
 class TestProjectDeploy:
+    @pytest.fixture
+    def uninitialized_project_dir(self, project_dir):
+        Path(project_dir, "prefect.yaml").unlink()
+        return project_dir
+
+    @pytest.fixture
+    def uninitialized_project_dir_with_git_no_remote(self, uninitialized_project_dir):
+        subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
+        assert Path(uninitialized_project_dir, ".git").exists()
+        return uninitialized_project_dir
+
+    @pytest.fixture
+    def uninitialized_project_dir_with_git_with_remote(
+        self, uninitialized_project_dir_with_git_no_remote
+    ):
+        subprocess.run(
+            ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
+            cwd=uninitialized_project_dir_with_git_no_remote,
+        )
+        return uninitialized_project_dir_with_git_no_remote
+
     async def test_project_deploy(self, project_dir, prefect_client):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -699,29 +702,6 @@ class TestProjectDeploy:
         )
 
     class TestGeneratedPullAction:
-        @pytest.fixture
-        def uninitialized_project_dir(self, project_dir):
-            Path(project_dir, "prefect.yaml").unlink()
-            return project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_no_remote(
-            self, uninitialized_project_dir
-        ):
-            subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
-            assert Path(uninitialized_project_dir, ".git").exists()
-            return uninitialized_project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_with_remote(
-            self, uninitialized_project_dir_with_git_no_remote
-        ):
-            subprocess.run(
-                ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
-                cwd=uninitialized_project_dir_with_git_no_remote,
-            )
-            return uninitialized_project_dir_with_git_no_remote
-
         async def test_project_deploy_generates_pull_action(
             self, work_pool, prefect_client, uninitialized_project_dir
         ):
@@ -996,8 +976,17 @@ class TestProjectDeploy:
 
         @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
         async def test_deploy_with_blob_storage_select_existing_credentials(
-            self, work_pool, prefect_client, aws_credentials, mock_prefect_aws_module
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            monkeypatch,
         ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
@@ -1051,9 +1040,13 @@ class TestProjectDeploy:
             work_pool,
             prefect_client,
             aws_credentials,
-            mock_prefect_aws_module,
             set_ui_url,
+            monkeypatch,
         ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
@@ -1446,7 +1439,85 @@ class TestProjectDeploy:
                 import prefect_docker  # noqa
 
     class TestGeneratedPushAction:
-        pass
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_deploy_select_blob_storage_configures_push_step(
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            monkeypatch,
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name"
+                    f" -p {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    "y"
+                    + readchar.key.ENTER
+                    # Select S3 bucket as storage (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Select existing credentials (first option)
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
+                ],
+            )
+
+            mock_step.assert_called_once_with(
+                bucket="my-bucket", folder="", credentials={"access_key_id": "AKIA1234"}
+            )
+
+            prefect_file = Path("prefect.yaml")
+            assert prefect_file.exists()
+
+            with open(prefect_file, "r") as f:
+                config = yaml.safe_load(f)
+
+            assert config["push"] == [
+                {
+                    "prefect_aws.deployments.steps.push_to_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
+
+            assert config["pull"] == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
