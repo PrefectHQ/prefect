@@ -18,7 +18,7 @@ search:
 ---
 # The complete guide to `prefect deploy`
 
-In this guide we will dive deep into configuring a deployment for a worker and work pool using `prefect deploy`.
+In this guide, we will dive deep into configuring a deployment for a worker and work pool using `prefect deploy`.
 
 ## Deployments overview
 
@@ -67,8 +67,8 @@ flowchart LR
 
 When creating a deployment, we must answer *two* basic questions:
 
-- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our workflow? 
-For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+- What instructions does a [worker](/concepts/work-pools/) need to set up an execution environment for our flow? 
+For example, a flow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
 A deployment additionally enables you to:
@@ -131,7 +131,7 @@ deployments:
       job_variables: {}
 ```
 
-The metadata fields are always pre-populated for you and are currently for bookkeeping purposes only.  The other sections are pre-populated based on recipe; if no recipe is provided, Prefect will attempt to guess an appropriate one based on local configuration.
+The metadata fields are always pre-populated for you. These fields are for bookkeeping purposes only.  The other sections are pre-populated based on recipe; if no recipe is provided, Prefect will attempt to guess an appropriate one based on local configuration.
 
 You can create deployments via the CLI command `prefect deploy` without ever needing to alter the `deployments` section of your `prefect.yaml` file — the `prefect deploy` command will help in deployment creation via interactive prompts. The `prefect.yaml` file facilitates version-controlling your deployment configuration and managing multiple deployments.
 
@@ -166,7 +166,7 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
 ### The Build Action
 
-The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
+The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image. If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
 <div class="terminal">
 ```bash
@@ -207,7 +207,7 @@ It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the
     Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
 
 !!! tip "Pass output to downstream steps"
-    Each deployment action can be composed of multiple steps.  For example, if you wanted to build a Docker image tagged with the current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
+    Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
 
     ```yaml
     build:
@@ -273,7 +273,7 @@ Anytime you run `prefect deploy`, this `push` section will be executed upon succ
 
 ### The Pull Action
 
-The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing your flows for a deployment run. These instructions will be executed each time a deployment created within this folder is run via a worker.
+The pull section is the most important section within the `prefect.yaml` file. It contains instructions for preparing your flows for a deployment run. These instructions will be executed each time a deployment created within this folder is run via a worker.
 
 There are three main types of steps that typically show up in a `pull` section:
 
@@ -365,7 +365,8 @@ pull:
     access_token: "{{ get-access-token.stdout }}"
 ```
 
-You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a docker image (which is /opt/prefect by default). `main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has been packaged into the default working directory of a Docker image (which is /opt/prefect by default). 
+`main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the preceding example, but utilizing the Azure Python SDK for retrieval.
 
 ```yaml
 - retrieve_secrets.main:

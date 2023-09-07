@@ -129,7 +129,7 @@ This metadata is available during execution through [Prefect runtime](/guides/ru
 
 [Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure for each flow run. 
 In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
-To do this, a deployment using workers needs to consider the following fields:
+To do this, a deployment using workers needs to evaluate the following fields:
 
 - **`work_pool_name`**: the name of the work pool this deployment will be associated with. 
 Work pool types mirror infrastructure types and therefore the decision here affects the options available for the other fields.
@@ -191,7 +191,7 @@ With this approach:
 Of course, complexity always has a price. The worker approach has more components and may be more difficult to debug and understand.
 
 !!! note "You don't have to commit to one approach"
-    There is nothing that requires you to use one and only one of these approaches for your deployments - you can mix and match as your use cases evolve. 
+    There is nothing that requires you to use one and only one of these approaches for your deployments. You can mix and match based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
     For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller, more frequent file-processing pipelines.
 
 
