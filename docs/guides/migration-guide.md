@@ -10,7 +10,7 @@ search:
 
 # Migrating from Prefect 1 to Prefect 2
 
-This guide is designed to help you migrate your workflows from Prefect 1 to Prefect 2. 
+This guide is designed to help you migrate your workflows from Prefect 1 to Prefect 2.
 
 ## What stayed the same
 
@@ -19,13 +19,12 @@ Prefect 2 still:
 - Has [tasks](/concepts/tasks/) and [flows](/concepts/flows/).
 - Orchestrates your flow runs and provides observability into their execution [states](/concepts/states/).
 - [Runs and inspects flow runs locally](https://discourse.prefect.io/t/how-can-i-inspect-the-flow-run-states-locally/81).
-- Provides a coordination plane for your dataflows based on the same [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe). 
-- Employs the same [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296), where Prefect doesn't store your flow code or data. 
+- Provides a coordination plane for your dataflows based on the same [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe).
+- Employs the same [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296), where Prefect doesn't store your flow code or data.
 
 ## What changed
 
 Prefect 2 requires modifications to your existing tasks, flows, and deployment patterns. We've organized this section into the following categories:
-
 
 - **Simplified patterns** &mdash; abstractions from Prefect 1 that are no longer necessary in the dynamic, DAG-free Prefect workflows that support running native Python code in your flows.
 - **Conceptual and syntax changes** that often clarify names and simplify familiar abstractions such as retries and caching.
@@ -65,7 +64,6 @@ Let’s look at the differences in how Prefect 2 transitions your flow and task 
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run. This [link](https://discourse.prefect.io/t/how-can-i-control-the-final-state-of-a-flow-run/56) provides a more detailed explanation with code examples.
 - In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-pools/#work-queue-concurrency) are set on work pools.
 
-
 ### What changed in flow deployment patterns?
 
 To deploy your Prefect 1 flows, you have to send flow metadata to the backend in a step called registration. Prefect 2 no longer requires flow pre-registration. Instead, you create a [Deployment](/concepts/deployments/) that specifies the entry point to your flow code and optionally specifies:
@@ -96,21 +94,21 @@ The following new components and capabilities are enabled by Prefect 2.
 - [Notifications](../../concepts/notifications/) available in the open-source Prefect 2 version, as opposed to Cloud-only [Automations](https://docs.prefect.io/orchestration/ui/automations.html) in Prefect 1.  
 - A first-class `subflows` concept: Prefect 1 only allowed the [flow-of-flows orchestrator pattern](https://discourse.prefect.io/tag/orchestrator-pattern). With Prefect 2 subflows, you gain a natural and intuitive way of organizing your flows into modular sub-components. For more details, see [the following list of resources about subflows](https://discourse.prefect.io/tag/subflows).
 
-
 ### Orchestration behind the API
 
 Apart from new features, Prefect 2 simplifies many usage patterns and provides a much more seamless onboarding experience.
 
-Every time you run a flow, whether it is tracked by the API server or ad-hoc through a Python script, it is on the same UI page for easier debugging and observability. 
+Every time you run a flow, whether it is tracked by the API server or ad-hoc through a Python script, it is on the same UI page for easier debugging and observability.
 
 ### Code as workflows
 
 With Prefect 2, your functions *are* your flows and tasks. Prefect 2 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### Incremental adoption
+
 The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start a Prefect server and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](/ui/cloud/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
 
-Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script. 
+Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script.
 
 - You can create a deployment to on remote infrastructure, where the run environment is defined by a reusable infrastructure block.
 
@@ -120,17 +118,15 @@ Prefect 2 eliminates ambiguities in many ways. For example. there is no more con
 
 If you want to switch your backend to use Prefect Cloud for an easier production-level managed experience, Prefect profiles let you quickly connect to your workspace.
 
-
 In Prefect 1, there are several confusing ways you could implement `caching`. Prefect 2 resolves those ambiguities by providing a single `cache_key_fn` function paired with `cache_expiration`, allowing you to define arbitrary caching mechanisms &mdash; no more confusion about whether you need to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
 
  For more details on how to configure caching, check out the following resources:
- 
+
 - [Caching docs](/concepts/tasks/#caching)
 - [Time-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-for-two-hours-to-prevent-re-computation/67)
 - [Input-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-based-on-task-input-arguments/68)
 
-A similarly confusing concept in Prefect 1 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities with respect to how to define state dependencies between tasks. Prefect 1 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 2, there is only the functional API. 
-
+A similarly confusing concept in Prefect 1 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities with respect to how to define state dependencies between tasks. Prefect 1 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 2, there is only the functional API.
 
 ## Next steps
 
@@ -141,7 +137,6 @@ To make the migration process easier for you:
 - We provided [a detailed FAQ section](https://discourse.prefect.io/tag/migration-guide) allowing you to find the right information you need to move your workflows to Prefect 2. If you still have some open questions, feel free to create a new topic describing your migration issue.
 - We have dedicated resources in the Customer Success team to help you along your migration journey. Reach out to [cs@prefect.io](mailto:cs@prefect.io) to discuss how we can help.  
 - You can ask questions in our 20,000+ member [Community Slack](https://prefect.io/slack).
-
 
 ---
 Happy Engineering!

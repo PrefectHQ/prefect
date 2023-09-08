@@ -174,7 +174,6 @@ If you already have a registry, skip ahead to the next section.
 
     ```
 
-
 ## Create a Kubernetes work pool
 
 [Work pools](/concepts/work-pools/) allow you to manage deployment infrastructure.
@@ -193,7 +192,7 @@ Let's look at a few popular configuration options.
 **Environment Variables**
 
 Add environment variables to set when starting a flow run.
-So long as you are using a Prefect-maintained image and haven't overwritten the image's entrypoint, you can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`. 
+So long as you are using a Prefect-maintained image and haven't overwritten the image's entrypoint, you can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`.
 For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
 Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
 As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
@@ -215,7 +214,7 @@ When using the `IfNotPresent` policy, make sure to use unique image tags, as oth
 
 **Finished Job TTL**
 
-Number of seconds before finished jobs are automatically cleaned up by Kubernetes' controller. 
+Number of seconds before finished jobs are automatically cleaned up by Kubernetes' controller.
 You may want to set to 60 so that completed flow runs are cleaned up after a minute.
 
 **Pod Watch Timeout Seconds**
@@ -275,6 +274,7 @@ Our new Kubernetes work pool should now appear in the list of work pools.
 While in the Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
 Click on your profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
 Make sure to store it safely along with your other passwords, ideally via a password manager.
+
 ## Deploy a worker using Helm
 
 With our cluster and work pool created, it's time to deploy a worker, which will set up Kubernetes infrastructure to run our flows.
@@ -522,7 +522,6 @@ We have configured our `prefect.yaml` file to get the image name from the `PREFE
     ```
 
 === "Azure"
-
 
     ```bash
     export PREFECT_IMAGE_NAME=<REPOSITORY-NAME>.azurecr.io/<IMAGE-NAME>

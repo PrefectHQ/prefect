@@ -66,7 +66,7 @@ def connect_to_database():
 ## Customizing Tasks and Flows from an Integration
 
 To customize the settings of a task or flow pre-configured in a collection, use `with_options`:
-    
+
 ```python
 from prefect import flow
 from prefect_dbt.cloud import DbtCloudCredentials
@@ -87,7 +87,8 @@ def run_dbt_job_flow():
 
 run_dbt_job_flow()
 
-``` 
+```
+
 ## Recipes and Tutorials
 
 To learn more about how to use Integrations, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Integrations can be used in various scenarios.

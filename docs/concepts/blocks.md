@@ -15,7 +15,7 @@ search:
 
 Blocks are a primitive within Prefect that enable the storage of configuration and provide an interface for interacting with external systems.
 
-With blocks, you can securely store credentials for authenticating with services like AWS, GitHub, Slack, and any other system you'd like to orchestrate with Prefect. 
+With blocks, you can securely store credentials for authenticating with services like AWS, GitHub, Slack, and any other system you'd like to orchestrate with Prefect.
 
 Blocks expose methods that provide pre-built functionality for performing actions against an external system. They can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
 
@@ -197,7 +197,6 @@ prefect block delete json/life-the-universe-everything
 prefect block delete --id <my-id>
 ```
 
-
 ## Creating new block types
 
 To create a custom block type, define a class that subclasses `Block`. The `Block` base class builds off of Pydantic's `BaseModel`, so custom blocks can be [declared in same manner as a Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
@@ -302,6 +301,7 @@ system_configuration_block = SystemConfiguration(
     },
 )
 ```
+
 `system_secrets` will be obfuscated when `system_configuration_block` is displayed, but `system_variables` will be shown in plain-text:
 
 ```python
@@ -311,6 +311,7 @@ print(system_configuration_block)
 #   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
 # )
 ```
+
 ### Blocks metadata
 
 The way that a block is displayed can be controlled by metadata fields that can be set on a block subclass.
@@ -411,10 +412,10 @@ my_s3_bucket.save("my_s3_bucket")
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
 ### Handling updates to custom `Block` types
+
 Let's say that you now want to add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
 
 We can add the new field to the class definition:
-
 
 ```python hl_lines="4"
 class S3Bucket(Block):
@@ -425,7 +426,6 @@ class S3Bucket(Block):
 ```
 
 Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server.
-
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
 

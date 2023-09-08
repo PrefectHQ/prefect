@@ -90,7 +90,6 @@ from prefect.server import schemas
 
 Unless in an `__init__.py` file, relative imports should not be used.
 
-
 ```python
 # Correct
 from prefect.utilities.foo import bar
@@ -158,6 +157,7 @@ Sometimes, imports are slow. We'd like to keep the `prefect` module import times
 ## Command line interface (CLI) output messages
 
 Upon executing a command that creates an object, the output message should offer:
+
 - A short description of what the command just did.
 - A bullet point list, rehashing user inputs, if possible.
 - Next steps, like the next command to run, if applicable.
@@ -165,6 +165,7 @@ Upon executing a command that creates an object, the output message should offer
 - A new line before the first line and after the last line.
 
 Output Example:
+
 ```bash
 $ prefect work-queue create testing
 
@@ -191,12 +192,14 @@ Additionally:
 - Utilize `textwrap.dedent` to remove extraneous spacing for strings that are written with triple quotes (""").
 
 Placholder Example:
+
 ```bash
 Create a work queue with tags:
     prefect work-queue create '<WORK QUEUE NAME>' -t '<OPTIONAL TAG 1>' -t '<OPTIONAL TAG 2>'
 ```
 
 Dedent Example:
+
 ```python
 from textwrap import dedent
 ...
@@ -227,6 +230,6 @@ For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major
 
 This version header can be changed by modifying the `API_VERSION` constant in `prefect.server.api.server`.
 
-When making a breaking change to the API, we should consider if the change might be *backwards compatible for clients*, meaning that the previous version of the client would still be able to make calls against the updated version of the server code. This might happen if the changes are purely additive: such as adding a non-critical API route. In these cases, we should make sure to bump the patch version.
+When making a breaking change to the API, we should consider if the change might be _backwards compatible for clients_, meaning that the previous version of the client would still be able to make calls against the updated version of the server code. This might happen if the changes are purely additive: such as adding a non-critical API route. In these cases, we should make sure to bump the patch version.
 
 In almost all other cases, we should bump the minor version, which denotes a non-backwards-compatible API change. We have reserved the major version chanes to denote also-backwards compatible change that might be significant in some way, such as a major release milestone.

@@ -17,7 +17,7 @@ search:
 
 # Single Sign-on (SSO) <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports: 
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports:
 
 - OIDC
 - SAML 2.0
@@ -30,7 +30,7 @@ See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more abou
 
 ## Configuring SSO
 
-Within your organization, select the **SSO** page to enable SSO for users. 
+Within your organization, select the **SSO** page to enable SSO for users.
 
 If you haven't enabled SSO for a domain yet, enter the email domains for which you want to configure SSO in Prefect Cloud. Select **Save** to accept the domains.
 
@@ -48,8 +48,8 @@ Once you complete SSO configuration your users will be required to authenticate 
 
 ## Directory sync
 
-**Directory sync** automatically provisions and de-provisions users for your organization. 
+**Directory sync** automatically provisions and de-provisions users for your organization.
 
-Provisioned users are given basic “Member” roles and will have access to any resources that role entails. 
+Provisioned users are given basic “Member” roles and will have access to any resources that role entails.
 
-When a user is unassigned from the Prefect Cloud application in your identity provider, they will automatically lose access to Prefect Cloud resources, allowing your IT team to control access to Prefect Cloud without ever signing into the app. 
+When a user is unassigned from the Prefect Cloud application in your identity provider, they will automatically lose access to Prefect Cloud resources, allowing your IT team to control access to Prefect Cloud without ever signing into the app.

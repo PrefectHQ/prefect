@@ -9,7 +9,7 @@ search:
 ---
 # Artifacts
 
-Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI. Artifacts make it easy to track and monitor the objects that your flows produce and update over time. 
+Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or REST API. They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI. Artifacts make it easy to track and monitor the objects that your flows produce and update over time.
 
 Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices &mdash; including the ability to display tables, Markdown, and links to external data.
 
@@ -21,15 +21,15 @@ Common use cases for artifacts include:
 
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to a storage location (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
-- Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important. 
+- Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important.
 
 ## Creating Artifacts
 
 Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context. Currently, you can render three artifact types: links, markdown, and tables.
 
 !!! note "Artifacts render individually"
-    Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI. This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact. 
-    
+    Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI. This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
+
     Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
     
     To create artifacts like reports or summaries using `create_markdown_artifact()`, compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
@@ -37,8 +37,6 @@ Creating artifacts allows you to publish data from task and flow runs or outside
 ### Creating Link Artifacts
 
 To create a link artifact, use the `create_link_artifact()` function. To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time. Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
-
-
 
 ```python
 from prefect import flow, task
@@ -70,7 +68,7 @@ if __name__ == "__main__":
 ```
 
 !!! tip Specify multiple artifacts with the same key for artifact lineage
-    You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline. 
+    You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline.
 
 After running the above flows, you can find your new artifacts in the Artifacts page of the UI. You can click into the "irregular data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
 
@@ -93,6 +91,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
+
 In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`. The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link. An optional `description` could also be added for context.
 
 ### Creating Markdown Artifacts

@@ -26,8 +26,8 @@ In this guide we'll:
 
 To complete this guide, you'll need the following:
 
-- A Python script that defines and serves a flow. 
-  - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial. 
+- A Python script that defines and serves a flow.
+  - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial.
 - Access to a running Prefect API server.
   - You can sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
 - [Docker Desktop](https://docs.docker.com/desktop/) installed on your machine.
@@ -90,7 +90,7 @@ prefect>=2.12.0
 httpx
 ```
 
-Next, we'll create a `Dockerfile` that we'll use to create a Docker image that will also store the flow code. 
+Next, we'll create a `Dockerfile` that we'll use to create a Docker image that will also store the flow code.
 
 <div class="terminal">
 ```bash
@@ -117,7 +117,7 @@ CMD ["python", "flows/prefect-docker-guide-flow.py"]
 
 ## Building a Docker image
 
-Now that we have a Dockerfile we can build our image by running: 
+Now that we have a Dockerfile we can build our image by running:
 
 <div class="terminal">
 ```bash
@@ -162,9 +162,9 @@ We can check that our build worked by running a container from our new image.
 
 ## Deploying to a remote environment
 
-Now that we have a Docker image with our flow code embedded, we can deploy it to a remote environment! 
+Now that we have a Docker image with our flow code embedded, we can deploy it to a remote environment!
 
-For this guide, we'll simulate a remote environment by using Kubernetes locally with Docker Desktop. You can use the [instructions provided by Docker to set up Kubernetes locally.](https://docs.docker.com/desktop/kubernetes/) 
+For this guide, we'll simulate a remote environment by using Kubernetes locally with Docker Desktop. You can use the [instructions provided by Docker to set up Kubernetes locally.](https://docs.docker.com/desktop/kubernetes/)
 
 ### Creating a Kubernetes deployment manifest
 
@@ -206,11 +206,11 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
               value: YOUR_API_KEY
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-    ```
+
+```
 
     !!!tip "Keep your API key secret"
           In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
-
 
 === "Self-hosted"
     ```yaml title="deployment-manifest.yaml"
@@ -236,7 +236,7 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
               value: http://host.docker.internal:4200/api
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-    ```
+```
 
     !!!tip "Linux users"
         If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.

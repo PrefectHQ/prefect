@@ -69,6 +69,7 @@ Starting agent with ephemeral API...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 Agent started! Looking for work from work pool 'my-pool'...
+
 ```
 </div>
 
@@ -84,6 +85,7 @@ For example:
 ```bash
 $ prefect agent start --match "foo-"
 ```
+
 </div>
 
 This example will poll every work queue that starts with "foo-".

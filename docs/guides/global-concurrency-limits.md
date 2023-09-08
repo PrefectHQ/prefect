@@ -17,7 +17,7 @@ When selecting between Concurrency and Rate Limits, consider your primary goal. 
 
 ## Managing Global concurrency limits and rate limits
 
-You can create, read, edit and delete concurrency limits via the Prefect UI. 
+You can create, read, edit and delete concurrency limits via the Prefect UI.
 
 When creating a concurrency limit, you can specify the following parameters:
 
@@ -42,7 +42,8 @@ The rate of slot decay is determined by the parameter `slot decay per second`. T
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the concurrency of your workflow based on your specific requirements.
 
 ## Using the `concurrency` context manager
-The `concurrency `context manager allows control over the maximum number of concurrent operations. You can select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
+
+The `concurrency`context manager allows control over the maximum number of concurrent operations. You can select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
 
 !!! tip "Concurrency limits are implicitly created"
     When using the `concurrency` context manager, the concurrency limit you use will be created, in an inactive state, if it does not already exist.
@@ -70,7 +71,6 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-
 **Async**
 
 ```python
@@ -95,13 +95,12 @@ if __name__ == "__main__":
     asyncio.run(my_flow())
 ```
 
-
 1. The code imports the necessary modules and the concurrency context manager. Use the `prefect.concurrency.sync` module for sync usage and the `prefect.concurrency.asyncio` module for async usage.
 2. It defines a `process_data` task, taking `x` and `y` as input arguments. Inside this task, the concurrency context manager controls concurrency, using the `database` concurrency limit and occupying one slot. If another task attempts to run with the same limit and no slots are available, that task will be blocked until a slot becomes available.
 3. A flow named `my_flow` is defined. Within this flow, it iterates through a list of tuples, each containing pairs of x and y values. For each pair, the `process_data` task is submitted with the corresponding x and y values for processing.
 
-
 ## Using `rate_limit`
+
 The Rate Limit feature provides control over the frequency of requests or operations, ensuring responsible usage and system stability. Depending on your requirements, you can utilize `rate_limit` to govern both synchronous (sync) and asynchronous (async) operations. Here's how to make the most of it:
 
 !!! tip "Slot decay"
@@ -129,7 +128,6 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
-
 
 **Async**
 

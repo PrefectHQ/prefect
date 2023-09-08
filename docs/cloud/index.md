@@ -42,12 +42,12 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
 
 ## User accounts
 
-When you sign up for Prefect Cloud, a personal account is automatically provisioned for you. A personal account gives you access to profile settings where you can view and administer your: 
+When you sign up for Prefect Cloud, a personal account is automatically provisioned for you. A personal account gives you access to profile settings where you can view and administer your:
 
 - Profile, including profile handle and image
 - API keys
 
-As a personal account owner, you can create a [workspace](#workspaces) and invite collaborators to your workspace. 
+As a personal account owner, you can create a [workspace](#workspaces) and invite collaborators to your workspace.
 
 [Organizations](#organizations) in Prefect Cloud enable you to invite users to collaborate in your workspaces with the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions) for organization members. Organizations may also configure [service accounts](#service-accounts) with API keys for non-user access to the Prefect Cloud API.
 
@@ -67,19 +67,18 @@ Each workspace keeps track of its own:
 - [Blocks](/concepts/blocks/) and [storage](/concepts/storage/)
 - [Automations](/cloud/automations/)
 
-When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud. 
+When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
 ## Events
 
-Prefect Cloud allows you to see your [events](/cloud/events/). 
+Prefect Cloud allows you to see your [events](/cloud/events/).
 ![Prefect UI](/img/ui/event-feed.png)
-
 
 ## Automations
 
-Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities as the open-source Prefect server. Automations enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
+Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities as the open-source Prefect server. Automations enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 ## Organizations <span class="badge orgs"></span>
 
@@ -94,7 +93,7 @@ See the [Organizations](/cloud/organizations/) documentation for more informatio
 
 ## Service accounts <span class="badge orgs"></span>
 
-Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account. Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure. 
+Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account. Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure.
 
 See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
 
@@ -110,7 +109,7 @@ Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/prici
 
 ## Audit Log <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes. 
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes.
 
 ## Prefect Cloud REST API
 
@@ -118,7 +117,6 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 
 !!! note "Prefect Cloud REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
-
 
 ## Start using Prefect Cloud
 

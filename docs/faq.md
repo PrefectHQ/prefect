@@ -48,7 +48,6 @@ To achieve this, we've leveraged the familiar tools of native Python: first clas
 
 No, Prefect Cloud hosts an instance of the Prefect API for you. In fact, each workspace in Prefect Cloud corresponds directly to a single instance of the Prefect orchestration engine. See the [Prefect Cloud Overview](/ui/cloud/) for more information.
 
-
 ## Features
 
 ### Does Prefect support mapping?
@@ -83,7 +82,7 @@ Prefect supports communicating via proxies through the use of environment variab
 
 ### Can I run Prefect flows on Linux?
 
-Yes! 
+Yes!
 
 See the [Installation](/getting-started/installation/) documentation and [Linux installation notes](/getting-started/installation/#linux-installation-notes) for details on getting started with Prefect on Linux.
 

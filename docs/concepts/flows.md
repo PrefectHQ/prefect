@@ -330,7 +330,6 @@ You can define multiple flows within the same file. Whether running locally or v
 !!! warning "Cancelling subflow runs"
     In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
 
-
 ```python
 from prefect import flow, task
 
@@ -412,7 +411,6 @@ Subflow says: Hello Marvin!
     - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
-
 
 ## Parameters
 
@@ -778,7 +776,6 @@ This interface provides all of the configuration needed for a deployment with no
                           interval=60)
     ```
 
-
 ### Serving multiple flows at once
 
 You can take this further and serve multiple flows with the same process using the [`serve`](/api-ref/prefect/runner/#prefect.runner.serve) utility along with the `to_deployment` method of flows:
@@ -954,7 +951,6 @@ From the UI you can cancel a flow run by navigating to the flow run's detail pag
 
 ![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
 
-
 <!--
 # content from old Flows UI page
 # Flows
@@ -982,8 +978,6 @@ On this page you can also:
 - Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
 - Pause a schedule for a deployment by using the toggle control.
 - Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
-
-
 
 Additional info from the old ui/flow-runs page
 ## Troubleshooting flows

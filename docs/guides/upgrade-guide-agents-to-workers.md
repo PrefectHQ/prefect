@@ -1,6 +1,6 @@
 # Upgrade from Agents to Workers
 
-Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. 
+Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment.
 
 A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure and they specify the default configuration for jobs submitted to that infrastructure.
 
@@ -31,39 +31,38 @@ This guide provides an overview of the differences between agents and workers. I
 
 ## What's different
 
-1. **Command to build deployments:** 
-    
-    `prefect deployment build <entrypoint>` --> [`prefect deploy`](/concepts/deployments/#deployment-declaration-reference) 
-    
+1. **Command to build deployments:**
+
+    `prefect deployment build <entrypoint>` --> [`prefect deploy`](/concepts/deployments/#deployment-declaration-reference)
+
     Prefect will now automatically detect flows in your repo and provide a [wizard](/#step-5-deploy-the-flow) 🧙 to guide you through setting required attributes for your deployments.
 
-2. **Configuring remote flow code storage:** 
-    
+2. **Configuring remote flow code storage:**
+
     storage blocks --> [pull action](/concepts/deployments/#the-pull-action)
-    
+
     And you can still use an existing [storage block as your pull action](/guides/deployment/storage-guide/)!  The more general pull steps specification allows for explicit customization of the job that defines each run (for example, by adding an additional step that sets a working directory).
 
-3. **Configuring flow run infrastructure:** 
-    
-    run-infrastructure blocks --> [typed work pool](/concepts/work-pools/#worker-types) 
-    
+3. **Configuring flow run infrastructure:**
+
+    run-infrastructure blocks --> [typed work pool](/concepts/work-pools/#worker-types)
+
     Default infra config is now set on the typed work pool, and can be overwritten by both individual deployments or individual runs.
 
 4. **Managing multiple deployments:**
-    
-    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file.
 
+    Create and/or update many deployments at once through a [`prefect.yaml`](/concepts/deployments/#working-with-multiple-deployments) file.
 
 ## What's similar
 
 - Storage blocks can be set as the pull action in a `prefect.yaml` file.
 - Infrastructure blocks have similar configuration fields as typed work pools.
-- Deployment-level infra-overrides operate in much the same way. 
+- Deployment-level infra-overrides operate in much the same way.
 
     `infra_override` -> [`job_variable`](/concepts/deployments/#work-pool-fields)
 
 - The process for starting an agent and [starting a worker](/concepts/work-pools/#starting-a-worker) in your environment are virtually identical.
-    
+
     `prefect agent start --pool <work pool name>` --> `prefect worker start --pool <work pool name>`
 
     !!! Tip "If you use infrastructure-as-code"
@@ -78,7 +77,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     1. Any work pool infrastructure type other than `Prefect Agent` will work.
     2. Referencing the configuration you've set on the infrastructure block, set similar flow run infrastructure configuration on the work pool.
 
-2. [Start a worker](/concepts/work-pools/#starting-a-worker) to poll this work pool. You should see the command to start the worker as soon as you save your new work pool. 
+2. [Start a worker](/concepts/work-pools/#starting-a-worker) to poll this work pool. You should see the command to start the worker as soon as you save your new work pool.
 
     ```
     prefect worker start -p <work pool name>
@@ -94,8 +93,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
     ```
 
     !!! Note "For step 4, select `y` on last prompt to save the configuration for the deployment."
-        Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#working-with-multiple-deployments) for this repo. 
+        Saving the configuration for your deployment will result in a `prefect.yaml` file populated with your first deployment. You can use this YAML file to edit and [define multiple deployments](/concepts/deployments/#working-with-multiple-deployments) for this repo.
 
 4. In your `prefect.yaml` file, configure a [pull action](/guides/deployment/storage-guide/) referencing whatever configuration you used as your storage block.
 5. Continue to create more [deployments](/concepts/deployments/#deployment-declaration-reference) that use workers by either adding them to the `deployments` list in the `prefect.yaml` file and/or by continuing to use the deployment creation wizard.
-

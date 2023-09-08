@@ -22,10 +22,10 @@ The run context itself contains many internal objects used by Prefect to manage 
     ```bash
     $ export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
     $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
-    ```
+
+```
     </div>
     If the environment variable mocks an existing runtime attribute, the value is cast to the same type. This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. For complex types like `list` or `dict`, we suggest mocking them using [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
-
 
 ## Accessing runtime information
 
@@ -34,7 +34,6 @@ The `prefect.runtime` module is the home for all runtime context access. Each ma
 - `deployment`: Access information about the deployment for the current run
 - `flow_run`: Access information about the current flow run
 - `task_run`: Access information about the current task run
-
 
 For example:
 

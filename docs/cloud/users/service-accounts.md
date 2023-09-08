@@ -33,7 +33,7 @@ Service accounts are created at the organization level, but individual workspace
 
 !!! note "Service account roles"
     Service accounts are created at the organization level, and may then become members of workspaces within the organization.
-    
+
     A service account may only be a Member of an organization. It can never be an organization Admin. You may apply any valid _workspace-level_ role to a service account.
 
 ## Create a service account
@@ -46,12 +46,12 @@ Within your organization, on the **Service Accounts** page, select the **+** ico
 !!! note "Service account roles"
     A service account may only be a Member of an organization. You may apply any valid _workspace-level_ role to a service account when it is [added to a workspace](/cloud/workspaces/#workspace-sharing).
 
-Select **Create** to actually create the new service account. 
+Select **Create** to actually create the new service account.
 
 ![Creating a new service account in the Prefect Cloud UI.](/img/ui/create-service-account.png)
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
-You can change the API key and expiration for a service account by rotating the API key. Select **Rotate API Key** from the menu on the left side of the service account's information on this page. 
+You can change the API key and expiration for a service account by rotating the API key. Select **Rotate API Key** from the menu on the left side of the service account's information on this page.
 
 To delete a service account, select **Remove** from the menu on the left side of the service account's information.

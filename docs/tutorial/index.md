@@ -24,7 +24,7 @@ By the end of this tutorial you will have:
 2. [Added tasks to it](/tutorial/tasks/)
 3. [Deployed and run the flow](/tutorial/deployments/)
 
-These three topics will get most users ready for their first production deployment. 
+These three topics will get most users ready for their first production deployment.
 
 Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
 

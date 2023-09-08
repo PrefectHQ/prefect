@@ -57,7 +57,7 @@ Select **Create Workspace**. You'll be prompted to provide a name and descriptio
 
 Note that the **Owner** setting applies only to users who are members of Prefect Cloud organizations and have permission to create workspaces within the organization.
 
-Select **Save** to create the workspace. If you change your mind, select **Edit** from the options menu to modify the workspace details or to delete it. 
+Select **Save** to create the workspace. If you change your mind, select **Edit** from the options menu to modify the workspace details or to delete it.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 

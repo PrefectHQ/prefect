@@ -12,6 +12,7 @@ search:
 *Users* of Prefect Cloud are accounts for individuals created by signing up at [app.prefect.cloud](https://app.prefect.cloud). Users can also be added as a Member of other [Organizations](/cloud/organizations/) and [Workspaces](/cloud/workspaces/).
 
 ## User Settings
+
 Users can access their account in the [profile menu](https://app.prefect.cloud/my/profile), including:
 
 - Profile: Viewing and editing basic information, such as name.
@@ -21,5 +22,4 @@ Users can access their account in the [profile menu](https://app.prefect.cloud/m
 
 ## Roles
 
-Users can be granted [roles](/cloud/users/roles/) with their respective permission sets at the *Account* and *Workspace* levels. 
-
+Users can be granted [roles](/cloud/users/roles/) with their respective permission sets at the *Account* and *Workspace* levels.

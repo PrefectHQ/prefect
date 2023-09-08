@@ -14,7 +14,6 @@ Don't Panic! If you experience an error with Prefect, there are many paths to un
 * The issue could be with how you are authenticated, and whether or not you are connected to [Cloud](#cloud).
 * The issue might have to do with how your code is [executed](#execution).
 
-
 ## Upgrade
 
 Prefect is constantly evolving, adding new features and fixing bugs. Chances are that a patch has already been identified and released. Search existing [issues](https://github.com/PrefectHQ/prefect/issues) for similar reports and check out the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md). Upgrade to the newest version with the following command:
@@ -31,7 +30,6 @@ Different components may use different versions of Prefect:
 
 !!! note "Integration Versions"
     Keep in mind that [integrations](/integrations/) are versioned and released independently of the core Prefect library. They should be upgraded simultaneously with the core library, using the same method.
-
 
 ## Logs
 
@@ -56,7 +54,6 @@ export PREFECT_LOGGING_LEVEL=DEBUG
 
 The `DEBUG` logging level produces a high volume of logs so consider setting it back to `INFO` once any issues are resolved.
 
-
 ## Cloud
 
 When using Prefect Cloud, there are the additional concerns of authentication and authorization. The Prefect API authenticates users and service accounts - collectively known as actors - with API keys. Missing, incorrect, or expired API keys will result in a 401 response with detail `Invalid authentication credentials`. Use the following command to check your authentication, replacing `$PREFECT_API_KEY` with your API key:
@@ -75,10 +72,9 @@ curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/a
 ```
 
 !!! note "Formatting JSON"
-    Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#module-json.tool) for formatting JSON. Append the following to the end of the command above to make the output more readable: ` | python -m json.tool`
+    Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#module-json.tool) for formatting JSON. Append the following to the end of the command above to make the output more readable: `| python -m json.tool`
 
-Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting an agent or worker with the __Viewer__ role, will result in errors.
-
+Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting an agent or worker with the **Viewer** role, will result in errors.
 
 ## Execution
 

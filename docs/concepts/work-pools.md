@@ -29,7 +29,7 @@ In addition, users can control aspects of work pool behavior, like how many runs
 ### Work pool configuration
 
 You can configure work pools by using:
- 
+
 - Prefect CLI commands
 - Prefect Python API
 - Prefect UI
@@ -59,7 +59,7 @@ Optional configuration parameters you can specify to filter work on the pool inc
 | `--paused` | If provided, the work pool will be created in a paused state.                                  |
 | `--type`   | The type of infrastructure that can execute runs from this work pool. [default: prefect-agent] |
 
-For example, to create a work pool called `test-pool`, you would run this command: 
+For example, to create a work pool called `test-pool`, you would run this command:
 
 <div class="terminal">
 
@@ -77,6 +77,7 @@ Start an agent to pick up flows from the work pool:
 Inspect the work pool:
     prefect work-pool inspect 'test-pool'
 ```
+
 </div>
 
 On success, the command returns the details of the newly created work pool.
@@ -100,12 +101,11 @@ Each worker type is configured with a default base job template, making it easy 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
 ```bash
-$ prefect work-pool create --type process above-ground
+prefect work-pool create --type process above-ground
 ```
 
 We see these configuration options available in the Prefect UI:
 ![process work pool configuration options](/img/ui/process-work-pool-config.png)
-
 
 For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
 
@@ -122,7 +122,7 @@ work_pool:
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, users can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
-    
+
     Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
     
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
@@ -172,11 +172,11 @@ Workpool(
 ```
 </div>
 
-`prefect work-pool preview` displays scheduled flow runs for a specific work pool by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead. 
+`prefect work-pool preview` displays scheduled flow runs for a specific work pool by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead.
 
 <div class="terminal">
 ```bash
-$ prefect work-pool preview 'test-pool' --hours 12 
+$ prefect work-pool preview 'test-pool' --hours 12
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Scheduled Star… ┃ Run ID                     ┃ Name         ┃ Deployment ID               ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -195,10 +195,9 @@ $ prefect work-pool preview 'test-pool' --hours 12
 ```
 </div>
 
-
 ### Work Pool Status
-Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
 
+Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
 
 ### Pausing and deleting work pools
 
@@ -219,7 +218,7 @@ To delete a work pool through the Prefect CLI, use the `prefect work-pool delete
 
 ### Managing concurrency
 
-Each work pool can optionally restrict concurrent runs of matching flows. 
+Each work pool can optionally restrict concurrent runs of matching flows.
 
 For example, a work pool with a concurrency limit of 5 will only release new work if fewer than 5 matching runs are currently in a `Running` or `Pending` state. If 3 runs are `Running` or `Pending`, polling the pool for work will only result in 2 new runs, even if there are many more available, to ensure that the concurrency limit is not exceeded.
 
@@ -239,11 +238,11 @@ Work queues can also have their own concurrency limits. Note that each queue is 
 
 Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
-Priority is evaluated to determine the order in which flow runs are submitted for execution. 
+Priority is evaluated to determine the order in which flow runs are submitted for execution.
 If all flow runs are capable of being executed with no limitation due to concurrency or otherwise, priority is still used to determine order of submission, but there is no impact to execution.
 If not all flow runs can be executed, usually as a result of concurrency limits, priority is used to determine which queues receive precedence to submit runs for execution.
 
-Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission. 
+Priority for flow run submission proceeds from the highest priority to the lowest priority. In the preceding example, all work from the "critical" queue (priority 1) will be submitted, before any work is submitted from "high" (priority 5). Once all work has been submitted from priority queue "critical", work from the "high" queue will begin submission.
 
 If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run submission goes back to ensuring all scheduled work is first satisfied from the highest priority queue, until it is empty, in waterfall fashion.
 
@@ -301,6 +300,7 @@ You must start a worker within an environment that can access or create the infr
     `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
 
 ### Worker status
+
 Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it sends regular heartbeat messages to the Prefect API. If a worker has missed three heartbeats, it is considered offline. By default, a worker is considered offline a maximum of 90 seconds after it stopped sending heartbeats, but the threshold can be configured via the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
 ### Starting a worker
@@ -328,7 +328,7 @@ Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
 ```
 </div>
-In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag. 
+In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag.
 For example, to limit a worker to five concurrent flow runs:
 <div class="terminal">
 ```bash
@@ -338,7 +338,7 @@ prefect worker start --pool "my-pool" --limit 5
 
 ### Configuring prefetch
 
-By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. 
+By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time.
 
 In some cases, infrastructure will take longer than 10 seconds to start the flow run. The prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 

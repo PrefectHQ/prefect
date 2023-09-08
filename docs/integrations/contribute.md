@@ -28,6 +28,7 @@ Building your own custom block is simple!
 1. Define the methods of the block.
 
 For example, this is how the [Secret block is implemented](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/system.py#L76-L102):
+
 ```python
 from pydantic import Field, SecretStr
 from prefect.blocks.core import Block
@@ -83,14 +84,18 @@ If you'd like to help contribute to fix an issue or add a feature to any of our 
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
 pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Insert an entry to the Integration's CHANGELOG.md
 7. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
 pre-commit install
 ```
+
 8. `git commit`, `git push`, and create a pull request

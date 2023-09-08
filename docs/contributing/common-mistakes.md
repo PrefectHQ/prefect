@@ -42,6 +42,7 @@ async def test_example(client):
 ```
 
 Note: requests to nested URLs may exhibit the *opposite* behavior and require no trailing slash:
+
 ```python
 async def test_nested_example(client):
     response = await client.post("/my_route/filter/")
@@ -52,7 +53,6 @@ async def test_nested_example(client):
 ```
 
 **Reference:** "HTTPX disabled redirect following by default" in [`0.22.0`](https://github.com/encode/httpx/blob/master/CHANGELOG.md#0200-13th-october-2021).
-
 
 ## `pytest.PytestUnraisableExceptionWarning` or `ResourceWarning`
 

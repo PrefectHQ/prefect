@@ -38,11 +38,9 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 | id       | String | yes       | The client-provided identifier of this event                         |
 | follows  | String | no        | The ID of an event that is known to have occurred prior to this one. |
 
-
 ## Event Grammar
 
 Generally, events have a consistent and informative grammar - an event describes a resource and an action that the resource took or that was taken on that resource. For example, events emitted by Prefect objects take the form of:
-
 
 ```
 prefect.block.write-method.called
@@ -55,7 +53,6 @@ prefect-cloud.user.logged-in
 Events are automatically emitted by all Prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events will contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the Prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) via authenticated http request.
 
 The Prefect SDK provides a method that emits events, for use in arbitrary python code that may not be a task or flow. Running the following code will emit events to Prefect Cloud, which will validate and ingest the event data.
-
 
 ```python3
 from prefect.events import emit_event
@@ -70,7 +67,6 @@ some_function()
 Prefect Cloud offers [programmable webhooks](/guides/webhooks/) to receive HTTP requests from other systems and translate them into events within your workspace.  Webhooks can emit [pre-defined static events](/guides/webhooks/#static-webhook-events), dynamic events that [use portions of the incoming HTTP request](/guides/webhooks/#dynamic-webhook-events), or events derived from [CloudEvents](/guides/webhooks/#accepting-cloudevents).
 
 Events emitted from any source will appear in the [event feed](/ui/events/), where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
-
 
 ## Resources
 
@@ -123,7 +119,6 @@ The event feed is the primary place to view, search, and filter events to unders
 You can view more information about an event by clicking into it, where you can view the full details of an event's resource, related resources, and its payload.
 
 ![Event detail](/img/ui/event-detail.png)
-
 
 ## Reacting to events
 

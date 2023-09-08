@@ -60,7 +60,7 @@ When the container instance is running, go to Prefect Cloud and select the [**Wo
 
 ### Container create options
 
-Let's break down the details of the `az container create` command used here. 
+Let's break down the details of the `az container create` command used here.
 
 The `az container create command` creates a new ACI container.
 
@@ -83,7 +83,6 @@ You can also build custom images and push them to a public container registry so
 Following the example of the [Flow deployments](/tutorial/deployments/) tutorial, let's create a deployment that can be executed by the agent on this container instance.
 
 In an environment where you have [installed Prefect](/getting-started/installation/), create a new folder called `health_test`, and within it create a new file called `health_flow.py` containing the following code.
-
 
 ```python
 import prefect
@@ -129,7 +128,7 @@ prefect deployment build --infra process --storage-block azure/flowsville/health
 Once created, any flow runs for this deployment will be picked up by the agent running on this container instance.
 
 !!! note "Infrastructure and storage"
-    This Prefect deployment example was built using the [`Process`](/concepts/infrastructure/#process) infrastructure type and Azure Blob Storage. 
+    This Prefect deployment example was built using the [`Process`](/concepts/infrastructure/#process) infrastructure type and Azure Blob Storage.
 
     You might wonder why your deployment needs process infrastructure rather than [`DockerContainer`](/concepts/infrastructure/#dockercontainer) infrastructure when you are deploying a Docker image to ACI.
 

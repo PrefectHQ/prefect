@@ -96,7 +96,7 @@ Service accounts are created at the organization level, but may be shared to ind
 
 !!! note "Service account roles"
     Service accounts are created at the organization level, and may then become members of workspaces within the organization.
-    
+
     A service account may only be a Member of an organization. It can never be an organization Admin. You may apply any valid _workspace-level_ role to a service account.
 
 See the [service accounts](/ui/service-accounts/) documentation for more information.
@@ -127,7 +127,7 @@ Prefect Cloud enables you to configure both [organization and workspace roles](/
 - Organization roles apply to users across an organization. These roles are Admin and Member.
 - Workspace roles apply to users within a specific workspace.
 
-Select **Roles** within an organization to see the configured workspace roles for your organization. 
+Select **Roles** within an organization to see the configured workspace roles for your organization.
 
 ![Organization roles in Prefect Cloud.](/img/ui/org-roles.png)
 

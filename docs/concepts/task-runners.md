@@ -23,7 +23,7 @@ Task runners are not required for task execution. If you call a task function di
 
 ## Task runner overview
 
-Calling a task function from within a flow, using the default task settings, executes the function sequentially. Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling multiple tasks in a flow causes them to run in order. 
+Calling a task function from within a flow, using the default task settings, executes the function sequentially. Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling multiple tasks in a flow causes them to run in order.
 
 However, that's not the only way to run tasks!
 
@@ -31,14 +31,14 @@ You can use the `.submit()` method on a task function to submit the task to a _t
 
 Using the `.submit()` method to submit a task also causes the task run to return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), a Prefect object that contains both any _data_ returned by the task function and a [`State`](/api-ref/server/schemas/states/), a Prefect object indicating the state of the task run.
 
-Prefect currently provides the following built-in task runners: 
+Prefect currently provides the following built-in task runners:
 
-- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
+- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially.
 - [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
-In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Integrations](/integrations/catalog/). 
+In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Integrations](/integrations/catalog/).
 
-- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
+- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/).
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
 !!! note "Concurrency versus parallelism"
@@ -50,7 +50,7 @@ In addition, the following Prefect-developed task runners for parallel or distri
 
 ## Using a task runner
 
-You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. 
+You do not need to specify a task runner for a flow unless your tasks require a specific type of execution.
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
@@ -144,12 +144,12 @@ if __name__ == "__main__":
 ```
 
 !!! tip "Guarding main"
-    Note that you should guard the `main` function by using `if __name__ == "__main__"` to avoid issues with parallel processing. 
+    Note that you should guard the `main` function by using `if __name__ == "__main__"` to avoid issues with parallel processing.
 
 This script outputs the following logs demonstrating the use of the Dask task runner:
 
 <div class="terminal">
-```bash 
+```bash
 120:14:29.785 | INFO    | prefect.engine - Created flow run 'ivory-caiman' for flow 'sequential-flow'
 20:14:29.785 | INFO    | Flow run 'ivory-caiman' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
 20:14:29.880 | INFO    | Flow run 'ivory-caiman' - Created task run 'hello_local-7633879f-0' for task 'hello_local'
@@ -170,7 +170,6 @@ Hello!
 20:14:33.399 | INFO    | Flow run 'ivory-caiman' - Finished in state Completed('All states completed.')
 ```
 </div>
-
 
 ## Using results from submitted tasks
 
@@ -308,7 +307,6 @@ def my_flow():
         ... # Task action if the task is still running
 ```
 
-
 You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
 
 ```python
@@ -420,7 +418,6 @@ hello_world()
 
 Note that `.result()` also limits Prefect's ability to track task dependencies. In the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
 
-
 !!! note "Calling `.result()` is blocking"
     When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
 
@@ -475,7 +472,7 @@ def my_flow():
 
 !!! warning "Multiprocessing safety"
     Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
-    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter 
+    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter
     warnings and errors.
 
 If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores on your machine. The default provides a mix of processes and threads that should work well for
@@ -496,7 +493,7 @@ To configure, you need to provide a `cluster_class`. This can be:
 
 - A string specifying the import path to the cluster class (for example, `"dask_cloudprovider.aws.FargateCluster"`)
 - The cluster class itself
-- A function for creating a custom cluster. 
+- A function for creating a custom cluster.
 
 You can also configure `cluster_kwargs`, which takes a dictionary of keyword arguments to pass to `cluster_class` when starting the flow run.
 
@@ -512,7 +509,7 @@ DaskTaskRunner(
 ### Connecting to an existing cluster
 
 Multiple Prefect flow runs can all use the same existing Dask cluster. You
-might manage a single long-running Dask cluster (maybe using the Dask 
+might manage a single long-running Dask cluster (maybe using the Dask
 [Helm Chart](https://docs.dask.org/en/latest/setup/kubernetes-helm.html)) and
 configure flows to connect to it during execution. This has a few downsides
 when compared to using a temporary cluster (as described above):
@@ -522,7 +519,7 @@ when compared to using a temporary cluster (as described above):
 - Multiple flow runs may compete for resources. Dask tries to do a good job
   sharing resources between tasks, but you may still run into issues.
 
-That said, you may prefer managing a single long-running cluster. 
+That said, you may prefer managing a single long-running cluster.
 
 To configure a `DaskTaskRunner` to connect to an existing cluster, pass in the address of the
 scheduler to the `address` argument:
@@ -654,11 +651,9 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
 
 !!! warning "Ray environment limitations"
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
-    
+
     Ray's support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
 
     Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
 
     See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
-
-
