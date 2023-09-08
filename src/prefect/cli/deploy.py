@@ -448,11 +448,6 @@ async def _run_single_deploy(
         for action in deploy_config.get("build", actions.get("build")) or []
     )
 
-    docker_push_step_exists = any(
-        any(step in action for step in docker_push_steps)
-        for action in deploy_config.get("push", actions.get("push")) or []
-    )
-
     update_work_pool_image = False
 
     build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
@@ -493,6 +488,11 @@ async def _run_single_deploy(
 
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
+
+    docker_push_step_exists = any(
+        any(step in action for step in docker_push_steps)
+        for action in deploy_config.get("push", actions.get("push")) or []
+    )
 
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
