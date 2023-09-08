@@ -448,6 +448,11 @@ async def _run_single_deploy(
         for action in deploy_config.get("build", actions.get("build")) or []
     )
 
+    docker_push_step_exists = any(
+        any(step in action for step in docker_push_steps)
+        for action in deploy_config.get("push", actions.get("push")) or []
+    )
+
     update_work_pool_image = False
 
     build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
@@ -489,15 +494,11 @@ async def _run_single_deploy(
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
 
-    docker_push_step_exists = any(
-        any(step in action for step in docker_push_steps)
-        for action in deploy_config.get("push", actions.get("push")) or []
-    )
-
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
         is_interactive()
         and not ci
+        and not deploy_config.get("pull")
         and not docker_push_step_exists
         and confirm(
             (
@@ -948,8 +949,8 @@ async def _check_for_build_docker_image_step(
 
 
 async def _generate_actions_for_remote_flow_storage(
-    console: Console, deploy_config: dict, actions: list[dict]
-) -> dict[str, list[dict[str, Any]]]:
+    console: Console, deploy_config: dict, actions: List[Dict]
+) -> Dict[str, List[Dict[str, Any]]]:
     storage_provider_to_collection = {
         "s3": "prefect_aws",
         "gcs": "prefect_gcp",
@@ -1011,7 +1012,7 @@ async def _generate_default_pull_action(
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
-        if is_interactive():
+        if is_interactive() and not ci:
             if not confirm(
                 "Does your Dockerfile have a line that copies the current working"
                 " directory into your image?"
