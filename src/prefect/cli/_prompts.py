@@ -3,7 +3,6 @@ Utilities for prompting the user for input
 """
 import os
 import shutil
-import sys
 from datetime import timedelta
 from getpass import GetPassWarning
 from typing import Any, Dict, List, Optional
@@ -34,7 +33,7 @@ from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import PREFECT_UI_URL
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
 
@@ -463,7 +462,7 @@ async def prompt_push_custom_docker_image(
             except ImportError:
                 console.print("Installing prefect-docker...")
                 await run_process(
-                    [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                    [get_sys_executable(), "-m", "pip", "install", "prefect-docker"],
                     stream_output=True,
                 )
                 import prefect_docker

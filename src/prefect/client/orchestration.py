@@ -16,7 +16,6 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -2169,7 +2168,12 @@ class PrefectClient:
 
         return await resolve_inner(datadoc)
 
-    async def send_worker_heartbeat(self, work_pool_name: str, worker_name: str):
+    async def send_worker_heartbeat(
+        self,
+        work_pool_name: str,
+        worker_name: str,
+        heartbeat_interval_seconds: Optional[float] = None,
+    ):
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -2179,7 +2183,10 @@ class PrefectClient:
         """
         await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={"name": worker_name},
+            json={
+                "name": worker_name,
+                "heartbeat_interval_seconds": heartbeat_interval_seconds,
+            },
         )
 
     async def read_workers_for_work_pool(
@@ -2652,10 +2659,3 @@ class PrefectClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectClient` instead.")
-class OrionClient(PrefectClient):
-    """
-    Deprecated. Use `PrefectClient` instead.
-    """
