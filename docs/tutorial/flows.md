@@ -129,6 +129,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 Now the output looks more consistent _and_, more importantly, our statistics are stored in the Prefect backend and displayed in the UI for this flow run:
 
 <div class="terminal">
+
 ```bash
 12:47:42.792 | INFO    | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
 12:47:43.016 | INFO    | Flow run 'ludicrous-warthog' - PrefectHQ/prefect repository statistics 🤓:
@@ -136,16 +137,18 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 12:47:43.042 | INFO    | Flow run 'ludicrous-warthog' - Forks 🍴 : 1245
 12:47:45.008 | INFO    | Flow run 'ludicrous-warthog' - Finished in state Completed()
 ```
+
 </div>
 
 !!! tip "`log_prints=True`"
     We could have achieved the exact same outcome by using Prefect's convenient `log_prints` keyword argument in the `flow` decorator:
+
     ```python
     @flow(log_prints=True)
     def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-        ...
+    ...
 
-```
+    ```
 
 !!! warning "Logging vs Artifacts"
     The example above is for educational purposes.
