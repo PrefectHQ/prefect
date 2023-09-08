@@ -11,6 +11,8 @@ Available attributes:
     - `name`: the name of the task run
     - `tags`: the task run's set of tags
     - `parameters`: the parameters the task was called with
+    - `run_count`: the number of times this task run has been run
+    - `task_name`: the name of the task
 """
 import os
 from typing import Any, Dict, List, Optional
