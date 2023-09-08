@@ -140,7 +140,7 @@ def get_tags() -> List[str]:
 def get_run_count() -> int:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
-    if flow_run_ctx is not None and run_id is None:
+    if flow_run_ctx is None and run_id is None:
         return 0
     elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
