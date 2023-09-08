@@ -1768,7 +1768,21 @@ async def orchestrate_task_run(
                     )
                     terminal_state.state_details.cache_key = cache_key
 
-            state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+            # Defer to user to decide whether failure is retriable
+            if (
+                terminal_state.is_failed()
+                and await _check_task_failure_retriable(task, task_run, terminal_state)
+                is False
+            ):
+                logger.info("Task was deemed not retriable.")
+                state = await propose_state(
+                    client, terminal_state, task_run_id=task_run.id, force=True
+                )
+            else:
+                state = await propose_state(
+                    client, terminal_state, task_run_id=task_run.id
+                )
+
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
                 initial_state=last_state,
@@ -2352,6 +2366,38 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 )
             else:
                 logger.info(f"Hook {hook.__name__!r} finished running successfully")
+
+
+async def _check_task_failure_retriable(
+    task: Task, task_run: TaskRun, state: State
+) -> bool:
+    """Run the `is_retriable` callable for a task, making sure to catch and log any errors that occur."""
+    # By default, a task is retriable if it is in a `Failed` state
+    if task.is_retriable is None:
+        return True
+
+    logger = task_run_logger(task_run)
+    try:
+        logger.debug(
+            f"Running `is_retriable` check {task.is_retriable!r} for task {task.name!r}"
+        )
+        if is_async_fn(task.is_retriable):
+            return await task.is_retriable(task=task, task_run=task_run, state=state)
+        else:
+            return await from_async.call_in_new_thread(
+                create_call(
+                    task.is_retriable, task=task, task_run=task_run, state=state
+                )
+            )
+    except Exception:
+        logger.error(
+            (
+                "An error was encountered while running `is_retriable` check"
+                f" {task.is_retriable.__name__!r} for task {task.name!r}"
+            ),
+            exc_info=True,
+        )
+        return False
 
 
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:

@@ -168,6 +168,9 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        is_retriable: A callable run when a task run returns a Failed state. Should return `True` if the
+            task should continue to its retry policy, and `False` if the task should end as failed.
+            Defaults to `None`, indicating the task should always continue to its retry policy.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -204,6 +207,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -331,6 +335,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.is_retriable = is_retriable
 
     def with_options(
         self,
@@ -361,6 +366,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -395,6 +401,10 @@ class Task(Generic[P, R]):
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
+            is_retriable: A callable that, given an unsuccessful terminal state, returns `True` if
+                the task should continue to its retry policy, and `False` if the task should
+                terminate with its unsuccessful state. Defaults to `None`, which indicates that the
+                task should always continue to its retry policy.
 
         Returns:
             A new `Task` instance.
@@ -482,6 +492,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
+            is_retriable=is_retriable or self.is_retriable,
         )
 
     @overload
@@ -941,6 +952,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -973,6 +985,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1028,6 +1041,10 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        is_retriable: A callable that, given an unsuccessful terminal state, returns `True` if the
+            task should continue to its retry policy, and `False` if the task should terminate with
+            its unsuccessful state. Defaults to `None`, which indicates that the task should always
+            continue to its retry policy.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1102,6 +1119,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                is_retriable=is_retriable,
             ),
         )
     else:
@@ -1129,5 +1147,6 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                is_retriable=is_retriable,
             ),
         )
