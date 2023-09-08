@@ -19,7 +19,7 @@ Work pools and workers bridge the Prefect _orchestration environment_ with your 
 
 ## Work pool overview
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](#agent-overview)) to poll the work pool for flow runs to execute. Push work pools can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](#agent-overview)) to poll the work pool for flow runs to execute. [Push work pools](/guides/deployment/push-work-pools) can submit runs directly to serverless infrastructure providers like Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker.
 
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) workers through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
@@ -195,6 +195,11 @@ $ prefect work-pool preview 'test-pool' --hours 12
 ```
 </div>
 
+
+### Work Pool Status
+Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
+
+
 ### Pausing and deleting work pools
 
 A work pool can be paused at any time to stop the delivery of work to workers. Workers will not receive any work when polling a paused pool.
@@ -294,6 +299,9 @@ You must start a worker within an environment that can access or create the infr
 
 !!! tip "`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers"
     `PREFECT_API_URL` must be set for the environment in which your worker is running. You must also have a user or service account with the `Worker` role, which can be configured by setting the `PREFECT_API_KEY`.
+
+### Worker status
+Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it sends regular heartbeat messages to the Prefect API. If a worker has missed three heartbeats, it is considered offline. By default, a worker is considered offline a maximum of 90 seconds after it stopped sending heartbeats, but the threshold can be configured via the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
 ### Starting a worker
 

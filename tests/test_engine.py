@@ -1,9 +1,9 @@
 import asyncio
 import statistics
 import sys
+import threading
 import time
 from contextlib import contextmanager
-import threading
 from typing import List
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -12,7 +12,6 @@ import anyio
 import pendulum
 import pytest
 from pydantic import BaseModel
-from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 
 import prefect.flows
 from prefect import engine, flow, task
@@ -43,9 +42,9 @@ from prefect.exceptions import (
     PausedRun,
     SignatureMismatchError,
 )
-from prefect.server.schemas.core import FlowRun
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
+from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
@@ -54,12 +53,16 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
-    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     temporary_settings,
 )
 from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import (
+    BaseTaskRunner,
+    SequentialTaskRunner,
+    TaskConcurrencyType,
+)
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote

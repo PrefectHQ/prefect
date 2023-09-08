@@ -1,15 +1,15 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
 import pytest
 import readchar
-from typer import Exit
 import yaml
-from prefect.server import models
-from prefect.client import schemas
+from typer import Exit
 
+from prefect.client import schemas
+from prefect.server import models
 from prefect.testing.cli import invoke_and_assert
 
 

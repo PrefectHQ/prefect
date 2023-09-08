@@ -34,6 +34,7 @@ if sys.version_info < (3, 8):
 
 
 # Import user-facing API
+from prefect.runner import Runner, serve
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
@@ -99,7 +100,6 @@ from prefect._internal.compatibility.deprecated import (
     register_renamed_module,
 )
 
-register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
 register_renamed_module(
     "prefect.client.orchestration",
     "prefect.client.orchestration",
@@ -168,4 +168,5 @@ __all__ = [
     "task",
     "Task",
     "unmapped",
+    "Runner",
 ]

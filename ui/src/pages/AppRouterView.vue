@@ -62,16 +62,19 @@
 }
 
 .app-router-view { @apply
-  text-foreground
-  bg-background-600
-  dark:bg-background-400
   flex
   flex-col
+  bg-no-repeat
+  overflow-auto;
+  --prefect-scroll-margin: theme('spacing.20');
+  height: 100vh;
+  background-image: url('/decorative_iso-pixel-grid_light.svg');
+  background-attachment: fixed;
+  background-position: bottom -140px left -140px;
 }
 
-.app-router-view {
-  --prefect-scroll-margin: theme('spacing.20');
-  min-height: 100vh;
+.dark .app-router-view {
+  background-image: url('/decorative_iso-pixel-grid_dark.svg');
 }
 
 .app-router-view__prefect-icon { @apply
@@ -80,16 +83,12 @@
 }
 
 .app-router-view__menu-icon { @apply
-  text-white
   w-6
   h-6
   cursor-pointer
 }
 
-.app-router-view__view { @apply
-  relative
-  z-0;
-
+.app-router-view__view {
   /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
   flex: 1 0 1px;
   height: 100%;

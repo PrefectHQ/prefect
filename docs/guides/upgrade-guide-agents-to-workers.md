@@ -1,4 +1,4 @@
-# How to Upgrade from Agents to Workers
+# Upgrade from Agents to Workers
 
 Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment. 
 
@@ -22,7 +22,7 @@ This guide provides an overview of the differences between agents and workers. I
 
 ### New `prefect.yaml` file for managing multiple deployments
 
-- More easily define many multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
+- More easily define multiple deployments at once through a [`prefect.yaml`](/concepts/deployments/#managing-deployments) file.
 - Prefect provides [deployment actions](/concepts/deployments/#deployment-actions) that allow you to automatically build images for your flows.
 - [Templating](/concepts/deployments/#templating-options) enables [dryer deployment definitions](/concepts/deployments/#reusing-configuration-across-deployments).
 - You can use a deployment creation [wizard now](/#step-5-deploy-the-flow)! 🧙

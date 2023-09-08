@@ -46,6 +46,11 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.visualization import (
+    VisualizationUnsupportedError,
+    get_task_viz_tracker,
+    track_viz_task,
+)
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -171,6 +176,7 @@ class Task(Generic[P, R]):
         is_retriable: A callable run when a task run returns a Failed state. Should return `True` if the
             task should continue to its retry policy, and `False` if the task should end as failed.
             Defaults to `None`, indicating the task should always continue to its retry policy.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -208,6 +214,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -336,6 +343,7 @@ class Task(Generic[P, R]):
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.is_retriable = is_retriable
+        self.viz_return_value = viz_return_value
 
     def with_options(
         self,
@@ -367,6 +375,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        viz_return_value: Optional[Any] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -405,6 +414,7 @@ class Task(Generic[P, R]):
                 the task should continue to its retry policy, and `False` if the task should
                 terminate with its unsuccessful state. Defaults to `None`, which indicates that the
                 task should always continue to its retry policy.
+            viz_return_value: An optional value to return when the task dependency tree is visualized.
 
         Returns:
             A new `Task` instance.
@@ -493,6 +503,7 @@ class Task(Generic[P, R]):
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
             is_retriable=is_retriable or self.is_retriable,
+            viz_return_value=viz_return_value or self.viz_return_value,
         )
 
     @overload
@@ -540,6 +551,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return_type = "state" if return_state else "result"
+
+        task_run_tracker = get_task_viz_tracker()
+        if task_run_tracker:
+            return track_viz_task(
+                self.isasync, self.name, parameters, self.viz_return_value
+            )
 
         return enter_task_run_engine(
             self,
@@ -738,6 +755,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.submit()` is not currently supported by `flow.visualize()`"
+            )
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -909,6 +932,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.map()` is not currently supported by `flow.visualize()`"
+            )
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
@@ -953,6 +982,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -986,6 +1016,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    viz_return_value: Any = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1045,6 +1076,7 @@ def task(
             task should continue to its retry policy, and `False` if the task should terminate with
             its unsuccessful state. Defaults to `None`, which indicates that the task should always
             continue to its retry policy.
+        viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1094,6 +1126,7 @@ def task(
         >>> def my_task():
         >>>     return "hello"
     """
+
     if __fn:
         return cast(
             Task[P, R],
@@ -1120,6 +1153,7 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 is_retriable=is_retriable,
+                viz_return_value=viz_return_value,
             ),
         )
     else:
@@ -1148,5 +1182,6 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 is_retriable=is_retriable,
+                viz_return_value=viz_return_value,
             ),
         )

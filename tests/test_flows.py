@@ -1,11 +1,12 @@
+import asyncio
+import datetime
 import enum
 import inspect
 import os
-import sys
-import asyncio
-import time
 import signal
-import regex as re
+import sys
+import time
+from itertools import combinations
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -13,12 +14,20 @@ from unittest.mock import MagicMock, call, create_autospec
 import anyio
 import pydantic
 import pytest
+import regex as re
 
-from prefect import flow, get_run_logger, tags, task
-from prefect import runtime
 import prefect
+import prefect.exceptions
+from prefect import flow, get_run_logger, runtime, tags, task
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.context import PrefectObjectRegistry
+from prefect.deployments.runner import RunnerDeployment
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
@@ -31,7 +40,7 @@ from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
-from prefect.settings import temporary_settings, PREFECT_FLOW_DEFAULT_RETRIES
+from prefect.settings import PREFECT_FLOW_DEFAULT_RETRIES, temporary_settings
 from prefect.states import (
     Cancelled,
     Paused,
@@ -42,6 +51,7 @@ from prefect.states import (
 )
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
+    AsyncMock,
     exceptions_equal,
     flaky_on_windows,
     get_most_recent_flow_run,
@@ -50,7 +60,11 @@ from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
-import prefect.exceptions
+
+
+@flow
+def test_flow():
+    pass
 
 
 @pytest.fixture
@@ -376,6 +390,54 @@ class TestFlowWithOptions:
         with_options_params.remove("self")
 
         assert flow_params == with_options_params
+
+    def get_flow_run_name():
+        name = "test"
+        date = "todays_date"
+        return f"{name}-{date}"
+
+    @pytest.mark.parametrize(
+        "name, match",
+        [
+            (1, "Expected string for flow parameter 'name'; got int instead."),
+            (
+                get_flow_run_name,
+                (
+                    "Expected string for flow parameter 'name'; got function instead."
+                    " Perhaps you meant to call it?"
+                ),
+            ),
+        ],
+    )
+    def test_flow_name_non_string_raises(self, name, match):
+        with pytest.raises(TypeError, match=match):
+            Flow(
+                name=name,
+                fn=lambda **kwargs: 42,
+                version="A",
+                description="B",
+                flow_run_name="hi",
+            )
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "test",
+            (get_flow_run_name()),
+        ],
+    )
+    def test_flow_name_string_succeeds(
+        self,
+        name,
+    ):
+        f = Flow(
+            name=name,
+            fn=lambda **kwargs: 42,
+            version="A",
+            description="B",
+            flow_run_name="hi",
+        )
+        assert f.name == name
 
 
 class TestFlowCall:
@@ -2984,3 +3046,197 @@ class TestFlowHooksOnCrashed:
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow._run()
         my_mock.assert_not_called()
+
+
+class TestFlowToDeployment:
+    async def test_to_deployment_returns_runner_deployment(self):
+        deployment = test_flow.to_deployment(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            description="This is a test",
+            version="alpha",
+            triggers=[
+                {
+                    "name": "Happiness",
+                    "enabled": True,
+                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                    "expect": ["prefect.flow-run.Completed"],
+                    "match_related": {
+                        "prefect.resource.name": "seed",
+                        "prefect.resource.role": "flow",
+                    },
+                }
+            ],
+        )
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test"
+        assert deployment.tags == ["price", "luggage"]
+        assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.description == "This is a test"
+        assert deployment.version == "alpha"
+        assert deployment.triggers == [
+            DeploymentTrigger(
+                name="Happiness",
+                enabled=True,
+                match={"prefect.resource.id": "prefect.flow-run.*"},
+                expect=["prefect.flow-run.Completed"],
+                match_related={
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            )
+        ]
+
+    async def test_to_deployment_accepts_interval(self):
+        deployment = test_flow.to_deployment(name="test", interval=3600)
+
+        assert isinstance(deployment.schedule, IntervalSchedule)
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+
+    async def test_to_deployment_accepts_cron(self):
+        deployment = test_flow.to_deployment(name="test", cron="* * * * *")
+
+        assert deployment.schedule == CronSchedule(cron="* * * * *")
+
+    async def test_to_deployment_accepts_rrule(self):
+        deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+
+        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
+            )
+        ],
+    )
+    def test_to_deployment_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            test_flow.to_deployment(__file__, **kwargs)
+
+
+class TestFlowServe:
+    @pytest.fixture(autouse=True)
+    async def mock_runner_start(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.cli.flow.Runner.start", mock)
+        return mock
+
+    async def test_serve_prints_message(self, capsys):
+        await test_flow.serve("test")
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your flow 'test-flow' is being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "$ prefect deployment run 'test-flow/test'" in captured.out
+
+    async def test_serve_creates_deployment(self, prefect_client: PrefectClient):
+        await test_flow.serve(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            description="This is a test",
+            version="alpha",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment is not None
+        # Flow.serve should created deployments with a work queue or work pool
+        assert deployment.work_pool_name is None
+        assert deployment.work_queue_name is None
+        assert deployment.name == "test"
+        assert deployment.tags == ["price", "luggage"]
+        assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.description == "This is a test"
+        assert deployment.version == "alpha"
+
+    async def test_serve_handles__file__(self, prefect_client: PrefectClient):
+        await test_flow.serve(__file__)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="test-flow/test_flows"
+        )
+
+        assert deployment.name == "test_flows"
+
+    async def test_serve_creates_deployment_with_interval_schedule(
+        self, prefect_client: PrefectClient
+    ):
+        await test_flow.serve(
+            "test",
+            interval=3600,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment is not None
+        assert isinstance(deployment.schedule, IntervalSchedule)
+        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+
+    async def test_serve_creates_deployment_with_cron_schedule(
+        self, prefect_client: PrefectClient
+    ):
+        await test_flow.serve("test", cron="* * * * *")
+
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment is not None
+        assert deployment.schedule == CronSchedule(cron="* * * * *")
+
+    async def test_serve_creates_deployment_with_rrule_schedule(
+        self, prefect_client: PrefectClient
+    ):
+        await test_flow.serve("test", rrule="FREQ=MINUTELY")
+
+        deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
+
+        assert deployment is not None
+        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {**d1, **d2}
+            for d1, d2 in combinations(
+                [
+                    {"interval": 3600},
+                    {"cron": "* * * * *"},
+                    {"rrule": "FREQ=MINUTELY"},
+                    {"schedule": CronSchedule(cron="* * * * *")},
+                ],
+                2,
+            )
+        ],
+    )
+    async def test_serve_raises_on_multiple_schedules(self, kwargs):
+        expected_message = (
+            "Only one of interval, cron, rrule, or schedule can be provided."
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            await test_flow.serve(__file__, **kwargs)
+
+    async def test_serve_starts_a_runner(self, mock_runner_start):
+        """
+        This test only makes sure Runner.start() is called. The actual
+        functionality of the runner is tested in test_runner.py
+        """
+        await test_flow.serve("test")
+
+        mock_runner_start.assert_awaited_once()

@@ -8,7 +8,6 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, validator
 
-
 import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
@@ -37,7 +36,12 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
+from prefect.plugins import load_prefect_collections
+from prefect.settings import (
+    PREFECT_WORKER_HEARTBEAT_SECONDS,
+    PREFECT_WORKER_PREFETCH_SECONDS,
+    get_current_settings,
+)
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.slugify import slugify
@@ -46,7 +50,6 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
-from prefect.plugins import load_prefect_collections
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
@@ -321,6 +324,7 @@ class BaseWorker(abc.ABC):
         prefetch_seconds: Optional[float] = None,
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
+        heartbeat_interval_seconds: Optional[int] = None,
     ):
         """
         Base class for all Prefect workers.
@@ -353,6 +357,9 @@ class BaseWorker(abc.ABC):
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+        )
+        self.heartbeat_interval_seconds = (
+            heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
         self._work_pool: Optional[WorkPool] = None
@@ -679,7 +686,9 @@ class BaseWorker(abc.ABC):
     async def _send_worker_heartbeat(self):
         if self._work_pool:
             await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name, worker_name=self.name
+                work_pool_name=self._work_pool_name,
+                worker_name=self.name,
+                heartbeat_interval_seconds=self.heartbeat_interval_seconds,
             )
 
     async def sync_with_backend(self):

@@ -504,6 +504,23 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
 
+    def only_filters_on_id(self):
+        return (
+            self.id is not None
+            and (self.id.any_ and not self.id.not_any_)
+            and self.name is None
+            and self.tags is None
+            and self.deployment_id is None
+            and self.work_queue_name is None
+            and self.state is None
+            and self.flow_version is None
+            and self.start_time is None
+            and self.expected_start_time is None
+            and self.next_scheduled_start_time is None
+            and self.parent_task_run_id is None
+            and self.idempotency_key is None
+        )
+
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
 

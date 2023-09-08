@@ -7,26 +7,23 @@ from unittest.mock import ANY
 import anyio
 import httpx
 import pytest
+import readchar
+import respx
+from typer import Exit
 
 import prefect
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    temporary_settings,
     get_current_settings,
+    temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
-from prefect.settings import PREFECT_API_URL
-
-from prefect.client.schemas.actions import WorkPoolCreate
-import readchar
-import respx
-
-from typer import Exit
-
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
@@ -163,6 +160,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         work_queues=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -190,6 +188,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         work_queues=[],
         prefetch_seconds=30,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -216,6 +215,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         work_queues=[],
         prefetch_seconds=100,
         limit=None,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -243,6 +243,7 @@ def test_start_worker_with_limit(monkeypatch):
         work_queues=[],
         prefetch_seconds=10,
         limit=5,
+        heartbeat_interval_seconds=30,
     )
 
 
@@ -292,7 +293,7 @@ async def test_worker_discovers_work_pool_type(
         expected_code=0,
         expected_output_contains=[
             (
-                f"Discovered worker type {process_work_pool.type!r} for work pool"
+                f"Discovered type {process_work_pool.type!r} for work pool"
                 f" {process_work_pool.name!r}."
             ),
             "Worker 'test-worker' started!",
@@ -304,6 +305,32 @@ async def test_worker_discovers_work_pool_type(
         work_pool_name=process_work_pool.name
     )
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_does_not_run_with_push_pool(push_work_pool):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            push_work_pool.name,
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            (
+                f"Discovered type {push_work_pool.type!r} for work pool"
+                f" {push_work_pool.name!r}."
+            ),
+            (
+                "Workers are not required for push work pools. "
+                "See https://docs.prefect.io/latest/guides/deployment/push-work-pools/ "
+                "for more details."
+            ),
+        ],
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -334,6 +361,36 @@ async def test_start_worker_without_type_creates_process_work_pool(
 
     workers = await prefect_client.read_workers_for_work_pool(work_pool_name="not-here")
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_reports_heartbeat_interval(
+    prefect_client: PrefectClient, process_work_pool
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            process_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await prefect_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert len(workers) == 1
+    assert workers[0].name == "test-worker"
+    assert workers[0].heartbeat_interval_seconds == 30
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -532,6 +589,27 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_not_called()
+
+        def test_start_with_prefect_agent_type(worker_type):
+            invoke_and_assert(
+                command=[
+                    "worker",
+                    "start",
+                    "--run-once",
+                    "-p",
+                    "test-work-pool",
+                    "-n",
+                    "test-worker",
+                    "-t",
+                    "prefect-agent",
+                ],
+                expected_code=1,
+                expected_output_contains=(
+                    "'prefect-agent' typed work pools work with Prefect Agents instead"
+                    " of Workers. Please use the 'prefect agent start' to start a"
+                    " Prefect Agent."
+                ),
+            )
 
 
 POLL_INTERVAL = 0.5

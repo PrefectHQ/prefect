@@ -4,7 +4,6 @@ build system for managing flows and deployments.
 
 To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
-from copy import deepcopy
 import ast
 import asyncio
 import json
@@ -12,22 +11,22 @@ import math
 import os
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional
-from pydantic import BaseModel
-
-import yaml
-from ruamel.yaml import YAML
 
 import anyio
+import yaml
+from pydantic import BaseModel
+from ruamel.yaml import YAML
+
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
+from prefect.logging import get_logger
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
-from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.logging import get_logger
-
-from prefect.client.schemas.schedules import IntervalSchedule
 
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
@@ -96,7 +95,7 @@ def create_default_prefect_yaml(
     with prefect_file.open(mode="w") as f:
         # write header
         f.write(
-            "# Welcome to your prefect.yaml file! You can you this file for storing and"
+            "# Welcome to your prefect.yaml file! You can use this file for storing and"
             " managing\n# configuration for deploying your flows. We recommend"
             " committing this file to source\n# control along with your flow code.\n\n"
         )
