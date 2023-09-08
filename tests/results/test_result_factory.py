@@ -88,7 +88,7 @@ def test_root_flow_default_remote_storage():
     def foo():
         return get_run_context().result_factory
 
-    fs = LocalFileSystem(basepath="memory/root")
+    fs = LocalFileSystem(basepath="s3/my-result-storage")
 
     with temporary_settings(
         {
