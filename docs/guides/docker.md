@@ -36,22 +36,20 @@ To complete this guide, you'll need the following:
 
 First let's make a clean directory to work from, `prefect-docker-guide`.
 
-<div class="terminal">
 ```bash
 mkdir prefect-docker-guide
 cd prefect-docker-guide
 ```
-</div>
+
 
 In this directory, we'll create a sub-directory named `flows` and put our flow script from the [Deployments](/tutorial/deployments/) tutorial in it.
 
-<div class="terminal">
+
 ```bash
 mkdir flows
 cd flows
 touch prefect-docker-guide-flow.py
 ```
-</div>
 
 Here's the flow code for reference:
 
@@ -77,11 +75,9 @@ if __name__ == "__main__":
 
 The next file we'll add to the `prefect-docker-guide` directory is a `requirements.txt`. We'll include all dependencies required for our `prefect-docker-guide-flow.py` script in the Docker image we'll build.
 
-<div class="terminal">
 ```bash
 touch requirements.txt
 ```
-</div>
 
 Here's what we'll put in our `requirements.txt` file:
 
@@ -92,11 +88,9 @@ httpx
 
 Next, we'll create a `Dockerfile` that we'll use to create a Docker image that will also store the flow code.
 
-<div class="terminal">
 ```bash
 touch Dockerfile
 ```
-</div>
 
 We'll add the following content to our `Dockerfile`:
 
@@ -119,11 +113,9 @@ CMD ["python", "flows/prefect-docker-guide-flow.py"]
 
 Now that we have a Dockerfile we can build our image by running:
 
-<div class="terminal">
 ```bash
 docker build -t prefect-docker-guide-image .
 ```
-</div>
 
 We can check that our build worked by running a container from our new image.
 
@@ -137,11 +129,11 @@ We can check that our build worked by running a container from our new image.
 
     We'll provide both these values to our container by passing them as environment variables with the `-e` flag.
 
-    <div class="terminal">
+
     ```bash
     docker run -e PREFECT_API_URL=YOUR_PREFECT_API_URL -e PREFECT_API_KEY=YOUR_API_KEY prefect-docker-guide-image
     ```
-    </div>
+
 
     After running the above command, the container should start up and serve the flow within the container!
 
@@ -153,7 +145,7 @@ We can check that our build worked by running a container from our new image.
     
     To ensure that our flow container can communicate with the Prefect API, we'll set our `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, you'll need to set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
 
-    <div class="terminal">
+
     ```bash
     docker run --network="host" -e PREFECT_API_URL=http://host.docker.internal:4200/api prefect-docker-guide-image
     ```
@@ -172,11 +164,9 @@ To ensure the process serving our flow is always running, we'll create a [Kubern
 
 First, we'll create a `deployment-manifest.yaml` file in our `prefect-docker-guide` directory:
 
-<div class="terminal">
 ```bash
 touch deployment-manifest.yaml
 ```
-</div>
 
 And we'll add the following content to our `deployment-manifest.yaml` file:
 
@@ -247,35 +237,28 @@ This manifest defines how our image will run when deployed in our Kubernetes clu
 
 Now that we have a deployment manifest, we can deploy our flow to the cluster by running:
 
-<div class="terminal">
 ```bash
 kubectl apply -f deployment-manifest.yaml
 ```
-</div>
 
 We can monitor the status of our Kubernetes deployment by running:
 
-<div class="terminal">
 ```bash
 kubectl get deployments
 ```
-</div>
+
 
 Once the deployment has successfully started, we can check the logs of our flow container by running the following:
 
-<div class="terminal">
 ```bash
 kubectl logs -l flow=get-repo-info
 ```
-</div>
 
 Now that we're serving our flow in our cluster, we can trigger a flow run by running:
 
-<div class="terminal">
 ```bash
 prefect deployment run get-repo-info/prefect-docker-guide
 ```
-</div>
 
 If we navigate to the URL provided by the `prefect deployment run` command, we can follow the flow run via the logs in the Prefect UI!
 
