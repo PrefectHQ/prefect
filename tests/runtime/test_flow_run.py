@@ -170,18 +170,15 @@ class TestRunCount:
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test", retries=5)
         )
+        assert flow_run.run_count == 0
 
         await prefect_client.set_flow_run_state(
             flow_run_id=run.id, state=states.Retrying()
         )
 
-        await prefect_client.set_flow_run_state(
-            flow_run_id=run.id, state=states.Completed()
-        )
-
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
-        assert flow_run.run_count == 2
+        assert flow_run.run_count == 1
 
 
 class TestStartTime:
