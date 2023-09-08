@@ -749,7 +749,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         default=...,
         title="Recipient emails",
         description="Email ids of all recipients.",
-        example="recipient1@gmail.com",
+        example='"recipient1@gmail.com"',
     )
 
     def block_initialization(self) -> None:
