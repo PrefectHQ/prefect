@@ -11,13 +11,15 @@ Available attributes:
     - `name`: the name of the task run
     - `tags`: the task run's set of tags
     - `parameters`: the parameters the task was called with
+    - `run_count`: the number of times this task run has been run
+    - `task_name`: the name of the task
 """
 import os
 from typing import Any, Dict, List, Optional
 
 from prefect.context import TaskRunContext
 
-__all__ = ["id", "tags", "name", "parameters", "task_name"]
+__all__ = ["id", "tags", "name", "parameters", "run_count", "task_name"]
 
 
 type_cast = {
@@ -83,6 +85,14 @@ def get_tags() -> List[str]:
         return task_run_ctx.task_run.tags
 
 
+def get_run_count() -> int:
+    task_run_ctx = TaskRunContext.get()
+    if task_run_ctx is None:
+        return 0
+    else:
+        return task_run_ctx.task_run.run_count
+
+
 def get_name() -> Optional[str]:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is None:
@@ -112,5 +122,6 @@ FIELDS = {
     "tags": get_tags,
     "name": get_name,
     "parameters": get_parameters,
+    "run_count": get_run_count,
     "task_name": get_task_name,
 }
