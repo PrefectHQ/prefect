@@ -57,7 +57,7 @@ prefect agent start -p [work pool name]
 
 For example:
 
-```{.output .no-select}
+```{.output .no-copy}
 Starting agent with ephemeral API...
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
