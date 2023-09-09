@@ -13,7 +13,7 @@ search:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools. 
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools.
 
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
@@ -26,13 +26,11 @@ The **Automations** page provides an overview of all configured automations for 
 
 ![Viewing automations for a workspace in Prefect Cloud.](/img/ui/automations.png)
 
-Selecting the toggle next to an automation pauses execution of the automation. 
+Selecting the toggle next to an automation pauses execution of the automation.
 
 The button next to the toggle provides commands to copy the automation ID, edit the automation, or delete the automation.
 
 Select the name of an automation to view **Details** about it and relevant **Events**.
-
-![Viewing details and events that triggered an automation in Prefect Cloud.](/img/ui/automations-detail-tab.png)
 
 ## Create an automation
 
@@ -44,10 +42,10 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 
 ### Triggers
 
-Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
+Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on:
 
 - Flow run state change
-    -  Note - Flow Run Tags currently are only evaluated with `OR` criteria
+  - Note - Flow Run Tags currently are only evaluated with `OR` criteria
 - Work pool status
 - Custom event triggers
 
@@ -60,13 +58,13 @@ Importantly, triggers can be configured not only in reaction to events, but also
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
 
-Custom Triggers
+#### Custom Triggers
 
 Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions.
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
- 
-For example, if you would only like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
+
+For example, if you would like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
 
 ```json
 {
@@ -103,11 +101,9 @@ For example, if you would only like a trigger to execute an action if it receive
     },
     ```
 
-
-
 ### Actions
 
-Actions specify what your automation does when its trigger criteria are met. Current action types include: 
+Actions specify what your automation does when its trigger criteria are met. Current action types include:
 
 - Cancel a flow run
 - Pause a flow run
@@ -122,13 +118,13 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 
 ### Selected and inferred action targets
 
-Some actions require you to either select the target of the action, or specify that the target of the action should be inferred. 
+Some actions require you to either select the target of the action, or specify that the target of the action should be inferred.
 
 Selected targets are simple, and useful for when you know exactly what object your action should act on &mdash; for example, the case of a cleanup flow you want to run or a specific notification you’d like to send.
 
-Inferred targets are deduced from the trigger itself. 
+Inferred targets are deduced from the trigger itself.
 
-For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire. 
+For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred flow run, the flow run to cancel is inferred as the stuck run that caused the trigger to fire.
 
 Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the inferred work queue is the one that emitted the event.
 
@@ -138,14 +134,12 @@ Prefect tries to infer the relevant event whenever possible, but sometimes one d
 
 Specify a name and, optionally, a description for the automation.
 
-![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
-
-
 ## Create an automation via deployment triggers
 
 To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
-To 
+To
+
 ```yaml
 triggers:
   - enabled: true
@@ -161,7 +155,7 @@ When applied, this will create a linked automation that responds to events from 
 
 ## Automation notifications
 
-Notifications enable you to set up automation actions that send a message. 
+Notifications enable you to set up automation actions that send a message.
 
 Automation notifications support sending notifications via any predefined block that is capable of and configured to send a message. That includes, for example:
 
@@ -178,7 +172,7 @@ Automation notifications support sending notifications via any predefined block 
 
 ## Templating notifications with Jinja
 
-The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or pool name. 
+The notification body can include templated variables using [Jinja](https://palletsprojects.com/p/jinja/) syntax. Templated variable enable you to include details relevant to automation trigger, such as a flow or pool name.
 
 Jinja templated variable syntax wraps the variable name in double curly brackets, like `{{ variable }}`.
 
@@ -190,7 +184,7 @@ You can access properties of the underlying flow run objects including:
 - [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
 - [work_pool](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
-In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
+In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps.
 
 The `flow_run|ui_url` token returns the URL for viewing the flow run in Prefect Cloud.
 
