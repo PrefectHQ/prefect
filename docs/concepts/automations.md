@@ -64,7 +64,7 @@ Custom triggers allow advanced configuration of the conditions on which a trigge
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
 
-For example, if you would like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
+For example, if you would like a trigger to execute an action if it receives two flow run failure events of a specific deployment within ten seconds, you could paste in the following trigger configuration:
 
 ```json
 {
@@ -130,15 +130,11 @@ Similarly, if a trigger fires on a work queue event and the corresponding action
 
 Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
 
-### Details
-
 Specify a name and, optionally, a description for the automation.
 
 ## Create an automation via deployment triggers
 
 To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
-
-To
 
 ```yaml
 triggers:
