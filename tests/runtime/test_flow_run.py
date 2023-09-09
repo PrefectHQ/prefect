@@ -149,6 +149,38 @@ class TestTags:
         assert set(flow_run.tags) == {"red", "green"}
 
 
+class TestRunCount:
+    async def test_run_count_is_attribute(self):
+        assert "run_count" in dir(flow_run)
+
+    async def test_run_count_is_zero_when_not_set(self):
+        assert flow_run.run_count == 0
+
+    async def test_run_count_returns_run_count_when_present_dynamically(self):
+        assert flow_run.run_count == 0
+
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(id="foo", run_count=10)
+        ):
+            assert flow_run.run_count == 10
+
+        assert flow_run.run_count == 0
+
+    async def test_run_count_from_api(self, monkeypatch, prefect_client):
+        run = await prefect_client.create_flow_run(
+            flow=flow(lambda: None, name="test", retries=5)
+        )
+        assert flow_run.run_count == 0
+
+        await prefect_client.set_flow_run_state(
+            flow_run_id=run.id, state=states.Retrying()
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert flow_run.run_count == 1
+
+
 class TestStartTime:
     async def test_scheduled_start_time_is_attribute(self):
         assert "scheduled_start_time" in dir(flow_run)
