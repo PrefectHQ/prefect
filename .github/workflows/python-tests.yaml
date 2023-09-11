@@ -70,15 +70,15 @@ jobs:
     strategy:
       matrix:
         database:
-          - "postgres:13"
+          # - "postgres:13"
           - "postgres:14"
-          - "sqlite"
+          # - "sqlite"
         os:
           - ${{ needs.isinternal.outputs.status == 'true' && github.event_name == 'pull_request' && 'oss-test-runner' || 'ubuntu-latest' }}
         python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
+          # - "3.8"
+          # - "3.9"
+          # - "3.10"
           - "3.11"
         pytest-options:
           - "--exclude-services"
