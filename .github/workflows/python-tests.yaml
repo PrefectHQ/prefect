@@ -280,7 +280,7 @@ jobs:
         with:
           author_name: Prefect OSS Unit Tests
           channel: C032SBRHBSN # This is #engineering-review
-          fields: message,commit,author,took
+          fields: message,commit,author,workflowRun
           status: failure
           text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESHOLD }} jobs :oh-noo:"
         env:
