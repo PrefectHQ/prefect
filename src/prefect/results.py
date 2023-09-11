@@ -61,7 +61,7 @@ def get_default_result_storage() -> ResultStorage:
     """
 
     return (
-        Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+        LocalFileSystem(basepath=PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
         if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
         else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
     )
