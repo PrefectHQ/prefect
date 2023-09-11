@@ -282,6 +282,7 @@ jobs:
           author_name: Prefect OSS Unit Tests
           channel: C032SBRHBSN # This is #engineering-review
           fields: repo,message,commit,author,took
+          status: failure
           text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESOLD }} jobs :oh-noo:"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
