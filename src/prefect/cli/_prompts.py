@@ -28,13 +28,28 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments.base import _search_for_flow_functions
+from prefect.deployments.base import (
+    _get_git_remote_origin_url,
+    _search_for_flow_functions,
+)
 from prefect.exceptions import ObjectAlreadyExists
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
+
+STORAGE_PROVIDER_TO_CREDS_BLOCK = {
+    "s3": "aws-credentials",
+    "gcs": "gcp-credentials",
+    "azure_blob_storage": "azure-blob-storage-credentials",
+}
+
+REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
+    "aws-credentials": ["aws_access_key_id", "aws_secret_access_key"],
+    "gcp-credentials": ["project", "service_account_file"],
+    "azure-blob-storage-credentials": ["account_url", "connection_string"],
+}
 
 
 def prompt(message, **kwargs):
@@ -629,12 +644,24 @@ async def prompt_entrypoint(console: Console) -> str:
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
 
 
-async def prompt_select_remote_flow_storage(console: Console) -> str:
+@inject_client
+async def prompt_select_remote_flow_storage(
+    console: Console, client: PrefectClient = None
+) -> str:
+    valid_slugs_for_context = {
+        storage_block_type
+        for storage_block_type, creds_block_type in STORAGE_PROVIDER_TO_CREDS_BLOCK.items()
+        if await client.read_block_type_by_slug(creds_block_type)
+    }
+
+    if _get_git_remote_origin_url():
+        valid_slugs_for_context.add("git")
+
     flow_storage_options = [
         {
             "type": "Git Repo",
             "slug": "git",
-            "description": "Use a Git repository.",
+            "description": "Use a Git repository [bold](recommended).",
         },
         {
             "type": "S3",
@@ -658,9 +685,12 @@ async def prompt_select_remote_flow_storage(console: Console) -> str:
         columns=[
             {"header": "Storage Type", "key": "type"},
             {"header": "Description", "key": "description"},
-            {"header": "Slug", "key": "slug", "visible": False},
         ],
-        data=flow_storage_options,
+        data=[
+            row
+            for row in flow_storage_options
+            if row is not None and row["slug"] in valid_slugs_for_context
+        ],
     )
 
     return selected_flow_storage_row["slug"]
@@ -675,15 +705,11 @@ async def prompt_select_blob_storage_credentials(
 
     Returns a jinja template string that references a credentials block.
     """
-    storage_provider_to_creds_block = {
-        "s3": "aws-credentials",
-        "gcs": "gcp-credentials",
-        "azure_blob_storage": "azure-blob-storage-credentials",
-    }
+
     storage_provider_slug = storage_provider.replace("_", "-")
     pretty_storage_provider = storage_provider.replace("_", " ").upper()
 
-    creds_block_type_slug = storage_provider_to_creds_block[storage_provider]
+    creds_block_type_slug = STORAGE_PROVIDER_TO_CREDS_BLOCK[storage_provider]
     pretty_creds_block_type = creds_block_type_slug.replace("-", " ").title()
 
     existing_credentials_blocks = await client.read_block_documents_by_type(
@@ -736,6 +762,7 @@ async def prompt_select_blob_storage_credentials(
         for field_name, props in credentials_block_schema.fields.get(
             "properties"
         ).items()
+        if field_name in REQUIRED_FIELDS_FOR_CREDS_BLOCK[creds_block_type_slug]
     }
 
     console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
