@@ -275,7 +275,7 @@ jobs:
           echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
 
       - name: Send Slack Notification
-        # if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
+        if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
         uses: 8398a7/action-slack@v3
         with:
           author_name: Prefect OSS Unit Tests
