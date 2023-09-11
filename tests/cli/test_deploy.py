@@ -2256,6 +2256,88 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
 
+    @pytest.mark.usefixtures("interactive_console")
+    class TestRemoteStoragePicklist:
+        @pytest.mark.usefixtures("uninitialized_project_dir_with_git_no_remote")
+        async def test_no_git_option_when_no_remote_url(
+            self, docker_work_pool, aws_credentials, monkeypatch
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    " test-docker-work-pool"
+                ),
+                expected_code=0,
+                expected_output_contains="s3",
+                expected_output_does_not_contain="Git Repo",
+                user_input=(
+                    # no custom image
+                    "n"
+                    + readchar.key.ENTER
+                    # Accept remote storage
+                    + "y"
+                    + readchar.key.ENTER
+                    # Select S3
+                    + readchar.key.ENTER
+                    # Enter bucket name
+                    + "test-bucket"
+                    + readchar.key.ENTER
+                    # Enter bucket prefix
+                    + readchar.key.ENTER
+                    # Select existing credentials
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+            )
+
+        @pytest.mark.usefixtures("uninitialized_project_dir_with_git_with_remote")
+        async def test_git_option_present_when_remote_url(
+            self, docker_work_pool, monkeypatch
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    " test-docker-work-pool"
+                ),
+                expected_code=0,
+                expected_output_contains="Git Repo",
+                expected_output_does_not_contain="s3",
+                user_input=(
+                    # no custom image
+                    "n"
+                    + readchar.key.ENTER
+                    # Accept remote storage
+                    + "y"
+                    + readchar.key.ENTER
+                    # Select Git (first option)
+                    + readchar.key.ENTER
+                    # Confirm git url
+                    + readchar.key.ENTER
+                    # Confirm git branch
+                    + readchar.key.ENTER
+                    # Not a private repo
+                    + "n"
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+            )
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
