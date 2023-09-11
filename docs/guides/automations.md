@@ -90,7 +90,7 @@ Keep in mind, we did not need to create a deployment to trigger our automation, 
 - New deployment -> Alternate data location to pull data from
 
 ```python
-def create_event_driven_auto():
+def create_event_driven_automation():
     api_url = "https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
     todo = {
     "name": "Event Driven Redeployment",
@@ -130,8 +130,8 @@ def create_event_driven_auto():
     print(response.json())
     return response.json()
 ```
-
-
-
 # Combining both? 
 - Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
+
+TODO: Automations script that trains a model as a next steps? 
+- Some sort of MLOPS next steps so the guide seems organic
