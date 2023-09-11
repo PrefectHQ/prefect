@@ -251,6 +251,7 @@ jobs:
 
   notify-tests-failing-on-main:
     needs: run-tests
+    if: always()
     # if: github.ref == 'refs/heads/main' && failure()
     runs-on: ubuntu-latest
     env:
