@@ -205,7 +205,7 @@ async def aws_credentials(prefect_client):
     aws_credentials_schema = await prefect_client.create_block_schema(
         block_schema=BlockSchemaCreate(
             block_type_id=aws_credentials_type.id,
-            fields={"properties": {"access_key_id": {"type": "string"}}},
+            fields={"properties": {"aws_access_key_id": {"type": "string"}}},
         )
     )
 
@@ -214,7 +214,7 @@ async def aws_credentials(prefect_client):
             name="bezos-creds",
             block_type_id=aws_credentials_type.id,
             block_schema_id=aws_credentials_schema.id,
-            data={"access_key_id": "AKIA1234"},
+            data={"aws_access_key_id": "AKIA1234"},
         )
     )
 
@@ -1058,8 +1058,7 @@ class TestProjectDeploy:
                 user_input=(
                     # Accept pulling from remote storage
                     readchar.key.ENTER
-                    # Select S3 bucket as storage (second option)
-                    + readchar.key.DOWN
+                    # Select S3 bucket as storage (first option)
                     + readchar.key.ENTER
                     # Provide bucket name
                     + "my-bucket"
@@ -1486,7 +1485,9 @@ class TestProjectDeploy:
             )
 
             mock_step.assert_called_once_with(
-                bucket="my-bucket", folder="", credentials={"access_key_id": "AKIA1234"}
+                bucket="my-bucket",
+                folder="",
+                credentials={"aws_access_key_id": "AKIA1234"},
             )
 
             prefect_file = Path("prefect.yaml")

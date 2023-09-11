@@ -32,7 +32,7 @@ from prefect.deployments.base import (
     _get_git_remote_origin_url,
     _search_for_flow_functions,
 )
-from prefect.exceptions import ObjectAlreadyExists
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import PREFECT_UI_URL
@@ -648,11 +648,19 @@ async def prompt_entrypoint(console: Console) -> str:
 async def prompt_select_remote_flow_storage(
     console: Console, client: PrefectClient = None
 ) -> str:
-    valid_slugs_for_context = {
-        storage_block_type
-        for storage_block_type, creds_block_type in STORAGE_PROVIDER_TO_CREDS_BLOCK.items()
-        if await client.read_block_type_by_slug(creds_block_type)
-    }
+    valid_slugs_for_context = set()
+
+    for (
+        storage_provider,
+        creds_block_type_slug,
+    ) in STORAGE_PROVIDER_TO_CREDS_BLOCK.items():
+        try:
+            # only return storage options for which the user has a credentials
+            # block type
+            await client.read_block_type_by_slug(creds_block_type_slug)
+            valid_slugs_for_context.add(storage_provider)
+        except ObjectNotFound:
+            pass
 
     if _get_git_remote_origin_url():
         valid_slugs_for_context.add("git")
