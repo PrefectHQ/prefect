@@ -70,15 +70,15 @@ jobs:
     strategy:
       matrix:
         database:
-          # - "postgres:13"
+          - "postgres:13"
           - "postgres:14"
-          # - "sqlite"
+          - "sqlite"
         os:
           - ${{ needs.isinternal.outputs.status == 'true' && github.event_name == 'pull_request' && 'oss-test-runner' || 'ubuntu-latest' }}
         python-version:
-          # - "3.8"
-          # - "3.9"
-          # - "3.10"
+          - "3.8"
+          - "3.9"
+          - "3.10"
           - "3.11"
         pytest-options:
           - "--exclude-services"
@@ -251,8 +251,7 @@ jobs:
 
   notify-tests-failing-on-main:
     needs: run-tests
-    if: always()
-    # if: github.ref == 'refs/heads/main' && failure()
+    if: github.ref == 'refs/heads/main' && failure()
     runs-on: ubuntu-latest
     env:
       FAILURE_THRESHOLD: 4
@@ -281,8 +280,8 @@ jobs:
         with:
           author_name: Prefect OSS Unit Tests
           channel: C032SBRHBSN # This is #engineering-review
-          fields: repo,message,commit,author,took
+          fields: message,commit,author,took
           status: failure
-          text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESOLD }} jobs :oh-noo:"
+          text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESHOLD }} jobs :oh-noo:"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}
