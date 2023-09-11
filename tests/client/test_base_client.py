@@ -470,4 +470,4 @@ class TestPrefectHttpxClient:
         with pytest.raises(PrefectHTTPStatusError) as exc:
             await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
-        assert expected in str(exc)
+        assert expected in str(exc.exconly())
