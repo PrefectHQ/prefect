@@ -205,8 +205,8 @@ async def deploy(
             ),
             style="yellow",
         )
+    trigger_specs = []
     if trigger:
-        trigger_specs = []
         for t in trigger:
             if t.endswith(".yaml"):
                 with open(t, "r") as f:
