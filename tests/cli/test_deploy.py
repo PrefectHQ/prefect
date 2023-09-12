@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 from uuid import UUID, uuid4
+from warnings import catch_warnings, simplefilter
 
 import pendulum
 import pytest
@@ -116,6 +117,30 @@ def project_dir_with_single_deployment_format(tmp_path):
 
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
+
+
+@pytest.fixture
+def uninitialized_project_dir(project_dir):
+    Path(project_dir, "prefect.yaml").unlink()
+    return project_dir
+
+
+@pytest.fixture
+def uninitialized_project_dir_with_git_no_remote(uninitialized_project_dir):
+    subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
+    assert Path(uninitialized_project_dir, ".git").exists()
+    return uninitialized_project_dir
+
+
+@pytest.fixture
+def uninitialized_project_dir_with_git_with_remote(
+    uninitialized_project_dir_with_git_no_remote,
+):
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
+        cwd=uninitialized_project_dir_with_git_no_remote,
+    )
+    return uninitialized_project_dir_with_git_no_remote
 
 
 @pytest.fixture
@@ -629,29 +654,6 @@ class TestProjectDeploy:
         )
 
     class TestGeneratedPullAction:
-        @pytest.fixture
-        def uninitialized_project_dir(self, project_dir):
-            Path(project_dir, "prefect.yaml").unlink()
-            return project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_no_remote(
-            self, uninitialized_project_dir
-        ):
-            subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
-            assert Path(uninitialized_project_dir, ".git").exists()
-            return uninitialized_project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_with_remote(
-            self, uninitialized_project_dir_with_git_no_remote
-        ):
-            subprocess.run(
-                ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
-                cwd=uninitialized_project_dir_with_git_no_remote,
-            )
-            return uninitialized_project_dir_with_git_no_remote
-
         async def test_project_deploy_generates_pull_action(
             self, work_pool, prefect_client, uninitialized_project_dir
         ):
@@ -4631,7 +4633,7 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_error_on_trigger_conflict(self, docker_work_pool):
+        async def test_override_on_trigger_conflict(self, docker_work_pool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
@@ -4640,6 +4642,10 @@ class TestDeploymentTrigger:
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
             }
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [cli_trigger_spec]
+            )
 
             prefect_file = Path("prefect.yaml")
             with prefect_file.open(mode="r") as f:
@@ -4661,16 +4667,97 @@ class TestDeploymentTrigger:
             with mock.patch(
                 "prefect.cli.deploy._create_deployment_triggers",
                 AsyncMock(),
+            ) as create_triggers:
+                with catch_warnings(record=True) as w:
+                    simplefilter("always")
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                        ),
+                        expected_code=0,
+                    )
+                    assert issubclass(w[-1].category, UserWarning)
+                    assert (
+                        "definitions passed via CLI will override existing triggers"
+                        in str(w[-1].message)
+                    )
+
+                _, _, triggers = create_triggers.call_args[0]
+                assert len(triggers) == 1
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_invalid_trigger_parsing(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            invalid_json_str_trigger = "{enabled: true, match: woodchonk.move.*}"
+            invalid_yaml_trigger = "invalid.yaml"
+
+            with open(invalid_yaml_trigger, "w") as f:
+                f.write("pretty please, trigger my flow when you see the woodchonk")
+
+            for invalid_trigger in [invalid_json_str_trigger, invalid_yaml_trigger]:
+                with mock.patch(
+                    "prefect.cli.deploy._create_deployment_triggers",
+                    AsyncMock(),
+                ):
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" -p {docker_work_pool.name} --trigger '{invalid_trigger}'"
+                        ),
+                        expected_code=1,
+                        expected_output_contains=["Failed to parse trigger"],
+                    )
+
+        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        async def test_triggers_saved_to_prefect_yaml(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            cli_trigger_spec = {
+                "name": "Trigger McTriggerson",
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
             ):
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
-                        f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 -p"
+                        f" {docker_work_pool.name} --trigger"
+                        f" '{json.dumps(cli_trigger_spec)}'"
                     ),
-                    expected_code=1,
-                    expected_output_contains=["Provide triggers either via the CLI or"],
+                    user_input=(
+                        # Decline schedule
+                        "n"
+                        + readchar.key.ENTER
+                        # Decline docker build
+                        + "n"
+                        + readchar.key.ENTER
+                        # Accept save configuration
+                        + "y"
+                        + readchar.key.ENTER
+                    ),
+                    expected_code=0,
                 )
+
+            # Read the updated prefect.yaml
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            assert "deployments" in contents
+            assert "triggers" in contents["deployments"][-1]
+            assert contents["deployments"][-1]["triggers"] == [cli_trigger_spec]
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")

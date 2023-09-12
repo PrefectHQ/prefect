@@ -1,6 +1,7 @@
 """Module containing implementation for deploying projects."""
 import json
 import os
+import warnings
 from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
@@ -624,6 +625,7 @@ async def _run_single_deploy(
                 build_steps=build_steps or None,
                 push_steps=push_steps or None,
                 pull_steps=pull_steps or None,
+                triggers=trigger_specs or None,
             )
             app.console.print(
                 (
@@ -1367,25 +1369,29 @@ def _gather_deployment_trigger_definitions(
         List of trigger specifications.
 
     Raises:
-        ValueError: If triggers are provided via both CLI and existing deployment configuration.
+        ValueError: If trigger flag is not a valid JSON string or file path.
     """
     if trigger_flags and existing_triggers:
-        raise ValueError(
-            "Provide triggers either via the CLI or in this deployment's configuration"
-            " in its `prefect.yaml` - not both."
+        warnings.warn(
+            "Triggers are provided via both CLI and existing deployment configuration."
+            " Trigger definitions passed via CLI will override existing triggers in"
+            " your deployment configuration."
         )
 
-    trigger_specs = []
-
     if trigger_flags:
+        trigger_specs = []
         for t in trigger_flags:
-            if t.endswith(".yaml"):
-                with open(t, "r") as f:
-                    trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
-            elif t.endswith(".json"):
-                with open(t, "r") as f:
-                    trigger_specs.extend(json.load(f).get("triggers", []))
-            else:
-                trigger_specs.append(json.loads(t))
+            try:
+                if t.endswith(".yaml"):
+                    with open(t, "r") as f:
+                        trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
+                elif t.endswith(".json"):
+                    with open(t, "r") as f:
+                        trigger_specs.extend(json.load(f).get("triggers", []))
+                else:
+                    trigger_specs.append(json.loads(t))
+            except Exception as e:
+                raise ValueError(f"Failed to parse trigger: {t}. Error: {str(e)}")
+        return trigger_specs
 
-    return trigger_specs if trigger_flags else existing_triggers
+    return existing_triggers

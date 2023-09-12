@@ -156,7 +156,7 @@ deployments:
 At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
 
 ### Pass triggers to `prefect deploy`
-You can pass one or many `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
+You can pass one or more `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
 
 ```bash
 # Pass a trigger as a JSON string
@@ -196,8 +196,9 @@ triggers:
 Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
 
-!!! warning "Use either the `--trigger` flag ***or*** your `prefect.yaml` file to define triggers"
-    To avoid confusion or unexpected behavior, `prefect deploy` will raise an error if you attempt to use both the `--trigger` flag and a `prefect.yaml` to define triggers for a given deployment.
+!!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
+    While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
+    take precedence over those defined in `prefect.yaml`.
 
 ## Automation notifications
 
