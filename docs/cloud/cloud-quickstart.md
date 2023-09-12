@@ -50,7 +50,7 @@ You can create an account with:
 A workspace is an isolated environment within Prefect Cloud for your flows and deployments.
 You can use workspaces to organize or compartmentalize your workflows.
 
-When you register a new account you'll be prompted to provide a name and description for your workspace.
+When you register a new account, you'll be prompted to provide a name and description for your workspace.
 
 ![Creating a new workspace in the Cloud UI.](/img/ui/cloud-workspace-details.png)
 
