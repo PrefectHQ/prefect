@@ -382,6 +382,7 @@ def _save_deployment_to_prefect_file(
     build_steps: Optional[List[Dict]] = None,
     push_steps: Optional[List[Dict]] = None,
     pull_steps: Optional[List[Dict]] = None,
+    triggers: Optional[List[Dict]] = None,
 ):
     """
     Save a deployment configuration to the `prefect.yaml` file in the
@@ -440,6 +441,9 @@ def _save_deployment_to_prefect_file(
 
         if pull_steps != parsed_prefect_file_contents.get("pull"):
             deployment["pull"] = pull_steps
+
+        if triggers and triggers != parsed_prefect_file_contents.get("triggers"):
+            deployment["triggers"] = triggers
 
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
