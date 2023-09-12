@@ -15,7 +15,7 @@ search:
   boost: 2
 ---
 
-# Object Access Control Lists <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
+# Object Access Control Lists <span class="badge cloud"></span></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer object-level access control lists to restrict access to specific users and service accounts within a workspace. ACLs are supported for blocks and deployments.
 
