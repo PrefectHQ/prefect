@@ -134,7 +134,47 @@ Specify a name and, optionally, a description for the automation.
 
 ## Create an automation via deployment triggers
 
-To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+```yaml
+# prefect.yaml
+deployments:
+  - name: my-deployment
+    entrypoint: path/to/flow.py:decorated_fn
+    work_pool:
+      name: my-process-pool
+    triggers:
+      - enabled: true
+        match:
+          prefect.resource.id: my.external.resource
+        expect:
+          - external.resource.pinged
+        parameters:
+          param_1: "{{ event }}"
+```
+
+At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
+
+### Pass triggers to `prefect deploy`
+You can pass one or more `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
+
+```bash
+# Pass a trigger as a JSON string
+prefect deploy -n test-deployment \
+  --trigger '{
+    "enabled": true, 
+    "match": {
+      "prefect.resource.id": "prefect.flow-run.*"
+    }, 
+    "expect": ["prefect.flow-run.Completed"]
+  }'
+
+# Pass a trigger using a JSON/YAML file
+prefect deploy -n test-deployment --trigger triggers.yaml
+prefect deploy -n test-deployment --trigger my_stuff/triggers.json
+```
+
+For example, a `triggers.yaml` file could have many triggers defined:
 
 ```yaml
 triggers:
@@ -145,9 +185,22 @@ triggers:
       - external.resource.pinged
     parameters:
       param_1: "{{ event }}"
+  - enabled: true
+    match:
+      prefect.resource.id: my.other.external.resource
+    expect:
+      - some.other.event
+    parameters:
+      param_1: "{{ event }}"
 ```
+Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
-When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
+
+!!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
+    While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
+    take precedence over those defined in `prefect.yaml`.
+
+Note that deployment triggers contribute to the total number of automations in your workspace.
 
 ## Automation notifications
 

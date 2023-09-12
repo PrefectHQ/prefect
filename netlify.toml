@@ -81,7 +81,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 # redirects added 2023-03-21
@@ -193,7 +193,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/" 
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -342,7 +342,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -433,6 +433,11 @@ status = 301
 [[redirects]]
 from = "/guides/deployment/docker/"
 to = "/guides/docker/"
+status = 301
+
+[[redirects]]
+from = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[headers]]

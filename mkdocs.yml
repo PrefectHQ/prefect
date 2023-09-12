@@ -192,7 +192,6 @@ nav:
                 - Agents: concepts/agents.md
     - Cloud:
           - cloud/index.md
-          - Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
@@ -202,6 +201,7 @@ nav:
                 - Service Accounts: cloud/users/service-accounts.md
                 - Single Sign-on (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
+                - Object-Level Access Control Lists : cloud/users/object-access-control-lists.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Integrations:
