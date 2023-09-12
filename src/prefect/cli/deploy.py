@@ -1,7 +1,6 @@
 """Module containing implementation for deploying projects."""
 import json
 import os
-import warnings
 from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
@@ -1371,12 +1370,6 @@ def _gather_deployment_trigger_definitions(
     Raises:
         ValueError: If trigger flag is not a valid JSON string or file path.
     """
-    if trigger_flags and existing_triggers:
-        warnings.warn(
-            "Triggers are provided via both CLI and existing deployment configuration."
-            " Trigger definitions passed via CLI will override existing triggers in"
-            " your deployment configuration."
-        )
 
     if trigger_flags:
         trigger_specs = []

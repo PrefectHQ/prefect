@@ -8,7 +8,6 @@ from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 from uuid import UUID, uuid4
-from warnings import catch_warnings, simplefilter
 
 import pendulum
 import pytest
@@ -4640,7 +4639,7 @@ class TestDeploymentTrigger:
             cli_trigger_spec = {
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                "expect": ["prefect.flow-run.Completed"],
+                "expect": ["prefect.flow-run.Failed"],
             }
 
             expected_triggers = _initialize_deployment_triggers(
@@ -4657,7 +4656,9 @@ class TestDeploymentTrigger:
                     "work_pool": {
                         "name": docker_work_pool.name,
                     },
-                    "triggers": [cli_trigger_spec],
+                    "triggers": [
+                        {**cli_trigger_spec, "expect": ["prefect.flow-run.Completed"]}
+                    ],
                 }
             ]
 
@@ -4668,21 +4669,14 @@ class TestDeploymentTrigger:
                 "prefect.cli.deploy._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
-                with catch_warnings(record=True) as w:
-                    simplefilter("always")
-                    await run_sync_in_worker_thread(
-                        invoke_and_assert,
-                        command=(
-                            "deploy ./flows/hello.py:my_flow -n test-name-1"
-                            f" --trigger '{json.dumps(cli_trigger_spec)}'"
-                        ),
-                        expected_code=0,
-                    )
-                    assert issubclass(w[-1].category, UserWarning)
-                    assert (
-                        "definitions passed via CLI will override existing triggers"
-                        in str(w[-1].message)
-                    )
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                    ),
+                    expected_code=0,
+                )
 
                 _, _, triggers = create_triggers.call_args[0]
                 assert len(triggers) == 1

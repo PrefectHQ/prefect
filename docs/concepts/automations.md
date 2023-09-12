@@ -200,6 +200,8 @@ Both of the above triggers would be attached to `test-deployment` after running 
     While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
     take precedence over those defined in `prefect.yaml`.
 
+Note that deployment triggers contribute to the total number of automations in your workspace.
+
 ## Automation notifications
 
 Notifications enable you to set up automation actions that send a message.
