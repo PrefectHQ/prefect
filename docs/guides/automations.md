@@ -13,7 +13,7 @@ search:
 
 From the Automations tutorial, we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
-In this guide, we will showcase common usecases where automations can shine when responding to your workflows. We will create a simple notificaiton automation first. Then build upon that with an event based automation. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
+In this guide, we will showcase common usecases where automations can shine when responding to your workflows. We will create a simple notification automation first. Then build upon that with an event based automation. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
 
 !!! Warning "Available only on Prefect Cloud"
         Automations are only available on Prefect Cloud, please refer to the Cloud documentation to see what 
@@ -23,13 +23,11 @@ In this guide, we will showcase common usecases where automations can shine when
 # Creating the test script
 
 Automations are great when handling mixed outcome workflows, as you are able to respond to specific actions done by the orchestrator. 
-For example, let us try to grab data from an API and have a notificaiton get kicked off of our end state. 
+For example, let us try to grab data from an API and have a notification get kicked off of our end state. 
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
 Let us create a simple extract method, that pulls the data from the endpoint. 
-
-TODO: add logging
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -39,25 +37,30 @@ import pandas as pd
 
 @task
 def fetch(url: str):
+    logger = get_run_logger()
     response = requests.get(url)
     raw_data = response.json()
+    logger.info(f"Raw response: {raw_data}")
     return raw_data
 
 @task
 def clean(raw_data: dict):
     print(raw_data.get('results')[0])
     results = raw_data.get('results')[0]
+    logger = get_run_logger()
+    logger.info(f"Cleaned results: {results}")
     return results['name']
 
 @flow
 def build_names(num: int):
     df = []
     url = "https://randomuser.me/api/"
+    logger = get_run_logger()
     while num != 0:
         raw_data = fetch(url)
         df.append(clean(raw_data))
         num-=1
-    print(df)
+    logger.info(f"Built {num} names: {df}")
     return df
 
 if __name__ == "__main__":
@@ -90,10 +93,15 @@ Finally, let us create the actions that will be done once the triggered is hit. 
 
 
 # Event based deployment example 
-- Based off of completion of a flow run, kick off another flow job 
 - Showcase creating an automation via the rest api based on a trigger from an event
 - Automation kicks off another deployment
 - New deployment -> Alternate data location to pull data from
+We can create an automation that can help kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this Automation.  
+
+Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further. 
+
+Let us first create an automation via a POST call against our API. Ensure you have your api_key, account_id, and workspace_id are handy. 
+
 
 ```python
 def create_event_driven_automation():
@@ -138,6 +146,8 @@ def create_event_driven_automation():
     print(response.json())
     return response.json()
 ```
+
+Let us take a quick peek at the Prefect.yaml file associated with the deployment. We can see that it is very barebones..
 # Combining both? 
 - Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
 
