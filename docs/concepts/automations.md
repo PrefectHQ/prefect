@@ -158,7 +158,7 @@ At deployment time, this will create a linked automation that is triggered by ev
 ### Pass triggers to `prefect deploy`
 You can pass one more many `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
 
-```console
+```bash
 # Pass a trigger as a JSON string
 prefect deploy -n test-deployment \
   --trigger '{
@@ -173,6 +173,28 @@ prefect deploy -n test-deployment \
 prefect deploy -n test-deployment --trigger triggers.yaml
 prefect deploy -n test-deployment --trigger my_stuff/triggers.json
 ```
+
+For example, a `triggers.yaml` file could have many triggers defined:
+
+```yaml
+triggers:
+  - enabled: true
+    match:
+      prefect.resource.id: my.external.resource
+    expect:
+      - external.resource.pinged
+    parameters:
+      param_1: "{{ event }}"
+  - enabled: true
+    match:
+      prefect.resource.id: my.other.external.resource
+    expect:
+      - some.other.event
+    parameters:
+      param_1: "{{ event }}"
+```
+Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
+
 
 !!! warning "Use either the `--trigger` flag ***or*** your `prefect.yaml` file to define triggers"
   To avoid confusion or unexpected behavior, `prefect deploy` will raise an error if you attempt to use both the `--trigger` flag and a `prefect.yaml` to define triggers for a given deployment.
