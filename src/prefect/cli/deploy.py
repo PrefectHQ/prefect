@@ -150,6 +150,9 @@ async def deploy(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
+    trigger: List[str] = typer.Option(
+        None, "--trigger", help="A trigger for the deployment."
+    ),
     param: List[str] = typer.Option(
         None,
         "--param",
@@ -202,6 +205,17 @@ async def deploy(
             ),
             style="yellow",
         )
+    if trigger:
+        trigger_specs = []
+        for t in trigger:
+            if t.endswith(".yaml"):
+                with open(t, "r") as f:
+                    trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
+            elif t.endswith(".json"):
+                with open(t, "r") as f:
+                    trigger_specs.extend(json.load(f).get("triggers", []))
+            else:
+                trigger_specs.append(json.loads(t))
 
     options = {
         "entrypoint": entrypoint,
@@ -217,6 +231,7 @@ async def deploy(
         "anchor_date": interval_anchor,
         "rrule": rrule,
         "timezone": timezone,
+        "triggers": trigger_specs,
         "param": param,
         "params": params,
     }
@@ -482,9 +497,16 @@ async def _run_single_deploy(
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
 
-    triggers: List[DeploymentTrigger] = []
-    trigger_specs = deploy_config.get("triggers")
-    if trigger_specs:
+    cli_triggers = options.get("triggers")
+    existing_triggers = deploy_config.get("triggers")
+
+    if cli_triggers and existing_triggers:
+        raise ValueError(
+            "Provide triggers either via the CLI or in this deployment's configuration"
+            " - in `prefect.yaml` - not both."
+        )
+
+    if trigger_specs := cli_triggers or existing_triggers:
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
         if client.server_type != ServerType.CLOUD:
             app.console.print(
@@ -497,6 +519,8 @@ async def _run_single_deploy(
                 ),
                 style="yellow",
             )
+    else:
+        triggers = []
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
