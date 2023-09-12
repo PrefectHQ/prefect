@@ -4,7 +4,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import S3, LocalFileSystem
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
@@ -85,20 +85,22 @@ def test_root_flow_default_persist_result_can_be_overriden_by_setting():
 
 def test_root_flow_default_remote_storage():
     @flow
-    def foo():
-        return get_run_context().result_factory
+    async def foo():
+        result_fac = get_run_context().result_factory
+        return await result_fac.storage_block
 
-    fs = LocalFileSystem(basepath="s3/my-result-storage")
+    block = S3(bucket_path="my-bucket")
+    block.save("my-result-storage")
 
     with temporary_settings(
         {
             PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: fs.basepath,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: block.get_block_type_slug(),
         }
     ):
-        result_factory = foo()
+        storage_block = foo()
 
-    assert_blocks_equal(result_factory.storage_block, fs)
+    assert_blocks_equal(storage_block, block)
 
 
 def test_roto_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
