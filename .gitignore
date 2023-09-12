@@ -68,3 +68,6 @@ prefect.yaml
 
 # Deployment recipes
 !src/prefect/deployments/recipes/*/**
+
+# For development doc server if link
+libcairo.2.dylib

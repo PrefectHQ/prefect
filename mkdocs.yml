@@ -192,7 +192,6 @@ nav:
                 - Agents: concepts/agents.md
     - Cloud:
           - cloud/index.md
-          - Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
