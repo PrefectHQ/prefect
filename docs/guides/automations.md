@@ -9,21 +9,27 @@ search:
   boost: 2
 ---
 
-# Preparing Automations
+# Using Automations to respond to your workflows
 
 From the Automations tutorial, we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
 In this guide, we will showcase common usecases where automations can shine when responding to your workflows. We will create a simple notificaiton automation first. Then build upon that with an event based automation. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
 
-TODO: create a warning saying it is only available for Prefect Cloud
+!!! Warning "Available only on Prefect Cloud"
+        Automations are only available on Prefect Cloud, please refer to the Cloud documentation to see what 
+        additional features are available such as Events and webhooks!
 
-# Cleaning data Example
+
+# Creating the test script
+
 Automations are great when handling mixed outcome workflows, as you are able to respond to specific actions done by the orchestrator. 
-For example, let us try to grab data from an API and if we run into any issues, lets try react to the workflow end results. 
+For example, let us try to grab data from an API and have a notificaiton get kicked off of our end state. 
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
 Let us create a simple extract method, that pulls the data from the endpoint. 
+
+TODO: add logging
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -58,43 +64,43 @@ if __name__ == "__main__":
     build_names(10)
 ```
 
-From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our MLOPS pipeline.
+From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
-TODO: make the dataframe more complex -> with more features?
-
-# Failed run notification example
-- Can fail on exceptions thrown
-- or send notification for a long flow 
+# Completed run notification example
 
 Now let us try to send a notification based off a completed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
 
-Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
+1. Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
+![List of available blocks](/img/guides/block-list.png)
 
-Let us navigate to the blocks page on the UI, and lets click into creating an email notification block. 
+2. Let us navigate to the blocks page on the UI, and lets click into creating an email notification block. 
+![Creating a notification block in the Cloud UI](/img/guides/notification-block.png)
 
-Now that we have created the notification block, we can move towards the automations page. 
+3. Easily we can create an automation in the UI that allows us to click through the set up steps. First we start off by navigating to the automations page within the UI. 
+![Automations page](/img/guides/automation-list.png)
 
-Easily we can create an automation in the UI that allows us to click through the set up steps. First we start off by navigating to the automations page within the UI. 
+4. Next we try to find the trigger type, in this case let us do a flow failure (keep in mind task failures get cascading upstream back to the parent flow). 
 
-Next we try to find the trigger type, in this case let us do a flow failure (keep in mind task failures get cascading upstream back to the parent flow). 
+![Trigger type](img/guides/automation-triggers.png)
 
 Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
 
-TODO: put a better worded tip - 
-Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block.  
+!!! Warning "No deployment created"
+        Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block.  
+
 
 # Event based deployment example 
-- Based off of certain failures or long flow run, kick off another flow job 
+- Based off of completion of a flow run, kick off another flow job 
 - Showcase creating an automation via the rest api based on a trigger from an event
 - Automation kicks off another deployment
 - New deployment -> Alternate data location to pull data from
 
 ```python
 def create_event_driven_automation():
-    api_url = "https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
-    todo = {
-    "name": "Event Driven Redeployment",
-    "description": "Programatically created an automation to redeploy a flow based on an flow cancelled event",
+    api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
+    data = {
+    "name": "Event Driven Redeploy",
+    "description": "Programatically created an automation to redeploy a flow based on an event",
     "enabled": "true",
     "trigger": {
     "match": {
@@ -125,7 +131,9 @@ def create_event_driven_automation():
     ],
     "owner_resource": "string"
         }
-    response = requests.post(api_url, json=todo)
+    
+    headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
+    response = requests.post(api_url, headers=headers, json=data)
     
     print(response.json())
     return response.json()
