@@ -134,7 +134,7 @@ Specify a name and, optionally, a description for the automation.
 
 ## Create an automation via deployment triggers
 
-To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
 ```yaml
 # prefect.yaml
