@@ -122,7 +122,7 @@ if __name__ == "__main__":
 ```
 
 Now run `quickstart_flow.py`.
-You'll see log messages similar to the following in the terminal, indicating that the flow is running correctly.
+You'll see log messages like this in your terminal, indicating that the flow is running correctly:
 
 ```output
 17:18:09.863 | INFO    | prefect.engine - Created flow run 'fragrant-quetzal' for flow 'quickstart-flow'
