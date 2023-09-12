@@ -137,17 +137,45 @@ Specify a name and, optionally, a description for the automation.
 To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
 ```yaml
-triggers:
-  - enabled: true
-    match:
-      prefect.resource.id: my.external.resource
-    expect:
-      - external.resource.pinged
-    parameters:
-      param_1: "{{ event }}"
+# prefect.yaml
+deployments:
+  - name: my-deployment
+    entrypoint: path/to/flow.py:decorated_fn
+    work_pool:
+      name: my-process-pool
+    triggers:
+      - enabled: true
+        match:
+          prefect.resource.id: my.external.resource
+        expect:
+          - external.resource.pinged
+        parameters:
+          param_1: "{{ event }}"
 ```
 
-When applied, this will create a linked automation that responds to events from an external resource, and passes that event into the parameters of the executed flow run.
+At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](./events.md#event-grammar) and passes the templatable `event` as a parameter to the deployment's flow run.
+
+### Pass triggers to `prefect deploy`
+You can pass one more many `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
+
+```console
+# Pass a trigger as a JSON string
+prefect deploy -n test-deployment \
+  --trigger '{
+    "enabled": true, 
+    "match": {
+      "prefect.resource.id": "prefect.flow-run.*"
+    }, 
+    "expect": ["prefect.flow-run.Completed"]
+  }'
+
+# Pass a trigger using a JSON/YAML file
+prefect deploy -n test-deployment --trigger triggers.yaml
+prefect deploy -n test-deployment --trigger my_stuff/triggers.json
+```
+
+!!! warning "Use either the `--trigger` flag ***or*** your `prefect.yaml` file to define triggers"
+  To avoid confusion or unexpected behavior, `prefect deploy` will raise an error if you attempt to use both the `--trigger` flag and a `prefect.yaml` to define triggers for a given deployment.
 
 ## Automation notifications
 

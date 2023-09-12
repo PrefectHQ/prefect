@@ -151,7 +151,13 @@ async def deploy(
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
     trigger: List[str] = typer.Option(
-        None, "--trigger", help="A trigger for the deployment."
+        None,
+        "--trigger",
+        help=(
+            "Specifies a trigger for the deployment. The value can be a"
+            " json string or path to `.yaml`/`.json` file. This flag can be used"
+            " multiple times."
+        ),
     ),
     param: List[str] = typer.Option(
         None,
@@ -205,17 +211,6 @@ async def deploy(
             ),
             style="yellow",
         )
-    trigger_specs = []
-    if trigger:
-        for t in trigger:
-            if t.endswith(".yaml"):
-                with open(t, "r") as f:
-                    trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
-            elif t.endswith(".json"):
-                with open(t, "r") as f:
-                    trigger_specs.extend(json.load(f).get("triggers", []))
-            else:
-                trigger_specs.append(json.loads(t))
 
     options = {
         "entrypoint": entrypoint,
@@ -231,7 +226,7 @@ async def deploy(
         "anchor_date": interval_anchor,
         "rrule": rrule,
         "timezone": timezone,
-        "triggers": trigger_specs,
+        "triggers": trigger,
         "param": param,
         "params": params,
     }
@@ -497,16 +492,9 @@ async def _run_single_deploy(
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
 
-    cli_triggers = options.get("triggers")
-    existing_triggers = deploy_config.get("triggers")
-
-    if cli_triggers and existing_triggers:
-        raise ValueError(
-            "Provide triggers either via the CLI or in this deployment's configuration"
-            " - in `prefect.yaml` - not both."
-        )
-
-    if trigger_specs := cli_triggers or existing_triggers:
+    if trigger_specs := _prepare_deployment_triggers(
+        options.get("triggers"), deploy_config.get("triggers")
+    ):
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
         if client.server_type != ServerType.CLOUD:
             app.console.print(
@@ -1364,3 +1352,40 @@ async def _create_deployment_triggers(
         for trigger in triggers:
             trigger.set_deployment_id(deployment_id)
             await client.create_automation(trigger.as_automation())
+
+
+def _prepare_deployment_triggers(
+    trigger_flags: List[str], existing_triggers: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Parses trigger flags from CLI and existing deployment config in `prefect.yaml`.
+
+    Args:
+        trigger_flags: Triggers passed via CLI, either as JSON strings or file paths.
+        existing_triggers: Triggers from existing deployment configuration.
+
+    Returns:
+        List of trigger specifications.
+
+    Raises:
+        ValueError: If triggers are provided via both CLI and existing deployment configuration.
+    """
+    if trigger_flags and existing_triggers:
+        raise ValueError(
+            "Provide triggers either via the CLI or in this deployment's configuration"
+            " in its `prefect.yaml` - not both."
+        )
+
+    trigger_specs = []
+
+    if trigger_flags:
+        for t in trigger_flags:
+            if t.endswith(".yaml"):
+                with open(t, "r") as f:
+                    trigger_specs.extend(yaml.safe_load(f).get("triggers", []))
+            elif t.endswith(".json"):
+                with open(t, "r") as f:
+                    trigger_specs.extend(json.load(f).get("triggers", []))
+            else:
+                trigger_specs.append(json.loads(t))
+
+    return trigger_specs if trigger_flags else existing_triggers
