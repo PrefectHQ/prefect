@@ -20,7 +20,7 @@ search:
 Prefect Cloud is a workflow orchestration platform. Prefect Cloud provides all the capabilities of the [Prefect server](/host) and UI in a hosted environment, plus additional features such as automations, workspaces, and organizations.
 
 !!! success "Getting Started with Prefect Cloud"
-    Ready to jump right in and start running with Prefect Cloud? See the [Cloud Getting Started Guide](/cloud/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
+    Ready to jump right in and start running with Prefect Cloud? See the [Quickstart](/getting-started/quickstart/) and follow the instructions on the **Cloud** tabs to write and deploy your first Prefect Cloud-monitored flow run.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-dashboard.png)
 
@@ -49,14 +49,16 @@ When you sign up for Prefect Cloud, a personal account is automatically provisio
 
 As a personal account owner, you can create a [workspace](#workspaces) and invite collaborators to your workspace.
 
-[Organizations](#organizations) in Prefect Cloud enable you to invite users to collaborate in your workspaces with the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions) for organization members. Organizations may also configure [service accounts](#service-accounts) with API keys for non-user access to the Prefect Cloud API.
+[Organizations](#organizations) in Prefect Cloud enable you to invite users to collaborate in your workspaces with the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions) for organization members.
+Organizations may also configure [service accounts](#service-accounts) with API keys for non-user access to the Prefect Cloud API.
 
 !!! cloud-ad "Prefect Cloud plans for teams of every size"
     See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on options for individual users and teams.
 
 ## Workspaces
 
-A workspace is an isolated environment within Prefect Cloud for your flows, deployments, and block configuration. See the [Workspaces](/cloud/workspaces/) documentation for more information about configuring and using workspaces.
+A workspace is an isolated environment within Prefect Cloud for your flows, deployments, and block configuration.
+See the [Workspaces](/cloud/workspaces/) documentation for more information about configuring and using workspaces.
 
 Each workspace keeps track of its own:
 
@@ -66,8 +68,6 @@ Each workspace keeps track of its own:
 - [Work pools](/concepts/work-pools/)
 - [Blocks](/concepts/blocks/) and [storage](/concepts/storage/)
 - [Automations](/cloud/automations/)
-
-When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/cloud/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
@@ -107,7 +107,7 @@ See the [role-based access controls (RBAC)](../cloud/users/roles/) documentation
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/cloud/users/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
 
-## Audit Log <span class="badge orgs"></span> <span class="badge enterprise"></span>
+## Audit log <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/cloud/users/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes.
 
@@ -122,7 +122,7 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 
 To create an account or sign in with an existing Prefect Cloud account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
-Then follow the steps in our [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and start running workflows with Prefect Cloud.
+Then follow the steps in the UI or the [Prefect Quickstart](/getting-started/quickstart/) and follow the instructions on the **Cloud** tabs to write and deploy your first Prefect Cloud-monitored flow run.
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
