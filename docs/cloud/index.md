@@ -80,6 +80,10 @@ Prefect Cloud allows you to see your [events](/cloud/events/).
 
 Prefect Cloud [automations](/cloud/automations/) provide additional notification capabilities as the open-source Prefect server. Automations enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
+## Error Summaries
+
+Prefect Cloud error summaries, enabled by Marvin AI, distill the error logs of `Failed` and `Crached` flow runs into actionable information. To enable this feature and others powered by Marvin AI, visit the settings page for your account.
+
 ## Organizations <span class="badge orgs"></span>
 
 A Prefect Cloud [organization](/cloud/organizations/) is a type of account available on Prefect Cloud that enables more extensive and granular control over workspace collaboration. Within an organization account you can:
