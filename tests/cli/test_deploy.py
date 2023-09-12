@@ -4545,7 +4545,46 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_multiple_triggers(self, docker_work_pool):
+        async def test_nested_yaml_file_trigger(self, docker_work_pool, tmpdir):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+            triggers_file = tmpdir.mkdir("my_stuff") / "triggers.yaml"
+            with open(triggers_file, "w") as f:
+                yaml.safe_dump({"triggers": [trigger_spec]}, f)
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec]
+            )
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger my_stuff/triggers.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_multiple_trigger_flags(self, docker_work_pool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
