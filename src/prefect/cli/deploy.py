@@ -492,7 +492,7 @@ async def _run_single_deploy(
             build_steps = deploy_config.get("build", actions.get("build")) or []
             push_steps = deploy_config.get("push", actions.get("push")) or []
 
-    if trigger_specs := _prepare_deployment_triggers(
+    if trigger_specs := _gather_deployment_trigger_definitions(
         options.get("triggers"), deploy_config.get("triggers")
     ):
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
@@ -1354,7 +1354,7 @@ async def _create_deployment_triggers(
             await client.create_automation(trigger.as_automation())
 
 
-def _prepare_deployment_triggers(
+def _gather_deployment_trigger_definitions(
     trigger_flags: List[str], existing_triggers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """Parses trigger flags from CLI and existing deployment config in `prefect.yaml`.
