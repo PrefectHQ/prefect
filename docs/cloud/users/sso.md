@@ -32,9 +32,7 @@ See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more abou
 
 Within your organization, select the **SSO** page to enable SSO for users.
 
-If you haven't enabled SSO for a domain yet, enter the email domains for which you want to configure SSO in Prefect Cloud. Select **Save** to accept the domains.
-
-![Adding an email domain for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso.png)
+If you haven't enabled SSO for a domain yet, enter the email domains for which you want to configure SSO in Prefect Cloud and save it.
 
 Under **Enabled Domains**, select the domains from the **Domains** list, then select **Generate Link**. This step creates a link you can use to configure SSO with your identity provider.
 
@@ -57,3 +55,6 @@ When a user is unassigned from the Prefect Cloud application in your identity pr
 ## SCIM Provisioning
 
 Enterprise accounts have access to SCIM for user provisioning.
+The SSO tab provides access to enable SCIM provisioning.
+
+![Cloud UI with SSO & SCIM provisioned](/img/ui/sso-scim-enabled.png)
