@@ -134,7 +134,7 @@ Specify a name and, optionally, a description for the automation.
 
 ## Create an automation via deployment triggers
 
-To enable the simple configuation of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
 ```yaml
 # prefect.yaml
@@ -156,7 +156,7 @@ deployments:
 At deployment time, this will create a linked automation that is triggered by events matching your chosen [grammar](/concepts/events/#event-grammar), which will pass the templatable `event` as a parameter to the deployment's flow run.
 
 ### Pass triggers to `prefect deploy`
-You can pass one more many `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
+You can pass one or many `--trigger` arguments to `prefect deploy`, which can be either a JSON string or a path to a `.yaml` or `.json` file.
 
 ```bash
 # Pass a trigger as a JSON string
