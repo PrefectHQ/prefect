@@ -278,7 +278,7 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    should_prompt_for_save = is_interactive() and not ci and not bool(deploy_config)
+    should_prompt_for_save = is_interactive() and not ci
 
     deploy_config = _merge_with_default_deploy_config(deploy_config)
     (
