@@ -1,5 +1,32 @@
 """
-Objects for specifying deployments and utilities for loading flows from deployments.
+Objects for creating and configuring deployments for flows using `serve` functionality.
+
+Example:
+    ```python
+    import time
+    from prefect import flow, serve
+
+
+    @flow
+    def slow_flow(sleep: int = 60):
+        "Sleepy flow - sleeps the provided amount of time (in seconds)."
+        time.sleep(sleep)
+
+
+    @flow
+    def fast_flow():
+        "Fastest flow this side of the Mississippi."
+        return
+
+
+    if __name__ == "__main__":
+        # to_deployment creates RunnerDeployment instances
+        slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+        fast_deploy = fast_flow.to_deployment(name="fast")
+
+        serve(slow_deploy, fast_deploy)
+    ```
+
 """
 
 import importlib
@@ -19,6 +46,8 @@ from prefect.events.schemas import DeploymentTrigger
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+
+__all__ = ["RunnerDeployment"]
 
 
 class RunnerDeployment(BaseModel):
@@ -235,19 +264,31 @@ class RunnerDeployment(BaseModel):
             version=version,
         )
 
-        # TODO: better error messages with doc links
         if not deployment.entrypoint:
+            no_file_location_error = (
+                "Flows defined interactively cannot be deployed. Check out the"
+                " quickstart guide for help getting started:"
+                " https://docs.prefect.io/latest/getting-started/quickstart"
+            )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
             if not flow_file:
                 if not mod_name:
-                    # todo, check if the file location was manually set already
-                    raise ValueError("Could not determine flow's file location.")
-                module = importlib.import_module(mod_name)
-                flow_file = getattr(module, "__file__", None)
+                    raise ValueError(no_file_location_error)
+                try:
+                    module = importlib.import_module(mod_name)
+                    flow_file = getattr(module, "__file__", None)
+                except ModuleNotFoundError as exc:
+                    if "__prefect_loader__" in str(exc):
+                        raise ValueError(
+                            "Cannot create a RunnerDeployment from a flow that has been"
+                            " loaded from an entrypoint. To deploy a flow via"
+                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                        )
+                    raise ValueError(no_file_location_error)
                 if not flow_file:
-                    raise ValueError("Could not determine flow's file location.")
+                    raise ValueError(no_file_location_error)
 
             # set entrypoint
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())

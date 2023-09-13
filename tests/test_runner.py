@@ -11,7 +11,9 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import RunnerDeployment
+from prefect.flows import load_flow_from_entrypoint
 from prefect.runner import Runner
+from prefect.settings import PREFECT_RUNNER_PROCESS_LIMIT, temporary_settings
 from prefect.testing.utilities import AsyncMock
 
 
@@ -33,6 +35,19 @@ def tired_flow():
     for _ in range(100):
         print("zzzzz...")
         sleep(5)
+
+
+class TestInit:
+    async def test_runner_respects_limit_setting(self):
+        runner = Runner()
+        assert runner.limit == PREFECT_RUNNER_PROCESS_LIMIT.value()
+
+        runner = Runner(limit=50)
+        assert runner.limit == 50
+
+        with temporary_settings({PREFECT_RUNNER_PROCESS_LIMIT: 100}):
+            runner = Runner()
+            assert runner.limit == 100
 
 
 class TestServe:
@@ -159,7 +174,7 @@ class TestRunner:
         assert deployment_2.schedule.cron == "* * * * *"
 
     async def test_runner_can_pause_schedules_on_stop(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, caplog
     ):
         runner = Runner()
 
@@ -192,6 +207,9 @@ class TestRunner:
         assert not deployment_1.is_schedule_active
 
         assert not deployment_2.is_schedule_active
+
+        assert "Pausing schedules for all deployments" in caplog.text
+        assert "All deployment schedules have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
@@ -279,8 +297,35 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_completed()
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_respects_set_limit(
+        self, prefect_client: PrefectClient, caplog
+    ):
+        runner = Runner(limit=1)
 
-class TestDeploymentRunner:
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        good_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        bad_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        runner._acquire_limit_slot(good_run.id)
+        await runner.execute_flow_run(bad_run.id)
+        assert "run limit reached" in caplog.text
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+        assert flow_run.state.is_scheduled()
+
+        runner._release_limit_slot(good_run.id)
+        await runner.execute_flow_run(bad_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
+        assert flow_run.state.is_completed()
+
+
+class TestRunnerDeployment:
     @pytest.fixture
     def relative_file_path(self):
         return Path(__file__).relative_to(Path.cwd())
@@ -351,6 +396,41 @@ class TestDeploymentRunner:
 
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
+
+    def test_from_flow_raises_when_using_flow_loaded_from_entrypoint(self):
+        da_flow = load_flow_from_entrypoint("tests/test_runner.py:dummy_flow_1")
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Cannot create a RunnerDeployment from a flow that has been loaded from"
+                " an entrypoint"
+            ),
+        ):
+            RunnerDeployment.from_flow(da_flow, __file__)
+
+    def test_from_flow_raises_on_interactively_defined_flow(self):
+        @flow
+        def da_flow():
+            pass
+
+        # Clear __module__ to test it's handled correctly
+        da_flow.__module__ = None
+
+        with pytest.raises(
+            ValueError,
+            match="Flows defined interactively cannot be deployed.",
+        ):
+            RunnerDeployment.from_flow(da_flow, __file__)
+
+        # muck up __module__ so that it looks like it was defined interactively
+        da_flow.__module__ = "__main__"
+
+        with pytest.raises(
+            ValueError,
+            match="Flows defined interactively cannot be deployed.",
+        ):
+            RunnerDeployment.from_flow(da_flow, __file__)
 
     def test_from_entrypoint(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
