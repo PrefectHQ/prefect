@@ -108,7 +108,7 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -236,7 +236,7 @@ jobs:
 
       - name: Upload failure flag
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.create_failure_flag.outputs.artifact_name }}
           path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
@@ -257,7 +257,7 @@ jobs:
       FAILURE_THRESHOLD: 4
     steps:
       - name: Download all failure flags
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: failure-flags/
 
