@@ -34,8 +34,6 @@ When you select an organization, the **Organization** page provides an overview 
 
 ## Organization members
 
-![Viewing the Organization member page in Prefect Cloud.](/img/ui/org-members.png)
-
 You can control granular access to workspaces by setting default access for all organization members, inviting specific members to collaborate in an organization workspace, or adding service account permissions.
 
 To invite new members to an organization in Prefect Cloud, select the **+** icon. Provide an email address and  organization role. You may add multiple email addresses.
