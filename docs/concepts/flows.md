@@ -50,7 +50,7 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/img/ui/prefect-dashboard.png)
+![Prefect UI](/img/ui/timeline-flows.png)
 
 ## Writing flows
 
@@ -254,7 +254,7 @@ Hello Marvin!
 ```
 </div>
 
-## Visualizing Flow Structure <span class="badge experimental"></span>
+## Visualizing Flow Structure
 
 You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
 
@@ -329,7 +329,6 @@ You can define multiple flows within the same file. Whether running locally or v
 
 !!! warning "Cancelling subflow runs"
     In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
-
 
 ```python
 from prefect import flow, task
@@ -412,7 +411,6 @@ Subflow says: Hello Marvin!
     - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
-
 
 ## Parameters
 
@@ -501,7 +499,7 @@ ValueError: This flow immediately fails
 ```
 </div>
 
-### Return None
+### Return none
 
 A flow with no return statement is determined by the state of all of its task runs.
 
@@ -778,7 +776,6 @@ This interface provides all of the configuration needed for a deployment with no
                           interval=60)
     ```
 
-
 ### Serving multiple flows at once
 
 You can take this further and serve multiple flows with the same process using the [`serve`](/api-ref/prefect/runner/#prefect.runner.serve) utility along with the `to_deployment` method of flows:
@@ -953,61 +950,3 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
 ![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
-
-
-<!--
-# content from old Flows UI page
-# Flows
-
-A [flow](/concepts/flows/) contains the instructions for workflow logic, including the `@flow` and `@task` functions that define the work of your workflow.
-
-The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect server, or the Prefect ephemeral API in your local development environment.
-
-![View a list of flows observed by Prefect in the Prefect UI.](/img/ui/flows.png)
-
-For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
-
-You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](/ui/flow-runs/#inspect-a-flow-run).
-
-## Inspect a flow
-
-If you select the name of a flow on the **Flows** page, the UI displays details about the flow.
-
-![Details for a flow in the Prefect UI](/img/ui/flow-details.png)
-
-If deployments have been created for the flow, you'll see them here. Select the deployment name to see further details about the deployment.
-
-On this page you can also:
-
-- Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
-- Pause a schedule for a deployment by using the toggle control.
-- Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
-
-
-
-Additional info from the old ui/flow-runs page
-## Troubleshooting flows
-
-If you're having issues with a flow run, Prefect provides multiple tools to help you identify issues, re-run flows, and even delete a flow or flow run.
-
-Flows may end up in states other than Completed. This is where Prefect really helps you out. If a flow ends up in a state such as Pending, Failed, or Cancelled, you can:
-
-- Check the logs for the flow run for errors.
-- Check the task runs to see where the error occurred.
-- Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
-- Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
-
-If you need to delete a flow or flow run:
-
-In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
-
-From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run.
-
-<div class="terminal">
-```bash
-$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
-```
-</div>
-
-To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
--->

@@ -254,10 +254,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && failure()
     runs-on: ubuntu-latest
     env:
-      FAILURE_THRESHOLD: 3
+      FAILURE_THRESHOLD: 4
     steps:
       - name: Download all failure flags
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: failure-flags/
 
@@ -271,18 +271,17 @@ jobs:
           else
             too_many_tests_failed="false"
           fi
+          echo "failure_count=$failure_count" >> $GITHUB_OUTPUT
           echo "too_many_tests_failed=$too_many_tests_failed" >> $GITHUB_OUTPUT
 
       - name: Send Slack Notification
         if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
         uses: 8398a7/action-slack@v3
         with:
-          status: custom
-          fields: repo,message
-          custom_payload: |
-            {
-              text: "More than ${{ env.FAILURE_THRESHOLD }} unit test jobs are failing on main :oh-noo:",
-              channel: "#engineering-review",
-            }
+          author_name: Prefect OSS Unit Tests
+          channel: C032SBRHBSN # This is #engineering-review
+          fields: message,commit,author,workflowRun
+          status: failure
+          text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESHOLD }} jobs :oh-noo:"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}

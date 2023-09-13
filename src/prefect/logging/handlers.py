@@ -14,7 +14,6 @@ from rich.theme import Theme
 from typing_extensions import Self
 
 import prefect.context
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
@@ -283,17 +282,3 @@ class PrefectConsoleHandler(logging.StreamHandler):
             raise
         except Exception:
             self.handleError(record)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `APILogHandler` instead.")
-class OrionHandler(APILogHandler):
-    """
-    Deprecated. Use `APILogHandler` instead.
-    """
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `APILogWorker` instead.")
-class OrionLogWorker(APILogWorker):
-    """
-    Deprecated. Use `APILogWorker` instead.
-    """

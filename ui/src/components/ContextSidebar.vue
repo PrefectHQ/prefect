@@ -1,5 +1,10 @@
 <template>
   <p-context-sidebar class="context-sidebar">
+    <template #header>
+      <router-link :to="routes.root()" class="context-sidebar__logo-link">
+        <p-icon icon="Prefect" class="context-sidebar__logo-icon" />
+      </router-link>
+    </template>
     <p-context-nav-item title="Dashboard" :to="routes.dashboard()" />
     <p-context-nav-item title="Flow Runs" :to="routes.flowRuns()" />
     <p-context-nav-item title="Flows" :to="routes.flows()" />
@@ -9,7 +14,7 @@
     <p-context-nav-item title="Blocks" :to="routes.blocks()" />
     <p-context-nav-item :title="localization.info.variables" :to="routes.variables()" />
     <p-context-nav-item title="Notifications" :to="routes.notifications()" />
-    <p-context-nav-item title="Task Run Concurrency" :to="routes.concurrencyLimits()" />
+    <p-context-nav-item title="Concurrency" :to="routes.concurrencyLimits()" />
     <p-context-nav-item v-if="canSeeArtifacts" title="Artifacts" :to="routes.artifacts()" />
 
     <template #footer>
@@ -29,3 +34,21 @@
   const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
   const canSeeArtifacts = computed(() => can.access.artifacts)
 </script>
+
+<style>
+.context-sidebar__logo-link { @apply
+  outline-none
+  rounded-md
+  focus:ring-spacing-focus-ring
+  focus:ring-focus-ring
+}
+
+.context-sidebar__logo-link:focus:not(:focus-visible) { @apply
+  ring-transparent
+}
+
+.context-sidebar__logo-icon { @apply
+  !w-[42px]
+  !h-[42px]
+}
+</style>
