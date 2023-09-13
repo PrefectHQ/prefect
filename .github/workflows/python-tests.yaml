@@ -257,7 +257,7 @@ jobs:
       FAILURE_THRESHOLD: 4
     steps:
       - name: Download all failure flags
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: failure-flags/
 
