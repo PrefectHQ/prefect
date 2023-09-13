@@ -1367,6 +1367,17 @@ class TestFlowParameterTypes:
         # See #1638.
         assert my_flow(data) == data
 
+    def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
+        class Test:
+            pass
+
+        @flow
+        def my_flow(instance: Test):
+            return instance
+
+        instance = my_flow(Test())
+        assert isinstance(instance, Test)
+
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
@@ -1409,6 +1420,21 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow() == ParameterTestModel(data=1)
+
+    def test_subflow_parameter_annotations_can_be_non_pydantic_classes(self):
+        class Test:
+            pass
+
+        @flow
+        def my_flow(i: Test):
+            return my_subflow(i)
+
+        @flow
+        def my_subflow(i: Test):
+            return i
+
+        instance = my_flow(Test())
+        assert isinstance(instance, Test)
 
 
 class TestSubflowTaskInputs:

@@ -279,7 +279,7 @@ class Flow(Generic[P, R]):
             # We cannot, however, store the validated function on the flow because it
             # is not picklable in some environments
             try:
-                ValidatedFunction(self.fn, config=None)
+                ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -443,7 +443,9 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
-        validated_fn = ValidatedFunction(self.fn, config=None)
+        validated_fn = ValidatedFunction(
+            self.fn, config={"arbitrary_types_allowed": True}
+        )
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         try:
