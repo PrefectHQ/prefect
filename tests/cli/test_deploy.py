@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import shutil
 import subprocess
@@ -115,6 +116,30 @@ def project_dir_with_single_deployment_format(tmp_path):
 
         yield tmp_path / "three-seven"
     os.chdir(original_dir)
+
+
+@pytest.fixture
+def uninitialized_project_dir(project_dir):
+    Path(project_dir, "prefect.yaml").unlink()
+    return project_dir
+
+
+@pytest.fixture
+def uninitialized_project_dir_with_git_no_remote(uninitialized_project_dir):
+    subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
+    assert Path(uninitialized_project_dir, ".git").exists()
+    return uninitialized_project_dir
+
+
+@pytest.fixture
+def uninitialized_project_dir_with_git_with_remote(
+    uninitialized_project_dir_with_git_no_remote,
+):
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
+        cwd=uninitialized_project_dir_with_git_no_remote,
+    )
+    return uninitialized_project_dir_with_git_no_remote
 
 
 @pytest.fixture
@@ -628,29 +653,6 @@ class TestProjectDeploy:
         )
 
     class TestGeneratedPullAction:
-        @pytest.fixture
-        def uninitialized_project_dir(self, project_dir):
-            Path(project_dir, "prefect.yaml").unlink()
-            return project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_no_remote(
-            self, uninitialized_project_dir
-        ):
-            subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
-            assert Path(uninitialized_project_dir, ".git").exists()
-            return uninitialized_project_dir
-
-        @pytest.fixture
-        def uninitialized_project_dir_with_git_with_remote(
-            self, uninitialized_project_dir_with_git_no_remote
-        ):
-            subprocess.run(
-                ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
-                cwd=uninitialized_project_dir_with_git_no_remote,
-            )
-            return uninitialized_project_dir_with_git_no_remote
-
         async def test_project_deploy_generates_pull_action(
             self, work_pool, prefect_client, uninitialized_project_dir
         ):
@@ -4236,194 +4238,520 @@ class TestCheckForMatchingDeployment:
         assert not matching_deployment_exists_2
 
 
-class TestDeploymentTriggerSyncing:
-    async def test_initialize_named_deployment_triggers(self):
-        trigger_spec = {
-            "name": "Trigger McTriggerson",
-            "enabled": True,
-            "match": {"prefect.resource.id": "prefect.flow-run.*"},
-            "expect": ["prefect.flow-run.Completed"],
-            "match_related": {
-                "prefect.resource.name": "seed",
-                "prefect.resource.role": "flow",
-            },
-        }
-
-        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-        assert triggers == [
-            {
+class TestDeploymentTrigger:
+    class TestDeploymentTriggerSyncing:
+        async def test_initialize_named_deployment_triggers(self):
+            trigger_spec = {
                 "name": "Trigger McTriggerson",
-                "description": "",
                 "enabled": True,
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
                 "match_related": {
                     "prefect.resource.name": "seed",
                     "prefect.resource.role": "flow",
                 },
-                "after": set(),
-                "expect": {"prefect.flow-run.Completed"},
-                "for_each": set(),
-                "posture": Posture.Reactive,
-                "threshold": 1,
-                "within": datetime.timedelta(0),
-                "parameters": None,
             }
-        ]
 
-    async def test_initialize_deployment_triggers_implicit_name(self):
-        trigger_spec = {
-            "enabled": True,
-            "match": {"prefect.resource.id": "prefect.flow-run.*"},
-            "expect": ["prefect.flow-run.Completed"],
-            "match_related": {
-                "prefect.resource.name": "seed",
-                "prefect.resource.role": "flow",
-            },
-        }
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            assert triggers == [
+                {
+                    "name": "Trigger McTriggerson",
+                    "description": "",
+                    "enabled": True,
+                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                    "match_related": {
+                        "prefect.resource.name": "seed",
+                        "prefect.resource.role": "flow",
+                    },
+                    "after": set(),
+                    "expect": {"prefect.flow-run.Completed"},
+                    "for_each": set(),
+                    "posture": Posture.Reactive,
+                    "threshold": 1,
+                    "within": datetime.timedelta(0),
+                    "parameters": None,
+                }
+            ]
 
-        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-        assert triggers[0].name == "my_deployment__automation_1"
-
-    async def test_create_deployment_triggers(self):
-        client = AsyncMock()
-        client.server_type = ServerType.CLOUD
-
-        trigger_spec = {
-            "enabled": True,
-            "match": {"prefect.resource.id": "prefect.flow-run.*"},
-            "expect": ["prefect.flow-run.Completed"],
-            "match_related": {
-                "prefect.resource.name": "seed",
-                "prefect.resource.role": "flow",
-            },
-        }
-
-        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-        deployment_id = uuid4()
-
-        await _create_deployment_triggers(client, deployment_id, triggers)
-
-        assert triggers[0]._deployment_id == deployment_id
-        client.delete_resource_owned_automations.assert_called_once_with(
-            f"prefect.deployment.{deployment_id}"
-        )
-        client.create_automation.assert_called_once_with(triggers[0].as_automation())
-
-    async def test_create_deployment_triggers_not_cloud_noop(self):
-        client = AsyncMock()
-        client.server_type = ServerType.SERVER
-
-        trigger_spec = {
-            "enabled": True,
-            "match": {"prefect.resource.id": "prefect.flow-run.*"},
-            "expect": ["prefect.flow-run.Completed"],
-            "match_related": {
-                "prefect.resource.name": "seed",
-                "prefect.resource.role": "flow",
-            },
-        }
-
-        triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-        deployment_id = uuid4()
-
-        await _create_deployment_triggers(client, deployment_id, triggers)
-
-        client.delete_resource_owned_automations.assert_not_called()
-        client.create_automation.assert_not_called()
-
-    async def test_triggers_creation_orchestrated(
-        self, project_dir, prefect_client, work_pool
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            contents = yaml.safe_load(f)
-
-        contents["deployments"] = [
-            {
-                "name": "test-name-1",
-                "work_pool": {
-                    "name": work_pool.name,
+        async def test_initialize_deployment_triggers_implicit_name(self):
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
                 },
-                "triggers": [
-                    {
-                        "enabled": True,
-                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                        "expect": ["prefect.flow-run.Completed"],
-                        "match_related": {
-                            "prefect.resource.name": "seed",
-                            "prefect.resource.role": "flow",
-                        },
-                    }
-                ],
             }
-        ]
 
-        expected_triggers = _initialize_deployment_triggers(
-            "test-name-1", contents["deployments"][0]["triggers"]
-        )
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            assert triggers[0].name == "my_deployment__automation_1"
 
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(contents, f)
+        async def test_create_deployment_triggers(self):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
 
-        with mock.patch(
-            "prefect.cli.deploy._create_deployment_triggers",
-            AsyncMock(),
-        ) as create_triggers:
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            }
+
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            deployment_id = uuid4()
+
+            await _create_deployment_triggers(client, deployment_id, triggers)
+
+            assert triggers[0]._deployment_id == deployment_id
+            client.delete_resource_owned_automations.assert_called_once_with(
+                f"prefect.deployment.{deployment_id}"
+            )
+            client.create_automation.assert_called_once_with(
+                triggers[0].as_automation()
+            )
+
+        async def test_create_deployment_triggers_not_cloud_noop(self):
+            client = AsyncMock()
+            client.server_type = ServerType.SERVER
+
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "match_related": {
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            }
+
+            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
+            deployment_id = uuid4()
+
+            await _create_deployment_triggers(client, deployment_id, triggers)
+
+            client.delete_resource_owned_automations.assert_not_called()
+            client.create_automation.assert_not_called()
+
+        async def test_triggers_creation_orchestrated(
+            self, project_dir, prefect_client, work_pool
+        ):
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            contents["deployments"] = [
+                {
+                    "name": "test-name-1",
+                    "work_pool": {
+                        "name": work_pool.name,
+                    },
+                    "triggers": [
+                        {
+                            "enabled": True,
+                            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                            "expect": ["prefect.flow-run.Completed"],
+                            "match_related": {
+                                "prefect.resource.name": "seed",
+                                "prefect.resource.role": "flow",
+                            },
+                        }
+                    ],
+                }
+            ]
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", contents["deployments"][0]["triggers"]
+            )
+
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(contents, f)
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy ./flows/hello.py:my_flow -n test-name-1",
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+                assert isinstance(client, PrefectClient)
+                assert isinstance(deployment_id, UUID)
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        async def test_deploy_command_warns_triggers_not_created_not_cloud(
+            self, project_dir, prefect_client, work_pool
+        ):
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            contents["deployments"] = [
+                {
+                    "name": "test-name-1",
+                    "work_pool": {
+                        "name": work_pool.name,
+                    },
+                    "triggers": [
+                        {
+                            "enabled": True,
+                            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                            "expect": ["prefect.flow-run.Completed"],
+                            "match_related": {
+                                "prefect.resource.name": "seed",
+                                "prefect.resource.role": "flow",
+                            },
+                        }
+                    ],
+                }
+            ]
+
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(contents, f)
+
+            # Deploy the deployment with a name
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command="deploy ./flows/hello.py:my_flow -n test-name-1",
                 expected_code=0,
+                expected_output_contains=[
+                    "Deployment triggers are only supported on Prefect Cloud"
+                ],
             )
 
-            assert create_triggers.call_count == 1
+    class TestDeploymentTriggerPassedViaCLI:
+        @pytest.mark.usefixtures("project_dir")
+        async def test_json_string_trigger(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
 
-            client, deployment_id, triggers = create_triggers.call_args[0]
-            assert isinstance(client, PrefectClient)
-            assert isinstance(deployment_id, UUID)
-
-            expected_triggers[0].set_deployment_id(deployment_id)
-
-            assert triggers == expected_triggers
-
-    async def test_deploy_command_warns_triggers_not_created_not_cloud(
-        self, project_dir, prefect_client, work_pool
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            contents = yaml.safe_load(f)
-
-        contents["deployments"] = [
-            {
-                "name": "test-name-1",
-                "work_pool": {
-                    "name": work_pool.name,
-                },
-                "triggers": [
-                    {
-                        "enabled": True,
-                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                        "expect": ["prefect.flow-run.Completed"],
-                        "match_related": {
-                            "prefect.resource.name": "seed",
-                            "prefect.resource.role": "flow",
-                        },
-                    }
-                ],
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
             }
-        ]
 
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(contents, f)
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec]
+            )
 
-        # Deploy the deployment with a name
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name-1",
-            expected_code=0,
-            expected_output_contains=[
-                "Deployment triggers are only supported on Prefect Cloud"
-            ],
-        )
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 --trigger"
+                        f" '{json.dumps(trigger_spec)}' -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_json_file_trigger(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+
+            with open("triggers.json", "w") as f:
+                json.dump({"triggers": [trigger_spec]}, f)
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec]
+            )
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger triggers.json -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_yaml_file_trigger(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+
+            with open("triggers.yaml", "w") as f:
+                yaml.safe_dump({"triggers": [trigger_spec]}, f)
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec]
+            )
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger triggers.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_nested_yaml_file_trigger(self, docker_work_pool, tmpdir):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+            triggers_file = tmpdir.mkdir("my_stuff") / "triggers.yaml"
+            with open(triggers_file, "w") as f:
+                yaml.safe_dump({"triggers": [trigger_spec]}, f)
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec]
+            )
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger my_stuff/triggers.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                expected_triggers[0].set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_multiple_trigger_flags(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            trigger_spec_1 = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+
+            trigger_spec_2 = {
+                "enabled": False,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Failed"],
+            }
+
+            with open("triggers.yaml", "w") as f:
+                yaml.safe_dump({"triggers": [trigger_spec_2]}, f)
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [trigger_spec_1, trigger_spec_2]
+            )
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 --trigger"
+                        f" '{json.dumps(trigger_spec_1)}' --trigger triggers.yaml -p"
+                        f" {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_triggers.call_count == 1
+
+                client, deployment_id, triggers = create_triggers.call_args[0]
+
+                for expected_trigger in expected_triggers:
+                    expected_trigger.set_deployment_id(deployment_id)
+
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_override_on_trigger_conflict(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            cli_trigger_spec = {
+                "enabled": True,
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Failed"],
+            }
+
+            expected_triggers = _initialize_deployment_triggers(
+                "test-name-1", [cli_trigger_spec]
+            )
+
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            contents["deployments"] = [
+                {
+                    "name": "test-name-1",
+                    "work_pool": {
+                        "name": docker_work_pool.name,
+                    },
+                    "triggers": [
+                        {**cli_trigger_spec, "expect": ["prefect.flow-run.Completed"]}
+                    ],
+                }
+            ]
+
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(contents, f)
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ) as create_triggers:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                    ),
+                    expected_code=0,
+                )
+
+                _, _, triggers = create_triggers.call_args[0]
+                assert len(triggers) == 1
+                assert triggers == expected_triggers
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_invalid_trigger_parsing(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            invalid_json_str_trigger = "{enabled: true, match: woodchonk.move.*}"
+            invalid_yaml_trigger = "invalid.yaml"
+
+            with open(invalid_yaml_trigger, "w") as f:
+                f.write("pretty please, trigger my flow when you see the woodchonk")
+
+            for invalid_trigger in [invalid_json_str_trigger, invalid_yaml_trigger]:
+                with mock.patch(
+                    "prefect.cli.deploy._create_deployment_triggers",
+                    AsyncMock(),
+                ):
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" -p {docker_work_pool.name} --trigger '{invalid_trigger}'"
+                        ),
+                        expected_code=1,
+                        expected_output_contains=["Failed to parse trigger"],
+                    )
+
+        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        async def test_triggers_saved_to_prefect_yaml(self, docker_work_pool):
+            client = AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            cli_trigger_spec = {
+                "name": "Trigger McTriggerson",
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+            }
+
+            with mock.patch(
+                "prefect.cli.deploy._create_deployment_triggers",
+                AsyncMock(),
+            ):
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 -p"
+                        f" {docker_work_pool.name} --trigger"
+                        f" '{json.dumps(cli_trigger_spec)}'"
+                    ),
+                    user_input=(
+                        # Decline schedule
+                        "n"
+                        + readchar.key.ENTER
+                        # Decline docker build
+                        + "n"
+                        + readchar.key.ENTER
+                        # Accept save configuration
+                        + "y"
+                        + readchar.key.ENTER
+                    ),
+                    expected_code=0,
+                )
+
+            # Read the updated prefect.yaml
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            assert "deployments" in contents
+            assert "triggers" in contents["deployments"][-1]
+            assert contents["deployments"][-1]["triggers"] == [cli_trigger_spec]
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
