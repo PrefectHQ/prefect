@@ -221,8 +221,9 @@ class TestRegisterFlow:
 class TestDiscoverFlows:
     async def test_find_all_flows_in_dir_tree(self, project_dir):
         flows = await _search_for_flow_functions(str(project_dir))
-        assert len(flows) == 6
-        assert sorted(flows, key=lambda f: f["function_name"]) == [
+        assert len(flows) == 6, f"Expected 6 flows, found {len(flows)}"
+
+        expected_flows = [
             {
                 "flow_name": "foobar",
                 "function_name": "foobar",
@@ -262,6 +263,12 @@ class TestDiscoverFlows:
                 ),
             },
         ]
+
+        for flow in flows:
+            assert flow in expected_flows, f"Unexpected flow: {flow}"
+            expected_flows.remove(flow)
+
+        assert len(expected_flows) == 0, f"Missing flows: {expected_flows}"
 
     async def test_find_all_flows_works_on_large_directory_structures(self):
         flows = await _search_for_flow_functions(str(prefect.__development_base_path__))
