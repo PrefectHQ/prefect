@@ -1108,6 +1108,7 @@ class TestProjectDeploy:
                         " remote storage location when running this flow?"
                     ),
                     "View/Edit your new credentials block in the UI:",
+                    PREFECT_UI_URL.value(),
                 ],
             )
 
