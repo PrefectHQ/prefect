@@ -17,6 +17,8 @@ from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFoun
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
 
+CTRL_BREAK_EVENT = signal.CTRL_BREAK_EVENT if sys.platform == "win32" else None
+
 
 @pytest.fixture
 def mock_open_process(monkeypatch):
@@ -255,14 +257,32 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
     os_kill.assert_not_called()
 
 
-@pytest.mark.flaky(max_runs=2)
-async def test_process_kill_no_matching_pid(monkeypatch):
-    infrastructure_pid = f"{socket.gethostname()}:12345"
+@pytest.mark.parametrize(
+    "platform, expected_signal, skip_if",
+    [
+        ("win32", CTRL_BREAK_EVENT, sys.platform != "win32"),
+        ("linux", signal.SIGTERM, False),
+        ("darwin", signal.SIGTERM, False),
+    ],
+)
+async def test_process_kill_no_matching_pid(
+    monkeypatch, platform, expected_signal, skip_if
+):
+    if skip_if:
+        pytest.skip("Skipping Windows test on non-Windows platforms.")
 
+    monkeypatch.setattr(sys, "platform", platform)
+
+    mock_kill = MagicMock(side_effect=ProcessLookupError)
+    monkeypatch.setattr("os.kill", mock_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
     process = Process(command=["noop"])
 
     with pytest.raises(InfrastructureNotFound):
         await process.kill(infrastructure_pid=infrastructure_pid)
+
+    mock_kill.assert_called_once_with(12345, expected_signal)
 
 
 @pytest.mark.skipif(
