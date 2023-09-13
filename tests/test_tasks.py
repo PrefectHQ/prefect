@@ -3393,6 +3393,22 @@ async def test_sets_run_name_once_per_call():
     assert generate_task_run_name.call_count == 2
 
 
+def test_task_parameter_annotations_can_be_non_pydantic_classes():
+    class Test:
+        pass
+
+    @task
+    def my_task(instance: Test):
+        return instance
+
+    @flow
+    def my_flow(instance: Test):
+        return my_task(instance)
+
+    instance = my_flow(Test())
+    assert isinstance(instance, Test)
+
+
 def create_hook(mock_obj):
     def my_hook(task, task_run, state):
         mock_obj()
