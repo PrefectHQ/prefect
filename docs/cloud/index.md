@@ -82,7 +82,7 @@ Prefect Cloud [automations](/cloud/automations/) provide additional notification
 
 ## Error Summaries
 
-Prefect Cloud error summaries, enabled by Marvin AI, distill the error logs of `Failed` and `Crached` flow runs into actionable information. To enable this feature and others powered by Marvin AI, visit the settings page for your account.
+Prefect Cloud error summaries, enabled by Marvin AI, distill the error logs of `Failed` and `Crashed` flow runs into actionable information. To enable this feature and others powered by Marvin AI, visit the settings page for your account.
 
 ## Organizations <span class="badge orgs"></span>
 
