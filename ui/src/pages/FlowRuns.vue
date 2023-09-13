@@ -29,10 +29,11 @@
               <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
             </div>
 
+            <p-toggle v-model="parentTaskRunIdNull" class="flow-runs__subflows-toggle" append="Hide subflows" />
             <template v-if="media.md">
               <SearchInput v-model="flowRunNameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
-            <FlowRunsSort v-model="filter.sort" />
+            <FlowRunsSort v-model="filter.sort" class="flow-runs__sort" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" selectable :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
@@ -76,6 +77,14 @@
       nameLike: flowRunNameLikeDebounced,
     },
   })
+  const parentTaskRunIdNull = computed({
+    get() {
+      return filter.flowRuns.parentTaskRunIdNull
+    },
+    set(val) {
+      filter.flowRuns.parentTaskRunIdNull = val ? true : undefined
+    },
+  })
 
   const subscriptionOptions = {
     interval: 30000,
@@ -98,7 +107,7 @@
 
   const classes = computed(() => ({
     listControls: {
-      'flow-runs__list-controls--stuck': stuck.value,
+      'flow-runs__list-controls--stuck': stuck.value && media.md,
     },
   }))
 
@@ -123,16 +132,22 @@
 
 .flow-runs__list-controls { @apply
   flex
+  flex-wrap
   gap-2
+  gap-y-4
   items-center
-  px-2
   py-3
-  sticky
-  top-0
-  z-10
+  rounded-b-default
+  border-t
+  border-t-divider
+  md:border-t-0
+  md:sticky
+  md:top-0
+  md:z-10
 }
 
 .flow-runs__list-controls--stuck { @apply
+  px-2
   bg-floating-sticky
   backdrop-blur-sm
   shadow-md
@@ -147,5 +162,14 @@
 
 .flow-runs__chart {
   height: 275px;
+}
+
+.flow-runs__subflows-toggle { @apply
+  mr-2
+}
+
+.flow-runs__sort { @apply
+  w-full
+  md:w-auto
 }
 </style>
