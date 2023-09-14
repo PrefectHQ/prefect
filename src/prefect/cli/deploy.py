@@ -1318,9 +1318,9 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
     if prefect_file.exists():
         with prefect_file.open(mode="r") as f:
             parsed_prefect_file_contents = yaml.safe_load(f)
-            deployments = parsed_prefect_file_contents.get("deployments")
-            if deployments is not None:
-                for _, existing_deployment in enumerate(deployments):
+            existing_deployments = parsed_prefect_file_contents.get("deployments")
+            if existing_deployments is not None:
+                for existing_deployment in existing_deployments:
                     if existing_deployment.get("name") == deploy_config.get(
                         "name"
                     ) and (
