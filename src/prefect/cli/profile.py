@@ -57,7 +57,6 @@ def create(
     """
     Create a new profile.
     """
-
     profiles = prefect.settings.load_profiles()
     if name in profiles:
         app.console.print(
@@ -105,10 +104,38 @@ async def use(name: str):
     """
     Set the given profile to active.
     """
+
+    profiles = prefect.settings.load_profiles()
+    if name not in profiles.names:
+        exit_with_error(f"Profile {name!r} not found.")
+
+    profiles.set_active(name)
+    prefect.settings.save_profiles(profiles)
+
+    async with get_cloud_client() as client:
+        try:
+            workspaces = await client.read_workspaces()
+        except CloudUnauthorizedError:
+            exit_with_error(
+                "Unable to authenticate. Please ensure your credentials are correct."
+            )
+
+    current_api_url = prefect.settings.PREFECT_API_URL.value()
+
+    if not current_api_url:
+        return None
+
+    for workspace in workspaces:
+        if workspace.api_url() == current_api_url:
+            workspace_handle = workspace.handle
+
     status_messages = {
         ConnectionStatus.CLOUD_CONNECTED: (
             exit_with_success,
-            f"Connected to Prefect Cloud using profile {name!r}",
+            (
+                f"Connected to Prefect Cloud workspace {workspace_handle!r} using"
+                f" profile {name!r}"
+            ),
         ),
         ConnectionStatus.CLOUD_ERROR: (
             exit_with_error,
@@ -138,13 +165,6 @@ async def use(name: str):
             "Error connecting to Prefect API URL",
         ),
     }
-
-    profiles = prefect.settings.load_profiles()
-    if name not in profiles.names:
-        exit_with_error(f"Profile {name!r} not found.")
-
-    profiles.set_active(name)
-    prefect.settings.save_profiles(profiles)
 
     with Progress(
         SpinnerColumn(),
