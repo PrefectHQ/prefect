@@ -377,21 +377,17 @@ def _copy_deployments_into_prefect_file():
             f.write(raw_deployment_file_contents)
 
 
-def _save_deployment_to_prefect_file(
+def _format_deployment_for_saving_to_prefect_yaml(
     deployment: Dict,
-    build_steps: Optional[List[Dict]] = None,
-    push_steps: Optional[List[Dict]] = None,
-    pull_steps: Optional[List[Dict]] = None,
-    triggers: Optional[List[Dict]] = None,
-):
+) -> Dict:
     """
-    Save a deployment configuration to the `prefect.yaml` file in the
-    current directory.
-
-    Will create a prefect.yaml file if one does not already exist.
+    Formats a deployment into a templated deploy config for saving to prefect.yaml.
 
     Args:
-        - deployment: a dictionary containing a deployment configuration
+        - deployment (Dict): a dictionary containing an untemplated deployment configuration
+
+    Returns:
+        - deployment (Dict): a dictionary containing a templated deployment configuration
     """
     if not deployment:
         raise ValueError("Deployment must be a non-empty dictionary.")
@@ -412,6 +408,27 @@ def _save_deployment_to_prefect_file(
             ].isoformat()
         elif isinstance(deployment["schedule"], BaseModel):
             deployment["schedule"] = deployment["schedule"].dict()
+
+    return deployment
+
+
+def _save_deployment_to_prefect_file(
+    deployment: Dict,
+    build_steps: Optional[List[Dict]] = None,
+    push_steps: Optional[List[Dict]] = None,
+    pull_steps: Optional[List[Dict]] = None,
+    triggers: Optional[List[Dict]] = None,
+):
+    """
+    Save a deployment configuration to the `prefect.yaml` file in the
+    current directory.
+
+    Will create a prefect.yaml file if one does not already exist.
+
+    Args:
+        - deployment: a dictionary containing a deployment configuration
+    """
+    deployment = _format_deployment_for_saving_to_prefect_yaml(deployment)
 
     current_directory_name = os.path.basename(os.getcwd())
     prefect_file = Path("prefect.yaml")
