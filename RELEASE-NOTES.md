@@ -3,7 +3,7 @@
 ## Release 2.13.1
 ### Enhancements
 - Add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
-- Add `prefect.runtime.flow_run.run_count` and `prefect.runtime.task_run.run_count` — https://github.com/PrefectHQ/prefect/pull/10676
+- Add `run_count` to flow/task runtime  — https://github.com/PrefectHQ/prefect/pull/10676
 - Allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
 - Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
 - Show flow name on Custom Run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
@@ -13,9 +13,10 @@
 - Add opt-in to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
 - Add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
 - Add ability to update existing deployment configurations with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10718
+
 ### Fixes
 - Avoid creating unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
-- `CronSchedules` and DST — https://github.com/PrefectHQ/prefect/pull/10678
+- DST handling in `CronSchedules` — https://github.com/PrefectHQ/prefect/pull/10678
 - Allow Python classes as flow/task type hints — https://github.com/PrefectHQ/prefect/pull/10711
 - Formatting of `SendgridEmail.to_emails` example — https://github.com/PrefectHQ/prefect/pull/10669
 - Update artifact collection filters to match other pages - https://github.com/PrefectHQ/prefect-ui-library/pull/1689
