@@ -150,12 +150,41 @@ def create_event_driven_automation():
     print(response.json())
     return response.json()
 ```
-TODO: try to make it more organic on the actions kickoff
 TODO: Create a deployment that provides the deployment_id
 TODO: Question to explore, does flow.serve provide a deployment_id that you could use to then kick off work?
+TODO: Deployment that recreates the same 20 names creation except with a different endpoint or feature
 
 Let us take a quick peek at the Prefect.yaml file associated with the deployment. We can see that it is very barebones..
-# Combining both? 
+
+
+# Using an underlying .yaml file
+We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. 
+
+Let us first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
+
+```yaml
+name: Cancel long running flows
+description: Cancel any flow run after an hour of execution
+trigger:
+  match:
+    "prefect.resource.id": "prefect.flow-run.*"
+  match_related: {}
+  after:
+    - prefect.flow-run.Failed
+  expect:
+    - "prefect.flow-run.*"
+  for_each:
+    - "prefect.resource.id"
+  posture: Proactive
+  threshold: 1
+  within: 3600
+actions:
+  - type: "cancel-flow-run"
+```
+
+TODO: Make it a little bit more robust
+Is kicking off a deployment the right thing to do in this case? I like cancelling long running flows -> can tie in with the first example of pulling in lots of data (increase the name count when creating the dataframe)
+
 - Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
 
 TODO: Automations script that trains a model as a next steps? 
