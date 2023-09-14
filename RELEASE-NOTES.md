@@ -25,7 +25,7 @@ See the following for implementation details:
 
 ### Fixes
 - Avoid creating unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
-- DST handling in `CronSchedules` — https://github.com/PrefectHQ/prefect/pull/10678
+- Handling DST in `CronSchedules` — https://github.com/PrefectHQ/prefect/pull/10678
 - Allow Python classes as flow/task type hints — https://github.com/PrefectHQ/prefect/pull/10711
 - Fix formatting of `SendgridEmail.to_emails` example in notifications API reference — https://github.com/PrefectHQ/prefect/pull/10669
 - Streamline Artifact search filters to match other pages in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1689
