@@ -7,7 +7,7 @@
 - Add `run_count` to `prefect.runtime.task_run`  — https://github.com/PrefectHQ/prefect/pull/10676
 - Allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
 - Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
-- Show flow name on Custom Run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
+- Show flow name on Custom Run page in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
 - Add ability to reset a task-based concurrency limit - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
 - Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
 - Add pagination to deployment and flow tables - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
