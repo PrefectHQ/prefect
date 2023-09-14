@@ -3,7 +3,7 @@
 ## Release 2.13.1
 
 ### Hide subflow runs in the Prefect UI
-We’ve added the ability to filter out subflow runs in your Flow Runs list! This feature is especially beneficial for those who frequently use subflows, making it easier to focus on parent flows with less clutter.
+We’ve added the ability to filter out subflow runs from the list on the Flow Runs page! This feature is especially beneficial for those who frequently use subflows, making it easier to focus on parent flows with less clutter.
 
 ![Hide subflows in UI demo](https://github.com/PrefectHQ/prefect/assets/31014960/7f6a9473-8003-4a90-8ff7-4d766623b38b)
 
