@@ -37,7 +37,6 @@ from rich.console import Console
 from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
@@ -280,7 +279,7 @@ class Flow(Generic[P, R]):
             # We cannot, however, store the validated function on the flow because it
             # is not picklable in some environments
             try:
-                ValidatedFunction(self.fn, config=None)
+                ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -444,7 +443,9 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
-        validated_fn = ValidatedFunction(self.fn, config=None)
+        validated_fn = ValidatedFunction(
+            self.fn, config={"arbitrary_types_allowed": True}
+        )
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         try:
@@ -799,7 +800,6 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
     async def visualize(self, *args, **kwargs):
         """
         Generates a graphviz object representing the current flow. In IPython notebooks,

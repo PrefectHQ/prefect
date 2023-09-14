@@ -16,7 +16,7 @@ Available attributes:
         include default values set on the flow function, only the parameter values explicitly passed for the run
     - `parent_flow_run_id`: the ID of the flow run that triggered this run, if any
     - `parent_deployment_id`: the ID of the deployment that triggered this run, if any
-
+    - `run_count`: the number of times this flow run has been run
 """
 import os
 from typing import Any, Dict, List, Optional
@@ -37,6 +37,7 @@ __all__ = [
     "parameters",
     "parent_flow_run_id",
     "parent_deployment_id",
+    "run_count",
 ]
 
 
@@ -134,6 +135,21 @@ def get_tags() -> List[str]:
         return flow_run.tags
     else:
         return flow_run_ctx.flow_run.tags
+
+
+def get_run_count() -> int:
+    flow_run_ctx = FlowRunContext.get()
+    run_id = get_id()
+    if flow_run_ctx is None and run_id is None:
+        return 0
+    elif flow_run_ctx is None:
+        flow_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
+
+        return flow_run.run_count
+    else:
+        return flow_run_ctx.flow_run.run_count
 
 
 def get_name() -> Optional[str]:
@@ -238,4 +254,5 @@ FIELDS = {
     "parameters": get_parameters,
     "parent_flow_run_id": get_parent_flow_run_id,
     "parent_deployment_id": get_parent_deployment_id,
+    "run_count": get_run_count,
 }

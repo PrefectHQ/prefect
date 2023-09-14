@@ -1,11 +1,13 @@
 <template>
   <p-layout-default class="workspace-dashboard">
-    <PageHeading :crumbs="crumbs">
-      <template v-if="!empty" #actions>
-        <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-        <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
-      </template>
-    </PageHeading>
+    <template #header>
+      <PageHeading :crumbs="crumbs">
+        <template v-if="!empty" #actions>
+          <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
+          <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
+        </template>
+      </PageHeading>
+    </template>
     <template v-if="loaded">
       <template v-if="empty">
         <FlowRunsPageEmptyState />

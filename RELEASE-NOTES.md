@@ -1,5 +1,243 @@
 # Prefect Release Notes
 
+## Release 2.13.0
+
+### Introducing global concurrency limits
+
+Control task execution and system stability with Prefect's new global concurrency and rate limits. 
+
+- **Concurrency Limits:** Manage task execution efficiently, controlling how many tasks can run simultaneously. Ideal for optimizing resource usage and customizing task execution.
+
+- **Rate Limits:** Ensure system stability by governing the frequency of requests or operations. Perfect for preventing overuse, ensuring fairness, and handling errors gracefully.
+
+Choose concurrency limits for resource optimization and task management, and opt for rate limits to maintain system stability and fair access to services. To begin using global concurrency limits check out our [guide](https://docs.prefect.io/guides/global-concurrency-limits/).
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10496
+
+### Introducing work pool and worker status
+
+Work pools and workers are critical components of Prefect's distributed execution model. To help you monitor and manage your work pools and workers, we've added status indicators to the Prefect UI.
+
+Work pools can now have one of three statuses:
+- `Ready` -  at least one online worker is polling the work pool and the work pool is ready to accept work.
+- `Not Ready` - no online workers are polling the work pool and indicates that action needs to be taken to allow the work pool to accept work.
+- `Paused` - the work pool is paused and work will not be executed until it is unpaused.
+
+![Prefect dashboard showing work pool health](https://user-images.githubusercontent.com/12350579/265874237-7fae81e0-1b1a-460b-9fc5-92d969326d22.png)
+
+Workers can now have one of two statuses:
+- `Online` - the worker is polling the work pool and is ready to accept work.
+- `Offline` - the worker is not polling the work pool and is not ready to accept work. Indicates that the process running the worker has stopped or crashed.
+
+![worker table showing status](https://user-images.githubusercontent.com/12350579/265815336-c8a03c06-2b48-47c5-be93-1dbde0e5bf0d.png)
+
+With the introduction of work pool and worker status, we are deprecating work queue health. Work queue health indicators will be removed in a future release.
+
+See the documentation on [work pool status](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-status) and [worker status](https://docs.prefect.io/latest/concepts/work-pools/#worker-status) for more information.
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10636
+- https://github.com/PrefectHQ/prefect/pull/10654
+
+### Removing deprecated Orion references
+
+Six months ago, we deprecated references to `orion` in our codebase. In this release, we're removing those references. If you still have references to `ORION` in your profile, run `prefect config validate` to automatically convert all of the settings in your *current* profile to the new names!
+
+For example:
+```bash
+❯ prefect config validate
+Updated 'PREFECT_ORION_DATABASE_CONNECTION_URL' to 'PREFECT_API_DATABASE_CONNECTION_URL'.
+Configuration valid!
+```
+
+#### Below is a full guide to the changes:
+##### Settings renamed:
+    - `PREFECT_LOGGING_ORION_ENABLED` → `PREFECT_LOGGING_TO_API_ENABLED`
+    - `PREFECT_LOGGING_ORION_BATCH_INTERVAL` → `PREFECT_LOGGING_TO_API_BATCH_INTERVAL`
+    - `PREFECT_LOGGING_ORION_BATCH_SIZE` → `PREFECT_LOGGING_TO_API_BATCH_SIZE`
+    - `PREFECT_LOGGING_ORION_MAX_LOG_SIZE` → `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE`
+    - `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` → `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
+    - `PREFECT_ORION_BLOCKS_REGISTER_ON_START` → `PREFECT_API_BLOCKS_REGISTER_ON_START`
+    - `PREFECT_ORION_DATABASE_CONNECTION_URL` → `PREFECT_API_DATABASE_CONNECTION_URL`
+    - `PREFECT_ORION_DATABASE_MIGRATE_ON_START` → `PREFECT_API_DATABASE_MIGRATE_ON_START`
+    - `PREFECT_ORION_DATABASE_TIMEOUT` → `PREFECT_API_DATABASE_TIMEOUT`
+    - `PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT` → `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS` → `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
+    - `PREFECT_ORION_API_DEFAULT_LIMIT` → `PREFECT_API_DEFAULT_LIMIT`
+    - `PREFECT_ORION_API_HOST` → `PREFECT_SERVER_API_HOST`
+    - `PREFECT_ORION_API_PORT` → `PREFECT_SERVER_API_PORT`
+    - `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` → `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT`
+    - `PREFECT_ORION_UI_ENABLED` → `PREFECT_UI_ENABLED`
+    - `PREFECT_ORION_UI_API_URL` → `PREFECT_UI_API_URL`
+    - `PREFECT_ORION_ANALYTICS_ENABLED` → `PREFECT_SERVER_ANALYTICS_ENABLED`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED` → `PREFECT_API_SERVICES_SCHEDULER_ENABLED`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED` → `PREFECT_API_SERVICES_LATE_RUNS_ENABLED`
+    - `PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` → `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED`
+    - `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` → `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED`
+##### Changes:
+    - Module `prefect.client.orion` → `prefect.client.orchestration`
+    - Command group `prefect orion` → `prefect server`
+    - Module `prefect.orion` → `prefect.server`
+    - Logger `prefect.orion` → `prefect.server`
+    - Constant `ORION_API_VERSION` → `SERVER_API_VERSION`
+    - Kubernetes deployment template application name changed from `prefect-orion` → `prefect-server`
+    - Command `prefect kubernetes manifest orion` → `prefect kubernetes manifest server`
+    - Log config handler `orion` → `api`
+    - Class `OrionLogWorker` → `APILogWorker`
+    - Class `OrionHandler` → `APILogHandler`
+    - Directory `orion-ui` → `ui`
+    - Class `OrionRouter` → `PrefectRouter`
+    - Class `OrionAPIRoute` → `PrefectAPIRoute`
+    - Class `OrionDBInterface` → `PrefectDBInterface`
+    - Class `OrionClient` → `PrefectClient`
+
+See the following pull request for details:
+- Remove deprecated `orion` references — https://github.com/PrefectHQ/prefect/pull/10642
+
+### Fixes
+- Fix an issue with `prefect server start` on Windows - https://github.com/PrefectHQ/prefect/pull/10547
+
+### Documentation
+- Update deployment concept documentation to emphasize server-side deployment — https://github.com/PrefectHQ/prefect/pull/10615
+- Add Kubernetes guide for deploying worker to Azure AKS — https://github.com/PrefectHQ/prefect/pull/10575
+- Add information on `--no-prompt` and `PREFECT_CLI_PROMPT` to deployment documentation — https://github.com/PrefectHQ/prefect/pull/10600
+- Fix broken link to docker guide with redirect and harmonize naming — https://github.com/PrefectHQ/prefect/pull/10624
+- Remove invalid link in API keys documentation — https://github.com/PrefectHQ/prefect/pull/10658
+- Update screenshots and CLI log output in quickstart documentation — https://github.com/PrefectHQ/prefect/pull/10659
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.1...2.13.0
+
+## Release 2.12.1
+
+This release includes some important fixes and enhancements. In particular, it resolves an issue preventing the flow run graph from rendering correctly in some cases.
+
+### Enhancements
+- Reduce logging noise on QueueServices startup failures and item processing failures — https://github.com/PrefectHQ/prefect/pull/10564
+- Expose a setting for configuring a process limit on served flows — https://github.com/PrefectHQ/prefect/pull/10602
+
+### Fixes
+- Improve failure recovery for websockets — https://github.com/PrefectHQ/prefect/pull/10597
+- Fix flow run graph rendering issues — https://github.com/PrefectHQ/prefect/pull/10606
+
+### Documentation
+- Update Docker guide to include with `flow.serve()` — https://github.com/PrefectHQ/prefect/pull/10596
+
+### Contributors
+* @urimandujano made their first contribution in https://github.com/PrefectHQ/prefect/pull/10564
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.12.0...2.12.1
+
+## Release 2.12.0
+
+### Introducing `Flow.serve()`
+
+We're excited to introduce a radically simple way to deploy flows. 
+
+The new `.serve()` method available on every flow allows you to take your existing flows and schedule or trigger runs via the Prefect UI and CLI. 
+
+This addition makes it easier than it's ever been to deploy flows with Prefect:
+
+```python title="hello.py"
+from prefect import flow
+
+@flow
+def hello(name = "Marvin"):
+    print(f"Hello {name}!")
+
+if __name__ == "__main__":
+    # Creates a deployment named 'hello/hourly-greeting'
+    # which will run the 'hello' flow once an hour
+    hello.serve(name="hourly-greeting", interval=3600)
+```
+
+Running this script will start a process that will run the `hello` flow every hour and make it triggerable via the Prefect UI or CLI:
+
+```
+> python hello.py
+╭─────────────────────────────────────────────────────────────────────────────────────╮
+│ Your flow 'hello' is being served and polling for scheduled runs!                   │
+│                                                                                     │
+│ To trigger a run for this flow, use the following command:                          │
+│                                                                                     │
+│         $ prefect deployment run 'hello/hourly-greeting'                            │
+│                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+To start serving your flows, check out our newly updated [quickstart](https://docs.prefect.io/latest/getting-started/quickstart/) and [tutorial](https://docs.prefect.io/latest/tutorial/).
+
+See the following pull requests for details:
+- https://github.com/PrefectHQ/prefect/pull/10534
+- https://github.com/PrefectHQ/prefect/pull/10549
+- https://github.com/PrefectHQ/prefect/pull/10574
+- https://github.com/PrefectHQ/prefect/pull/10585
+
+
+### A fresh look and feel
+
+The Prefect UI just got a fresh coat of paint! We've carefully updated colors throughout the UI to ensure a more cohesive and visually appealing experience. Whether you're a fan of the light or dark side (or switch between both), you'll notice our interfaces now shine brighter and feel more harmonious. Dive in and explore the new hues!
+
+![Updated Prefect UI in light and dark modes](https://github.com/PrefectHQ/prefect/assets/42048900/c526619c-22d3-44e6-82ee-255ae1233035)
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10546
+- https://github.com/PrefectHQ/prefect/pull/10578
+- https://github.com/PrefectHQ/prefect/pull/10584
+- https://github.com/PrefectHQ/prefect/pull/10583
+- https://github.com/PrefectHQ/prefect/pull/10588
+
+### Enhancements
+- Allow JSON infra overrides via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10355
+- Improve validation for `Flow.name` — https://github.com/PrefectHQ/prefect/pull/10463
+- Add a Docker image for conda for Python 3.11 — https://github.com/PrefectHQ/prefect/pull/10532
+- Increase default `PREFECT_API_REQUEST_TIMEOUT` setting to 60 seconds — https://github.com/PrefectHQ/prefect/pull/10543
+- Remove missing work queue warning from the deployment page — https://github.com/PrefectHQ/prefect/pull/10550
+- Add `PREFECT_SQLALCHEMY_POOL_SIZE` and `PREFECT_SQLALCHEMY_MAX_OVERFLOW` settings to configure SQLAlchemy connection pool size — https://github.com/PrefectHQ/prefect/pull/10348
+- Improve format handling of `GitLab` and `Bitbucket` tokens during `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10555
+- Persist active tabs in Prefect UI pages upon refresh — https://github.com/PrefectHQ/prefect/pull/10544
+- Add ability to view subflows in the UI that are linked from `run_deployment` with `DaskTaskRunner` and `RayTaskRunner` — https://github.com/PrefectHQ/prefect/pull/10541
+- Improve CLI output for push work pools https://github.com/PrefectHQ/prefect/pull/10582
+
+### Fixes
+- Pin `anyio` to < 4 in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10570
+- Add upper bounds to core requirements to prevent major version upgrades https://github.com/PrefectHQ/prefect/pull/10592
+- Fix race condition in concurrent subflow runs involving `AsyncWaiters` — https://github.com/PrefectHQ/prefect/pull/10533
+- Fix `cloud login` false success when `PREFECT_API_KEY` set as environment variable or expired — https://github.com/PrefectHQ/prefect/pull/8641
+- Fix ability to view deployments page tags on larger screens - https://github.com/PrefectHQ/prefect/pull/10566
+- Properly indent `docker-git` recipe `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10519
+- Fix Slack community invitation link — https://github.com/PrefectHQ/prefect/pull/10509
+
+### Experimental
+- Serialize concurrency requests — https://github.com/PrefectHQ/prefect/pull/10545
+
+### Documentation
+- Detail Kubernetes work pool usage in Kubernetes guide — https://github.com/PrefectHQ/prefect/pull/10516
+- Add quickstart documentation, simplify welcome page and API reference overview — https://github.com/PrefectHQ/prefect/pull/10520
+- Add block and agent-based deployments to leftside navigation — https://github.com/PrefectHQ/prefect/pull/10528
+- Add `Try Prefect Cloud` button to documentation header — https://github.com/PrefectHQ/prefect/pull/10537
+- Remove blank menu bar in documentation header — https://github.com/PrefectHQ/prefect/pull/10565
+- Fix link to guide on moving data to and from cloud providers — https://github.com/PrefectHQ/prefect/pull/10521
+- Shorten push work pools description in guides index — https://github.com/PrefectHQ/prefect/pull/10589
+- Organize guides index into sections: Development, Execution, Workers and Agents, and Other Guides — https://github.com/PrefectHQ/prefect/pull/10587
+
+### Contributors
+- @mattklein
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.11.5...2.12.0
+
 ## Release 2.11.5
 
 ### New Guides
@@ -17,6 +255,7 @@ For those aiming to optimize their flows using Kubernetes, this guide provides a
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10133
 - https://github.com/PrefectHQ/prefect/pull/10368
+- https://github.com/PrefectHQ/prefect/pull/10591
 
 ### Enhancements
 - Warn users upon setting a misconfigured `PREFECT_API_URL` — https://github.com/PrefectHQ/prefect/pull/10450
