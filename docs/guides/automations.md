@@ -64,7 +64,7 @@ def build_names(num: int):
     return df
 
 if __name__ == "__main__":
-    build_names(10)
+    list_of_names = build_names(10)
 ```
 
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
@@ -88,15 +88,17 @@ Now let us try to send a notification based off a completed state outcome. We ca
 
 Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
 
-!!! Warning "No deployment created"
-        Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block.  
+Now the automation is ready to be triggered from a flow run completion. Let us locally run the file and see that the notification being sent to our inbox after the completion.
+
+!!! Tip "No deployment created"
+        Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
 
 # Event based deployment example 
 - Showcase creating an automation via the rest api based on a trigger from an event
 - Automation kicks off another deployment
 - New deployment -> Alternate data location to pull data from
-We can create an automation that can help kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this Automation.  
+We can create an automation that can help kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further. 
 
@@ -108,7 +110,7 @@ def create_event_driven_automation():
     api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/automations/"
     data = {
     "name": "Event Driven Redeploy",
-    "description": "Programatically created an automation to redeploy a flow based on an event",
+    "description": "Programmatically created an automation to redeploy a flow based on an event",
     "enabled": "true",
     "trigger": {
     "match": {
@@ -123,10 +125,10 @@ def create_event_driven_automation():
         "string"
     ],
     "expect": [
-        "string"
+        "prefect.flow-run.Completed"
     ],
     "for_each": [
-        "string"
+        "prefect.resource.id"
     ],
     "posture": "Reactive",
     "threshold": 0,
@@ -134,7 +136,9 @@ def create_event_driven_automation():
     },
     "actions": [
     {
-        "type": "do-nothing"
+        "type": "run-deployment",
+        "source": "selected",
+        "deployment_id": ""
     }
     ],
     "owner_resource": "string"
@@ -146,6 +150,9 @@ def create_event_driven_automation():
     print(response.json())
     return response.json()
 ```
+TODO: try to make it more organic on the actions kickoff
+TODO: Create a deployment that provides the deployment_id
+TODO: Question to explore, does flow.serve provide a deployment_id that you could use to then kick off work?
 
 Let us take a quick peek at the Prefect.yaml file associated with the deployment. We can see that it is very barebones..
 # Combining both? 
