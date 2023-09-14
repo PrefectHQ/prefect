@@ -24,7 +24,7 @@
 - Fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
 
 ### Documentation
-- Adds object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
+- Add object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
 - Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
 - `no-copy` output code block in docs agents concept page — https://github.com/PrefectHQ/prefect/pull/10680
 - Update concepts screen shots — https://github.com/PrefectHQ/prefect/pull/10670
