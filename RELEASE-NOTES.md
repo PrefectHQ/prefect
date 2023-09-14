@@ -2,14 +2,24 @@
 
 ## Release 2.13.1
 ### Enhancements
+- Add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
 - Add `prefect.runtime.flow_run.run_count` and `prefect.runtime.task_run.run_count` — https://github.com/PrefectHQ/prefect/pull/10676
-- allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
+- Allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
 - Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
+- Show flow name on Custom Run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
+- Add ability to reset a task-based concurrency limit - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
+- Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
+- Add pagination to deployment and flow tables - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
+- Add opt-in to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
+- Add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
 
 ### Fixes
-- Don't create unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
-- Fix `CronSchedules` and DST — https://github.com/PrefectHQ/prefect/pull/10678
+- Avoid creating unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
+- `CronSchedules` and DST — https://github.com/PrefectHQ/prefect/pull/10678
 - Allow Python classes as flow/task type hints — https://github.com/PrefectHQ/prefect/pull/10711
+- Formatting of `SendgridEmail.to_emails` example — https://github.com/PrefectHQ/prefect/pull/10669
+- Update artifact collection filters to match other pages - https://github.com/PrefectHQ/prefect-ui-library/pull/1689
+- Fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
 
 ### Documentation
 - Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
@@ -21,14 +31,7 @@
 - Update artifacts.md — https://github.com/PrefectHQ/prefect/pull/10706
 - Cloud pages screenshots updates — https://github.com/PrefectHQ/prefect/pull/10700
 - Fixes two broken links — https://github.com/PrefectHQ/prefect/pull/10726
-
-### Uncategorized
-- updating email example — https://github.com/PrefectHQ/prefect/pull/10669
-- add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
-- fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
-- fix base client test — https://github.com/PrefectHQ/prefect/pull/10683
-- adding documentation on object ACLs — https://github.com/PrefectHQ/prefect/pull/10695
-- add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
+- Adds object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
 
 ## New Contributors
 * @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
