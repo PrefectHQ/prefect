@@ -1,6 +1,10 @@
 # Prefect Release Notes
 
 ## Release 2.13.1
+
+### Hiding subflow runs in the UI
+We’ve added the ability to filter out subflow runs in your Flow Runs list! This feature is especially beneficial for those who frequently use subflows, making it easier to focus on parent flows with less clutter.
+
 ### Enhancements
 - Add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
 - Add `run_count` to flow/task runtime  — https://github.com/PrefectHQ/prefect/pull/10676
