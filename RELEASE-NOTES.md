@@ -7,10 +7,11 @@ We’ve added the ability to filter out subflow runs in your Flow Runs list! Thi
 
 ### Enhancements
 - Add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
-- Add `run_count` to flow/task runtime  — https://github.com/PrefectHQ/prefect/pull/10676
-- Allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
+- Add `run_count` to `prefect.runtime.flow_run`  — https://github.com/PrefectHQ/prefect/pull/10676
+- Add `run_count` to `prefect.runtime.task_run`  — https://github.com/PrefectHQ/prefect/pull/10676
+- Allow passing deployment triggers via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
 - Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
-- Show flow name on Custom Run page - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
+- Show flow name on Custom Run page in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
 - Add ability to reset a task-based concurrency limit - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
 - Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
 - Add pagination to deployment and flow tables - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
@@ -27,7 +28,7 @@ We’ve added the ability to filter out subflow runs in your Flow Runs list! Thi
 - Fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
 
 ### Documentation
-- Adds object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
+- Add object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
 - Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
 - `no-copy` output code block in docs agents concept page — https://github.com/PrefectHQ/prefect/pull/10680
 - Update concepts screen shots — https://github.com/PrefectHQ/prefect/pull/10670
