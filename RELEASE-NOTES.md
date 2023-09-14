@@ -1,5 +1,52 @@
 # Prefect Release Notes
 
+## Release 2.13.1
+### Enhancements
+- Add `prefect.runtime.flow_run.run_count` and `prefect.runtime.task_run.run_count` — https://github.com/PrefectHQ/prefect/pull/10676
+- allow passing triggers to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
+- Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
+
+### Fixes
+- Don't create unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
+- Fix `CronSchedules` and DST — https://github.com/PrefectHQ/prefect/pull/10678
+- Allow Python classes as flow/task type hints — https://github.com/PrefectHQ/prefect/pull/10711
+
+### Documentation
+- Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
+- `no-copy` output code block in docs agents concept page — https://github.com/PrefectHQ/prefect/pull/10680
+- Update concepts screen shots — https://github.com/PrefectHQ/prefect/pull/10670
+- Update event feed screenshot in concepts pages — https://github.com/PrefectHQ/prefect/pull/10685
+- Cloud index screenshots update and remove cloud quickstart — https://github.com/PrefectHQ/prefect/pull/10692
+- Add error summaries to cloud index — https://github.com/PrefectHQ/prefect/pull/10698
+- Update artifacts.md — https://github.com/PrefectHQ/prefect/pull/10706
+- Cloud pages screenshots updates — https://github.com/PrefectHQ/prefect/pull/10700
+- Fixes two broken links — https://github.com/PrefectHQ/prefect/pull/10726
+
+### Uncategorized
+- updating email example — https://github.com/PrefectHQ/prefect/pull/10669
+- add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
+- fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
+- fix base client test — https://github.com/PrefectHQ/prefect/pull/10683
+- adding documentation on object ACLs — https://github.com/PrefectHQ/prefect/pull/10695
+- add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
+
+## New Contributors
+* @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
+### Contributors
+- @WillRaphaelson
+- @billpalombi
+- @brandonreid
+- @bunchesofdonald
+- @discdiver
+- @jakekaplan
+- @odoublewen
+- @serinamarie
+- @urimandujano
+- @zhen0
+- @zzstoatzz
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...preview
+
 ## Release 2.13.0
 
 ### Introducing global concurrency limits
