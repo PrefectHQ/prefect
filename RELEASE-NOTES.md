@@ -10,7 +10,7 @@ We’ve added the ability to filter out subflow runs in your Flow Runs list! Thi
 - Add `run_count` to `prefect.runtime.flow_run`  — https://github.com/PrefectHQ/prefect/pull/10676
 - Add `run_count` to `prefect.runtime.task_run`  — https://github.com/PrefectHQ/prefect/pull/10676
 - Allow passing deployment triggers via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
-- Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
+- Improve filtering for flows with and without associated deployments — https://github.com/PrefectHQ/prefect/pull/10724
 - Show flow name on Custom Run page in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
 - Add ability to reset a task-based concurrency limit - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
 - Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
