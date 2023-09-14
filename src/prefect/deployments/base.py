@@ -377,7 +377,7 @@ def _copy_deployments_into_prefect_file():
             f.write(raw_deployment_file_contents)
 
 
-def _format_deployment_for_saving_to_prefect_yaml(
+def _format_deployment_for_saving_to_prefect_file(
     deployment: Dict,
 ) -> Dict:
     """
@@ -428,7 +428,7 @@ def _save_deployment_to_prefect_file(
     Args:
         - deployment: a dictionary containing a deployment configuration
     """
-    deployment = _format_deployment_for_saving_to_prefect_yaml(deployment)
+    deployment = _format_deployment_for_saving_to_prefect_file(deployment)
 
     current_directory_name = os.path.basename(os.getcwd())
     prefect_file = Path("prefect.yaml")

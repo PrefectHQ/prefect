@@ -43,7 +43,7 @@ from prefect.client.utilities import inject_client
 from prefect.deployments import find_prefect_directory, register_flow
 from prefect.deployments.base import (
     _copy_deployments_into_prefect_file,
-    _format_deployment_for_saving_to_prefect_yaml,
+    _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
     _save_deployment_to_prefect_file,
@@ -592,11 +592,10 @@ async def _run_single_deploy(
             f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
         )
 
-    # check if we've made any changes to the given deploy config for that deployment
-    identical_deployment_exists_in_prefect_yaml = (
-        _check_if_identical_deployment_in_prefect_yaml(deploy_config_before_templating)
+    identical_deployment_exists_in_prefect_file = (
+        _check_if_identical_deployment_in_prefect_file(deploy_config_before_templating)
     )
-    if should_prompt_for_save and not identical_deployment_exists_in_prefect_yaml:
+    if should_prompt_for_save and not identical_deployment_exists_in_prefect_file:
         if confirm(
             (
                 "Would you like to save configuration for this deployment for faster"
@@ -1332,7 +1331,7 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
     return False
 
 
-def _check_if_identical_deployment_in_prefect_yaml(
+def _check_if_identical_deployment_in_prefect_file(
     untemplated_deploy_config: Dict,
 ) -> bool:
     """
@@ -1340,11 +1339,10 @@ def _check_if_identical_deployment_in_prefect_yaml(
     prefect.yaml file, meaning that there have been no updates and prompting to save is unnecessary.
     """
 
-    templated_deploy_config = _format_deployment_for_saving_to_prefect_yaml(
+    templated_deploy_config = _format_deployment_for_saving_to_prefect_file(
         untemplated_deploy_config
     )
 
-    # we only want to update if there's an existing deployment
     prefect_file = Path("prefect.yaml")
     if prefect_file.exists():
         with prefect_file.open(mode="r") as f:
