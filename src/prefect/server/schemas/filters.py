@@ -85,7 +85,7 @@ class FlowFilterDeployment(PrefectOperatorFilterBaseModel):
 
     is_null_: Optional[bool] = Field(
         default=None,
-        description="If true, only include flow runs without deployment ids",
+        description="If true, only include flows without deployments",
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
