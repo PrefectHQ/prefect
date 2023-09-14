@@ -39,7 +39,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: ${{ matrix.build-docker-images }}
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
