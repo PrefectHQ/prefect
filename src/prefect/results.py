@@ -55,13 +55,13 @@ logger = get_logger("results")
 R = TypeVar("R")
 
 
-def get_default_result_storage() -> ResultStorage:
+async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
 
     return (
-        Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
         if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
         else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
     )
@@ -147,7 +147,7 @@ class ResultFactory(pydantic.BaseModel):
                 kwargs.pop(key)
 
         # Apply defaults
-        kwargs.setdefault("result_storage", get_default_result_storage())
+        kwargs.setdefault("result_storage", await get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)

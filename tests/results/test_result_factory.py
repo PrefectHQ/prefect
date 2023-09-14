@@ -4,7 +4,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.filesystems import S3, LocalFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
@@ -83,22 +83,22 @@ def test_root_flow_default_persist_result_can_be_overriden_by_setting():
     assert result_factory.persist_result is True
 
 
-def test_root_flow_default_remote_storage():
+async def test_root_flow_default_remote_storage():
     @flow
     async def foo():
         result_fac = get_run_context().result_factory
-        return await result_fac.storage_block
+        return result_fac.storage_block
 
-    block = S3(bucket_path="my-bucket")
-    block.save("my-result-storage")
+    block = LocalFileSystem()
+    await block.save("my-result-storage")
 
     with temporary_settings(
         {
             PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: block.get_block_type_slug(),
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
-        storage_block = foo()
+        storage_block = await foo()
 
     assert_blocks_equal(storage_block, block)
 
