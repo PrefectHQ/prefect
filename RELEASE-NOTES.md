@@ -19,7 +19,7 @@ See the following for implementation details:
 - Add ability to reset a task-based concurrency limit from the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
 - Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
 - Add pagination to Deployments and Flows pages in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
-- Add opt-in in Prefect UI to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
+- Add opt-in to display large flow run graphs in Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
 - Add Prefect logo to UI sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
 - Add ability to update existing deployment configurations with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10718
 
