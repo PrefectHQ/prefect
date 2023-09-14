@@ -48,7 +48,7 @@
 - @zhen0
 - @zzstoatzz
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...2.13.1
 
 ## Release 2.13.0
 
