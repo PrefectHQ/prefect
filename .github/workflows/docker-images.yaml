@@ -47,7 +47,7 @@ jobs:
 
       - name: Generate tags for prefecthq/prefect-dev
         id: metadata-dev
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         # do not generate the development tags on release events
         if: ${{ github.event_name != 'release' }}
         with:
@@ -70,7 +70,7 @@ jobs:
 
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         # only generate the production tags on release events
         if: ${{ github.event_name == 'release' }}
         with:
