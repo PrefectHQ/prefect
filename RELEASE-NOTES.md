@@ -5,54 +5,44 @@
 ### Hiding subflow runs in the UI
 We’ve added the ability to filter out subflow runs in your Flow Runs list! This feature is especially beneficial for those who frequently use subflows, making it easier to focus on parent flows with less clutter.
 
+See the following for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10708
+
 ### Enhancements
-- Add ability to hide subflow runs on flow runs page — https://github.com/PrefectHQ/prefect/pull/10708
 - Add `run_count` to `prefect.runtime.flow_run`  — https://github.com/PrefectHQ/prefect/pull/10676
 - Add `run_count` to `prefect.runtime.task_run`  — https://github.com/PrefectHQ/prefect/pull/10676
-- Allow passing deployment triggers via `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
-- Add an `is_null` filter for Deployments to flows/filter — https://github.com/PrefectHQ/prefect/pull/10724
-- Show flow name on Custom Run page in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
-- Add ability to reset a task-based concurrency limit - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
+- Allow passing deployment triggers via CLI with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10690
+- Add `is_null` filter for Deployments to `/flows/filter` endpoint — https://github.com/PrefectHQ/prefect/pull/10724
+- Show associated flow name on Custom Run page in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1744
+- Add ability to reset a task-based concurrency limit from the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1746
 - Display error `details` returned by API - https://github.com/PrefectHQ/prefect-ui-library/pull/1712
-- Add pagination to deployment and flow tables - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
-- Add opt-in to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
-- Add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
+- Add pagination to Deployments and Flows pages in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
+- Add opt-in in Prefect UI to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
+- Add Prefect logo to UI sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
 - Add ability to update existing deployment configurations with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10718
 
 ### Fixes
 - Avoid creating unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
 - DST handling in `CronSchedules` — https://github.com/PrefectHQ/prefect/pull/10678
 - Allow Python classes as flow/task type hints — https://github.com/PrefectHQ/prefect/pull/10711
-- Formatting of `SendgridEmail.to_emails` example — https://github.com/PrefectHQ/prefect/pull/10669
-- Update artifact collection filters to match other pages - https://github.com/PrefectHQ/prefect-ui-library/pull/1689
-- Fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
+- Fix formatting of `SendgridEmail.to_emails` example in notifications API reference — https://github.com/PrefectHQ/prefect/pull/10669
+- Streamline Artifact search filters to match other pages in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1689
+- Improve the mobile navigation in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10686
 
 ### Documentation
 - Add object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
-- Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
-- `no-copy` output code block in docs agents concept page — https://github.com/PrefectHQ/prefect/pull/10680
-- Update concepts screen shots — https://github.com/PrefectHQ/prefect/pull/10670
+- Use better arrow icon for `Try Cloud` button — https://github.com/PrefectHQ/prefect/pull/10675
+- Improves bash output format in code blocks on concepts/agents page — https://github.com/PrefectHQ/prefect/pull/10680
+- Update concepts screen shots to reflect improved Prefect UI — https://github.com/PrefectHQ/prefect/pull/10670
 - Update event feed screenshot in concepts pages — https://github.com/PrefectHQ/prefect/pull/10685
-- Cloud index screenshots update and remove cloud quickstart — https://github.com/PrefectHQ/prefect/pull/10692
-- Add error summaries to cloud index — https://github.com/PrefectHQ/prefect/pull/10698
+- Update Prefect Cloud index screenshots and remove Prefect Cloud quickstart — https://github.com/PrefectHQ/prefect/pull/10692
+- Add error summaries section to Prefect Cloud index — https://github.com/PrefectHQ/prefect/pull/10698
 - Clarify supported artifact types — https://github.com/PrefectHQ/prefect/pull/10706
-- Cloud pages screenshots updates — https://github.com/PrefectHQ/prefect/pull/10700
-- Fixes two broken links — https://github.com/PrefectHQ/prefect/pull/10726
+- Updates Cloud pages screenshots — https://github.com/PrefectHQ/prefect/pull/10700
+- Fix broken links in events concept docs and variables guide — https://github.com/PrefectHQ/prefect/pull/10726
 
 ## New Contributors
 * @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
-### Contributors
-- @WillRaphaelson
-- @billpalombi
-- @brandonreid
-- @bunchesofdonald
-- @discdiver
-- @jakekaplan
-- @odoublewen
-- @serinamarie
-- @urimandujano
-- @zhen0
-- @zzstoatzz
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...2.13.1
 
