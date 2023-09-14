@@ -12,7 +12,7 @@
 - Add pagination to deployment and flow tables - https://github.com/PrefectHQ/prefect-ui-library/pull/1732
 - Add opt-in to render large flow run graphs - https://github.com/PrefectHQ/prefect-ui-library/pull/1739
 - Add prefect logo to sidebar and fix dashboard padding — https://github.com/PrefectHQ/prefect/pull/10684
-
+- Add ability to update existing deployment configurations with `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10718
 ### Fixes
 - Avoid creating unpersisted blocks remotely — https://github.com/PrefectHQ/prefect/pull/10649
 - `CronSchedules` and DST — https://github.com/PrefectHQ/prefect/pull/10678
