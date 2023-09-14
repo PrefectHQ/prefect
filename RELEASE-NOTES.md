@@ -40,7 +40,7 @@ See the following for implementation details:
 - Update Prefect Cloud index screenshots and remove Prefect Cloud quickstart — https://github.com/PrefectHQ/prefect/pull/10692
 - Add error summaries section to Prefect Cloud index — https://github.com/PrefectHQ/prefect/pull/10698
 - Clarify supported artifact types — https://github.com/PrefectHQ/prefect/pull/10706
-- Updates Cloud pages screenshots — https://github.com/PrefectHQ/prefect/pull/10700
+- Update Prefect Cloud pages screenshots — https://github.com/PrefectHQ/prefect/pull/10700
 - Fix broken links in events concept docs and variables guide — https://github.com/PrefectHQ/prefect/pull/10726
 
 ## New Contributors
