@@ -22,16 +22,16 @@
 - Fix the mobile nav in the UI — https://github.com/PrefectHQ/prefect/pull/10686
 
 ### Documentation
+- Adds object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
 - Use a more clear arrow on the try cloud button — https://github.com/PrefectHQ/prefect/pull/10675
 - `no-copy` output code block in docs agents concept page — https://github.com/PrefectHQ/prefect/pull/10680
 - Update concepts screen shots — https://github.com/PrefectHQ/prefect/pull/10670
 - Update event feed screenshot in concepts pages — https://github.com/PrefectHQ/prefect/pull/10685
 - Cloud index screenshots update and remove cloud quickstart — https://github.com/PrefectHQ/prefect/pull/10692
 - Add error summaries to cloud index — https://github.com/PrefectHQ/prefect/pull/10698
-- Update artifacts.md — https://github.com/PrefectHQ/prefect/pull/10706
+- Clarify supported artifact types — https://github.com/PrefectHQ/prefect/pull/10706
 - Cloud pages screenshots updates — https://github.com/PrefectHQ/prefect/pull/10700
 - Fixes two broken links — https://github.com/PrefectHQ/prefect/pull/10726
-- Adds object ACL documentation — https://github.com/PrefectHQ/prefect/pull/10695
 
 ## New Contributors
 * @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
