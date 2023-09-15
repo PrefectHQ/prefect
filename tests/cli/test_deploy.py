@@ -6017,9 +6017,6 @@ class TestBuildPushOnceOption:
     async def test_two_existing_deployments_with_docker_images_runs_build_step_once(
         self, docker_work_pool, mock_build_docker_image
     ):
-        with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
-
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
@@ -6037,7 +6034,7 @@ class TestBuildPushOnceOption:
                             "prefect_docker.deployments.steps.build_docker_image": {
                                 "requires": "prefect-docker>=0.3.1",
                                 "id": "build-image",
-                                "dockerfile": "Dockerfile",
+                                "dockerfile": "auto",
                                 "image_name": "image-1",
                                 "tag": "latest",
                             }
@@ -6056,7 +6053,7 @@ class TestBuildPushOnceOption:
                             "prefect_docker.deployments.steps.build_docker_image": {
                                 "requires": "prefect-docker>=0.3.1",
                                 "id": "build-image",
-                                "dockerfile": "Dockerfile",
+                                "dockerfile": "auto",
                                 "image_name": "image-2",
                                 "tag": "latest",
                             }
@@ -6083,9 +6080,6 @@ class TestBuildPushOnceOption:
     async def test_two_existing_deployments_with_docker_infra_produces_runs_build_step_once(
         self, docker_work_pool, mock_build_docker_image
     ):
-        with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
-
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
@@ -6113,7 +6107,7 @@ class TestBuildPushOnceOption:
                     "prefect_docker.deployments.steps.build_docker_image": {
                         "requires": "prefect-docker>=0.3.1",
                         "id": "build-image",
-                        "dockerfile": "Dockerfile",
+                        "dockerfile": "auto",
                         "image_name": "image-1",
                         "tag": "latest",
                     }
