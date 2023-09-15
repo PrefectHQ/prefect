@@ -105,6 +105,7 @@ watch:
     - src/prefect/
 
 extra:
+    generator: false
     version:
         provider: mike
     analytics:
