@@ -371,7 +371,7 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable)
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
-    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # when an agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
     # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
     if sys.platform == "win32":
         # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
@@ -389,7 +389,7 @@ def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
-    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # when a worker receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
     # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
     if sys.platform == "win32":
         # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
