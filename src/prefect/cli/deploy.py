@@ -193,6 +193,14 @@ async def deploy(
             " provided."
         ),
     ),
+    build_push_once: bool = typer.Option(
+        False,
+        "--build-push-once",
+        help=(
+            "Build and push the docker image once, and use it for all deployments."
+            " This is useful when deploying multiple flows with the same base image."
+        ),
+    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
@@ -249,6 +257,7 @@ async def deploy(
                 actions=actions,
                 deploy_all=deploy_all,
                 ci=ci,
+                build_push_once=build_push_once,
             )
         else:
             # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
@@ -273,6 +282,8 @@ async def _run_single_deploy(
     options: Optional[Dict] = None,
     ci: bool = False,
     client: PrefectClient = None,
+    build_push_once: bool = False,
+    image_has_been_built: bool = False,
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
@@ -512,17 +523,20 @@ async def _run_single_deploy(
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
-    if build_steps:
+
+    if build_steps and (not build_push_once or not image_has_been_built):
         app.console.print("Running deployment build steps...")
         step_outputs.update(
             await run_steps(build_steps, step_outputs, print_function=app.console.print)
         )
+        image_has_been_built = True
 
-    if push_steps:
+    if push_steps and (not build_push_once or not image_has_been_built):
         app.console.print("Running deployment push steps...")
         step_outputs.update(
             await run_steps(push_steps, step_outputs, print_function=app.console.print)
         )
+        image_has_been_built = True
 
     step_outputs.update(variable_overrides)
 
@@ -664,6 +678,7 @@ async def _run_multi_deploy(
     names: Optional[List[str]] = None,
     deploy_all: bool = False,
     ci: bool = False,
+    build_push_once: bool = False,
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
@@ -675,6 +690,8 @@ async def _run_multi_deploy(
         )
     else:
         app.console.print("Deploying flows with selected deployment configurations...")
+
+    image_has_been_built = False
     for deploy_config in deploy_configs:
         if deploy_config.get("name") is None:
             if not is_interactive() or ci:
@@ -694,7 +711,17 @@ async def _run_multi_deploy(
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
         app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
-        await _run_single_deploy(deploy_config, actions, ci=ci)
+
+        await _run_single_deploy(
+            deploy_config,
+            actions,
+            ci=ci,
+            build_push_once=build_push_once,
+            image_has_been_built=image_has_been_built,
+        )
+
+        if build_push_once and not image_has_been_built:
+            image_has_been_built = True
 
 
 def _construct_schedule(

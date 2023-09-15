@@ -5789,3 +5789,120 @@ class TestDeployDockerPushSteps:
 
         with pytest.raises(ImportError):
             import prefect_docker  # noqa
+
+
+class TestBuildPushOnceOption:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_two_existing_deployments_with_docker_images_runs_build_step_once(
+        self, docker_work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+        with open("prefect.yaml", "w") as f:
+            contents["deployments"] = [
+                {
+                    "name": "default",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {
+                        "name": "test-docker-work-pool",
+                        "job_variables": {"image": "{{ build-image.image }}"},
+                    },
+                    "build": [
+                        {
+                            "prefect_docker.deployments.steps.build_docker_image": {
+                                "requires": "prefect-docker>=0.3.1",
+                                "id": "build-image",
+                                "dockerfile": "auto",
+                                "image_name": "image-1",
+                                "tag": "latest",
+                            }
+                        }
+                    ],
+                },
+                {
+                    "name": "default2",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {
+                        "name": "test-docker-work-pool",
+                        "job_variables": {"image": "{{ build-image.image }}"},
+                    },
+                    "build": [
+                        {
+                            "prefect_docker.deployments.steps.build_docker_image": {
+                                "requires": "prefect-docker>=0.3.1",
+                                "id": "build-image",
+                                "dockerfile": "auto",
+                                "image_name": "image-2",
+                                "tag": "latest",
+                            }
+                        }
+                    ],
+                },
+            ]
+            yaml.dump(contents, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --build-push-once",
+            expected_code=0,
+            expected_output_contains=[
+                "Running build_docker_image step...",
+                "Deployment 'An important name/default' successfully created",
+                "Deployment 'An important name/default2' successfully created",
+            ],
+        )
+
+        assert result.output.count("Running build_docker_image step...") == 1
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_two_existing_deployments_with_docker_infra_produces_runs_build_step_once(
+        self, docker_work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+        with open("prefect.yaml", "w") as f:
+            contents["deployments"] = [
+                {
+                    "name": "default",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {
+                        "name": "test-docker-work-pool",
+                        "job_variables": {"image": "{{ build-image.image }}"},
+                    },
+                },
+                {
+                    "name": "default2",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {
+                        "name": "test-docker-work-pool",
+                        "job_variables": {"image": "{{ build-image.image }}"},
+                    },
+                },
+            ]
+            contents["build"] = [
+                {
+                    "prefect_docker.deployments.steps.build_docker_image": {
+                        "requires": "prefect-docker>=0.3.1",
+                        "id": "build-image",
+                        "dockerfile": "auto",
+                        "image_name": "image-1",
+                        "tag": "latest",
+                    }
+                }
+            ]
+            yaml.dump(contents, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --build-push-once",
+            expected_code=0,
+            expected_output_contains=[
+                "Running build_docker_image step...",
+                "Deployment 'An important name/default' successfully created",
+                "Deployment 'An important name/default2' successfully created",
+            ],
+        )
+
+        assert result.output.count("Running build_docker_image step...") == 1
