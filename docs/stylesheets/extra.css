@@ -259,6 +259,9 @@ to force column width */
 /* dark mode slate theme */
 /* dark mode code overrides */
 [data-md-color-scheme="slate"] {
+    --md-hue: 250;
+    --md-default-bg-color: #0C1b1f;
+
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #3b3d54;
