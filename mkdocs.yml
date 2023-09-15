@@ -55,7 +55,7 @@ theme:
     icon:
         repo: fontawesome/brands/github
         edit: material/pencil
-    logo: img/logos/prefect-logo-gradient-white.svg
+    logo: img/logos/prefect-logo-white.svg
     palette:
         - media: "(prefers-color-scheme)"
           toggle:
@@ -201,7 +201,7 @@ nav:
                 - Service Accounts: cloud/users/service-accounts.md
                 - Single Sign-on (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
-                - Object-Level Access Control Lists : cloud/users/object-access-control-lists.md
+                - Object-Level Access Control Lists: cloud/users/object-access-control-lists.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Integrations:
