@@ -17,9 +17,12 @@ search:
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>
 
-Prefect Cloud is a workflow orchestration platform.
+Prefect Cloud is a workflow orchestration platform that provides all the capabilities of a Prefect server and UI in a hosted environment, plus additional features such as:
 
-Prefect Cloud provides all the capabilities of the [Prefect server](/host) and UI in a hosted environment, plus additional features such as automations, workspaces, and organizations.
+- automations, events, and webhooks so you can create for event-driven workfows
+- workspaces, RBAC, SSO, audit logs and related user management tools for collaboration
+- push work pools for running flows on serverless infrastructure without a worker
+- error summaries powered by Marvin AI to help you resolve errors faster
 
 !!! success "Getting Started with Prefect Cloud"
     Ready to jump right in and start running with Prefect Cloud? See the [Quickstart](/getting-started/quickstart/) and follow the instructions on the **Cloud** tabs to write and deploy your first Prefect Cloud-monitored flow run.
@@ -40,6 +43,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your [workspace](/cloud/workspaces/#workspace-collaborators) or [organization](/cloud/organizations/#organization-members).
     - Error summaries  &mdash; (enabled by Marvin AI) distill the error logs of `Failed` and `Crashed` flow runs into actionable information.
+    - [Push work pool](/guides/deployment/push-work-pools/) &mdash; run flows on your serverless infrastructure without running a worker.
 
 ## User accounts
 
