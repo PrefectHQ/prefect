@@ -5794,7 +5794,7 @@ class TestDeployDockerPushSteps:
 class TestBuildPushOnceOption:
     @pytest.mark.usefixtures("project_dir")
     async def test_two_existing_deployments_with_docker_images_runs_build_step_once(
-        self, docker_work_pool
+        self, docker_work_pool, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
             f.write("FROM python:3.8-slim\n")
@@ -5860,7 +5860,7 @@ class TestBuildPushOnceOption:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_two_existing_deployments_with_docker_infra_produces_runs_build_step_once(
-        self, docker_work_pool
+        self, docker_work_pool, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
             f.write("FROM python:3.8-slim\n")
