@@ -7,6 +7,7 @@ tags:
     - AWS ECS
     - Azure Container Instance
     - ACI
+    - push work pools
 search:
   boost: 2
 ---
