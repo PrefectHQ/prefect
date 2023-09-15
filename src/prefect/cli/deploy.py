@@ -537,7 +537,6 @@ async def _run_single_deploy(
         step_outputs.update(
             await run_steps(push_steps, step_outputs, print_function=app.console.print)
         )
-        image_has_been_built = True
 
     step_outputs.update(variable_overrides)
 
