@@ -11,7 +11,8 @@
 
 /* code block margin and padding  */
 .highlight>pre>code {
-    margin-top: 0; /* needed for code block titles */
+    margin-top: 0;
+    /* needed for code block titles */
     margin-bottom: 1rem;
     border-radius: 10px;
     padding-top: 20px;
@@ -382,7 +383,8 @@ to force column width */
 }
 
 .md-header {
-    background-color: #0a082e;
+    background-color: #070E10;
+    ;
 }
 
 .main-page-subheader {

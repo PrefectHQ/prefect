@@ -7,5 +7,5 @@ plugins:
     social:
         cards: !ENV [DOC_PROD, True]
         cards_layout_options:
-            background_color: "#115AF4"
+            background_color: "#070E10"
     typeset:

@@ -57,20 +57,16 @@ theme:
         edit: material/pencil
     logo: img/logos/prefect-logo-white.svg
     palette:
-        - media: "(prefers-color-scheme)"
-          toggle:
-              icon: material/brightness-auto
-              name: Switch to light mode
         - media: "(prefers-color-scheme: light)"
-          accent: blue
-          primary: blue
+          accent: "#0225AC"
+          primary: "#0225AC"
           scheme: default
           toggle:
               icon: material/weather-sunny
               name: Switch to dark mode
         - media: "(prefers-color-scheme: dark)"
-          accent: blue
-          primary: blue
+          accent: "#0225AC"
+          primary: "#0225AC"
           scheme: slate
           toggle:
               icon: material/weather-night
