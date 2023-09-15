@@ -21,21 +21,23 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 
 ## Step 2: Connect to Prefect's API
 
-Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself, or if you'd rather use a hosted version of the API with additional features you can sign up for a forever free [Prefect Cloud account](/cloud/).
+Much of Prefect's functionality is backed by an API.
+If [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself, or if you'd rather use a hosted version of the API with a bunch of additional features such as automations, collaborators, and error summaries powered by Marvin AI, sign up for a forever free [Prefect Cloud account](/cloud/).
 
 === "Cloud"
 
     1. Sign in with an existing account or create a new account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
     2. If setting up a new account, [create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
-    3. Use the `prefect cloud login` Prefect CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
+    3. Use the `prefect cloud login` CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
 
-        <div class="terminal">
         ```bash
         prefect cloud login
         ```
-        </div>
 
 === "Self-hosted"
+
+    1. Open a new terminal window.
+    2. Start a local Prefect server instance in your virtual environment.
 
     ```bash
     prefect server start
@@ -113,8 +115,7 @@ This command creates a new run for this deployment that is then picked up by the
 
 You should see logs from the flow run in the CLI and the UI that look similar to this:
 
-<div class="terminal">
-```bash
+```{.output .no-copy}
 09:44:37.947 | INFO    | Flow run 'piquant-sawfly' - Downloading flow code from storage at '/my_path'
 09:44:38.900 | INFO    | Flow run 'piquant-sawfly' - Created task run 'get_repo_info-0' for task 'get_repo_info'
 09:44:38.901 | INFO    | Flow run 'piquant-sawfly' - Executing 'get_repo_info-0' immediately...
@@ -127,7 +128,6 @@ You should see logs from the flow run in the CLI and the UI that look similar to
 09:44:40.527 | INFO    | Flow run 'piquant-sawfly' - Finished in state Completed('All states completed.')
 09:44:43.018 | INFO    | prefect.flow_runs.runner - Process 9867 exited cleanly.
 ```
-</div>
 
 !!! tip "Getting started tips"
     - You can call your flow function directly like any other Python function and its execution will be registered and monitored with the Prefect API and visible in the UI
