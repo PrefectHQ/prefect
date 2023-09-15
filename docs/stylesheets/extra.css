@@ -11,7 +11,8 @@
 
 /* code block margin and padding  */
 .highlight>pre>code {
-    margin-top: 0; /* needed for code block titles */
+    margin-top: 0;
+    /* needed for code block titles */
     margin-bottom: 1rem;
     border-radius: 10px;
     padding-top: 20px;
@@ -258,6 +259,8 @@ to force column width */
 /* dark mode slate theme */
 /* dark mode code overrides */
 [data-md-color-scheme="slate"] {
+    --md-hue: 220;
+    --md-default-bg-color: #0C1b1f;
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #3b3d54;
@@ -371,7 +374,7 @@ to force column width */
 }
 
 .ul-line-height-compress {
-    line-height: 80%;
+    line-height: 90%;
     margin-bottom: 30px !important;
 }
 
@@ -382,7 +385,8 @@ to force column width */
 }
 
 .md-header {
-    background-color: #0a082e;
+    background-color: #070E10;
+    ;
 }
 
 .main-page-subheader {
