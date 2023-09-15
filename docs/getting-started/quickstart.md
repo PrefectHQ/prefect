@@ -21,14 +21,14 @@ See the [install guide](/getting-started/installation/) for more detailed instal
 
 ## Step 2: Connect to Prefect's API
 
-Much of Prefect's functionality is backed by an API - if [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself, or if you'd rather use a hosted version of the API with additional features you can sign up for a forever free [Prefect Cloud account](/cloud/).
+Much of Prefect's functionality is backed by an API.
+If [self-hosting](/guides/host/), you'll need to start the Prefect webserver and related services yourself, or if you'd rather use a hosted version of the API with a bunch of additional features such as automations, collaborators, and error summaries powered by Marvin AI, sign up for a forever free [Prefect Cloud account](/cloud/).
 
 === "Cloud"
 
     1. Sign in with an existing account or create a new account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
     2. If setting up a new account, [create a workspace](/cloud/workspaces/#create-a-workspace) for your account.
-    3. Use the `prefect cloud login` Prefect CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
-
+    3. Use the `prefect cloud login` CLI command to [log into Prefect Cloud](/cloud/users/api-keys) from your environment.
 
         ```bash
         prefect cloud login
