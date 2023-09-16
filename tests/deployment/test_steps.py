@@ -1034,6 +1034,16 @@ class TestRunShellScript:
         assert result["stdout"] == parent_dir
         assert result["stderr"] == ""
 
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="_open_anyio_process errors when mocking OS in test context",
+    )
+    async def test_run_shell_script_split_on_windows(self, set_dummy_env_var):
+        result = await run_shell_script(r'echo "$DUMMY_ENV_VAR"')
+        # validates that command is parsed as non-posix - maintains double quotes
+        assert result["stdout"] == "$DUMMY_ENV_VAR"
+        assert result["stderr"] == ""
+
 
 class TestPipInstallRequirements:
     async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
