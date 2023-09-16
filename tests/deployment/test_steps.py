@@ -1038,10 +1038,16 @@ class TestRunShellScript:
         sys.platform != "win32",
         reason="_open_anyio_process errors when mocking OS in test context",
     )
-    async def test_run_shell_script_split_on_windows(self, set_dummy_env_var):
-        result = await run_shell_script(r'echo "$DUMMY_ENV_VAR"')
-        # validates that command is parsed as non-posix - maintains double quotes
-        assert result["stdout"] == "$DUMMY_ENV_VAR"
+    async def test_run_shell_script_split_on_windows(self, monkeypatch):
+        shex_split_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.steps.utility.shlex.split",
+            shex_split_mock,
+        )
+        result = await run_shell_script("echo Hello World")
+        # validates that command is parsed as non-posix
+        shex_split_mock.assert_called_once_with("echo Hello World", posix=False)
+        assert result["stdout"] == "Hello World"
         assert result["stderr"] == ""
 
 
