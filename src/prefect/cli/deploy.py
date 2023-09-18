@@ -1129,24 +1129,6 @@ def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
         )
 
 
-def _prompt_user_for_deployment_choice(matching_deployments, name):
-    # Prompt the user when multiple deployment options are available
-    return prompt_select_from_table(
-        app.console,
-        (
-            "Found multiple deployment configurations with the name"
-            f" [yellow]{name}[/yellow]. Please select the one you would"
-            " like to deploy:"
-        ),
-        [
-            {"header": "Name", "key": "name"},
-            {"header": "Entrypoint", "key": "entrypoint"},
-            {"header": "Description", "key": "description"},
-        ],
-        matching_deployments,
-    )
-
-
 def _find_matching_deploy_config(name, deploy_configs):
     # Logic to find the deploy_config matching the given name
     # This function handles both "flow-name/deployment-name" and just "deployment-name"
@@ -1176,8 +1158,19 @@ def _handle_deploy_with_name(deploy_configs, names, ci=False):
         matching_deployments = _find_matching_deploy_config(name, deploy_configs)
 
         if len(matching_deployments) > 1 and is_interactive() and not ci:
-            user_selected_matching_deployment = _prompt_user_for_deployment_choice(
-                matching_deployments, name
+            user_selected_matching_deployment = prompt_select_from_table(
+                app.console,
+                (
+                    "Found multiple deployment configurations with the name"
+                    f" [yellow]{name}[/yellow]. Please select the one you would"
+                    " like to deploy:"
+                ),
+                [
+                    {"header": "Name", "key": "name"},
+                    {"header": "Entrypoint", "key": "entrypoint"},
+                    {"header": "Description", "key": "description"},
+                ],
+                matching_deployments,
             )
             matched_deploy_configs.append(user_selected_matching_deployment)
         elif matching_deployments:
