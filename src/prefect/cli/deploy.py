@@ -1086,7 +1086,7 @@ def _load_deploy_configs_and_actions(ci=False) -> Tuple[List[Dict], Dict]:
     return deploy_configs, actions
 
 
-def _handle_deploy_without_name(deploy_configs):
+def _handle_pick_deploy_without_name(deploy_configs):
     # Prompt the user to select one or more deployment configurations
     selectable_deploy_configs = [
         deploy_config for deploy_config in deploy_configs if deploy_config.get("name")
@@ -1129,7 +1129,7 @@ def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
         )
 
 
-def _find_matching_deploy_config(name, deploy_configs):
+def _filter_matching_deploy_config(name, deploy_configs):
     # Logic to find the deploy_config matching the given name
     # This function handles both "flow-name/deployment-name" and just "deployment-name"
     matching_deployments = []
@@ -1151,11 +1151,11 @@ def _find_matching_deploy_config(name, deploy_configs):
     return matching_deployments
 
 
-def _handle_deploy_with_name(deploy_configs, names, ci=False):
+def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
     matched_deploy_configs = []
     deployment_names = []
     for name in names:
-        matching_deployments = _find_matching_deploy_config(name, deploy_configs)
+        matching_deployments = _filter_matching_deploy_config(name, deploy_configs)
 
         if len(matching_deployments) > 1 and is_interactive() and not ci:
             user_selected_matching_deployment = prompt_select_from_table(
@@ -1216,11 +1216,11 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
 
     # e.g. `prefect deploy -n flow-name/deployment-name -n deployment-name`
     elif len(names) >= 1:
-        return _handle_deploy_with_name(deploy_configs, names, ci=ci)
+        return _handle_pick_deploy_with_name(deploy_configs, names, ci=ci)
 
     # e.g. `prefect deploy`
     elif is_interactive() and not ci:
-        return _handle_deploy_without_name(deploy_configs)
+        return _handle_pick_deploy_without_name(deploy_configs)
 
     # e.g `prefect --no-prompt deploy` where we have multiple deployment configurations
     elif len(deploy_configs) > 1:
