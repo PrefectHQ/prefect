@@ -1108,13 +1108,13 @@ def _handle_deploy_without_name(deploy_configs):
     return [selected_deploy_config] if selected_deploy_config else []
 
 
-def _handle_unfound_names(unfound_names, matched_deploy_configs, names):
+def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
     # Log unfound names
-    if unfound_names:
+    if missing_names:
         app.console.print(
             (
                 "The following deployment(s) could not be found and will not be"
-                f" deployed: {', '.join(list(sorted(unfound_names)))}"
+                f" deployed: {', '.join(list(sorted(missing_names)))}"
             ),
             style="yellow",
         )
@@ -1190,7 +1190,7 @@ def _handle_deploy_with_name(deploy_configs, names, ci=False):
     unfound_names = set(deployment_names) - {
         deploy_config.get("name") for deploy_config in matched_deploy_configs
     }
-    _handle_unfound_names(unfound_names, matched_deploy_configs, names)
+    _log_missing_deployment_names(unfound_names, matched_deploy_configs, names)
 
     return matched_deploy_configs
 
