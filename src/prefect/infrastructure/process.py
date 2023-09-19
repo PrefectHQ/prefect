@@ -120,6 +120,11 @@ class Process(Infrastructure):
             if sys.platform == "win32":
                 kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
+            # Space character handling in commands with windows
+            # Example: '"C:\Program Files (x86)\Python\python.exe"'
+            if self.command and " " in self.command[0]:
+                self.command[0] = f'"{self.command[0]}"'
+
             process = await run_process(
                 self.command,
                 stream_output=self.stream_output,
