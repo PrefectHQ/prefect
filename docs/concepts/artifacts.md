@@ -244,7 +244,7 @@ Alternatively, you can delete artifacts using the [Prefect REST API](https://app
 Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
 With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
-For example, to read the five most recently created Markdown, table, and link artifacts, you can do the following:
+For example, to read the five most recently created Markdown, table, and link artifacts, you can run the following:
 
 ```python
 import requests
