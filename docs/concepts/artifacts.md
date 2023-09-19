@@ -80,7 +80,7 @@ if __name__ == "__main__":
     You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline.
 
 After running the above flows, you can find your new artifacts in the Artifacts page of the UI.
-Click into the "irregular data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
+Click into the "irregular-data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
 
 ![Link artifact details with multiple versions](/img/ui/link-artifact-info.png)
 
