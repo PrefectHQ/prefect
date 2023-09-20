@@ -3007,11 +3007,10 @@ class TestMultiDeploy:
 
 
 class TestDeployPattern:
-    # prefect deploy -n "flow-a/*" -n flow-b/default
     @pytest.mark.parametrize(
         "deploy_name",
         [
-            "my-flow/test-name-*",
+            ("my-flow/test-name-*", "my-flow-test-name-2"),
             ("my-f*/test-name-1", "my-f*/test-name-2"),
             "*-name-*",
             ("my-*ow/test-name-1", "test-*-2"),
@@ -3049,7 +3048,6 @@ class TestDeployPattern:
         else:
             deploy_command = f"deploy -n '{deploy_name}'"
 
-        # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=deploy_command,
@@ -3088,7 +3086,6 @@ class TestDeployPattern:
     async def test_pattern_deploy_nonexistent_deployments_no_existing_deployments(
         self, deploy_name, project_dir, prefect_client, work_pool
     ):
-        # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"deploy -n '{deploy_name}'",
@@ -3131,12 +3128,68 @@ class TestDeployPattern:
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(contents, f)
 
-        # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"deploy -n '{deploy_name}'",
             expected_code=1,
             expected_output_contains=[
+                (
+                    "Discovered one or more deployment configurations, but no name was"
+                    " given. Please specify the name of at least one deployment to"
+                    " create or update."
+                ),
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "deploy_name",
+        [
+            ("my-flow/test-name-*", "nonexistent-deployment"),
+            ("my-f*/test-name-1", "my-f*/test-name-2", "my-f*/nonexistent-deployment"),
+            ("*-name-4", "*-name-*"),
+            ("my-flow/*", "nonexistent-flow/*"),
+        ],
+    )
+    async def test_pattern_deploy_one_existing_deployment_one_nonexistent_deployment(
+        self, project_dir, prefect_client, work_pool, deploy_name
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        if isinstance(deploy_name, tuple):
+            deploy_command = "deploy " + " ".join(
+                [f"-n '{name}'" for name in deploy_name]
+            )
+        else:
+            deploy_command = f"deploy -n '{deploy_name}'"
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=deploy_command,
+            expected_code=0,
+            expected_output_contains=[
+                "Deploying flows with selected deployment configurations...",
+                "An important name/test-name-1",
+                "An important name/test-name-2",
+            ],
+            expected_output_does_not_contain=[
                 (
                     "Discovered one or more deployment configurations, but no name was"
                     " given. Please specify the name of at least one deployment to"
