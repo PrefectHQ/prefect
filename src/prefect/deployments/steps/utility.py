@@ -169,7 +169,7 @@ async def run_shell_script(
         if expand_env_vars:
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
-        split_command = shlex.split(command)
+        split_command = shlex.split(command, posix=sys.platform != "win32")
         if not split_command:
             continue
         async with open_process(
