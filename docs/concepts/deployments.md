@@ -148,7 +148,7 @@ There are two primary ways to deploy flows with Prefect, differentiated by how m
 
 In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
 
-In the other setup, you do a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. 
+In the other setup, you do [a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure](/guides/prefect-deploy). 
 Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
 
 Both setups can support production workloads. The choice ultimately boils down to your use case and preferences. Read further to decide which setup is right for your situation.
