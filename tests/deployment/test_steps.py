@@ -1034,6 +1034,23 @@ class TestRunShellScript:
         assert result["stdout"] == parent_dir
         assert result["stderr"] == ""
 
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="_open_anyio_process errors when mocking OS in test context",
+    )
+    async def test_run_shell_script_split_on_windows(self, monkeypatch):
+        # return type needs to be mocked to avoid TypeError
+        shex_split_mock = MagicMock(return_value=["echo", "Hello", "World"])
+        monkeypatch.setattr(
+            "prefect.deployments.steps.utility.shlex.split",
+            shex_split_mock,
+        )
+        result = await run_shell_script("echo Hello World")
+        # validates that command is parsed as non-posix
+        shex_split_mock.assert_called_once_with("echo Hello World", posix=False)
+        assert result["stdout"] == "Hello World"
+        assert result["stderr"] == ""
+
 
 class TestPipInstallRequirements:
     async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
