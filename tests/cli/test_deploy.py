@@ -3160,18 +3160,16 @@ class TestDeployPattern:
             ],
         )
 
-        # Check if the deployment was created correctly
-        deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
-        )
-        assert deployment1.name == "test-name-1"
-        assert deployment1.work_pool_name == work_pool.name
+        # Check if the deployments were not created
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-1"
+            )
 
-        deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
-        )
-        assert deployment2.name == "test-name-2"
-        assert deployment2.work_pool_name == work_pool.name
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/test-name-2"
+            )
 
     @pytest.mark.parametrize(
         "deploy_name",
