@@ -25,6 +25,10 @@ from prefect.server.utilities.schemas import (
 )
 from prefect.utilities.pydantic import get_class_fields_only
 from prefect.utilities.templating import find_placeholders
+from prefect.utilities.validation import (
+    validate_schema,
+    validate_values_conform_to_schema,
+)
 
 
 def validate_block_type_slug(value):
@@ -130,6 +134,10 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
+    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
+        schemas.core.Deployment
+    )
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
@@ -147,9 +155,6 @@ class DeploymentCreate(ActionBaseModel):
         schemas.core.Deployment
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
-        schemas.core.Deployment
-    )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -173,6 +178,22 @@ class DeploymentCreate(ActionBaseModel):
                         required.remove(k)
 
             jsonschema.validate(self.infra_overrides, variables_schema)
+
+    @validator("parameters")
+    def _validate_parameters_conform_to_schema(cls, value, values):
+        """Validate that the parameters conform to the parameter schema."""
+        if values.get("enforce_parameter_schema"):
+            validate_values_conform_to_schema(
+                value, values.get("parameter_openapi_schema")
+            )
+        return value
+
+    @validator("parameter_openapi_schema")
+    def _validate_parameter_openapi_schema(cls, value, values):
+        """Validate that the parameter_openapi_schema is a valid json schema."""
+        if values.get("enforce_parameter_schema"):
+            validate_schema(value)
+        return value
 
 
 @experimental_field(
@@ -223,7 +244,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_pool_name: Optional[str] = Field(
@@ -237,6 +261,12 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
