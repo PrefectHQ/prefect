@@ -1,6 +1,7 @@
 """Module containing implementation for deploying projects."""
 import json
 import os
+import re
 from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
@@ -77,7 +78,14 @@ async def deploy(
         help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
-        None, "--name", "-n", help="The name to give the deployment."
+        None,
+        "--name",
+        "-n",
+        help=(
+            "The name to give the deployment. Can be a pattern. Examples:"
+            " 'my-deployment', 'my-flow/my-deployment', 'my-deployment-*',"
+            " '*-flow-name/deployment*'"
+        ),
     ),
     description: str = typer.Option(
         None,
@@ -233,7 +241,16 @@ async def deploy(
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(ci=ci)
-        deploy_configs = _pick_deploy_configs(deploy_configs, names, deploy_all, ci)
+
+        parsed_names = []
+        for name in names:
+            if "*" in name:
+                parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
+            else:
+                parsed_names.append(name)
+        deploy_configs = _pick_deploy_configs(
+            deploy_configs, parsed_names, deploy_all, ci
+        )
 
         if len(deploy_configs) > 1:
             if any(options.values()):
@@ -254,7 +271,7 @@ async def deploy(
         else:
             # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
             options["names"] = [
-                name.split("/", 1)[-1] if "/" in name else name for name in names
+                name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
             ]
 
             await _run_single_deploy(
@@ -1149,6 +1166,64 @@ def _filter_matching_deploy_config(name, deploy_configs):
             if deploy_config.get("name") == name
         ]
     return matching_deployments
+
+
+def _parse_name_from_pattern(deploy_configs, name_pattern):
+    """
+    Parse the deployment names from a user-provided pattern such as "flow-name/*" or "my-deployment-*"
+
+    Example:
+
+    >>> deploy_configs = [
+    ...     {"name": "my-deployment-1", "entrypoint": "flow-name-1"},
+    ...     {"name": "my-deployment-2", "entrypoint": "flow-name-2"},
+    ...     {"name": "my-deployment-3", "entrypoint": "flow-name-3"},
+    ... ]
+
+    >>> _parse_name_from_pattern(deploy_configs, "flow-name-1/*")
+    ["my-deployment-1"]
+
+    Args:
+        deploy_configs: A list of deploy configs
+        name: A pattern to match against the deploy configs
+
+    Returns:
+        List[str]: a list of deployment names that match the given pattern
+    """
+    parsed_names = []
+
+    name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
+
+    # eg. "flow-name/deployment-name"
+    if "/" in name_pattern:
+        flow_name, deploy_name = name_pattern.split("/", 1)
+        flow_name = (
+            re.compile(flow_name.replace("*", ".*"))
+            if "*" in flow_name
+            else re.compile(flow_name)
+        )
+        deploy_name = (
+            re.compile(deploy_name.replace("*", ".*"))
+            if "*" in deploy_name
+            else re.compile(deploy_name)
+        )
+    # e.g. "deployment-name"
+    else:
+        flow_name = None
+        deploy_name = re.compile(name_pattern.replace("*", ".*"))
+
+    for deploy_config in deploy_configs:
+        # skip the default deploy config where this may be None
+        if not deploy_config.get("entrypoint"):
+            continue
+        entrypoint = deploy_config.get("entrypoint").split(":")[-1].replace("_", "-")
+        deployment_name = deploy_config.get("name")
+        flow_match = flow_name.fullmatch(entrypoint) if flow_name else True
+        deploy_match = deploy_name.fullmatch(deployment_name)
+        if flow_match and deploy_match:
+            parsed_names.append(deployment_name)
+
+    return parsed_names
 
 
 def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
