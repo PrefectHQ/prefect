@@ -136,6 +136,31 @@ async def read_work_pools(
 
 
 @inject_db
+async def count_work_pools(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+) -> int:
+    """
+    Read worker configs.
+
+    Args:
+        session: A database session
+        work_pool_filter: filter criteria to apply to the count
+    Returns:
+        int: the count of work pools matching the criteria
+    """
+
+    query = select(sa.func.count(sa.text("*"))).select_from(db.WorkPool)
+
+    if work_pool_filter is not None:
+        query = query.where(work_pool_filter.as_sql_filter(db))
+
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@inject_db
 async def update_work_pool(
     session: AsyncSession,
     work_pool_id: UUID,

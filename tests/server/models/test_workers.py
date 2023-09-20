@@ -184,6 +184,25 @@ class TestReadWorkPool:
         assert result.concurrency_limit == work_pool.concurrency_limit
 
 
+class TestCountWorkPools:
+    async def test_count_work_pool(self, session, work_pool):
+        result = await models.workers.count_work_pools(
+            session=session,
+        )
+        assert result == 1
+
+        random_name = "not-my-work-pool"
+        assert random_name != work_pool.name
+
+        filtered_result = await models.workers.count_work_pools(
+            session=session,
+            work_pool_filter=schemas.filters.WorkPoolFilter(
+                name={"any_": [random_name]}
+            ),
+        )
+        assert filtered_result == 0
+
+
 class TestDeleteWorkPool:
     async def test_delete_work_pool(self, session, work_pool):
         assert await models.workers.delete_work_pool(
