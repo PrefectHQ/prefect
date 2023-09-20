@@ -121,7 +121,12 @@ class DeploymentCreate(ActionBaseModel):
     name: str = FieldFrom(objects.Deployment)
     flow_id: UUID = FieldFrom(objects.Deployment)
     is_schedule_active: Optional[bool] = FieldFrom(objects.Deployment)
-    enforce_parameter_schema: bool = FieldFrom(objects.Deployment)
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)

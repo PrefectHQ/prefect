@@ -489,6 +489,13 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
