@@ -112,7 +112,7 @@ An optional `description` could also be added for context.
 
 To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
 
 !!! warning "Don't indent Markdown"
     Markdown in mult-line strings must be unindented to be interpreted correctly.
