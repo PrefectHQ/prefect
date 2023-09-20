@@ -754,7 +754,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     Store data as a file on a SMB share.
 
     Example:
-
         Load stored SMB config:
 
         ```python
