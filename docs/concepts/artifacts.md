@@ -10,8 +10,8 @@ search:
 # Artifacts
 
 Artifacts are persisted outputs such as tables, Markdown, or links.
+They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
 Artifacts make it easy to track and monitor the objects that your flows produce and update over time.
-Artifacts  are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
 
 ![Markdown artifact sales report screenshot](/img/ui/md-artifact-info.png)
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
 ![Table artifact with customer info](/img/ui/table-artifact-info.png)
 As you can see, you don't need to create an artifact in a flow run context.
-You can use it however you like and still get the benefits in the Prefect UI.
+You can create one anywhere in a Python script and see it in the Prefect UI.
 
 ## Managing artifacts
 
@@ -214,7 +214,7 @@ In the Prefect UI, you can view all of the latest versions of your artifacts and
 Additionally, you can inspect all versions of an artifact with a given key by running:
 
 ```bash
-prefect artifact inspect my_key
+prefect artifact inspect <my_key>
 ```
 
 or view all artifacts by running:
@@ -230,18 +230,18 @@ You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/A
 You can delete an artifact directly using the CLI to delete specific artifacts with a given key or id:
 
 ```bash
-prefect artifact delete my_key
+prefect artifact delete <my_key>
 ```
 
 ```bash
-prefect artifact delete --id my_id
+prefect artifact delete --id <my_id>
 ```
 
-Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
+Alternatively, you can delete artifacts using the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
 
 ## Artifacts API
 
-Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
+Prefect provides the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
 With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
 For example, to read the five most recently created Markdown, table, and link artifacts, you can do the following:
