@@ -76,6 +76,24 @@ def test_validate_values_conform_to_schema_valid_values_invalid_schema():
     )
 
 
+def test_validate_values_conform_to_schema_ignore_required():
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "required": ["name"],
+    }
+    values = {}
+    # Should not raise any exception
+    validate_values_conform_to_schema(values, schema, ignore_required=True)
+
+    # Make sure that the schema is not modified
+    assert schema == {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "required": ["name"],
+    }
+
+
 def test_validate_values_conform_to_schema_none_values_or_schema():
     # Should not raise any exception for either of these
     validate_values_conform_to_schema(None, {"type": "string"})

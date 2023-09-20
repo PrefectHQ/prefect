@@ -192,7 +192,9 @@ async def update_deployment(
             )
             try:
                 validate_values_conform_to_schema(
-                    parameters, existing_deployment.parameter_openapi_schema
+                    parameters,
+                    existing_deployment.parameter_openapi_schema,
+                    ignore_required=True,
                 )
             except ValueError as exc:
                 raise HTTPException(

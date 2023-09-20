@@ -1,11 +1,18 @@
 import jsonschema
 
+from prefect.utilities.collections import remove_nested_keys
+
 
 def validate_schema(schema: dict):
     """
     Validate that the provided schema is a valid json schema.
+
+    Args:
+        schema: The schema to validate.
+
     Raises:
         ValueError: If the provided schema is not a valid json schema.
+
     """
     try:
         if schema is not None:
@@ -18,12 +25,24 @@ def validate_schema(schema: dict):
         ) from exc
 
 
-def validate_values_conform_to_schema(values: dict, schema: dict):
+def validate_values_conform_to_schema(
+    values: dict, schema: dict, ignore_required: bool = False
+):
     """
     Validate that the provided values conform to the provided json schema.
+
+    Args:
+        values: The values to validate.
+        schema: The schema to validate against.
+        ignore_required: Whether to ignore the required fields in the schema.
+
     Raises:
         ValueError: If the parameters do not conform to the schema.
+
     """
+    if ignore_required:
+        schema = remove_nested_keys(["required"], schema)
+
     try:
         if schema is not None and values is not None:
             jsonschema.validate(values, schema)

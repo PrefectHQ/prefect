@@ -184,7 +184,7 @@ class DeploymentCreate(ActionBaseModel):
         """Validate that the parameters conform to the parameter schema."""
         if values.get("enforce_parameter_schema"):
             validate_values_conform_to_schema(
-                value, values.get("parameter_openapi_schema")
+                value, values.get("parameter_openapi_schema"), ignore_required=True
             )
         return value
 

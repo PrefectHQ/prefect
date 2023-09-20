@@ -814,6 +814,54 @@ class TestCreateDeployment:
         )
         assert response.status_code == 201
 
+    async def test_create_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+            parameters={"person": {"greeting": "sup"}},
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -1094,6 +1142,62 @@ class TestUpdateDeployment:
         )
         assert response.json()["parameters"] == {"x": "y"}
         assert response.json()["enforce_parameter_schema"] is True
+
+    async def test_update_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"person": {"greeting": "*head nod*"}}},
+        )
+
+        assert response.status_code == 204
 
 
 class TestDeleteDeployment:
@@ -1527,6 +1631,64 @@ class TestCreateFlowRunFromDeployment:
         )
 
         assert response.status_code == 201
+
+    async def test_create_flow_run_from_deployment_parameter_enforcement_rejects_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.post(
+            f"/deployments/{deployment_id}/create_flow_run",
+            json={"parameters": {"person": {"greeting": "*half hearted wave*"}}},
+        )
+
+        assert response.status_code == 409
+        assert "Validation failed for field 'person'" in response.text
+        assert "Failure reason: 'name' is a required property" in response.text
 
 
 class TestGetDeploymentWorkQueueCheck:
