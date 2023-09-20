@@ -3005,6 +3005,146 @@ class TestMultiDeploy:
                 "An important name/test-name-3"
             )
 
+
+class TestDeployPattern:
+    # prefect deploy -n "flow-a/*" -n flow-b/default
+    @pytest.mark.parametrize(
+        "deploy_name",
+        [
+            "my-flow/test-name-*",
+            ("my-f*/test-name-1", "my-f*/test-name-2"),
+            "*-name-*",
+            ("my-*ow/test-name-1", "test-*-2"),
+            ("*-flow/*-name-1", "*-name-2"),
+            "my-flow/*",
+            ("*/test-name-1", "*/test-name-2"),
+            "*/*",
+        ],
+    )
+    async def test_pattern_deploy_multiple_existing_deployments(
+        self, deploy_name, project_dir, prefect_client, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        if isinstance(deploy_name, tuple):
+            deploy_command = f"deploy -n '{deploy_name[0]}' -n '{deploy_name[1]}'"
+        else:
+            deploy_command = f"deploy -n '{deploy_name}'"
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=deploy_command,
+            expected_code=0,
+            expected_output_contains=[
+                "Deploying flows with selected deployment configurations...",
+                "An important name/test-name-1",
+                "An important name/test-name-2",
+            ],
+        )
+
+        # Check if the deployment was created correctly
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment1.name == "test-name-1"
+        assert deployment1.work_pool_name == work_pool.name
+
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+        assert deployment2.name == "test-name-2"
+        assert deployment2.work_pool_name == work_pool.name
+
+    @pytest.mark.parametrize(
+        "deploy_name",
+        [
+            "*/nonexistent-deployment-name",
+            "my-f*/nonexistent-deployment-name",
+            "nonexistent-deployment-name",
+            "nonexistent-*-name",
+            "nonexistent-flow/*",
+            "nonexistent-*/nonexistent-*",
+        ],
+    )
+    async def test_pattern_deploy_nonexistent_deployments_no_existing_deployments(
+        self, deploy_name, project_dir, prefect_client, work_pool
+    ):
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy -n '{deploy_name}'",
+            expected_code=1,
+            expected_output_contains=[
+                "An entrypoint must be provided",
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "deploy_name",
+        [
+            "*/nonexistent-deployment-name",
+            "my-f*/nonexistent-deployment-name",
+            "nonexistent-*-name",
+            "nonexistent-flow/*",
+            "nonexistent-*/nonexistent-*",
+        ],
+    )
+    async def test_pattern_deploy_nonexistent_deployments_with_existing_deployments(
+        self, deploy_name, project_dir, prefect_client, work_pool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        # Deploy the deployment with a name
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy -n '{deploy_name}'",
+            expected_code=1,
+            expected_output_contains=[
+                (
+                    "Discovered one or more deployment configurations, but no name was"
+                    " given. Please specify the name of at least one deployment to"
+                    " create or update."
+                ),
+            ],
+        )
+
     @pytest.mark.parametrize(
         "deploy_names",
         [
