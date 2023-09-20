@@ -78,7 +78,14 @@ async def deploy(
         help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
-        None, "--name", "-n", help="The name to give the deployment."
+        None,
+        "--name",
+        "-n",
+        help=(
+            "The name to give the deployment. Can be a pattern. Examples:"
+            " 'my-deployment', 'my-flow/my-deployment', 'my-deployment-*',"
+            " '*-flow-name/deployment*'"
+        ),
     ),
     description: str = typer.Option(
         None,
