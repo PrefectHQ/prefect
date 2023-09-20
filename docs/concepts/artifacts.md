@@ -45,7 +45,7 @@ Currently, you can render three artifact types: links, Markdown, and tables.
 
 To create a link artifact, use the `create_link_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect import flow, task
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     You can specify multiple artifacts with the same key to more easily track something very specific that you care about, such as irregularities in your data pipeline.
 
 After running the above flows, you can find your new artifacts in the Artifacts page of the UI.
-Click into the "irregular data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
+Click into the "irregular-data" artifact and see all versions of it, along with custom descriptions and links to the relevant data.
 
 ![Link artifact details with multiple versions](/img/ui/link-artifact-info.png)
 
@@ -112,7 +112,7 @@ An optional `description` could also be added for context.
 
 To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
 
 !!! warning "Don't indent Markdown"
     Markdown in mult-line strings must be unindented to be interpreted correctly.
@@ -244,7 +244,7 @@ Alternatively, you can delete artifacts using the [Prefect REST API](https://doc
 Prefect provides the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
 With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
-For example, to read the five most recently created Markdown, table, and link artifacts, you can do the following:
+For example, to read the five most recently created Markdown, table, and link artifacts, you can run the following:
 
 ```python
 import requests
