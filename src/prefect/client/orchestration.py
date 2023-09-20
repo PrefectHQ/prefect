@@ -1523,6 +1523,7 @@ class PrefectClient:
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
             infra_overrides=deployment.infra_overrides,
+            enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
         if getattr(deployment, "work_pool_name", None) is not None:
