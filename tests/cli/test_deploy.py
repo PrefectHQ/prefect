@@ -3015,9 +3015,9 @@ class TestDeployPattern:
             "*-name-*",
             ("my-*ow/test-name-1", "test-*-2"),
             ("*-flow/*-name-1", "*-name-2"),
-            "my-flow/*",
+            "my-flow/t*",
             ("*/test-name-1", "*/test-name-2"),
-            "*/*",
+            "*/t*",
         ],
     )
     async def test_pattern_deploy_multiple_existing_deployments(
@@ -3035,6 +3035,11 @@ class TestDeployPattern:
             },
             {
                 "name": "test-name-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "dont-deploy-me",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -3059,6 +3064,9 @@ class TestDeployPattern:
                 "An important name/test-name-1",
                 "An important name/test-name-2",
             ],
+            expected_output_does_not_contain=[
+                "An important name/dont-deploy-me",
+            ],
         )
 
         # Check if the deployment was created correctly
@@ -3073,6 +3081,11 @@ class TestDeployPattern:
         )
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/dont-deploy-me"
+            )
 
     @pytest.mark.parametrize(
         "deploy_name",
@@ -3141,7 +3154,24 @@ class TestDeployPattern:
                     " create or update."
                 ),
             ],
+            expected_output_does_not_contain=[
+                "An important name/test-name-1",
+                "An important name/test-name-2",
+            ],
         )
+
+        # Check if the deployment was created correctly
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment1.name == "test-name-1"
+        assert deployment1.work_pool_name == work_pool.name
+
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+        assert deployment2.name == "test-name-2"
+        assert deployment2.work_pool_name == work_pool.name
 
     @pytest.mark.parametrize(
         "deploy_name",
@@ -3149,7 +3179,7 @@ class TestDeployPattern:
             ("my-flow/test-name-*", "nonexistent-deployment"),
             ("my-f*/test-name-1", "my-f*/test-name-2", "my-f*/nonexistent-deployment"),
             ("*-name-4", "*-name-*"),
-            ("my-flow/*", "nonexistent-flow/*"),
+            ("my-flow/t*", "nonexistent-flow/*"),
         ],
     )
     async def test_pattern_deploy_one_existing_deployment_one_nonexistent_deployment(
@@ -3169,6 +3199,10 @@ class TestDeployPattern:
                 "name": "test-name-2",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "dont-deploy-me",
+                "entrypoint": "./flows/hello.py:my_flow",
             },
         ]
 
@@ -3197,8 +3231,26 @@ class TestDeployPattern:
                     " given. Please specify the name of at least one deployment to"
                     " create or update."
                 ),
+                "An important name/dont-deploy-me",
             ],
         )
+
+        # Check if the deployment was created correctly
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        assert deployment1.name == "test-name-1"
+        assert deployment1.work_pool_name == work_pool.name
+
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+        assert deployment2.name == "test-name-2"
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name(
+                "An important name/dont-deploy-me"
+            )
 
     @pytest.mark.parametrize(
         "deploy_names",
