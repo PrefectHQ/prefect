@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 import sqlalchemy as sa
 
 import prefect
@@ -8,10 +5,6 @@ from prefect.logging import get_logger
 from prefect.server import models, schemas
 
 logger = get_logger("server")
-
-COLLECTIONS_BLOCKS_DATA_PATH = (
-    Path(__file__).parent.parent / "collection_blocks_data.json"
-)
 
 
 async def _install_protected_system_blocks(session):
@@ -117,14 +110,6 @@ async def register_block_type(
         return existing_block_type.id
 
 
-async def _load_collection_blocks_data():
-    """Loads blocks data for whitelisted collections."""
-    import anyio
-
-    async with await anyio.open_file(COLLECTIONS_BLOCKS_DATA_PATH, "r") as f:
-        return json.loads(await f.read())
-
-
 async def _register_registry_blocks(session: sa.orm.Session):
     """Registers block from the client block registry."""
     from prefect.blocks.core import Block
@@ -145,32 +130,6 @@ async def _register_registry_blocks(session: sa.orm.Session):
             )
 
 
-async def _register_collection_blocks(session: sa.orm.Session):
-    """Registers blocks from whitelisted collections."""
-    collections_blocks_data = await _load_collection_blocks_data()
-
-    block_types = [
-        block_type
-        for collection in collections_blocks_data["collections"].values()
-        for block_type in collection["block_types"].values()
-    ]
-    for block_type in block_types:
-        # each block schema gets its own transaction
-        async with session.begin():
-            block_schemas = block_type.pop("block_schemas", [])
-            block_type_id = await register_block_type(
-                session=session,
-                block_type=schemas.core.BlockType.parse_obj(block_type),
-            )
-            for block_schema in block_schemas:
-                await register_block_schema(
-                    session=session,
-                    block_schema=schemas.core.BlockSchema.parse_obj(
-                        {**block_schema, "block_type_id": block_type_id}
-                    ),
-                )
-
-
 async def run_block_auto_registration(session: sa.orm.Session):
     """
     Registers all blocks in the client block registry and any blocks from Prefect
@@ -181,4 +140,3 @@ async def run_block_auto_registration(session: sa.orm.Session):
     """
     await _install_protected_system_blocks(session)
     await _register_registry_blocks(session)
-    await _register_collection_blocks(session=session)

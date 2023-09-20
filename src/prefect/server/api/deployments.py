@@ -9,6 +9,7 @@ from uuid import UUID
 import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi.responses import ORJSONResponse
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -242,6 +243,49 @@ async def read_deployments(
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
             for deployment in response
         ]
+
+
+@router.post("/get_scheduled_flow_runs")
+async def get_scheduled_flow_runs(
+    deployment_ids: List[UUID] = Body(
+        ...,
+        description="The IDs of deployments to get scheduled runs for",
+    ),
+    scheduled_before: DateTimeTZ = Body(
+        None, description="The maximum time to look for scheduled flow runs"
+    ),
+    limit: int = dependencies.LimitBody(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context() as session:
+        db_flow_runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+                state=schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[schemas.states.StateType.SCHEDULED]
+                    ),
+                ),
+            ),
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=deployment_ids)
+            ),
+            limit=limit,
+            sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
+        )
+
+        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+        # response to JSON, we do so more efficiently ourselves.
+        # In particular, the FastAPI encoder is very slow for large, nested objects.
+        # See: https://github.com/tiangolo/fastapi/issues/1224
+        encoded = [
+            schemas.responses.FlowRunResponse.from_orm(fr).dict(json_compatible=True)
+            for fr in db_flow_runs
+        ]
+        return ORJSONResponse(content=encoded)
 
 
 @router.post("/count")
