@@ -283,7 +283,9 @@ We can take advantage of Marvin that will help classify the data we are pulling 
 
 Based on the automation trigger, we will call the underlying deployment to kick off the workflow. 
 
-Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the function to create additional features from the data. 
+Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the ai function to start analyzing some of the work. 
+
+TODO: See how adding in events can help promote earlier ai analysis or generation
 
 Here is an example of pulling in that data and classifying using Marvin AI. We can simplify a classification model in a few functions using the underlying OpenAI model. 
 
