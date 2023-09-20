@@ -151,7 +151,7 @@ async def count_work_pools(
         int: the count of work pools matching the criteria
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(db.WorkPool)
+    query = select(sa.func.count()).select_from(db.WorkPool)
 
     if work_pool_filter is not None:
         query = query.where(work_pool_filter.as_sql_filter(db))
