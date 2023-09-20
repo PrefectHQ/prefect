@@ -13,7 +13,7 @@ search:
 
 From the Automations tutorial, we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
-In this guide, we will showcase common usecases where automations can shine when responding to your workflows. First we will create a simple notification automation. Then build upon that with an event based automation where a deployment will be kicked off. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
+In this guide, we will showcase common usecases where automations can shine when responding to your workflows. First we will create a simple notification automation in just a few UI clicks. Then build upon that with an event based automation where a deployment will be kicked off. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
 
 !!! Warning "Available only on Prefect Cloud"
         Automations are only available on Prefect Cloud, please refer to the Cloud documentation to see what 
@@ -27,7 +27,7 @@ For example, let us try to grab data from an API and have a notification get kic
 
 We can get started by pulling data from this endpoint in order to do some data cleaning and transformations. 
 
-Let us create a simple extract method, that pulls the data from the endpoint. 
+Let us create a simple extract method, that pulls the data from a random user data generator endpoint. 
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -71,6 +71,7 @@ if __name__ == "__main__":
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
 ## Create notification block within the UI
+TODO: replace pictures with high quality alternatives
 
 Now let us try to send a notification based off a completed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
 
@@ -97,15 +98,50 @@ Now the automation is ready to be triggered from a flow run completion. Let us l
         Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
 # Event based deployment automation 
-We can create an automation that can help kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this automation.  
+We can create an automation that can kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
 
-Let us have local deployment created where we can kick off some work based on the completion. The automation runs after a long time spent waiting for the notification to get thrown. Let us have this deployment be kicked off from 10 seconds of the flow running.
+Let us have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking to long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
 
-By following the deployment steps, we can create a local prefect.yaml that looks like this for our flow `build_names`
+By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
 
-Let us take a quick peek at the Prefect.yaml file associated with the deployment. We can see that it is very barebones..
+```yaml
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: automations-guide
+prefect-version: 2.13.1
+
+# build section allows you to manage and build docker images
+build: null
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push: null
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /Users/sahilrangwala/src/prefect/Playground/automations-guide
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: deploy-build-names
+  version: null
+  tags: []
+  description: null
+  entrypoint: test-automations.py:build_names
+  parameters: {}
+  work_pool:
+    name: tutorial-process-pool
+    work_queue_name: null
+    job_variables: {}
+  schedule: null
+```
+
+Now lets grab our `deployment_id` from this deployment, and embed it in our automation. There are a wide variety ways to obtain the `deployment_id`, but the CLI can be the quick way to see all of the id's of your deployments. 
 
 !!! Tip "Find deployment_id from the CLI"
       The quickest way to see the ID's associated with your deployment would be running `prefect deployment ls`
@@ -118,16 +154,11 @@ prefect deployment ls
 ┃ Name                                                  ┃ ID                                   ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │ Extract islands/island-schedule                       │ d9d7289c-7a41-436d-8313-80a044e61532 │
-│ generate-data-for-patient/example-deployment          │ 107924b8-8ecb-4af3-bd26-fcfaced5ecc4 │
-│ generate-data-for-patients/original                   │ 2b779805-abd8-4f54-9f6f-429f1481f33a │
-│ generate-data-for-patients/parent                     │ d876a9aa-077c-4abf-8c23-ac9838a8a11e │
-│ get-repo-info/test-deployment                         │ fea0c255-eef5-4eba-8970-fdeb47b4f906 │
-│ log-flow/my-git-deployment                            │ 002e25d2-7132-4e44-aad8-ba4753f659e8 │
-│ ride-duration-prediction/my-first-deployment          │ 5aaf0e2c-3f6d-40d9-a233-144d5f4d2c34 │
+│ build-names/deploy-build-names                        │ 8b10a65e-89ef-4c19-9065-eec5c50242f4 │
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
 ``` 
-Let us first create an automation via a POST call against our API. Ensure you have your api_key, account_id, and workspace_id are handy. 
+We can an automation via a POST call, where we can programatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
 
 ```python
 def create_event_driven_automation():
@@ -149,12 +180,12 @@ def create_event_driven_automation():
         "string"
     ],
     "expect": [
-        "prefect.flow-run.Completed"
+        "prefect.flow-run.Running"
     ],
     "for_each": [
         "prefect.resource.id"
     ],
-    "posture": "Reactive",
+    "posture": "Proactive",
     "threshold": 0,
     "within": 0
     },
@@ -162,7 +193,7 @@ def create_event_driven_automation():
     {
         "type": "run-deployment",
         "source": "selected",
-        "deployment_id": "", 
+        "deployment_id": "YOUR-DEPLOYMENT-ID", 
         "parameters": "10"
     }
     ],
@@ -175,22 +206,21 @@ def create_event_driven_automation():
     print(response.json())
     return response.json()
 ```
-
-
-After finding the deployment_id, you can pull the id into the rest api endpoint to help create this automation. 
+ 
 After running this function, you will see within the UI the changes that came from the post request. Keep in mind, the context will be "custom" on UI. 
 
-Let us run the underlying automation and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of create_names, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
+Let us run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
+
+TODO: Output of the deployment running 
 
 In a few quick changes, we are able to programatically create an automation that deploys workflows with custom parameters. 
 
-TODO: Question to explore, does flow.serve provide a deployment_id that you could use to then kick off work?
 TODO: Deployment that recreates the same 20 names creation except with a different endpoint or feature
 
 
 # Using an underlying .yaml file
 
-We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. 
+We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
 Let us first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
 
@@ -214,22 +244,50 @@ actions:
   - type: "cancel-flow-run"
 ```
 
-TODO: Make it a little bit more robust
-Is kicking off a deployment the right thing to do in this case? I like cancelling long running flows -> can tie in with the first example of pulling in lots of data (increase the name count when creating the dataframe)
+We can then have a helper function that helps apply this .yaml file with the rest api function. 
+```python
+import yaml
 
-- Longer script that sends notifications on failures, and kicks off deployments based off events emitted (probably not needed)
+from utils import post, put
+
+def create_or_update_automation(path: str = "automation.yaml"):
+    """Create or update an automation from a local YAML file"""
+    # Load the definition
+    with open(path, "r") as fh:
+        payload = yaml.safe_load(fh)
+
+    # Find existing automations by name
+    automations = post("/automations/filter")
+    existing_automation = [a["id"] for a in automations if a["name"] == payload["name"]]
+    automation_exists = len(existing_automation) > 0
+
+    # Create or update the automation
+    if automation_exists:
+        print(f"Automation '{payload['name']}' already exists and will be updated")
+        put(f"/automations/{existing_automation[0]}", payload=payload)
+    else:
+        print(f"Creating automation '{payload['name']}'")
+        post("/automations/", payload=payload)
+
+if __name__ == "__main__":
+    create_or_update_automation()
+```
+
+You can find a complete repo with these examples in our [recipes repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
+
+In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when creating the automation with the UI. 
 
 # AI function extension
 
-We can take advantage of Marvin that will help classify the data we are pulling in. Additionally, we can use Marvin to help replicate a dataset we could use. Based on the automation trigger, we will call the underlying deployment to kick off the workflow. 
+We can take advantage of Marvin that will help classify the data we are pulling in. Additionally, we can use Marvin to help replicate a dataset we could use. You can find more on potential usecases with Marvin on their page. 
+
+Based on the automation trigger, we will call the underlying deployment to kick off the workflow. 
 
 Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the function to create additional features from the data. 
 
-TODO: Automations script that trains a model as a next steps? 
-- Some sort of MLOPS next steps so the guide seems organic
-
 Here is an example of pulling in that data and classifying using Marvin AI. We can simplify a classification model in a few functions using the underlying OpenAI model. 
 
+TODO: Can't use a classifier, should use an AI function to create some cumalitive analysis on the data types
 
 ```python
 from marvin import ai_classifier
@@ -237,7 +295,7 @@ from enum import Enum
 
 
 @ai_classifier
-class CustomerIntent(Enum):
+class UserType(Enum):
     """Classifies the incoming users intent"""
 
     SALES = 1
@@ -252,3 +310,9 @@ class CustomerIntent(Enum):
 
 CustomerIntent("I got double charged, can you help me out?")
 ```
+
+TODO: Clean up this data  
+- Some sort of MLOPS next steps so the guide seems organic
+- Use an events trigger in your flow to kick off a deployment of marvin 
+- low effort and does not force them to create a full blown automation to test out marvin
+- can showcase triggers and deployments being triggered from it
