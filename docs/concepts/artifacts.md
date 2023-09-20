@@ -45,7 +45,7 @@ Currently, you can render three artifact types: links, Markdown, and tables.
 
 To create a link artifact, use the `create_link_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
 
 ```python
 from prefect import flow, task
