@@ -1184,6 +1184,8 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
         List[str]: a list of deployment names that match the given pattern
     """
     parsed_names = []
+    
+    name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
 
     # eg. "flow-name/deployment-name"
     if "/" in name_pattern:
