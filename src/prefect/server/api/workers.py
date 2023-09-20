@@ -201,6 +201,20 @@ async def read_work_pools(
         ]
 
 
+@router.post("/count")
+async def count_work_pools(
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count work pools
+    """
+    async with db.session_context() as session:
+        return await models.workers.count_work_pools(
+            session=session, work_pool_filter=work_pools
+        )
+
+
 @router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
