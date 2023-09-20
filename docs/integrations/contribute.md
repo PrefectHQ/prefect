@@ -50,7 +50,7 @@ class Secret(Block):
         ```
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5uUmyGBjRejYuGTWbTxz6E/3003e1829293718b3a5d2e909643a331/image8.png?h=250"
+    _logo_url = "https://example.com/logo.png"
 
     value: SecretStr = Field(
         default=..., description="A string value that should be kept secret."

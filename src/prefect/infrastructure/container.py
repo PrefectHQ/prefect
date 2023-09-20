@@ -47,7 +47,7 @@ class ImagePullPolicy(AutoEnum):
 
 
 class BaseDockerLogin(Block, ABC):
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
@@ -282,7 +282,7 @@ class DockerContainer(Infrastructure):
     )
 
     _block_type_name = "Docker Container"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")
