@@ -1039,7 +1039,8 @@ class TestRunShellScript:
         reason="_open_anyio_process errors when mocking OS in test context",
     )
     async def test_run_shell_script_split_on_windows(self, monkeypatch):
-        shex_split_mock = MagicMock()
+        # return type needs to be mocked to avoid TypeError
+        shex_split_mock = MagicMock(return_value=["echo", "Hello", "World"])
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.shlex.split",
             shex_split_mock,
