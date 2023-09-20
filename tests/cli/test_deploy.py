@@ -3044,7 +3044,9 @@ class TestDeployPattern:
             yaml.safe_dump(contents, f)
 
         if isinstance(deploy_name, tuple):
-            deploy_command = f"deploy -n '{deploy_name[0]}' -n '{deploy_name[1]}'"
+            deploy_command = "deploy " + " ".join(
+                [f"-n '{name}'" for name in deploy_name]
+            )
         else:
             deploy_command = f"deploy -n '{deploy_name}'"
 
