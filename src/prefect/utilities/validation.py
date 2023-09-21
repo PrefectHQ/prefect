@@ -47,11 +47,14 @@ def validate_values_conform_to_schema(
         if schema is not None and values is not None:
             jsonschema.validate(values, schema)
     except jsonschema.ValidationError as exc:
-        raise ValueError(
-            "The provided values do not conform to the provided schema. Validation"
-            f" failed for field {exc.json_path.removeprefix('$.')!r}. Failure reason:"
-            f" {exc.message}"
-        ) from exc
+        if exc.json_path == "$":
+            error_message = "Validation failed."
+        else:
+            error_message = (
+                f"Validation failed for field {exc.json_path.removeprefix('$.')!r}."
+            )
+        error_message += f" Failure reason: {exc.message}"
+        raise ValueError(error_message) from exc
     except jsonschema.SchemaError as exc:
         raise ValueError(
             "The provided schema is not a valid json schema. Schema error:"

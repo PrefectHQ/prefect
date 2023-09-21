@@ -294,6 +294,8 @@ class Deployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
 
     Examples:
 

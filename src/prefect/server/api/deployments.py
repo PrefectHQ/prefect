@@ -464,7 +464,7 @@ async def create_flow_run_from_deployment(
                 )
             except ValueError as exc:
                 raise HTTPException(
-                    status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc!r}"
+                    status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc}"
                 )
 
         work_queue_name = deployment.work_queue_name
