@@ -44,28 +44,29 @@ See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10773
 
 ### Enhancements
-- Added API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
-- Added pattern matching for deployment name in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10772
-- Added command to get default base job template — https://github.com/PrefectHQ/prefect/pull/10776
+- Add API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
+- Add pattern matching for deployment name in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10772
+- Add CLI command to get default base job template — https://github.com/PrefectHQ/prefect/pull/10776
 
 ### Fixes
-- On UI build, make paths relative rather than absolute.  — https://github.com/PrefectHQ/prefect/pull/10390
-- Lowered the upper bound on pinned pendulum library — https://github.com/PrefectHQ/prefect/pull/10752
-- Fixed command handling in `run_shell_script` deployment step on Windows — https://github.com/PrefectHQ/prefect/pull/10719
-- Made `slot_decay_per_second` not nullable to fix validation issues — https://github.com/PrefectHQ/prefect/pull/10790
-- Fixed Prefect variable resolution in deployments section of `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10783
+- Make paths relative rather than absolute in the `prefect dev build-ui` command — https://github.com/PrefectHQ/prefect/pull/10390
+- Lower the upper bound on pinned pendulum library — https://github.com/PrefectHQ/prefect/pull/10752
+- Fix command handling in `run_shell_script` deployment step on Windows — https://github.com/PrefectHQ/prefect/pull/10719
+- Fix validation on concurrency limits — https://github.com/PrefectHQ/prefect/pull/10790
+- Fix Prefect variable resolution in deployments section of `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10783
 
 ### Documentation
-- Updated UI screenshot for role creation — https://github.com/PrefectHQ/prefect/pull/10732
+- Update UI screenshot for role creation — https://github.com/PrefectHQ/prefect/pull/10732
 - Add `push work pools` tag to push work pools guide to raise visibility — https://github.com/PrefectHQ/prefect/pull/10739
 - Update docs with recent brand changes — https://github.com/PrefectHQ/prefect/pull/10736
-- Updated Prefect Cloud quickstart guide to include new features — https://github.com/PrefectHQ/prefect/pull/10742
-- Fixed broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
-- Added screenshots to Artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
-- Removed boost from block-based deployments page in documentation and improved visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
+- Update Prefect Cloud quickstart guide to include new features — https://github.com/PrefectHQ/prefect/pull/10742
+- Fix broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
+- Add screenshots to Artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
+- Remove boost from block-based deployments page in documentation and improved visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
 - Add documentation for work-pool get-default-base-job-template — https://github.com/PrefectHQ/prefect/pull/10784
-- Adds references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
+- Add references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
 - Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
+
 ## New Contributors
 * @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
 * @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
