@@ -299,9 +299,6 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    deploy_config = await resolve_variables(deploy_config)
-    deploy_config = apply_values(deploy_config, os.environ)
-
     should_prompt_for_save = is_interactive() and not ci
 
     deploy_config = _merge_with_default_deploy_config(deploy_config)
@@ -312,6 +309,8 @@ async def _run_single_deploy(
 
     build_steps = deploy_config.get("build", actions.get("build")) or []
     push_steps = deploy_config.get("push", actions.get("push")) or []
+
+    deploy_config = await resolve_variables(deploy_config)
 
     if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
         deploy_config, "schedule.interval"
