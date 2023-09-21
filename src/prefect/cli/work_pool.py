@@ -2,7 +2,6 @@
 Command line interface for working with work queues.
 """
 import json
-from pathlib import Path
 
 import pendulum
 import typer
@@ -34,12 +33,13 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 @work_pool_app.command()
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
-    base_job_template: str = typer.Option(
+    base_job_template: typer.FileText = typer.Option(
         None,
         "--base-job-template",
         help=(
-            "The base job template to use. If unspecified, Prefect will use the default"
-            " base job template."
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type."
         ),
     ),
     paused: bool = typer.Option(
@@ -98,7 +98,7 @@ async def create(
             type
         )
     else:
-        template_contents = json.loads(Path(base_job_template).read_text("utf-8"))
+        template_contents = json.load(base_job_template)
 
     async with get_client() as client:
         try:
