@@ -149,7 +149,7 @@ See the following for implementation details:
 - Update Prefect Cloud pages screenshots — https://github.com/PrefectHQ/prefect/pull/10700
 - Fix broken links in events concept docs and variables guide — https://github.com/PrefectHQ/prefect/pull/10726
 
-## New Contributors
+### New Contributors
 * @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...2.13.1
