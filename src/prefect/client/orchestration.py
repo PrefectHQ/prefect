@@ -1420,6 +1420,7 @@ class PrefectClient:
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
+        enforce_parameter_schema: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1459,6 +1460,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             pull_steps=pull_steps,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
         if work_pool_name is not None:
@@ -1476,6 +1478,9 @@ class PrefectClient:
 
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
+
+        if deployment_create.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
@@ -1518,14 +1523,19 @@ class PrefectClient:
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
             infra_overrides=deployment.infra_overrides,
+            enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
 
+        exclude = set()
+        if deployment.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True, exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:

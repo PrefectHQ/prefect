@@ -3082,6 +3082,7 @@ class TestFlowToDeployment:
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            enforce_parameter_schema=True,
             triggers=[
                 {
                     "name": "Happiness",
@@ -3102,6 +3103,7 @@ class TestFlowToDeployment:
         assert deployment.parameters == {"name": "Arthur"}
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
+        assert deployment.enforce_parameter_schema
         assert deployment.triggers == [
             DeploymentTrigger(
                 name="Happiness",
@@ -3179,12 +3181,13 @@ class TestFlowServe:
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            enforce_parameter_schema=True,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
-        # Flow.serve should created deployments with a work queue or work pool
+        # Flow.serve should created deployments without a work queue or work pool
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.name == "test"
@@ -3192,6 +3195,7 @@ class TestFlowServe:
         assert deployment.parameters == {"name": "Arthur"}
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
+        assert deployment.enforce_parameter_schema
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)

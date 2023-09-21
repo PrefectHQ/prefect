@@ -575,6 +575,12 @@ class Deployment(ORMBaseModel):
             "The id of the work pool queue to which this deployment is assigned."
         ),
     )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
