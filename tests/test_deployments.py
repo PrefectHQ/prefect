@@ -120,9 +120,13 @@ class TestDeploymentBasicInterface:
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
 
-    def test_enforce_parameter_schema_defaults_to_false(self):
+    def test_enforce_parameter_schema_defaults_to_none(self):
+        """
+        enforce_parameter_schema defaults to None to allow for backwards compatibility
+        with older servers
+        """
         d = Deployment(name="foo")
-        assert d.enforce_parameter_schema is False
+        assert d.enforce_parameter_schema is None
 
 
 class TestDeploymentLoad:

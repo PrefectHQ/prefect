@@ -491,8 +491,9 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
-    enforce_parameter_schema: bool = Field(
-        default=False,
+    # defaults to None to allow for backwards compatibility
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
