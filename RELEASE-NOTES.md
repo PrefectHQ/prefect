@@ -43,7 +43,7 @@ You can enable parameter enforcement via `prefect deploy` with the `--enforce-pa
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10773
 
-### Enhanced deployment flexibility with pattern-based naming
+### Enhanced deployment flexibility with pattern-based deploying
 
 In an effort to increase flexibility and provide more powerful deployment options, this enhancement enables users to deploy flows based on a variety of patterns, facilitating versatile and dynamic deployment management:
 
