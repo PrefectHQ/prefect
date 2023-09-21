@@ -1,6 +1,8 @@
 """
 Command line interface for working with work queues.
 """
+import json
+
 import pendulum
 import typer
 from rich.pretty import Pretty
@@ -297,6 +299,42 @@ async def clear_concurrency_limit(
             exit_with_error(exc)
 
         exit_with_success(f"Cleared concurrency limit for work pool {name!r}")
+
+
+@work_pool_app.command()
+async def get_default_base_job_template(
+    type: str = typer.Option(
+        None,
+        "-t",
+        "--type",
+        help="The type of work pool for which to get the default base job template.",
+    ),
+    file: str = typer.Option(
+        None, "-f", "--file", help="If set, write the output to a file."
+    ),
+):
+    """
+    Get the default base job template for a given work pool type.
+
+    \b
+    Examples:
+        $ prefect work-pool get-default-base-job-template --type kubernetes
+    """
+    base_job_template = await get_default_base_job_template_for_infrastructure_type(
+        type
+    )
+    if base_job_template is None:
+        exit_with_error(
+            f"Unknown work pool type {type!r}. "
+            "Please choose from"
+            f" {', '.join(await get_available_work_pool_types())}."
+        )
+
+    if file is None:
+        print(json.dumps(base_job_template, indent=2))
+    else:
+        with open(file, mode="w") as f:
+            json.dump(base_job_template, fp=f, indent=2)
 
 
 @work_pool_app.command()
