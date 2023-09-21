@@ -2,7 +2,7 @@
 
 ## Release 2.13.2
 
-### Server-side enforcement of deployment parameter schemas
+### Opt-in server-side enforcement of deployment parameter schemas
 
 We've added the ability to enforce parameter schemas for deployments via the Prefect API! This feature will prevent creation of flow runs with parameters that are incompatible with deployed flows, allowing you to discover errors sooner and avoid provisioning infrastructure for flow runs destined to fail.
 
@@ -43,6 +43,8 @@ You can enable parameter enforcement via `prefect deploy` with the `--enforce-pa
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10773
 
+### 
+
 ### Enhancements
 - Add API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
 - Add pattern matching for deployment name in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10772
@@ -67,7 +69,7 @@ See the following pull request for details:
 - Add references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
 - Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
 
-## New Contributors
+## New contributors
 * @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
 * @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
 * @NikoRaisanen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10719
