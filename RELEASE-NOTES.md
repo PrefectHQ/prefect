@@ -73,9 +73,11 @@ prefect deploy -n flow-a/* -n */prod
 prefect deploy -n flow-a/* -n flow-b/default
 ```
 
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10772
+
 ### Enhancements
 - Add API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
-- Add pattern matching for deployment name in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10772
 - Add CLI command to get default base job template — https://github.com/PrefectHQ/prefect/pull/10776
 
 ### Fixes
