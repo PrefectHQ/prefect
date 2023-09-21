@@ -1,5 +1,75 @@
 # Prefect Release Notes
 
+## Release 2.13.2
+
+### Server-side enforcement of deployment parameter schemas
+
+We've added the ability to enforce parameter schemas for deployments via the Prefect API! This feature will prevent creation of flow runs with parameters that are incompatible with deployed flow allowing you to discover errors sooner and avoid provisioning infrastructure for flow runs destined to fail.
+
+Use `enforce_parameter_schema` when deploying your flow to guard against invalid parameters:
+
+```python
+from prefect import flow
+from pydantic import BaseModel
+
+
+class Person(BaseModel):
+    name: str
+    greeting: str = "Hello"
+
+
+@flow(log_prints=True)
+def my_flow(person: Person, name: str = "world"):
+    print(f'{person.name} says, "{person.greeting}, {name}!"')
+
+
+if __name__ == "__main__":
+    my_flow.serve(
+        "testing-params",
+        enforce_parameter_schema=True,
+    )
+
+```
+
+An attempt to run the created deployment with invalid parameters will fail and give a reason the flow run cannot be created:
+```bash
+> prefect deployment run 'my-flow/testing-params' -p person='{"name": 1}'
+
+Error creating flow run: Validation failed for field 'person.name'. Failure reason: 1 is not of type 'string'
+```
+
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10773
+
+### Enhancements
+- Added API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
+- Added pattern matching for deployment name in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10772
+- Added command to get default base job template — https://github.com/PrefectHQ/prefect/pull/10776
+
+### Fixes
+- On UI build, make paths relative rather than absolute.  — https://github.com/PrefectHQ/prefect/pull/10390
+- Lowered the upper bound on pinned pendulum library — https://github.com/PrefectHQ/prefect/pull/10752
+- Fixed command handling in `run_shell_script` deployment step on Windows — https://github.com/PrefectHQ/prefect/pull/10719
+- Made `slot_decay_per_second` not nullable to fix validation issues — https://github.com/PrefectHQ/prefect/pull/10790
+- Fixed Prefect variable resolution in deployments section of `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10783
+
+### Documentation
+- Updated UI screenshot for role creation — https://github.com/PrefectHQ/prefect/pull/10732
+- Add `push work pools` tag to push work pools guide to raise visibility — https://github.com/PrefectHQ/prefect/pull/10739
+- Update docs with recent brand changes — https://github.com/PrefectHQ/prefect/pull/10736
+- Updated Prefect Cloud quickstart guide to include new features — https://github.com/PrefectHQ/prefect/pull/10742
+- Fixed broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
+- Added screenshots to Artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
+- Removed boost from block-based deployments page in documentation and improved visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
+
+## New Contributors
+* @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
+* @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
+* @NikoRaisanen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10719
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.1...2.13.2
+
 ## Release 2.13.1
 
 ### Hide subflow runs in the Prefect UI
