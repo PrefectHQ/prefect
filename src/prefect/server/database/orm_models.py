@@ -977,7 +977,7 @@ class ORMConcurrencyLimitV2:
     active_slots = sa.Column(sa.Integer, nullable=False)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
-    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
     avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
