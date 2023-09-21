@@ -1,0 +1,21 @@
+{
+  "job_configuration": {
+    "command": "{{ command }}",
+    "name": "{{ name }}"
+  },
+  "variables": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "description": "Description.",
+        "type": "string"
+      },
+      "command": {
+        "title": "Command",
+        "description": "Command to run.",
+        "type": "string"
+      }
+    }
+  }
+}
