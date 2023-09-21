@@ -256,6 +256,7 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
     @classmethod
     def from_orm(

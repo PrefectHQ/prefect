@@ -194,6 +194,7 @@ class Runner:
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -240,6 +241,7 @@ class Runner:
             description=description,
             tags=tags,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         return await self.add_deployment(deployment)
 

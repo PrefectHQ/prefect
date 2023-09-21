@@ -20,6 +20,7 @@ from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.utilities.validation import validate_values_conform_to_schema
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -144,10 +145,17 @@ async def create_deployment(
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
-    deployment_id: str = Path(..., description="The deployment id", alias="id"),
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
+        existing_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not existing_deployment:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
         if deployment.work_pool_name:
             # Make sure that deployment is valid before beginning creation process
             work_pool = await models.workers.read_work_pool_by_name(
@@ -159,6 +167,38 @@ async def update_deployment(
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Error creating deployment: {exc!r}",
+                )
+
+        enforce_parameter_schema = (
+            deployment.enforce_parameter_schema
+            if deployment.enforce_parameter_schema is not None
+            else existing_deployment.enforce_parameter_schema
+        )
+        if enforce_parameter_schema:
+            # ensure that the new parameters conform to the existing schema
+            if not isinstance(existing_deployment.parameter_openapi_schema, dict):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Error updating deployment: Cannot update parameters because"
+                        " parameter schema enforcement is enabled and the deployment"
+                        " does not have a valid parameter schema."
+                    ),
+                )
+            parameters = (
+                deployment.parameters
+                if deployment.parameters is not None
+                else existing_deployment.parameters
+            )
+            try:
+                validate_values_conform_to_schema(
+                    parameters,
+                    existing_deployment.parameter_openapi_schema,
+                    ignore_required=True,
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, detail=f"Error updating deployment: {exc}"
                 )
 
         result = await models.deployments.update_deployment(
@@ -407,6 +447,25 @@ async def create_flow_run_from_deployment(
 
         parameters = deployment.parameters
         parameters.update(flow_run.parameters or {})
+
+        if deployment.enforce_parameter_schema:
+            if not isinstance(deployment.parameter_openapi_schema, dict):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Error updating deployment: Cannot update parameters because"
+                        " parameter schema enforcement is enabled and the deployment"
+                        " does not have a valid parameter schema."
+                    ),
+                )
+            try:
+                validate_values_conform_to_schema(
+                    parameters, deployment.parameter_openapi_schema
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, detail=f"Error creating flow run: {exc}"
+                )
 
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id

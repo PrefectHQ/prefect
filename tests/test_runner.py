@@ -341,6 +341,7 @@ class TestRunnerDeployment:
             tags=["test"],
             version="alpha",
             description="Deployment descriptions",
+            enforce_parameter_schema=True,
         )
 
         assert deployment.name == "test_runner"
@@ -349,6 +350,7 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
+        assert deployment.enforce_parameter_schema
 
     def test_from_flow_accepts_interval(self):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
@@ -439,6 +441,7 @@ class TestRunnerDeployment:
             tags=["test"],
             version="alpha",
             description="Deployment descriptions",
+            enforce_parameter_schema=True,
         )
 
         assert deployment.name == "test_runner"
@@ -447,6 +450,7 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
+        assert deployment.enforce_parameter_schema
 
     def test_from_entrypoint_accepts_interval(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
@@ -518,3 +522,4 @@ class TestRunnerDeployment:
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == str(Path.cwd())
+        assert deployment.enforce_parameter_schema is False

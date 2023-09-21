@@ -223,6 +223,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    enforce_parameter_schema: bool = FieldFrom(objects.Deployment)
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
