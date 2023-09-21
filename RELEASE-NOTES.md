@@ -4,7 +4,7 @@
 
 ### Server-side enforcement of deployment parameter schemas
 
-We've added the ability to enforce parameter schemas for deployments via the Prefect API! This feature will prevent creation of flow runs with parameters that are incompatible with deployed flow allowing you to discover errors sooner and avoid provisioning infrastructure for flow runs destined to fail.
+We've added the ability to enforce parameter schemas for deployments via the Prefect API! This feature will prevent creation of flow runs with parameters that are incompatible with deployed flows, allowing you to discover errors sooner and avoid provisioning infrastructure for flow runs destined to fail.
 
 Use `enforce_parameter_schema` when deploying your flow to guard against invalid parameters:
 
@@ -38,6 +38,7 @@ An attempt to run the created deployment with invalid parameters will fail and g
 Error creating flow run: Validation failed for field 'person.name'. Failure reason: 1 is not of type 'string'
 ```
 
+You can enable parameter enforcement via `prefect deploy` with the `--enforce-parameter-schema` flag or by setting `enforce_parameter_schema` to `True` in your `prefect.yaml` file.
 
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10773
