@@ -184,6 +184,15 @@ async def deploy(
             ' --params=\'{"question": "ultimate", "answer": 42}\''
         ),
     ),
+    enforce_parameter_schema: bool = typer.Option(
+        False,
+        "--enforce-parameter-schema",
+        help=(
+            "Whether to enforce the parameter schema on this deployment. If set to"
+            " True, any parameters passed to this deployment must match the signature"
+            " of the flow."
+        ),
+    ),
     deploy_all: bool = typer.Option(
         False,
         "--all",
@@ -238,6 +247,7 @@ async def deploy(
         "triggers": trigger,
         "param": param,
         "params": params,
+        "enforce_parameter_schema": enforce_parameter_schema,
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(ci=ci)
@@ -490,10 +500,11 @@ async def _run_single_deploy(
                 if work_pool_job_variables_image_not_found:
                     update_work_pool_image = True
 
-                push_docker_image_step, updated_build_docker_image_step = (
-                    await prompt_push_custom_docker_image(
-                        app.console, deploy_config, build_docker_image_step
-                    )
+                (
+                    push_docker_image_step,
+                    updated_build_docker_image_step,
+                ) = await prompt_push_custom_docker_image(
+                    app.console, deploy_config, build_docker_image_step
                 )
 
                 if actions.get("build"):
@@ -584,11 +595,12 @@ async def _run_single_deploy(
         work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
         version=deploy_config.get("version"),
         schedule=deploy_config.get("schedule"),
+        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
+        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
         entrypoint=deploy_config.get("entrypoint"),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
         pull_steps=pull_steps,
         infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
@@ -1359,7 +1371,15 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
     variable_overrides = {}
     for cli_option, cli_value in cli_options.items():
         if (
-            cli_option in ["description", "entrypoint", "version", "tags", "flow_name"]
+            cli_option
+            in [
+                "description",
+                "entrypoint",
+                "version",
+                "tags",
+                "flow_name",
+                "enforce_parameter_schema",
+            ]
             and cli_value
         ):
             deploy_config[cli_option] = cli_value

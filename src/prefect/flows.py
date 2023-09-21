@@ -496,6 +496,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ):
         """
         Creates a runner deployment object for this flow.
@@ -515,6 +516,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
 
         Examples:
             Prepare two deployments and serve them:
@@ -550,6 +553,7 @@ class Flow(Generic[P, R]):
             parameters=parameters or {},
             description=description,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
     @sync_compatible
@@ -565,6 +569,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
     ):
@@ -586,6 +591,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
@@ -637,6 +644,7 @@ class Flow(Generic[P, R]):
             description=description,
             tags=tags,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         if print_starting_message:
             help_message = (

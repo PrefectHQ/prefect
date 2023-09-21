@@ -714,6 +714,154 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
+    async def test_create_deployment_rejects_invalid_parameter_schemas(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "blork"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert "'blork' is not valid under any of the given schemas" in response.text
+
+    async def test_create_deployment_does_not_reject_invalid_parameter_schemas_by_default(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "blork"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+    async def test_create_deployment_enforces_parameter_schema(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "string"}},
+            },
+            parameters={"foo": 1},
+        )
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert (
+            "Validation failed for field 'foo'. Failure reason: 1 is not of type"
+            " 'string'"
+            in response.text
+        )
+
+    async def test_create_deployment_does_not_enforce_schema_by_default(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"type": "string"}},
+            },
+            parameters={"foo": 1},
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+    async def test_create_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+            parameters={"person": {"greeting": "sup"}},
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
 
 class TestReadDeployment:
     async def test_read_deployment(
@@ -927,6 +1075,129 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
+
+
+class TestUpdateDeployment:
+    async def test_update_deployment_enforces_parameter_schema(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": 1}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+            in response.text
+        )
+
+    async def test_update_deployment_does_not_enforce_parameter_schema_by_default(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"parameters": {"x": 1}},
+        )
+        assert response.status_code == 204
+
+    async def test_update_deployment_can_toggle_parameter_schema_validation(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        # Turn off parameter schema enforcement
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": 1}, "enforce_parameter_schema": False},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": 1}
+        assert response.json()["enforce_parameter_schema"] is False
+
+        # Turn on parameter schema enforcement, but parameters are still invalid
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"enforce_parameter_schema": True},
+        )
+
+        assert response.status_code == 409
+
+        # Turn on parameter schema enforcement, and parameters are now valid
+        response = await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"parameters": {"x": "y"}, "enforce_parameter_schema": True},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_with_parameter_schema.id}"
+        )
+        assert response.json()["parameters"] == {"x": "y"}
+        assert response.json()["enforce_parameter_schema"] is True
+
+    async def test_update_deployment_parameter_enforcement_allows_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"person": {"greeting": "*head nod*"}}},
+        )
+
+        assert response.status_code == 204
 
 
 class TestDeleteDeployment:
@@ -1320,6 +1591,104 @@ class TestCreateFlowRunFromDeployment:
             ),
         )
         assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
+
+    async def test_create_flow_run_enforces_parameter_schema(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}},
+        )
+
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
+            in response.text
+        )
+
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": "y"}},
+        )
+
+        assert response.status_code == 201
+
+    async def test_create_flow_run_does_not_enforce_parameter_schema_when_enforcement_is_toggled_off(
+        self,
+        deployment_with_parameter_schema,
+        client,
+    ):
+        await client.patch(
+            f"/deployments/{deployment_with_parameter_schema.id}",
+            json={"enforce_parameter_schema": False},
+        )
+
+        response = await client.post(
+            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            json={"parameters": {"x": 1}},
+        )
+
+        assert response.status_code == 201
+
+    async def test_create_flow_run_from_deployment_parameter_enforcement_rejects_partial_parameters(
+        self,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "required": ["person"],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "default": "world",
+                        "position": 1,
+                    },
+                    "person": {
+                        "allOf": [{"$ref": "#/definitions/Person"}],
+                        "position": 0,
+                    },
+                },
+                "definitions": {
+                    "Person": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "greeting": {
+                                "type": "string",
+                                "default": "Hello",
+                            },
+                        },
+                    }
+                },
+            },
+        ).dict(json_compatible=True)
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        response = await client.post(
+            f"/deployments/{deployment_id}/create_flow_run",
+            json={"parameters": {"person": {"greeting": "*half hearted wave*"}}},
+        )
+
+        assert response.status_code == 409
+        assert "Validation failed for field 'person'" in response.text
+        assert "Failure reason: 'name' is a required property" in response.text
 
 
 class TestGetDeploymentWorkQueueCheck:

@@ -609,6 +609,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.enforce_parameter_schema is False
 
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client
@@ -620,7 +621,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar"
+                " 1.0.0 -v env=prod -t foo-bar --enforce-parameter-schema"
             ),
         )
         assert result.exit_code == 0
@@ -634,6 +635,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
+        assert deployment.enforce_parameter_schema is True
 
     async def test_project_deploy_with_no_prefect_yaml(self, project_dir, work_pool):
         Path(project_dir, "prefect.yaml").unlink()
@@ -2403,6 +2405,7 @@ class TestMultiDeploy:
                 "entrypoint": "./flows/hello.py:my_flow",
                 "name": "test-name-1",
                 "work_pool": {"name": work_pool.name},
+                "enforce_parameter_schema": True,
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
@@ -2457,8 +2460,10 @@ class TestMultiDeploy:
 
         assert deployment1.name == "test-name-1"
         assert deployment1.work_pool_name == work_pool.name
+        assert deployment1.enforce_parameter_schema is True
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
+        assert deployment2.enforce_parameter_schema is False
 
         # Check if the third deployment was not created
         with pytest.raises(ObjectNotFound):

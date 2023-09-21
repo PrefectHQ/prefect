@@ -435,6 +435,28 @@ async def deployment_in_non_default_work_pool(
 
 
 @pytest.fixture
+async def deployment_with_parameter_schema(
+    session,
+    flow,
+):
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment X",
+            flow_id=flow.id,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"x": {"type": "string"}},
+            },
+            parameters={"x": "y"},
+            enforce_parameter_schema=True,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,

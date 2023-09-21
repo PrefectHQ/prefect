@@ -294,6 +294,8 @@ class Deployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
 
     Examples:
 
@@ -489,6 +491,14 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
+    # defaults to None to allow for backwards compatibility
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -590,7 +600,13 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp", "triggers"}
+                    {
+                        "infrastructure",
+                        "storage",
+                        "timestamp",
+                        "triggers",
+                        "enforce_parameter_schema",
+                    }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -743,6 +759,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:

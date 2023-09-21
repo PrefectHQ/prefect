@@ -600,11 +600,20 @@ async def run(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
         )
 
-        flow_run = await client.create_flow_run_from_deployment(
-            deployment.id,
-            parameters=parameters,
-            state=Scheduled(scheduled_time=scheduled_start_time),
-        )
+        try:
+            flow_run = await client.create_flow_run_from_deployment(
+                deployment.id,
+                parameters=parameters,
+                state=Scheduled(scheduled_time=scheduled_start_time),
+            )
+        except PrefectHTTPStatusError as exc:
+            detail = exc.response.json().get("detail")
+            if detail:
+                exit_with_error(
+                    exc.response.json()["detail"],
+                )
+            else:
+                raise
 
     if PREFECT_UI_URL:
         run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
