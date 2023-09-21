@@ -468,7 +468,7 @@ deployments:
 
 This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
 
-For example, to deploy `deployment-1` we would run:
+For example, to deploy `deployment-1` you would run:
 
 <div class="terminal">
 ```bash
@@ -499,6 +499,15 @@ To deploy all deployments you can use the `--all` flag:
 $ prefect deploy --all
 ```
 </div>
+
+To deploy deployments that match a pattern you can run:
+<div class="terminal">
+```bash
+$ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
+```
+</div>
+The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
+
 
 !!! note "CLI Options When Deploying Multiple Deployments"
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
