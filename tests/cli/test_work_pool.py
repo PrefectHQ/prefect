@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import httpx
 import pytest
@@ -95,6 +96,47 @@ class TestCreate:
         assert client_res.name == pool_name
         assert client_res.base_job_template == {}
         assert isinstance(client_res, WorkPool)
+
+    async def test_create_work_pool_with_base_job_template(
+        self, prefect_client, mock_collection_registry
+    ):
+        pool_name = "my-olympic-pool"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "create",
+                pool_name,
+                "--type",
+                "process",
+                "--base-job-template",
+                Path(__file__).parent / "base-job-templates" / "process-worker.json",
+            ],
+            expected_code=0,
+            expected_output="Created work pool 'my-olympic-pool'.",
+        )
+
+        client_res = await prefect_client.read_work_pool(pool_name)
+        assert isinstance(client_res, WorkPool)
+        assert client_res.name == pool_name
+        assert client_res.base_job_template == {
+            "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+            "variables": {
+                "properties": {
+                    "command": {
+                        "description": "Command to run.",
+                        "title": "Command",
+                        "type": "string",
+                    },
+                    "name": {
+                        "description": "Description.",
+                        "title": "Name",
+                        "type": "string",
+                    },
+                },
+                "type": "object",
+            },
+        }
 
     async def test_create_work_pool_with_empty_name(
         self, prefect_client, mock_collection_registry
