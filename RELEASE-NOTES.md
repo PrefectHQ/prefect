@@ -62,7 +62,7 @@ See the following pull request for details:
 - Update Prefect Cloud quickstart guide to include new features — https://github.com/PrefectHQ/prefect/pull/10742
 - Fix broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
 - Add screenshots to artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
-- Remove boost from block-based deployments page in documentation and improved visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
+- Remove boost from block-based deployments page in documentation and improve visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
 - Add documentation for work-pool get-default-base-job-template — https://github.com/PrefectHQ/prefect/pull/10784
 - Add references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
 - Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
