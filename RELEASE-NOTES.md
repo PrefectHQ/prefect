@@ -99,7 +99,7 @@ See the following pull request for details:
 - Add references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
 - Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
 
-## New contributors
+### New contributors
 * @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
 * @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
 * @NikoRaisanen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10719
