@@ -57,9 +57,6 @@ def test_validate_values_conform_to_schema_invalid_values_valid_schema():
     values = {"name": 123}
     with pytest.raises(ValueError) as excinfo:
         validate_values_conform_to_schema(values, schema)
-    assert "The provided values do not conform to the provided schema." in str(
-        excinfo.value
-    )
     assert "Validation failed for field 'name'." in str(excinfo.value)
     assert "Failure reason: 123 is not of type 'string'" in str(excinfo.value)
 

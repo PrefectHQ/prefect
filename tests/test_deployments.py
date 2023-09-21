@@ -734,23 +734,12 @@ class TestDeploymentApply:
             flow_function_dict_parameter,
             name="foo",
             enforce_parameter_schema=True,
-            parameter_openapi_schema={
-                "type": "object",
-                "properties": {
-                    "dict_param": {
-                        "type": "object",
-                        "properties": {
-                            "1": {"type": "string"},
-                            "2": {"type": "string"},
-                        },
-                    }
-                },
-            },
             parameters=dict(dict_param={1: "a", 2: "b"}),
         )
 
         assert d.flow_name == flow_function_dict_parameter.name
         assert d.name == "foo"
+        assert d.enforce_parameter_schema is True
 
         dep_id = await d.apply()
         dep = await prefect_client.read_deployment(dep_id)

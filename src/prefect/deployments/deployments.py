@@ -752,6 +752,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:
