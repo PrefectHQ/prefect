@@ -63,7 +63,9 @@ See the following pull request for details:
 - Fixed broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
 - Added screenshots to Artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
 - Removed boost from block-based deployments page in documentation and improved visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
-
+- Add documentation for work-pool get-default-base-job-template — https://github.com/PrefectHQ/prefect/pull/10784
+- Adds references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
+- Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
 ## New Contributors
 * @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
 * @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
