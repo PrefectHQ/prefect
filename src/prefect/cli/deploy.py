@@ -59,7 +59,10 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.slugify import slugify
-from prefect.utilities.templating import apply_values
+from prefect.utilities.templating import (
+    apply_values,
+    resolve_variables,
+)
 
 
 @app.command()
@@ -295,6 +298,9 @@ async def _run_single_deploy(
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
+
+    deploy_config = await resolve_variables(deploy_config)
+    deploy_config = apply_values(deploy_config, os.environ)
 
     should_prompt_for_save = is_interactive() and not ci
 
