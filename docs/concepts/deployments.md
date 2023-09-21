@@ -94,7 +94,7 @@ Flows defined within interactive REPLs or notebooks cannot currently be deployed
 One of the primary motivations for creating deloyments of flows is to remotely _schedule_ and _trigger_ them. 
 Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
 
-The five fields here capture the necessary metadata to perform such actions:
+The six fields here capture the necessary metadata to perform such actions:
 
 - **`schedule`**: a [schedule object](/concepts/schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves. 
@@ -105,6 +105,7 @@ For more information see [Automations](/concepts/automations/).
 This is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
 - **`parameters`**: default values of flow parameters that this deployment will pass on each run. 
 These can be overwritten through a trigger or when manually creating a custom run.
+- **`enforce_parameter_schema`**: a boolean flag that determines whether the API should validate the parameters passed to a flow run against the schema defined by `parameter_openapi_schema`.
 
 !!! tip "Scheduling is asynchronous and decoupled" 
     Because deployments are nothing more than metadata, runs can be created at anytime.
