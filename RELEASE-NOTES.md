@@ -43,7 +43,35 @@ You can enable parameter enforcement via `prefect deploy` with the `--enforce-pa
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10773
 
-### 
+### Enhanced Deployment Flexibility with Pattern-based Naming
+
+In an effort to increase flexibility and provide more powerful deployment options, this enhancement enables users to deploy flows based on a variety of patterns, facilitating versatile and dynamic deployment management:
+
+**Deploy all deployments for a specific flow:**
+```bash
+prefect deploy -n flow-a/*
+```
+
+**Deploy all deployments for a specific deployment:**
+```bash
+prefect deploy -n */prod
+```
+Note: This was previously possible in non-interactive mode with `prefect --no-prompt deploy -n prod`
+
+**Deploy all deployments containing a specified string in the flow name:**
+```bash
+prefect deploy -n *extract*/*
+```
+
+**Deploy deployments with a mix of pattern matching styles**
+```bash
+prefect deploy -n flow-a/* -n */prod
+```
+
+**Deploy deployments with a mix of pattern matching and without:**
+```bash
+prefect deploy -n flow-a/* -n flow-b/default
+```
 
 ### Enhancements
 - Add API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
