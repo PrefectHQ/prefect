@@ -1529,9 +1529,13 @@ class PrefectClient:
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
 
+        exclude = set()
+        if deployment.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True, exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:

@@ -51,7 +51,7 @@ def validate_values_conform_to_schema(
             error_message = "Validation failed."
         else:
             error_message = (
-                f"Validation failed for field {exc.json_path.removeprefix('$.')!r}."
+                f"Validation failed for field {exc.json_path.replace('$.', '')!r}."
             )
         error_message += f" Failure reason: {exc.message}"
         raise ValueError(error_message) from exc
