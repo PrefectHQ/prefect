@@ -1,5 +1,111 @@
 # Prefect Release Notes
 
+## Release 2.13.2
+
+### Opt-in server-side enforcement of deployment parameter schemas
+
+We've added the ability to enforce parameter schemas for deployments via the Prefect API! This feature will prevent creation of flow runs with parameters that are incompatible with deployed flows, allowing you to discover errors sooner and avoid provisioning infrastructure for flow runs destined to fail.
+
+Use `enforce_parameter_schema` when deploying your flow to guard against invalid parameters:
+
+```python
+from prefect import flow
+from pydantic import BaseModel
+
+
+class Person(BaseModel):
+    name: str
+    greeting: str = "Hello"
+
+
+@flow(log_prints=True)
+def my_flow(person: Person, name: str = "world"):
+    print(f'{person.name} says, "{person.greeting}, {name}!"')
+
+
+if __name__ == "__main__":
+    my_flow.serve(
+        "testing-params",
+        enforce_parameter_schema=True,
+    )
+
+```
+
+An attempt to run the created deployment with invalid parameters will fail and give a reason the flow run cannot be created:
+```bash
+> prefect deployment run 'my-flow/testing-params' -p person='{"name": 1}'
+
+Error creating flow run: Validation failed for field 'person.name'. Failure reason: 1 is not of type 'string'
+```
+
+You can enable parameter enforcement via `prefect deploy` with the `--enforce-parameter-schema` flag or by setting `enforce_parameter_schema` to `True` in your `prefect.yaml` file.
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10773
+
+### Enhanced deployment flexibility with pattern-based deploying
+
+In an effort to increase flexibility and provide more powerful deployment options, this enhancement enables users to deploy flows based on a variety of patterns, facilitating versatile and dynamic deployment management:
+
+**Deploy all deployments for a specific flow:**
+```bash
+prefect deploy -n flow-a/*
+```
+
+**Deploy all deployments for a specific deployment:**
+```bash
+prefect deploy -n */prod
+```
+Note: This was previously possible in non-interactive mode with `prefect --no-prompt deploy -n prod`
+
+**Deploy all deployments containing a specified string in the flow name:**
+```bash
+prefect deploy -n *extract*/*
+```
+
+**Deploy deployments with a mix of pattern matching styles**
+```bash
+prefect deploy -n flow-a/* -n */prod
+```
+
+**Deploy deployments with a mix of pattern matching and without:**
+```bash
+prefect deploy -n flow-a/* -n flow-b/default
+```
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10772
+
+### Enhancements
+- Add API route for work pool counts — https://github.com/PrefectHQ/prefect/pull/10770
+- Add CLI command to get default base job template — https://github.com/PrefectHQ/prefect/pull/10776
+
+### Fixes
+- Make paths relative rather than absolute in the `prefect dev build-ui` command — https://github.com/PrefectHQ/prefect/pull/10390
+- Lower the upper bound on pinned pendulum library — https://github.com/PrefectHQ/prefect/pull/10752
+- Fix command handling in `run_shell_script` deployment step on Windows — https://github.com/PrefectHQ/prefect/pull/10719
+- Fix validation on concurrency limits — https://github.com/PrefectHQ/prefect/pull/10790
+- Fix Prefect variable resolution in deployments section of `prefect.yaml` — https://github.com/PrefectHQ/prefect/pull/10783
+
+### Documentation
+- Update UI screenshot for role creation — https://github.com/PrefectHQ/prefect/pull/10732
+- Add `push work pools` tag to push work pools guide to raise visibility — https://github.com/PrefectHQ/prefect/pull/10739
+- Update docs with recent brand changes — https://github.com/PrefectHQ/prefect/pull/10736
+- Update Prefect Cloud quickstart guide to include new features — https://github.com/PrefectHQ/prefect/pull/10742
+- Fix broken diagram in workers tutorial — https://github.com/PrefectHQ/prefect/pull/10762
+- Add screenshots to artifacts concept page — https://github.com/PrefectHQ/prefect/pull/10748
+- Remove boost from block-based deployments page in documentation and improve visibility of `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10775
+- Add example of retrieving default base job template to work pools concept documentation — https://github.com/PrefectHQ/prefect/pull/10784
+- Add references to `enforce_parameter_schema` to docs — https://github.com/PrefectHQ/prefect/pull/10782
+- Add documentation for pattern matching in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10791
+
+### New contributors
+* @danielhstahl made their first contribution in https://github.com/PrefectHQ/prefect/pull/10390
+* @morremeyer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10759
+* @NikoRaisanen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10719
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.1...2.13.2
+
 ## Release 2.13.1
 
 ### Hide subflow runs in the Prefect UI
@@ -43,7 +149,7 @@ See the following for implementation details:
 - Update Prefect Cloud pages screenshots — https://github.com/PrefectHQ/prefect/pull/10700
 - Fix broken links in events concept docs and variables guide — https://github.com/PrefectHQ/prefect/pull/10726
 
-## New Contributors
+### New Contributors
 * @odoublewen made their first contribution in https://github.com/PrefectHQ/prefect/pull/10706
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.0...2.13.1
