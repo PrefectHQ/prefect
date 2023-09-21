@@ -349,3 +349,69 @@ class TestPreview:
             f"work-pool preview {work_pool.name}",
         )
         assert res.exit_code == 0
+
+
+class TestGetDefaultBaseJobTemplate:
+    @pytest.fixture(autouse=True)
+    async def mock_collection_registry(self, respx_mock):
+        respx_mock.get(
+            "https://raw.githubusercontent.com/PrefectHQ/"
+            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "prefect": {
+                        "prefect-agent": {
+                            "type": "prefect-agent",
+                            "default_base_job_configuration": {},
+                        }
+                    },
+                    "prefect-fake": {
+                        "fake": {
+                            "type": "fake",
+                            "default_base_job_configuration": (
+                                FAKE_DEFAULT_BASE_JOB_TEMPLATE
+                            ),
+                        }
+                    },
+                },
+            )
+        )
+
+    async def test_unknown_type(self, mock_collection_registry):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "get-default-base-job-template", "--type", "foobar"],
+            expected_code=1,
+            expected_output_contains=(
+                "Unknown work pool type 'foobar'. Please choose from"
+            ),
+        )
+
+    async def test_stdout(self, mock_collection_registry):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "get-default-base-job-template", "--type", "fake"],
+            expected_code=0,
+            expected_output_contains="fake_var",
+        )
+
+    async def test_file(self, mock_collection_registry, tmp_path):
+        file = tmp_path / "out.json"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "get-default-base-job-template",
+                "--type",
+                "fake",
+                "--file",
+                file,
+            ],
+            expected_code=0,
+        )
+
+        contents = file.read_text()
+        assert "job_configuration" in contents
+        assert len(contents) == 211
