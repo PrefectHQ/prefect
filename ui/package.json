@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.38.0",
-    "@prefecthq/eslint-config": "1.0.29",
+    "@prefecthq/eslint-config": "1.0.31",
     "@vitejs/plugin-vue": "4.3.4",
     "autoprefixer": "10.4.15",
     "dotenv": "16.3.1",
