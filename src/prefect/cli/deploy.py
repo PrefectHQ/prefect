@@ -59,7 +59,10 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.slugify import slugify
-from prefect.utilities.templating import apply_values
+from prefect.utilities.templating import (
+    apply_values,
+    resolve_variables,
+)
 
 
 @app.command()
@@ -316,6 +319,8 @@ async def _run_single_deploy(
 
     build_steps = deploy_config.get("build", actions.get("build")) or []
     push_steps = deploy_config.get("push", actions.get("push")) or []
+
+    deploy_config = await resolve_variables(deploy_config)
 
     if get_from_dict(deploy_config, "schedule.anchor_date") and not get_from_dict(
         deploy_config, "schedule.interval"
