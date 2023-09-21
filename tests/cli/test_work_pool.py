@@ -10,6 +10,7 @@ from prefect.client.schemas.objects import WorkPool
 from prefect.exceptions import ObjectNotFound
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
@@ -186,17 +187,19 @@ class TestCreate:
         assert client_res.type == "process"
         assert isinstance(client_res, WorkPool)
 
-    def test_create_with_unsupported_type(self):
+    def test_create_with_unsupported_type(self, monkeypatch):
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         invoke_and_assert(
             ["work-pool", "create", "my-pool", "--type", "unsupported"],
             expected_code=1,
-            expected_output_contains=[
-                "Unknown work pool type 'unsupported'.",
-                "Please choose from",
-                "process",
-                "prefect-agent",
-                "fake",
-            ],
+            expected_output=(
+                "Unknown work pool type 'unsupported'. Please choose from fake,"
+                " prefect-agent, process."
+            ),
         )
 
     def test_create_non_interactive_missing_args(self):
@@ -379,13 +382,19 @@ class TestGetDefaultBaseJobTemplate:
             )
         )
 
-    async def test_unknown_type(self, mock_collection_registry):
+    async def test_unknown_type(self, mock_collection_registry, monkeypatch):
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=["work-pool", "get-default-base-job-template", "--type", "foobar"],
             expected_code=1,
-            expected_output_contains=(
-                "Unknown work pool type 'foobar'. Please choose from"
+            expected_output=(
+                "Unknown work pool type 'foobar'. Please choose from fake,"
+                " prefect-agent, process."
             ),
         )
 
