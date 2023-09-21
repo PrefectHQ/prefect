@@ -34,7 +34,8 @@ def validate_values_conform_to_schema(
     Args:
         values: The values to validate.
         schema: The schema to validate against.
-        ignore_required: Whether to ignore the required fields in the schema.
+        ignore_required: Whether to ignore the required fields in the schema. Should be
+            used when a partial set of values is acceptable.
 
     Raises:
         ValueError: If the parameters do not conform to the schema.

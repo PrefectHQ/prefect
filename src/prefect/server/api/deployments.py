@@ -181,7 +181,7 @@ async def update_deployment(
                     status.HTTP_409_CONFLICT,
                     detail=(
                         "Error updating deployment: Cannot update parameters because"
-                        " parameter schema enforcement is enabledand the deployment"
+                        " parameter schema enforcement is enabled and the deployment"
                         " does not have a valid parameter schema."
                     ),
                 )
@@ -454,7 +454,7 @@ async def create_flow_run_from_deployment(
                     status.HTTP_409_CONFLICT,
                     detail=(
                         "Error updating deployment: Cannot update parameters because"
-                        " parameter schema enforcement is enabledand the deployment"
+                        " parameter schema enforcement is enabled and the deployment"
                         " does not have a valid parameter schema."
                     ),
                 )
