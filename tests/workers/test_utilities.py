@@ -75,19 +75,20 @@ class TestGetAvailableWorkPoolTypes:
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_get_available_work_pool_types(self):
         work_pool_types = await get_available_work_pool_types()
-
-        assert "prefect-agent" in work_pool_types
-        assert "fake" in work_pool_types
-        assert "process" in work_pool_types
+        assert work_pool_types == [
+            "fake",
+            "prefect-agent",
+            "process",
+        ]
 
     @pytest.mark.usefixtures("mock_collection_registry_not_available")
     async def test_get_available_work_pool_types_without_collection_registry(self):
         respx.routes
         work_pool_types = await get_available_work_pool_types()
 
-        assert "prefect-agent" not in work_pool_types
-        assert "fake" not in work_pool_types
-        assert "process" in work_pool_types
+        assert work_pool_types == [
+            "process",
+        ]
 
 
 class TestGetDefaultBaseJobTemplateForInfrastructureType:

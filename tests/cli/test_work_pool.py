@@ -190,13 +190,10 @@ class TestCreate:
         invoke_and_assert(
             ["work-pool", "create", "my-pool", "--type", "unsupported"],
             expected_code=1,
-            expected_output_contains=[
-                "Unknown work pool type 'unsupported'.",
-                "Please choose from",
-                "process",
-                "prefect-agent",
-                "fake",
-            ],
+            expected_output=(
+                "Unknown work pool type 'unsupported'. Please choose from fake,"
+                " prefect-agent, process."
+            ),
         )
 
     def test_create_non_interactive_missing_args(self):
@@ -384,8 +381,9 @@ class TestGetDefaultBaseJobTemplate:
             invoke_and_assert,
             command=["work-pool", "get-default-base-job-template", "--type", "foobar"],
             expected_code=1,
-            expected_output_contains=(
-                "Unknown work pool type 'foobar'. Please choose from"
+            expected_output=(
+                "Unknown work pool type 'foobar'. Please choose from fake,"
+                " prefect-agent, process."
             ),
         )
 
