@@ -2,6 +2,7 @@ import httpx
 import pytest
 import respx
 
+from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -73,17 +74,31 @@ async def mock_collection_registry_not_available():
 
 class TestGetAvailableWorkPoolTypes:
     @pytest.mark.usefixtures("mock_collection_registry")
-    async def test_get_available_work_pool_types(self):
+    async def test_get_available_work_pool_types(self, monkeypatch):
+        def available():
+            return ["faker", "process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         work_pool_types = await get_available_work_pool_types()
         assert work_pool_types == [
             "fake",
+            "faker",
             "prefect-agent",
             "process",
         ]
 
     @pytest.mark.usefixtures("mock_collection_registry_not_available")
-    async def test_get_available_work_pool_types_without_collection_registry(self):
+    async def test_get_available_work_pool_types_without_collection_registry(
+        self, monkeypatch
+    ):
         respx.routes
+
+        def available():
+            return ["process"]
+
+        monkeypatch.setattr(BaseWorker, "get_all_available_worker_types", available)
+
         work_pool_types = await get_available_work_pool_types()
 
         assert work_pool_types == [
