@@ -293,7 +293,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         if (
             run_settings.retries is None
             or run_count > run_settings.retries
-            or initial_state.state_details.retriable is False
+            or proposed_state.state_details.retriable is False
         ):
             return  # Retry count exceeded or denied by client, allow transition to failed
 
@@ -380,7 +380,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
         if (
             run_settings.retries is not None
             and run_count <= run_settings.retries
-            and initial_state.state_details.retriable is True
+            and proposed_state.state_details.retriable is True
         ):
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(seconds=delay),
