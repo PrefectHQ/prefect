@@ -207,6 +207,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         prefetch_seconds=ANY,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -235,6 +236,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         prefetch_seconds=30,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -262,6 +264,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         prefetch_seconds=100,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -290,6 +293,7 @@ def test_start_worker_with_limit(monkeypatch):
         prefetch_seconds=10,
         limit=5,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
