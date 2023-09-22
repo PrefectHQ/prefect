@@ -241,6 +241,63 @@ async def resume(
 
 
 @work_pool_app.command()
+async def update(
+    name: str = typer.Argument(..., help="The name of the work pool to update."),
+    base_job_template: typer.FileText = typer.Option(
+        None,
+        "--base-job-template",
+        help=(
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type. If None, the base job template will not be modified."
+        ),
+    ),
+    concurrency_limit: int = typer.Option(
+        None,
+        "--concurrency-limit",
+        help=(
+            "The concurrency limit for the work pool. If None, the concurrency limit"
+            " will not be modified."
+        ),
+    ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        help=(
+            "The description for the work pool. If None, the description will not be"
+            " modified."
+        ),
+    ),
+):
+    """
+    Update a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool update "my-pool"
+
+    """
+    wp = WorkPoolUpdate()
+    if base_job_template:
+        wp.base_job_template = json.load(base_job_template)
+    if concurrency_limit:
+        wp.concurrency_limit = concurrency_limit
+    if description:
+        wp.description = description
+
+    async with get_client() as client:
+        try:
+            await client.update_work_pool(
+                work_pool_name=name,
+                work_pool=wp,
+            )
+        except ObjectNotFound:
+            exit_with_error("Work pool named {name!r} does not exist.")
+
+        exit_with_success(f"Updated work pool {name!r}")
+
+
+@work_pool_app.command()
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
