@@ -235,6 +235,14 @@ class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
     )
 
 
+class FlowRunFilterParentFlowRunId(PrefectBaseModel, OperatorMixin):
+    """Filter for subflows of the given flow runs"""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run parents to include"
+    )
+
+
 class FlowRunFilterParentTaskRunId(PrefectBaseModel, OperatorMixin):
     """Filter by `FlowRun.parent_task_run_id`."""
 
