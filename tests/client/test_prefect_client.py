@@ -29,6 +29,7 @@ from prefect.client.schemas.actions import (
     LogCreate,
     VariableCreate,
     WorkPoolCreate,
+    WorkPoolUpdate,
 )
 from prefect.client.schemas.filters import (
     ArtifactFilter,
@@ -1642,6 +1643,29 @@ class TestWorkPools:
             work_pool_1.id,
             work_pool_2.id,
         }
+
+    async def test_update_work_pool(self, prefect_client):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        assert work_pool.description is None
+
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                description="Foo description",
+            ),
+        )
+
+        result = await prefect_client.read_work_pool(work_pool_name=work_pool.name)
+        assert result.description == "Foo description"
+
+    async def test_update_missing_work_pool(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.update_work_pool(
+                work_pool_name="abcdefg",
+                work_pool=WorkPoolUpdate(),
+            )
 
     async def test_delete_work_pool(self, prefect_client, work_pool):
         await prefect_client.delete_work_pool(work_pool.name)
