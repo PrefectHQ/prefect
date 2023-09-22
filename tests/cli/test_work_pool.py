@@ -387,6 +387,174 @@ class TestLS:
         assert res.exit_code == 0
 
 
+class TestUpdate:
+    async def test_update_description(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        metamorphosis = (
+            "One morning, as Gregor Samsa was waking up from anxious dreams, he"
+            " discovered that in bed he had been changed into a monstrous verminous"
+            " bug."
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                metamorphosis,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.description == metamorphosis
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+        assert client_res.concurrency_limit == work_pool.concurrency_limit
+
+    async def test_update_concurrency_limit(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--concurrency-limit",
+                123456,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.concurrency_limit == 123456
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.description == work_pool.description
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+        # Verify that the concurrency limit is unmodified when changing another
+        # setting
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                "Hello world lorem ipsum",
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.concurrency_limit == 123456
+        assert client_res.description == "Hello world lorem ipsum"
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+    async def test_update_base_job_template(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--base-job-template",
+                Path(__file__).parent / "base-job-templates" / "process-worker.json",
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.base_job_template != work_pool.base_job_template
+        assert client_res.base_job_template == {
+            "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "description": "Description.",
+                        "type": "string",
+                    },
+                    "command": {
+                        "title": "Command",
+                        "description": "Command to run.",
+                        "type": "string",
+                    },
+                },
+            },
+        }
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.description == work_pool.description
+        assert client_res.type == work_pool.type
+        assert client_res.is_paused == work_pool.is_paused
+        assert client_res.concurrency_limit == work_pool.concurrency_limit
+
+    async def test_update_multi(self, prefect_client, work_pool):
+        assert work_pool.description is None
+        assert work_pool.type is not None
+        assert work_pool.base_job_template is not None
+        assert work_pool.is_paused is not None
+        assert work_pool.concurrency_limit is None
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "update",
+                work_pool.name,
+                "--description",
+                "Foo bar baz",
+                "--concurrency-limit",
+                300,
+            ],
+            expected_code=0,
+            expected_output=f"Updated work pool '{work_pool.name}'",
+        )
+
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.description == "Foo bar baz"
+        assert client_res.concurrency_limit == 300
+        # assert all other fields unchanged
+        assert client_res.name == work_pool.name
+        assert client_res.type == work_pool.type
+        assert client_res.base_job_template == work_pool.base_job_template
+        assert client_res.is_paused == work_pool.is_paused
+
+
 class TestPreview:
     async def test_preview(self, prefect_client, work_pool):
         res = await run_sync_in_worker_thread(
