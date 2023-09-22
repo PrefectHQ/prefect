@@ -2286,10 +2286,23 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: WorkPoolUpdate,
     ):
-        await self._client.patch(
-            f"/work_pools/{work_pool_name}",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        """
+        Updates a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to update.
+            work_pool: Fields to update in the work pool.
+        """
+        try:
+            await self._client.patch(
+                f"/work_pools/{work_pool_name}",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def delete_work_pool(
         self,
