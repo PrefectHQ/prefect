@@ -1768,19 +1768,10 @@ async def orchestrate_task_run(
                     terminal_state.state_details.cache_key = cache_key
 
             # Defer to user to decide whether failure is retriable
-            if (
-                terminal_state.is_failed()
-                and await _check_task_failure_retriable(task, task_run, terminal_state)
-                is False
-            ):
-                logger.info("Task was deemed not retriable.")
-                state = await propose_state(
-                    client, terminal_state, task_run_id=task_run.id, force=True
-                )
-            else:
-                state = await propose_state(
-                    client, terminal_state, task_run_id=task_run.id
-                )
+            terminal_state.state_details.retriable = bool(
+                await _check_task_failure_retriable(task, task_run, terminal_state)
+            )
+            state = await propose_state(client, terminal_state, task_run_id=task_run.id)
 
             last_event = _emit_task_run_state_change_event(
                 task_run=task_run,
