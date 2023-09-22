@@ -325,6 +325,8 @@ class BaseWorker(abc.ABC):
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
         heartbeat_interval_seconds: Optional[int] = None,
+        *,
+        base_job_template: Optional[Dict[str, Any]] = None,
     ):
         """
         Base class for all Prefect workers.
@@ -344,6 +346,8 @@ class BaseWorker(abc.ABC):
                 ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
+            base_job_template: If creating the work pool, provide the base job
+                template to use. Logs a warning if the pool already exists.
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
@@ -352,6 +356,7 @@ class BaseWorker(abc.ABC):
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
+        self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
@@ -656,12 +661,22 @@ class BaseWorker(abc.ABC):
             )
         except ObjectNotFound:
             if self._create_pool_if_not_found:
-                work_pool = await self._client.create_work_pool(
-                    work_pool=WorkPoolCreate(name=self._work_pool_name, type=self.type)
+                wp = WorkPoolCreate(
+                    name=self._work_pool_name,
+                    type=self.type,
                 )
+                if self._base_job_template is not None:
+                    wp.base_job_template = self._base_job_template
+
+                work_pool = await self._client.create_work_pool(work_pool=wp)
                 self._logger.info(f"Work pool {self._work_pool_name!r} created.")
             else:
                 self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
+                if self._base_job_template is not None:
+                    self._logger.warning(
+                        "Ignoring supplied base job template because the work pool"
+                        " already exists"
+                    )
                 return
 
         # if the remote config type changes (or if it's being loaded for the
