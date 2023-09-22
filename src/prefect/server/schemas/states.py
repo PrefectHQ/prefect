@@ -54,6 +54,7 @@ class StateDetails(PrefectBaseModel):
     pause_reschedule: bool = False
     pause_key: str = None
     refresh_cache: bool = None
+    retriable: bool = True
 
 
 class StateBaseModel(IDBaseModel):
