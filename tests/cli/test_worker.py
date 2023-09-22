@@ -2,6 +2,7 @@ import os
 import signal
 import sys
 import tempfile
+from pathlib import Path
 from unittest.mock import ANY
 
 import anyio
@@ -134,6 +135,51 @@ async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
     assert work_pool is not None
     assert work_pool.name == "not-yet-created-pool"
     assert work_pool.default_queue_id is not None
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_start_worker_creates_work_pool_with_base_config(
+    prefect_client: PrefectClient,
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "--pool",
+            "my-cool-pool",
+            "--type",
+            "process",
+            "--base-job-template",
+            Path(__file__).parent / "base-job-templates" / "process-worker.json",
+        ],
+        expected_code=0,
+        expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
+    )
+
+    work_pool = await prefect_client.read_work_pool("my-cool-pool")
+    assert work_pool is not None
+    assert work_pool.name == "my-cool-pool"
+    assert work_pool.default_queue_id is not None
+    assert work_pool.base_job_template == {
+        "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+        "variables": {
+            "properties": {
+                "command": {
+                    "description": "Command to run.",
+                    "title": "Command",
+                    "type": "string",
+                },
+                "name": {
+                    "description": "Description.",
+                    "title": "Name",
+                    "type": "string",
+                },
+            },
+            "type": "object",
+        },
+    }
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
