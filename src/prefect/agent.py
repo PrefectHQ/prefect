@@ -188,9 +188,16 @@ class PrefectAgent:
                     except Exception:
                         self.logger.exception(f"Failed to create work queue {name!r}.")
                         continue
+                else:
+                    self.logger.warning(f"Not creating missing work queue {name!r}.")
+                    work_queue = None
+            except Exception:
+                self.logger.exception(f"Failed to query work queue {name!r} by name.")
+                work_queue = None
 
-            self._work_queue_cache.append(work_queue)
-            yield work_queue
+            if work_queue is not None:
+                self._work_queue_cache.append(work_queue)
+                yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
