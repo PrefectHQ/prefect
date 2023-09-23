@@ -4,7 +4,7 @@ import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import partial
-from typing import Callable, ContextManager, Dict, Set, Tuple, Type
+from typing import AsyncGenerator, Callable, ContextManager, Dict, Set, Tuple, Type
 
 import anyio
 import httpx
@@ -35,7 +35,7 @@ logger = get_logger("client")
 
 
 @asynccontextmanager
-async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
+async def app_lifespan_context(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     A context manager that calls startup/shutdown hooks for the given application.
 
