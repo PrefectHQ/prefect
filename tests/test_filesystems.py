@@ -234,6 +234,7 @@ class TestLocalFileSystem:
         with open(ignore_fpath, "w") as f:
             f.write("puppy")
             f.write("!puppy/*")
+            f.write("dog.text")
 
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
@@ -243,6 +244,7 @@ class TestLocalFileSystem:
                 local_path=tmp_path, to_path=tmp_dst, ignore_file=ignore_fpath
             )
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+            assert set(os.listdir(tmp_dst)) == set()
 
 
 class TestRemoteFileSystem:
