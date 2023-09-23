@@ -4,7 +4,7 @@ import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import partial
-from typing import AsyncGenerator, Callable, ContextManager, Dict, Set, Tuple, Type
+from typing import AsyncGenerator, Callable, Dict, Set, Tuple, Type
 
 import anyio
 import httpx
