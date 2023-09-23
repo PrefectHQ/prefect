@@ -48,6 +48,10 @@ def filter_files(
     else:
         all_files = set(pathspec.util.iter_tree_files(root))
     included_files = all_files - ignored_files
+    needed_directories = set()
+    for file in included_files:
+        needed_directories |= {str(p) for p in Path(file).relative_to(root).parents}
+    included_files |= needed_directories
     return included_files
 
 
