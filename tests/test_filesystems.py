@@ -224,6 +224,26 @@ class TestLocalFileSystem:
             assert set(os.listdir(tmp_dst)) == set(expected_parent_contents)
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
+    async def test_not_ignored_file_in_ignored_dir(self, tmp_path):
+        """Make sure that not ignored file in ignored dir is tracked."""
+        sub_dir_name = "puppy"
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+
+        # prefectignore file, the chidcontents should not be ignored
+        ignore_fpath = Path(tmp_path) / ".prefectignore"
+        with open(ignore_fpath, "w") as f:
+            f.write("puppy")
+            f.write("!puppy/*")
+
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+            await f.put_directory(
+                local_path=tmp_path, to_path=tmp_dst, ignore_file=ignore_fpath
+            )
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
