@@ -618,7 +618,7 @@ class DockerContainer(Infrastructure):
                     )
                 else:
                     self.logger.exception(
-                        "An unexpected Docker API error occured while streaming output "
+                        "An unexpected Docker API error occurred while streaming output "
                         f"from container {container.name}."
                     )
 
