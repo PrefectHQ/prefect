@@ -602,7 +602,7 @@ class TestAPILogHandler:
             updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
             # NOTE: We use `raises` instead of `warns` because pytest will otherwise
-            #       capture the warning call and skip checing that we use it correctly
+            #       capture the warning call and skip checking that we use it correctly
             #       See https://github.com/pytest-dev/pytest/issues/9288
             with pytest.raises(
                 UserWarning,
@@ -783,7 +783,7 @@ class TestAPILogWorker:
 
         assert (
             end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
+        ) < 5  # An arbitrary time less than the 10s interval
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
@@ -801,7 +801,7 @@ class TestAPILogWorker:
 
         assert (
             end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
+        ) < 5  # An arbitrary time less than the 10s interval
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
