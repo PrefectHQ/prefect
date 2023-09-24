@@ -29,7 +29,7 @@ def get_call_parameters(
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
-    signature will be included if not overriden.
+    signature will be included if not overridden.
 
     Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """

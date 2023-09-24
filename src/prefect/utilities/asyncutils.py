@@ -408,7 +408,7 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
     """
     Run calls concurrently and gather their results.
 
-    Unlike `asyncio.gather` this expects to receieve _callables_ not _coroutines_.
+    Unlike `asyncio.gather` this expects to receive _callables_ not _coroutines_.
     This matches `anyio` semantics.
     """
     keys = []
