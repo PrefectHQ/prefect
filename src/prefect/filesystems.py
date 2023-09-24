@@ -318,7 +318,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -345,7 +345,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         overwrite: bool = True,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -716,7 +716,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """

@@ -380,7 +380,7 @@ class InfrastructureNotFound(PrefectException):
 
 class InfrastructureNotAvailable(PrefectException):
     """
-    Raised when infrastructure is not accessable from the current machine. For example,
+    Raised when infrastructure is not accessible from the current machine. For example,
     if a process was spawned on another machine it cannot be managed.
     """
 
