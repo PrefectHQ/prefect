@@ -10,7 +10,7 @@ from types import FrameType
 from typing import List
 
 """
-The following functions are dervived from dask/distributed which is licensed under the 
+The following functions are derived from dask/distributed which is licensed under the 
 BSD 3-Clause License.
 
 Copyright (c) 2015, Anaconda, Inc. and contributors
