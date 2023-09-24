@@ -1259,7 +1259,7 @@ def test_disable_run_logger(caplog):
     @task
     def task_with_run_logger():
         logger = get_run_logger()
-        logger.critical("wont show")
+        logger.critical("won't show")
         return 42
 
     flow_run_logger = get_logger("prefect.flow_run")
@@ -1274,7 +1274,7 @@ def test_disable_run_logger(caplog):
 
     assert not flow_run_logger.disabled
     assert task_run_logger.disabled  # was already disabled beforehand
-    assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]
+    assert caplog.record_tuples == [("null", logging.CRITICAL, "won't show")]
 
 
 def test_patch_print_writes_to_stdout_without_run_context(caplog, capsys):
