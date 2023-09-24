@@ -110,7 +110,7 @@ class TestCreateFlowRun:
     # the sqlalchemy session will (correctly) recognize that a new object was
     # added to it with the same primary key as an existing object, and emit a
     # warning. Because that is the situation we want to test for, we filter the
-    # warning to avoid unecessary noise.
+    # warning to avoid unnecessary noise.
     @pytest.mark.filterwarnings(
         "ignore: New instance .* conflicts with persistent instance"
     )
