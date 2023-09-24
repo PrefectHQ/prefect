@@ -190,7 +190,7 @@ class Trigger(PrefectBaseModel):
     for_each: Set[str] = Field(
         default_factory=set,
         description=(
-            "Evalute the Automation separately for each distinct value of these labels "
+            "Evaluate the Automation separately for each distinct value of these labels "
             "on the resource"
         ),
     )
