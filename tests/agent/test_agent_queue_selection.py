@@ -1,19 +1,31 @@
 import random
 
+import prefect.exceptions
 from prefect.agent import PrefectAgent
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+
+
+async def _safe_get_or_create_workpool(
+    client: PrefectClient, *, name: str, type=str
+) -> WorkPool:
+    try:
+        pool = await client.create_work_pool(WorkPoolCreate(name=name, type=type))
+    except prefect.exceptions.ObjectAlreadyExists:
+        pool = await client.read_work_pool(name)
+    return pool
 
 
 async def test_get_work_queues_returns_default_queues(prefect_client: PrefectClient):
     # create WorkPools to associate with our WorkQueues
-    default = await prefect_client.create_work_pool(
-        WorkPoolCreate(name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent")
+    default = await _safe_get_or_create_workpool(
+        prefect_client, name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
     )
-    ecs = await prefect_client.create_work_pool(WorkPoolCreate(name="p1", type="ecs"))
-    agent_pool = await prefect_client.create_work_pool(
-        WorkPoolCreate(name="p2", type="prefect-agent")
+    ecs = await _safe_get_or_create_workpool(prefect_client, name="ecs", type="ecs")
+    agent_pool = await _safe_get_or_create_workpool(
+        prefect_client, name="agent", type="prefect-agent"
     )
 
     # create WorkQueues, associating them with a pool at random
