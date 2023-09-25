@@ -22,6 +22,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
     WorkPoolFilter,
     WorkPoolFilterName,
+    WorkPoolFilterType,
     WorkQueueFilter,
     WorkQueueFilterName,
 )
@@ -97,14 +98,13 @@ class PrefectAgent:
         """
         Select only those WorkQueues that match the default work pool type, "prefect-agent"
         """
-        # get the pools for each matched queue
         wp_filter = WorkPoolFilter(
-            name=WorkPoolFilterName(any_=[q.work_pool_name for q in queues])
+            name=WorkPoolFilterName(any_=[q.work_pool_name for q in queues]),
+            type=WorkPoolFilterType(any_=["prefect-agent"]),
         )
         matching_pools = set()
         for pool in await client.read_work_pools(work_pool_filter=wp_filter):
-            if pool.type == "prefect-agent":
-                matching_pools.add(pool.name)
+            matching_pools.add(pool.name)
 
         return [q for q in queues if q.work_pool_name in matching_pools]
 
