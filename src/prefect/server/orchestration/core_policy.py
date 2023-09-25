@@ -653,7 +653,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             context.run.run_count = 0
 
         # Change the name of the state to retrying if its a flow run retry
-        if proposed_state.is_running() and self.run.flow_run_id is not None:
+        if proposed_state.is_running() and context.run.flow_run_id is not None:
             self.flow_run = await context.flow_run()
             flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
             if flow_retrying:
