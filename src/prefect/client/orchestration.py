@@ -1024,12 +1024,14 @@ class PrefectClient:
     async def match_work_queues(
         self,
         prefixes: List[str],
+        work_pool_name: Optional[str] = None,
     ) -> List[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
         Args:
             prefixes: a list of strings used to match work queue name prefixes
+            work_pool_name: an optional work pool name to scope the query to
 
         Returns:
             a list of WorkQueue model representations
@@ -1041,6 +1043,7 @@ class PrefectClient:
 
         while True:
             new_queues = await self.read_work_queues(
+                work_pool_name=work_pool_name,
                 offset=current_page * page_length,
                 limit=page_length,
                 work_queue_filter=WorkQueueFilter(

@@ -26,7 +26,12 @@ from prefect.client.schemas.filters import (
     WorkQueueFilter,
     WorkQueueFilterName,
 )
-from prefect.client.schemas.objects import BlockDocument, FlowRun, WorkQueue
+from prefect.client.schemas.objects import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    BlockDocument,
+    FlowRun,
+    WorkQueue,
+)
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -119,10 +124,7 @@ class PrefectAgent:
                 )
             else:
                 matched_queues = await self.client.match_work_queues(
-                    self.work_queue_prefix
-                )
-                matched_queues = await self._select_default_agent_queues(
-                    self.client, matched_queues
+                    self.work_queue_prefix, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
                 )
 
             matched_queues = set(q.name for q in matched_queues)
