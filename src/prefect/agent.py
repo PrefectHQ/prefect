@@ -186,8 +186,8 @@ class PrefectAgent:
                     log_str = f"Created work queue {name!r}"
                     if self.work_pool_name:
                         log_str = (
-                            f"Created work queue '{name!r}' in work pool"
-                            f" '{self.work_pool_name!r}'."
+                            f"Created work queue {name!r} in work pool"
+                            f" {self.work_pool_name!r}."
                         )
                     else:
                         log_str = f"Created work queue '{name}'."
