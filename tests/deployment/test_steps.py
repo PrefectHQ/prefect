@@ -1177,3 +1177,20 @@ class TestPipInstallRequirements:
             stderr=ANY,
             stdout=ANY,
         )
+
+    async def test_pip_install_fails_on_error(self, monkeypatch):
+        with pytest.raises(RuntimeError) as exc:
+            await run_step(
+                {
+                    "prefect.deployments.steps.pip_install_requirements": {
+                        "id": "pip-install-step",
+                        "requirements_file": "doesnt-exist.txt",
+                    }
+                }
+            )
+        assert (
+            "pip install failed with error code 1: ERROR: Could not open "
+            "requirements file: [Errno 2] No such file or directory: "
+            "'doesnt-exist.txt'"
+            in str(exc.value)
+        )
