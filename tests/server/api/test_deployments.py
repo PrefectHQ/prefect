@@ -1200,6 +1200,194 @@ class TestUpdateDeployment:
         assert response.status_code == 204
 
 
+class TestGetScheduledFlowRuns:
+    @pytest.fixture
+    async def flows(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1"),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-2"),
+        )
+        await session.commit()
+        return flow_1, flow_2
+
+    @pytest.fixture(autouse=True)
+    async def deployments(
+        self,
+        session,
+        flows,
+    ):
+        flow_1, flow_2 = flows
+        deployment_1 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment X",
+                flow_id=flow_1.id,
+            ),
+        )
+        deployment_2 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment Y",
+                flow_id=flow_2.id,
+            ),
+        )
+        await session.commit()
+        return deployment_1, deployment_2
+
+    @pytest.fixture(autouse=True)
+    async def flow_runs(
+        self,
+        session,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+        # flow run 1 is in a SCHEDULED state 5 minutes ago
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_1.flow_id,
+                deployment_id=deployment_1.id,
+                flow_version="0.1",
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=5),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=5)
+                    ),
+                ),
+            ),
+        )
+
+        # flow run 2 is in a SCHEDULED state 1 minute ago for deployment 1
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_1.flow_id,
+                deployment_id=deployment_1.id,
+                flow_version="0.1",
+                tags=["tb12", "goat"],
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                    ),
+                ),
+            ),
+        )
+        # flow run 3 is in a SCHEDULED state 1 minute ago for deployment 2
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment_2.flow_id,
+                deployment_id=deployment_2.id,
+                flow_version="0.1",
+                tags=["tb12", "goat"],
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    state_details=dict(
+                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                    ),
+                ),
+            ),
+        )
+        await session.commit()
+        return flow_run_1, flow_run_2, flow_run_3
+
+    async def test_get_scheduled_runs_for_a_deployment(
+        self,
+        client,
+        deployments,
+        flow_runs,
+    ):
+        deployment_1, _deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)]),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {
+            str(flow_run.id) for flow_run in flow_runs[:2]
+        }
+
+    async def test_get_scheduled_runs_for_multiple_deployments(
+        self,
+        client,
+        deployments,
+        flow_runs,
+    ):
+        deployment_1, deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {
+            str(flow_run.id) for flow_run in flow_runs
+        }
+
+    async def test_get_scheduled_runs_respects_limit(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, _deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)], limit=1),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
+
+        # limit should still be constrained by Orion settings though
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(limit=9001),
+        )
+        assert response.status_code == 422
+
+    async def test_get_scheduled_runs_respects_scheduled_before(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, _deployment_2 = deployments
+        # picks up one of the runs for the first deployment, but not the other
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(
+                deployment_ids=[str(deployment_1.id)],
+                scheduled_before=str(pendulum.now("UTC").subtract(minutes=2)),
+            ),
+        )
+        assert response.status_code == 200
+        assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
+
+    async def test_get_scheduled_runs_sort_order(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        """Should sort by next scheduled start time ascending"""
+        deployment_1, deployment_2 = deployments
+        response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert response.status_code == 200
+        assert [res["id"] for res in response.json()] == [
+            str(flow_run.id) for flow_run in flow_runs[:3]
+        ]
+
+
 class TestDeleteDeployment:
     async def test_delete_deployment(self, session, client, deployment):
         # schedule both an autoscheduled and manually scheduled flow run
