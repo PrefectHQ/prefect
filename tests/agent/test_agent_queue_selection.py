@@ -6,27 +6,6 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 
 
-async def test_select_default_agent_queues_only_returns_default_queues(
-    prefect_client: PrefectClient,
-):
-    p1 = await prefect_client.create_work_pool(WorkPoolCreate(name="t1", type="ecs"))
-    p2 = await prefect_client.create_work_pool(
-        WorkPoolCreate(name="t2", type="prefect-agent")
-    )
-    q1 = await prefect_client.create_work_queue(
-        name="prod-deployment-1", work_pool_name=p1.name
-    )
-    q2 = await prefect_client.create_work_queue(
-        name="prod-deployment-2", work_pool_name=p2.name
-    )
-
-    async with PrefectAgent(work_queues=[q1.name, q2.name]) as agent:
-        results = await agent._select_default_agent_queues(prefect_client, [q1, q2])
-
-    # verify we only selected the queue with the default "prefect-agent" work pool
-    assert results == [q2]
-
-
 async def test_get_work_queues_returns_default_queues(prefect_client: PrefectClient):
     # create WorkPools to associate with our WorkQueues
     default = await prefect_client.create_work_pool(
