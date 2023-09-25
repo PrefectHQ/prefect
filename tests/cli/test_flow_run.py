@@ -244,7 +244,7 @@ class TestCancelFlowRun:
             ],
             expected_code=0,
             expected_output_contains=(
-                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+                f"Flow run '{before.id}' was successfully scheduled for cancellation."
             ),
         )
         after = await prefect_client.read_flow_run(before.id)
@@ -274,7 +274,7 @@ class TestCancelFlowRun:
             ],
             expected_code=0,
             expected_output_contains=(
-                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+                f"Flow run '{before.id}' was successfully scheduled for cancellation."
             ),
         )
         after = await prefect_client.read_flow_run(before.id)

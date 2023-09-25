@@ -552,7 +552,7 @@ def create_app(
         allow_headers=["*"],
     )
 
-    # Limit the number of concurrent requests when using a SQLite datbase to reduce
+    # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
     if (

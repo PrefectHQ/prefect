@@ -141,7 +141,7 @@ async def cancel(id: UUID):
             f" '{result.details.reason}'"
         )
 
-    exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
+    exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
 
 
 @flow_run_app.command()

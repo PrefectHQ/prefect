@@ -10,7 +10,7 @@ import prefect
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 
-# The version oldest verison this test runs with
+# The version oldest version this test runs with
 SUPPORTED_VERSION = "2.6.0"
 
 

@@ -414,7 +414,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
 
     Other iterables will return `False` even if they contain states.
     """
-    # We do not check for arbitary iterables because this is not intended to be used
+    # We do not check for arbitrary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
     if (
         not isinstance(obj, BaseAnnotation)

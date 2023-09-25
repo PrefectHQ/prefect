@@ -313,7 +313,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Simple utility to store the orchestration result in memory on completion
 
-        Since this run is occuring on the main thread, we capture exceptions to prevent
+        Since this run is occurring on the main thread, we capture exceptions to prevent
         task crashes from crashing the flow run.
         """
         try:
@@ -330,7 +330,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Block until the run result has been populated.
         """
-        result = None  # retval on tiemout
+        result = None  # retval on timeout
 
         # Note we do not use `asyncio.wrap_future` and instead use an `Event` to avoid
         # stdlib behavior where the wrapped future is cancelled if the parent future is

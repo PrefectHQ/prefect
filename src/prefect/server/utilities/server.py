@@ -30,7 +30,7 @@ def response_scoped_dependency(dependency: Callable):
     default, FastAPI closes dependencies after sending the response.
 
     Uses an async stack that is exited before the response is returned. This is
-    particularly useful for database sesssions which must be committed before the client
+    particularly useful for database sessions which must be committed before the client
     can do more work.
 
     NOTE: Do not use a response-scoped dependency within a FastAPI background task.
@@ -128,7 +128,7 @@ class PrefectRouter(APIRouter):
         """
         if kwargs.get("status_code") == status.HTTP_204_NO_CONTENT:
             # any routes that return No-Content status codes must
-            # explicilty set a response_class that will handle status codes
+            # explicitly set a response_class that will handle status codes
             # and not return anything in the body
             kwargs["response_class"] = Response
         if kwargs.get("response_model") is None:

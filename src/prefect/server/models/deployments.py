@@ -38,7 +38,7 @@ async def _delete_scheduled_runs(
     modified in order to ensure that future runs comply with the deployment's latest values.
 
     Args:
-        deployment_id: the deplyment for which we should delete runs.
+        deployment_id: the deployment for which we should delete runs.
         auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
@@ -661,7 +661,7 @@ async def check_work_queues_for_deployment(
 
     - Our database currently allows either "null" and empty lists as
     null values in filters, so we need to catch both cases with "or".
-    - `json_contains(A, B)` should be interepreted as "True if A
+    - `json_contains(A, B)` should be interpreted as "True if A
     contains B".
 
     Returns:

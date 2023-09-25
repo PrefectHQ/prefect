@@ -23,7 +23,7 @@ Get started with Prefect Cloud in just a few steps:
 1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
 
 <!-- 
-TK commented out until video udpated
+TK commented out until video updated
 TK to hide TOC for video: add hide: toc 
 
 Prefer to follow this tutorial in a video? We've got exactly what you need. Happy engineering!

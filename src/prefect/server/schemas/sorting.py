@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from prefect.server.database.interface import PrefectDBInterface
 
-# TOOD: Consider moving the `as_sql_sort` functions out of here since they are a
+# TODO: Consider moving the `as_sql_sort` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
 

@@ -2025,7 +2025,7 @@ class TestFlowRetries:
         assert parent_flow() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
-        assert child_task_run_count == 2, "Child taks should run again with child flow"
+        assert child_task_run_count == 2, "Child tasks should run again with child flow"
 
     def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries(self):
         task_run_retry_count = 0

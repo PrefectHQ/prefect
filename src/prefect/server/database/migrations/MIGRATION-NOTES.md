@@ -276,7 +276,7 @@ Adds tables for storing block data.
 SQLite: `619bea85701a`
 Postgres: `5f376def75c3`
 
-## Intial
+## Initial
 
 Creates the database that previously was not managed by migrations.
 

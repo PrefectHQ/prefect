@@ -172,7 +172,7 @@ class TaskRunnerStandardTestSuite(ABC):
         @task
         def foo():
             time.sleep(self.get_sleep_time())
-            # Yield again in case the sleep started before the other thread was aready
+            # Yield again in case the sleep started before the other thread was already
             time.sleep(0)
             tmp_file.write_text("foo")
 

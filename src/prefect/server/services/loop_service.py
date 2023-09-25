@@ -143,7 +143,7 @@ class LoopService:
                     f"`stop(block=True)` was called on {self.name} but more than one"
                     f" loop interval ({self.loop_seconds} seconds) has passed. This"
                     " usually means something is wrong. If `stop()` was called from"
-                    " inside the loop service, use `stop(block=False)` isntead."
+                    " inside the loop service, use `stop(block=False)` instead."
                 )
 
     def _stop(self, *_) -> None:

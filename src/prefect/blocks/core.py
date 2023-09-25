@@ -667,14 +667,14 @@ class Block(BaseModel, ABC):
     @classmethod
     def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
         """
-        Retieve the block class implementation given a schema.
+        Retrieve the block class implementation given a schema.
         """
         return cls.get_block_class_from_key(block_schema_to_key(schema))
 
     @classmethod
     def get_block_class_from_key(cls: Type[Self], key: str) -> Type[Self]:
         """
-        Retieve the block class implementation given a key.
+        Retrieve the block class implementation given a key.
         """
         # Ensure collections are imported and have the opportunity to register types
         # before looking up the block class

@@ -320,7 +320,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         cursor.execute("PRAGMA cache_size = 20000;")
 
         # wait for this amount of time while a table is locked
-        # before returning and rasing an error
+        # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
         cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s

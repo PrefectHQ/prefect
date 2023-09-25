@@ -184,7 +184,7 @@ class KubernetesJob(Infrastructure):
         )
         if incompatible:
             raise ValueError(
-                "Job has incompatble values for the following attributes: "
+                "Job has incompatible values for the following attributes: "
                 f"{', '.join(incompatible)}"
             )
         return value

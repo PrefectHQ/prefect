@@ -910,7 +910,7 @@ class TestScheduledRuns:
     async def test_scheduling_multiple_batches_correctly_updates_runs(
         self, session, deployment, flow_function, flow, db
     ):
-        # ensures that updating flow run states works correctly and doesnt set
+        # ensures that updating flow run states works correctly and doesn't set
         # any to None inadvertently
         deployment_2 = await models.deployments.create_deployment(
             session=session,

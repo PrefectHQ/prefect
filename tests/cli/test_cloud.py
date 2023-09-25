@@ -1349,7 +1349,7 @@ def test_update_webhook(respx_mock):
     new_webhook_name = "wowza-webhooks"
     existing_webhook = {
         "name": "this will change",
-        "description": "this wont change",
+        "description": "this won't change",
         "template": "neither will this",
     }
     respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(

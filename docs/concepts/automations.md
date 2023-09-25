@@ -50,7 +50,7 @@ Triggers specify the conditions under which your action should be performed. Tri
 - Custom event triggers
 
 !!! note "Automations API"
-    The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
+    The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
@@ -233,7 +233,7 @@ You can access properties of the underlying flow run objects including:
 - [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
 - [work_pool](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
-In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps.
+In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 
 The `flow_run|ui_url` token returns the URL for viewing the flow run in Prefect Cloud.
 

@@ -50,7 +50,7 @@ The full complement of states and state types includes:
 | Pending | PENDING | No | The run has been submitted to run, but is waiting on necessary preconditions to be satisfied. |
 | Running | RUNNING | No | The run code is currently executing. |
 | Retrying | RUNNING | No | The run code is currently executing after previously not complete successfully. |
-| Paused | PAUSED | No | The run code has stopped executing until it recieves manual approval to proceed. |
+| Paused | PAUSED | No | The run code has stopped executing until it receives manual approval to proceed. |
 | Cancelling | CANCELLING | No | The infrastructure on which the code was running is being cleaned up. |
 | Cancelled | CANCELLED | Yes | The run did not complete because a user determined that it should not. |
 | Completed | COMPLETED | Yes | The run completed successfully. |

@@ -20,7 +20,7 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
-                name="orange you glad i didnt say yellow salamander",
+                name="orange you glad i didn't say yellow salamander",
                 state=states.Pending(),
             ).dict(json_compatible=True),
         )
@@ -29,7 +29,7 @@ class TestCreateFlowRun:
         assert response.json()["id"]
         assert response.json()["state"]["type"] == "PENDING"
         assert (
-            response.json()["name"] == "orange you glad i didnt say yellow salamander"
+            response.json()["name"] == "orange you glad i didn't say yellow salamander"
         )
 
         flow_run = await models.flow_runs.read_flow_run(

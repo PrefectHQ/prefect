@@ -469,7 +469,7 @@ class PrefectAgent:
                         )
                     except Exception:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid`"
+                            "An error occurred while setting the `infrastructure_pid`"
                             f" on flow run {flow_run.id!r}. The flow run will not be"
                             " cancellable."
                         )
@@ -510,7 +510,7 @@ class PrefectAgent:
                 )
             else:
                 self.logger.exception(
-                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )

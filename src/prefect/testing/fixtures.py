@@ -125,7 +125,7 @@ def mock_anyio_sleep(monkeypatch):
     Mock sleep used to not actually sleep but to set the current time to now + sleep
     delay seconds while still yielding to other tasks in the event loop.
 
-    Provides "assert_sleeps_for" context manager which asserts a sleep time occured
+    Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
     within the context while using the actual runtime of the context as a tolerance.
     """
     original_now = pendulum.now

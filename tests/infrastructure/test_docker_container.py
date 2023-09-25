@@ -792,7 +792,7 @@ def test_container_metadata(docker: "DockerClient"):
 
 @pytest.mark.service("docker")
 def test_container_name_collision(docker: "DockerClient"):
-    # Generate a unique base name to avoid collissions with existing images
+    # Generate a unique base name to avoid collisions with existing images
     base_name = uuid.uuid4().hex
 
     container = DockerContainer(
@@ -831,7 +831,7 @@ def test_stream_container_logs(capsys, mock_docker_client):
     mock_container = mock_docker_client.containers.get.return_value
     mock_container.logs = MagicMock(return_value=[b"hello", b"world"])
 
-    DockerContainer(command=["doesnt", "matter"]).run()
+    DockerContainer(command=["doesn't", "matter"]).run()
 
     captured = capsys.readouterr()
     assert "hello\nworld\n" in captured.out
@@ -846,7 +846,7 @@ def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_clie
     mock_container.logs = MagicMock(side_effect=docker.errors.APIError(warning))
 
     DockerContainer(
-        command=["doesnt", "matter"],
+        command=["doesn't", "matter"],
     ).run()
 
     assert "Docker container fake-name was marked for removal" in caplog.text
@@ -857,11 +857,11 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
     mock_container.logs = MagicMock(side_effect=docker.errors.APIError("..."))
 
     DockerContainer(
-        command=["doesnt", "matter"],
+        command=["doesn't", "matter"],
     ).run()
 
     assert (
-        "An unexpected Docker API error occured while streaming output from container"
+        "An unexpected Docker API error occurred while streaming output from container"
         " fake-name."
         in caplog.text
     )
