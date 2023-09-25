@@ -78,6 +78,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
+    FlowRunResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -2353,6 +2354,25 @@ class PrefectClient:
             response = await self._client.post("/work_queues/filter", json=json)
 
         return pydantic.parse_obj_as(List[WorkQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_deployments(
+        self,
+        deployment_ids: List[UUID],
+        scheduled_before: Optional[datetime.datetime] = None,
+        limit: Optional[int] = None,
+    ):
+        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
+        if limit:
+            body["limit"] = limit
+
+        response = await self._client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[FlowRunResponse], response.json())
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
