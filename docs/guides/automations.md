@@ -289,28 +289,18 @@ TODO: See how adding in events can help promote earlier ai analysis or generatio
 
 Here is an example of pulling in that data and classifying using Marvin AI. We can simplify a classification model in a few functions using the underlying OpenAI model. 
 
-TODO: Can't use a classifier, should use an AI function to create some cumalitive analysis on the data types
-
 ```python
 from marvin import ai_classifier
 from enum import Enum
+import pandas as pd
 
 
-@ai_classifier
-class UserType(Enum):
-    """Classifies the incoming users intent"""
+@ai_fn
+def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
+    """
+    Generates synthetic data points for userID, location, and time as separate columns
+    """
 
-    SALES = 1
-    TECHNICAL_SUPPORT = 2
-    BILLING_ACCOUNTS = 3
-    PRODUCT_INFORMATION = 4
-    RETURNS_REFUNDS = 5
-    ORDER_STATUS = 6
-    ACCOUNT_CANCELLATION = 7
-    OPERATOR_CUSTOMER_SERVICE = 0
-
-
-CustomerIntent("I got double charged, can you help me out?")
 ```
 
 TODO: Clean up this data  
