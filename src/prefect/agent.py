@@ -22,7 +22,6 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateType,
     WorkPoolFilter,
     WorkPoolFilterName,
-    WorkPoolFilterType,
     WorkQueueFilter,
     WorkQueueFilterName,
 )
@@ -96,22 +95,6 @@ class PrefectAgent:
         else:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
-
-    async def _select_default_agent_queues(
-        self, client: PrefectClient, queues: List[WorkQueue]
-    ) -> List[WorkQueue]:
-        """
-        Select only those WorkQueues that match the default work pool type, "prefect-agent"
-        """
-        wp_filter = WorkPoolFilter(
-            name=WorkPoolFilterName(any_=[q.work_pool_name for q in queues]),
-            type=WorkPoolFilterType(any_=["prefect-agent"]),
-        )
-        matching_pools = set()
-        for pool in await client.read_work_pools(work_pool_filter=wp_filter):
-            matching_pools.add(pool.name)
-
-        return [q for q in queues if q.work_pool_name in matching_pools]
 
     async def update_matched_agent_work_queues(self):
         if self.work_queue_prefix:
