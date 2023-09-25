@@ -1178,7 +1178,7 @@ class TestPipInstallRequirements:
             stdout=ANY,
         )
 
-    async def test_pip_install_fails_on_error(self, monkeypatch):
+    async def test_pip_install_fails_on_error(self):
         with pytest.raises(RuntimeError) as exc:
             await run_step(
                 {
