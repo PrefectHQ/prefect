@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
@@ -81,7 +81,10 @@ async def create_task_run(
         result = await session.execute(query)
         model = result.scalar()
     else:
+        # Insert a new task run with a specific id
+        new_task_run_id = uuid4()
         insert_stmt = (await db.insert(db.TaskRun)).values(
+            id=new_task_run_id,
             created=now,
             **task_run.dict(
                 shallow=True, exclude={"state", "created"}, exclude_unset=True
@@ -91,13 +94,7 @@ async def create_task_run(
 
         query = (
             sa.select(db.TaskRun)
-            .where(
-                sa.and_(
-                    db.TaskRun.flow_run_id == task_run.flow_run_id,
-                    db.TaskRun.task_key == task_run.task_key,
-                    db.TaskRun.dynamic_key == task_run.dynamic_key,
-                )
-            )
+            .where(db.TaskRun.id == new_task_run_id)
             .limit(1)
             .execution_options(populate_existing=True)
         )
