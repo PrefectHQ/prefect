@@ -45,11 +45,8 @@ from rich.table import Table
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
-    DeploymentFilter,
-    DeploymentFilterId,
     FlowRunFilter,
     FlowRunFilterId,
-    FlowRunFilterNextScheduledStartTime,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
@@ -613,20 +610,11 @@ class Runner:
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
 
-        scheduled_flow_runs = await self._client.read_flow_runs(
-            deployment_filter=DeploymentFilter(
-                id=DeploymentFilterId(any_=list(self._deployment_ids))
-            ),
-            flow_run_filter=FlowRunFilter(
-                next_scheduled_start_time=FlowRunFilterNextScheduledStartTime(
-                    before_=scheduled_before
-                ),
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.SCHEDULED]),
-                ),
-                # possible unnecessary
-                id=FlowRunFilterId(not_any_=list(self._submitting_flow_run_ids)),
-            ),
+        scheduled_flow_runs = (
+            await self._client.get_scheduled_flow_runs_for_deployments(
+                deployment_ids=list(self._deployment_ids),
+                scheduled_before=scheduled_before,
+            )
         )
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs

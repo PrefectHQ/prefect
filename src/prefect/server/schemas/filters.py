@@ -349,8 +349,12 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
 class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.state_type` and `FlowRun.state_name`."""
 
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_type`"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_name`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
