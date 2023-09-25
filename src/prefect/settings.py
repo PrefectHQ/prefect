@@ -5,7 +5,7 @@ Each setting is defined as a `Setting` type. The name of each setting is stylize
 caps, matching the environment variable that can be used to change the setting.
 
 All settings defined in this file are used to generate a dynamic Pydantic settings class
-called `Settings`. When insantiated, this class will load settings from environment
+called `Settings`. When instantiated, this class will load settings from environment
 variables and pull default values from the setting definitions.
 
 The current instance of `Settings` being used by the application is stored in a
@@ -680,7 +680,7 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 
 PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
 """
-If enabled, warn on usage of expirimental features.
+If enabled, warn on usage of experimental features.
 """
 
 PREFECT_PROFILES_PATH = Setting(
@@ -730,7 +730,7 @@ This value does not overwrite individually set retries values on a flow
 PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
 """
 This value sets the retry delay seconds for all flows.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
@@ -738,7 +738,7 @@ PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
 )
 """
 This value sets the default retry delay seconds for all tasks.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
@@ -821,7 +821,7 @@ PREFECT_LOGGING_LOG_PRINTS = Setting(
 )
 """
 If set, `print` statements in flows and tasks will be redirected to the Prefect logger
-for the given run. This setting can be overriden by individual tasks and flows.
+for the given run. This setting can be overridden by individual tasks and flows.
 """
 
 PREFECT_LOGGING_TO_API_ENABLED = Setting(

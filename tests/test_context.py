@@ -184,7 +184,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
                 ),
                 parameters={"foo": "bar"},
             ) as task_ctx:
-                assert get_run_context() is task_ctx, "Task context takes precendence"
+                assert get_run_context() is task_ctx, "Task context takes precedence"
 
             assert (
                 get_run_context() is flow_ctx

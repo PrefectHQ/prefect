@@ -477,7 +477,7 @@ See the [flows documentation](https://docs.prefect.io/latest/concepts/flows/#vis
 ### Documentation
 - Elevate Guides in navigation and remove migration guide — https://github.com/PrefectHQ/prefect/pull/10361
 - Update notes about community support — https://github.com/PrefectHQ/prefect/pull/10322
-- Update concepts page to clean up table and remove unneccessary header — https://github.com/PrefectHQ/prefect/pull/10374
+- Update concepts page to clean up table and remove unnecessary header — https://github.com/PrefectHQ/prefect/pull/10374
 - Improve headings on deployments concept page — https://github.com/PrefectHQ/prefect/pull/10366
 - Update the storage guide for Bitbucket to add `x-token-auth` — https://github.com/PrefectHQ/prefect/pull/10379
 - Add Planetary Computer collection — https://github.com/PrefectHQ/prefect/pull/10387
@@ -1285,7 +1285,7 @@ See the following pull requests for implementation details:
 
 ### Fixes
 - Fix bug where `SIGTERM` was not properly captured as a flow run crash for flow runs created by a deployment — https://github.com/PrefectHQ/prefect/pull/9543
-- Fix deadlock when logging is overriden from an asynchronous context — https://github.com/PrefectHQ/prefect/pull/9602
+- Fix deadlock when logging is overridden from an asynchronous context — https://github.com/PrefectHQ/prefect/pull/9602
 - Fix orchestration race conditions by adding lock for update to flow run state transitions — https://github.com/PrefectHQ/prefect/pull/9590
 - Fix date range filter on flow runs page — https://github.com/PrefectHQ/prefect/pull/9636
 - Fix bug where ephemeral server raised exceptions client-side — https://github.com/PrefectHQ/prefect/pull/9637
@@ -1417,7 +1417,7 @@ See the [pull request](https://github.com/PrefectHQ/prefect/pull/9418) for imple
 ### Enhancements
 - Prevent unnecessarily verbose logs by updating `log_prints` to ignore prints where a custom `file` is used — https://github.com/PrefectHQ/prefect/pull/9358
 - Create a process work pool by default when a new worker is started with a new work pool name and no type — https://github.com/PrefectHQ/prefect/pull/9326
-- Add support for asyncronous project steps — https://github.com/PrefectHQ/prefect/pull/9388
+- Add support for asynchronous project steps — https://github.com/PrefectHQ/prefect/pull/9388
 - Update `critical_service_loop` to retry on all 5XX HTTP status codes — https://github.com/PrefectHQ/prefect/pull/9400
 - Add backoff on failure to agent critical loop services — https://github.com/PrefectHQ/prefect/pull/9402
 - Add print statement to `git pull` to isolate issues between clone and execution — https://github.com/PrefectHQ/prefect/pull/9328
@@ -2246,7 +2246,7 @@ if __name__ == "__main__":
 ## Release 2.8.2
 
 ### Fixes
-- Reenable plugin loading in `prefect` module init — https://github.com/PrefectHQ/prefect/pull/8569
+- Re-enable plugin loading in `prefect` module init — https://github.com/PrefectHQ/prefect/pull/8569
 
 ### Documentation
 - Fix logging format override example — https://github.com/PrefectHQ/prefect/pull/8565
@@ -2411,7 +2411,7 @@ To learn more about work pools, check out the [docs](https://docs.prefect.io/con
 ### Fixes
 - Fix `prefect dev start` command — https://github.com/PrefectHQ/prefect/pull/8176
 - Fix display of long log messages when in the UI — https://github.com/PrefectHQ/prefect/pull/8449
-- Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
+- Update `get_run_logger` to accommodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
 - Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
 - Fix display of work pool flow run filter in the UI — https://github.com/PrefectHQ/prefect/pull/8453
 
@@ -2528,7 +2528,7 @@ Updated profile 'default'.
 - Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
 - Add PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
 - Display Runs before Deployments on flow pages — https://github.com/PrefectHQ/prefect/pull/8386
-- Clearify output CLI message when switching profiles — https://github.com/PrefectHQ/prefect/pull/8383
+- Clarify output CLI message when switching profiles — https://github.com/PrefectHQ/prefect/pull/8383
 
 ### Fixes
 - Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
@@ -3994,13 +3994,13 @@ Blocks are a convenient way to secure store and retrieve configuration. Now, ret
 
 ## 2.0b14
 
-### Retreive the state of your tasks or flows with the `return_state` kwarg
+### Retrieve the state of your tasks or flows with the `return_state` kwarg
 Beginning with 2.0b9, Prefect 2.0 began returning function results, instead of Prefect futures and states, by default. States are still an important concept in Prefect 2. They can be used to dictate and understand the behavior of your flows. Now, you can access the state for _any_ task or flow with the new `return_state` kwarg. Just set `return_state=True` in you flow or task call and you can access its state with the `.result()` method, even if it's been submitted to a task runner.
 
 ### `prefect cloud` commands are easier to use
 The `prefect cloud login` command no longer overwrites your current profile with a new API URL and auth key. Instead, the command will prompt you to create a new profile when logging into Prefect Cloud 2.0. Subsequent calls to prefect cloud login using the same key will simply "log in" to prefect cloud by switching to the profile associated with that authentication key.
 
-The new `prefect cloud workspace ls` command lists availible workspaces.
+The new `prefect cloud workspace ls` command lists available workspaces.
 
 ### Other improvements and bug fixes
 - The anchor datetime (aka start datetime) for all newly created interval schedules will be the current date & time
@@ -4338,7 +4338,7 @@ You might not see these fixes in your day-to-day, but we're dedicated to improvi
 
 ### Bug fixes
 
-- The CLI no longer displays tracebacks on sucessful exit.
+- The CLI no longer displays tracebacks on successful exit.
 - Returning pandas objects from tasks does not error.
 - Flows are listed correctly in the UI dashboard.
 

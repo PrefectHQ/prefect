@@ -787,7 +787,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        # this task should sleep for a total of 17 seconds across all conifgured retries
+        # this task should sleep for a total of 17 seconds across all configured retries
         with mock_anyio_sleep.assert_sleeps_for(17):
             state = await orchestrate_task_run(
                 task=flaky_function,

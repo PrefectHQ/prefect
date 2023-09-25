@@ -26,7 +26,7 @@ def example_event_1() -> Event:
 @pytest.fixture
 def example_event_2() -> Event:
     return Event(
-        event="wonderous.things.happened",
+        event="wondrous.things.happened",
         resource={"prefect.resource.id": "something-valuable"},
     )
 

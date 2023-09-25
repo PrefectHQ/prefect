@@ -120,7 +120,7 @@ class Future(concurrent.futures.Future):
                 if self._cancel_scope is None:
                     return False
                 elif not self._cancel_scope.cancelled():
-                    # Perfom cancellation
+                    # Perform cancellation
                     if not self._cancel_scope.cancel():
                         return False
 
@@ -366,7 +366,7 @@ class Call(Generic[T]):
         """
         Execute the call and return its result.
 
-        All executions during excecution of the call are re-raised.
+        All executions during execution of the call are re-raised.
         """
         coro = self.run()
 

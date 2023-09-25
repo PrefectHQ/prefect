@@ -75,7 +75,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 
     dashboard_disabled = textwrap.dedent(
         """
-        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to reenable it.
+        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to re-enable it.
         """
     )
 

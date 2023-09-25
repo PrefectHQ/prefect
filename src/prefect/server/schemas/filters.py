@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 sa = lazy_import("sqlalchemy")
 
-# TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
+# TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
 

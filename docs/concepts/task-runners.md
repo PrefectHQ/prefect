@@ -1,5 +1,5 @@
 ---
-description: Prefect task runners let you specify the executors for tasks in a flow run, including returning a PrefectFuture contianing both results and state. 
+description: Prefect task runners let you specify the executors for tasks in a flow run, including returning a PrefectFuture containing both results and state. 
 tags:
     - tasks
     - task runners

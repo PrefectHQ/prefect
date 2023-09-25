@@ -414,7 +414,7 @@ class TestParameterOverrides:
                 "--params",
                 '{"which": "parameter"}',
                 "--param",
-                "shouldbe:used",
+                "should-be:used",
             ],
             expected_code=1,
             temp_dir=tmp_path,

@@ -36,11 +36,11 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
     if should_contain:
         assert (
             content in output
-        ), f"Desired contents {display_content!r} not found in CLI ouput"
+        ), f"Desired contents {display_content!r} not found in CLI output"
     else:
         assert (
             content not in output
-        ), f"Undesired contents {display_content!r} found in CLI ouput"
+        ), f"Undesired contents {display_content!r} found in CLI output"
 
 
 def invoke_and_assert(

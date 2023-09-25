@@ -348,7 +348,7 @@ class TestDeploymentBuild:
         )
         assert d.path == "/opt/prefect/flows"
 
-        # can be overriden
+        # can be overridden
         d = await Deployment.build_from_flow(
             flow=flow_function,
             name="foo",

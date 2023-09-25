@@ -102,7 +102,7 @@ class QueueService(abc.ABC, Generic[T]):
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
-            logger.debug("Service %r enqueing item %r", self, item)
+            logger.debug("Service %r enqueuing item %r", self, item)
             self._queue.put_nowait(self._prepare_item(item))
 
     def _prepare_item(self, item: T) -> T:
@@ -223,7 +223,7 @@ class QueueService(abc.ABC, Generic[T]):
                     [asyncio.wrap_future(fut) for fut in futures], timeout=timeout
                 )
                 if futures
-                # `wait` errors if it receieves an empty list but we need to return a
+                # `wait` errors if it receives an empty list but we need to return a
                 # coroutine still
                 else asyncio.sleep(0)
             )

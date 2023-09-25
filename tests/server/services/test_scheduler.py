@@ -268,7 +268,7 @@ class TestRecentDeploymentsScheduler:
     async def test_schedules_runs_for_recently_updated_deployments(
         self, deployment, session, db
     ):
-        # artifically move the created time back (updated time will still be recent)
+        # artificially move the created time back (updated time will still be recent)
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)
@@ -294,7 +294,7 @@ class TestRecentDeploymentsScheduler:
     async def test_schedules_no_runs_for_deployments_updated_a_while_ago(
         self, deployment, session, db
     ):
-        # artifically move the updated time back
+        # artificially move the updated time back
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)

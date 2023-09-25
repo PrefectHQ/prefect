@@ -88,7 +88,7 @@ class Timestamp(TypeDecorator):
                     # as alphanumeric comparisons without regard for actual timestamp
                     # semantics or timezones. Therefore, it's important to have uniform
                     # and sortable datetime representations. The default is an ISO8601-compatible
-                    # string with NO time zone and a space (" ") delimeter between the date
+                    # string with NO time zone and a space (" ") delimiter between the date
                     # and the time. The below settings can be used to add a "T" delimiter but
                     # will require all other sqlite datetimes to be set similarly, including
                     # the custom default value for datetime columns and any handwritten SQL

@@ -884,7 +884,7 @@ async def orchestrate_flow_run(
             )
 
         if not waited_for_task_runs:
-            # An exception occured that prevented us from waiting for task runs to
+            # An exception occurred that prevented us from waiting for task runs to
             # complete. Ensure that we wait for them before proposing a final state
             # for the flow run.
             await wait_for_task_runs_and_report_crashes(
@@ -1241,7 +1241,7 @@ async def begin_task_map(
 
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
     """
-    This function recurses through an expression to generate a set of any discernable
+    This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
     found.
 
@@ -2047,7 +2047,7 @@ async def resolve_inputs(
         if not state.is_completed() and not (
             # TODO: Note that the contextual annotation here is only at the current level
             #       if `allow_failure` is used then another annotation is used, this will
-            #       incorrectly evaulate to false — to resolve this, we must track all
+            #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
             isinstance(context.get("annotation"), allow_failure)
@@ -2469,7 +2469,7 @@ if __name__ == "__main__":
         )
     except Exception:
         engine_logger.error(
-            f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
+            f"Invalid flow run id. Received arguments: {sys.argv}", exc_info=True
         )
         exit(1)
 

@@ -495,7 +495,7 @@ class BaseQueryComponents(ABC):
         Configuration values should not be changed at run time, so retrieved
         values are cached in memory.
 
-        The main use of confiugrations is encrypting blocks, this speeds up nested
+        The main use of configurations is encrypting blocks, this speeds up nested
         block document queries.
         """
         try:

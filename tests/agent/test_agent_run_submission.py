@@ -781,7 +781,7 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         agent.logger.exception.assert_called_once_with(
-            f"An error occured while monitoring flow run '{flow_run.id}'. "
+            f"An error occurred while monitoring flow run '{flow_run.id}'. "
             "The flow run will not be marked as failed, but an issue may have "
             "occurred."
         )

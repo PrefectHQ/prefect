@@ -16,7 +16,7 @@ WITH pool_slots AS (
         wp.id
 ),
 
--- compute avaialble slots under worker pool queue concurrency limits
+-- compute available slots under worker pool queue concurrency limits
 queue_slots AS (
     SELECT
         wq.id,

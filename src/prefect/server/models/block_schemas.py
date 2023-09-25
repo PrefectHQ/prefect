@@ -472,7 +472,7 @@ def _add_block_schemas_fields_to_definitions(
 ):
     """
     Returns a new definitions dict with the fields of a block schema and it's child
-    block schemas added to the existing defintions.
+    block schemas added to the existing definitions.
     """
     block_schema_title = child_block_schema.fields.get("title")
     if block_schema_title is not None:

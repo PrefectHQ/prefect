@@ -662,7 +662,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             mutating the run can also cause unintended writes to the database.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             proposed_state: The proposed state of a transition
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader
@@ -682,7 +682,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire after a state is committed to the database.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             validated_state: The governed state that has been committed to the database
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader
@@ -707,7 +707,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         keeps track of all other rules that might govern a transition.
 
         Args:
-            initial_state: The initial state of a transtion
+            initial_state: The initial state of a transition
             validated_state: The governed state that has been committed to the database
             context: A safe copy of the `OrchestrationContext`, with the exception of
                 `context.run`, mutating this context will have no effect on the broader

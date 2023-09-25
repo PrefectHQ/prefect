@@ -38,7 +38,7 @@ EXPERIMENTAL_ERROR = (
 
 class ExperimentalWarning(Warning):
     """
-    A warning related to expirimental code.
+    A warning related to experimental code.
     """
 
 

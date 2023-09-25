@@ -471,7 +471,7 @@ async def create_flow_run_from_deployment(
         work_queue_id = deployment.work_queue_id
 
         if flow_run.work_queue_name:
-            # cant mutate the ORM model or else it will commit the changes back
+            # can't mutate the ORM model or else it will commit the changes back
             work_queue_id = await worker_lookups._get_work_queue_id_from_name(
                 session=session,
                 work_pool_name=deployment.work_queue.work_pool.name,

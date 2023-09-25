@@ -232,7 +232,7 @@ def visit_collection(
     `visit_fn` can be used to alter the element if `return_data` is set.
 
     Note that when using `return_data` a copy of each collection is created to avoid
-    mutating the original object. This may have significant performance penalities and
+    mutating the original object. This may have significant performance penalties and
     should only be used if you intend to transform the collection.
 
     Supported types:
