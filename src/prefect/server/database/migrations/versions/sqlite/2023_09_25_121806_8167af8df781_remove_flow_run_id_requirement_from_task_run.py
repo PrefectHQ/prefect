@@ -1,4 +1,4 @@
-"""Make slot_decay_per_second not nullable
+"""Make flow_run_id nullable on task_run and log tables
 
 Revision ID: 05ea6f882b1d
 Revises: 8167af8df781
