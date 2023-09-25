@@ -357,7 +357,7 @@ def build_image(
     Build a docker image for development.
     """
     exit_with_error_if_not_editable_install()
-    # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
+    # TODO: Once https://github.com/tiangolo/typer/issues/354 is addressed, the
     #       default can be set in the function signature
     arch = arch or platform.machine()
     python_version = python_version or python_version_minor()

@@ -76,11 +76,11 @@ def test_to_and_from_qualified_name_roundtrip(obj):
 @pytest.fixture
 def pop_docker_module():
     # Allows testing of `lazy_import` on a clean sys
-    orginal = sys.modules.pop("docker")
+    original = sys.modules.pop("docker")
     try:
         yield
     finally:
-        sys.modules["docker"] = orginal
+        sys.modules["docker"] = original
 
 
 @pytest.mark.usefixtures("pop_docker_module")
