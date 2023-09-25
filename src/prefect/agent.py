@@ -164,38 +164,41 @@ class PrefectAgent:
                 work_queue = await self.client.read_work_queue_by_name(
                     work_pool_name=self.work_pool_name, name=name
                 )
-            except ObjectNotFound:
-                # if the work queue wasn't found, create it
-                if not self.work_queue_prefix:
-                    # do not attempt to create work queues if the agent is polling for
-                    # queues using a regex
-                    try:
-                        work_queue = await self.client.create_work_queue(
-                            work_pool_name=self.work_pool_name, name=name
-                        )
-                        if self.work_pool_name:
-                            self.logger.info(
-                                f"Created work queue {name!r} in work pool"
-                                f" {self.work_pool_name!r}."
-                            )
-                        else:
-                            self.logger.info(f"Created work queue '{name}'.")
+            except (ObjectNotFound, Exception):
+                self.logger.exception("Failed to query work queue by name.")
+                work_queue = None
 
+            # if the work queue wasn't found and the agent is NOT polling
+            # for queues using a regex, try to create it
+            if work_queue is None and not self.work_queue_prefix:
+                try:
+                    work_queue = await self.client.create_work_queue(
+                        work_pool_name=self.work_pool_name, name=name
+                    )
+                except Exception:
                     # if creating it raises an exception, it was probably just
                     # created by some other agent; rather than entering a re-read
                     # loop with new error handling, we log the exception and
                     # continue.
-                    except Exception:
-                        self.logger.exception(f"Failed to create work queue {name!r}.")
-                        continue
+                    self.logger.exception(f"Failed to create work queue {name!r}.")
+                    continue
                 else:
-                    self.logger.warning(f"Not creating missing work queue {name!r}.")
-                    work_queue = None
-            except Exception:
-                self.logger.exception(f"Failed to query work queue {name!r} by name.")
-                work_queue = None
+                    log_str = f"Created work queue {name!r}"
+                    if self.work_pool_name:
+                        log_str = (
+                            f"Created work queue '{name!r}' in work pool"
+                            f" '{self.work_pool_name!r}'."
+                        )
+                    else:
+                        log_str = f"Created work queue '{name}'."
+                    self.logger.info(log_str)
 
-            if work_queue is not None:
+            if work_queue is None:
+                self.logger.error(
+                    f"Work queue '{name!r}' with prefix {self.work_queue_prefix} wasn't"
+                    " found"
+                )
+            else:
                 self._work_queue_cache.append(work_queue)
                 yield work_queue
 
