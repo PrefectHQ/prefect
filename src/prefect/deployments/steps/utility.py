@@ -245,6 +245,12 @@ async def pip_install_requirements(
         )
         await process.wait()
 
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"pip_install_requirements failed with error code {process.returncode}:"
+                f" {stderr_sink.getvalue()}"
+            )
+
     return {
         "stdout": stdout_sink.getvalue().strip(),
         "stderr": stderr_sink.getvalue().strip(),
