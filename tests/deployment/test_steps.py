@@ -1052,9 +1052,23 @@ class TestRunShellScript:
         assert result["stderr"] == ""
 
 
+class MockProcess:
+    def __init__(self, returncode=0):
+        self.returncode = returncode
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def wait(self):
+        pass
+
+
 class TestPipInstallRequirements:
     async def test_pip_install_reqs_runs_expected_command(self, monkeypatch):
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -1083,7 +1097,7 @@ class TestPipInstallRequirements:
         )
 
     async def test_pip_install_reqs_custom_requirements_file(self, monkeypatch):
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -1121,7 +1135,7 @@ class TestPipInstallRequirements:
             subprocess_mock,
         )
 
-        open_process_mock = MagicMock()
+        open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
             open_process_mock,
@@ -1176,4 +1190,21 @@ class TestPipInstallRequirements:
             cwd="hello-projects",
             stderr=ANY,
             stdout=ANY,
+        )
+
+    async def test_pip_install_fails_on_error(self):
+        with pytest.raises(RuntimeError) as exc:
+            await run_step(
+                {
+                    "prefect.deployments.steps.pip_install_requirements": {
+                        "id": "pip-install-step",
+                        "requirements_file": "doesnt-exist.txt",
+                    }
+                }
+            )
+        assert (
+            "pip_install_requirements failed with error code 1: ERROR: Could not open "
+            "requirements file: [Errno 2] No such file or directory: "
+            "'doesnt-exist.txt'"
+            in str(exc.value)
         )
