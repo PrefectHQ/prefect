@@ -343,12 +343,11 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 ```yaml
 pull:
     - prefect.deployments.steps.git_clone:
-        id: clone-step
+        id: clone-step  # needed in order to be referenced in subsequent steps
         repository: https://github.com/org/repo.git
     - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}
+        directory: {{ clone-step.directory }}  #  `clone-step` is a user-provided `id` field
         requirements_file: requirements.txt
-        stream_output: False
 ```
 
 Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
