@@ -29,19 +29,25 @@ Example:
     ```
 
 """
+from contextlib import contextmanager
+from copy import deepcopy
 import datetime
 import inspect
 from functools import partial
 from pathlib import Path
+import shutil
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
 import pendulum
+from pydantic import BaseModel, Field
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+from prefect._internal.concurrency.api import from_async, create_call
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -58,8 +64,9 @@ from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     Abort,
+    ScriptError,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
@@ -70,6 +77,9 @@ from prefect.settings import (
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.services import critical_service_loop
+from prefect.utilities.processutils import run_process
+
+import tempfile
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -84,9 +94,93 @@ import anyio
 import anyio.abc
 import sniffio
 
-from prefect.utilities.processutils import run_process
-
 __all__ = ["Runner", "serve"]
+
+
+@contextmanager
+def change_directory(destination: Path):
+    current_dir = Path.cwd()  # Save the current working directory
+    try:
+        os.chdir(str(destination))  # Change to the target directory
+        yield
+    finally:
+        os.chdir(str(current_dir))  # Change back to the original directory
+
+
+class GitSynchronizer:
+    """
+    Syncs a git repository to the local filesystem.
+    """
+
+    def __init__(
+        self,
+        repository: str,
+        name: Optional[str] = None,
+        branch: str = "main",
+        sync_interval: int = 60,
+    ):
+        self._repository = repository
+        self._branch = branch
+        self._sync_interval = sync_interval
+        self._name = name or urlparse(repository).path.split("/")[-1].replace(
+            ".git", ""
+        )
+        self._logger = get_logger("git-synchronizer")
+        self._destination = Path.cwd() / self._name
+
+    @property
+    def destination(self) -> Path:
+        return self._destination
+
+    @destination.setter
+    def destination(self, destination: Path):
+        self._destination = destination
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    async def sync(self):
+        """
+        Syncs the repository to the local filesystem.
+        """
+        self._logger.info(f"Syncing repository to {self.destination}...")
+        from anyio import run_process
+
+        git_dir = self.destination / ".git"
+
+        if git_dir.exists():
+            # Check if the existing repository matches the configured repository
+            result = await run_process(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=str(self.destination),
+            )
+            existing_repo_url = None
+            if result.stdout is not None:
+                existing_repo_url = result.stdout.decode().strip()
+
+            if existing_repo_url != self._repository:
+                raise ValueError(
+                    f"The existing repository at {str(self.destination)} "
+                    f"does not match the configured repository {self._repository}"
+                )
+
+            # Update the existing repository
+            await run_process(
+                ["git", "pull", "origin", self._branch], cwd=self.destination
+            )
+        else:
+            # Clone the repository if it doesn't exist at the destination
+            result = await run_process(
+                [
+                    "git",
+                    "clone",
+                    "--branch",
+                    self._branch,
+                    self._repository,
+                    str(self.destination),
+                ]
+            )
 
 
 class Runner:
@@ -159,6 +253,9 @@ class Runner:
         self._scheduled_task_scopes = set()
         self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self._synchronizers = []
+        self._deployment_synchronizer_map = {}
 
     @sync_compatible
     async def add_deployment(
@@ -176,6 +273,77 @@ class Runner:
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
+
+    @sync_compatible
+    async def add_flow_from_entrypoint(
+        self,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        deployment = None
+        try:
+            deployment = RunnerDeployment.from_entrypoint(
+                entrypoint=entrypoint,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                parameters=parameters,
+                triggers=triggers,
+                description=description,
+                tags=tags,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+            )
+        except ScriptError:
+            self._logger.debug(
+                "Failed to load flow code. Attempting to load from synchronizers..."
+            )
+
+        chosen_synchronizer = None
+        if deployment is None:
+            for synchronizer in self._synchronizers:
+                with change_directory(synchronizer.destination):
+                    try:
+                        deployment = RunnerDeployment.from_entrypoint(
+                            entrypoint=entrypoint,
+                            name=name,
+                            interval=interval,
+                            cron=cron,
+                            rrule=rrule,
+                            schedule=schedule,
+                            parameters=parameters,
+                            triggers=triggers,
+                            description=description,
+                            tags=tags,
+                            version=version,
+                            enforce_parameter_schema=enforce_parameter_schema,
+                        )
+                        chosen_synchronizer = synchronizer
+                        break
+                    except ScriptError:
+                        self._logger.debug(
+                            f"Failed to load flow code from synchronizer {synchronizer.name}."
+                        )
+
+        if deployment is None:
+            raise RuntimeError("Failed to load flow code.")
+
+        deployment_id = await self.add_deployment(deployment)
+        self._deployment_synchronizer_map[deployment_id] = chosen_synchronizer
+
+        return deployment
 
     @sync_compatible
     async def add_flow(
@@ -243,6 +411,17 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
+    async def add_synchronizer(self, synchronizer: GitSynchronizer):
+        """
+        Adds a synchronizer to the runner. Will pull files to the local filesystem
+        when added. Synchronization will be run on startup and on a regular interval
+        thereafter.
+        """
+        synchronizer.destination = Path(self._temp_dir.name) / synchronizer.name
+        await synchronizer.sync()
+        self._synchronizers.append(synchronizer)
+
+    @sync_compatible
     async def start(self, run_once: bool = False):
         """
         Starts a runner.
@@ -298,6 +477,16 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+                for synchronizer in runner._synchronizers:
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=synchronizer.sync,
+                            interval=synchronizer._sync_interval,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                        )
+                    )
 
     def stop(self):
         """Stops the runner's polling cycle."""
@@ -384,13 +573,15 @@ class Runner:
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update({"PREFECT__FLOW_RUN_ID": flow_run.id.hex})
-        env.update(**os.environ)  # is this really necessary??
+
+        synchronizer = self._deployment_synchronizer_map.get(flow_run.deployment_id)
 
         process = await run_process(
             command.split(" "),
             stream_output=True,
             task_status=task_status,
             env=env,
+            cwd=str(synchronizer.destination) if synchronizer else None,
             **kwargs,
         )
 
@@ -858,6 +1049,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
+        self._temp_dir.__enter__()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -875,6 +1067,7 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
+        self._temp_dir.__exit__(*exc_info)
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
