@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
@@ -81,25 +81,33 @@ async def create_task_run(
         result = await session.execute(query)
         model = result.scalar()
     else:
-        # Insert a new task run with a specific id
-        new_task_run_id = uuid4()
-        insert_stmt = (await db.insert(db.TaskRun)).values(
-            id=new_task_run_id,
-            created=now,
-            **task_run.dict(
-                shallow=True, exclude={"state", "created"}, exclude_unset=True
-            ),
-        )
-        await session.execute(insert_stmt)
-
+        # Upsert on (task_key, dynamic_key) application logic.
         query = (
             sa.select(db.TaskRun)
-            .where(db.TaskRun.id == new_task_run_id)
+            .where(
+                sa.and_(
+                    db.TaskRun.flow_run_id is None,
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
             .limit(1)
             .execution_options(populate_existing=True)
         )
+
         result = await session.execute(query)
         model = result.scalar()
+
+        if model is None:
+            model = db.TaskRun(
+                created=now,
+                **task_run.dict(
+                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                ),
+                state=None,
+            )
+            session.add(model)
+            await session.flush()
 
     if model.created == now and task_run.state:
         await models.task_runs.set_task_run_state(

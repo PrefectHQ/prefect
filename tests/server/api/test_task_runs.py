@@ -60,16 +60,10 @@ class TestCreateTaskRun:
         )
         assert task_run.flow_run_id is None
 
-        # Posting the same data twice should result in a different task run
-        task_run_data = {
-            "flow_run_id": None,
-            "task_key": "my-task-key",
-            "name": "my-cool-task-run-name",
-            "dynamic_key": "0",
-        }
+        # Posting the same data twice should result in an upsert
         response_2 = await client.post("/task_runs/", json=task_run_data)
-        assert response_2.status_code == status.HTTP_201_CREATED
-        assert response.json()["id"] != response_2.json()["id"]
+        assert response_2.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == response_2.json()["id"]
 
     async def test_create_task_run_without_state(self, flow_run, client, session):
         task_run_data = dict(
