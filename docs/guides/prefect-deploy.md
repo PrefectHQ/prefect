@@ -346,7 +346,7 @@ pull:
         id: clone-step  # needed in order to be referenced in subsequent steps
         repository: https://github.com/org/repo.git
     - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}  #  `clone-step` is a user-provided `id` field
+        directory: {{ clone-step.directory }}  # `clone-step` is a user-provided `id` field
         requirements_file: requirements.txt
 ```
 
