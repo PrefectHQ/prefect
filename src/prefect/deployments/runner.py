@@ -32,6 +32,7 @@ Example:
 import importlib
 from datetime import datetime, timedelta
 from pathlib import Path
+import tempfile
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -44,8 +45,10 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.events.schemas import DeploymentTrigger
 from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.mounts import GitRepositoryMount, Mount
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+
 
 __all__ = ["RunnerDeployment"]
 
@@ -75,9 +78,12 @@ class RunnerDeployment(BaseModel):
             parameter schema for this deployment.
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
-        None, description="The name of the underlying flow; typically inferred."
+        default=None, description="The name of the underlying flow; typically inferred."
     )
     description: Optional[str] = Field(
         default=None, description="An optional description of the deployment."
@@ -111,6 +117,14 @@ class RunnerDeployment(BaseModel):
             " this deployment."
         ),
     )
+    mount: Optional[Mount] = Field(
+        default=None,
+        description=(
+            "A mount to apply to this deployment. This is used to provide access to"
+            " external resources such as git repositories."
+        ),
+    )
+
 
     _path: Optional[str] = PrivateAttr(
         default=None,
@@ -223,6 +237,92 @@ class RunnerDeployment(BaseModel):
             self.version = flow.version
         if not self.description:
             self.description = flow.description
+
+    @classmethod
+    async def from_mount(
+        cls,
+        mount: Mount,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        schedule = cls._construct_schedule(
+            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        )
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mount.set_mount_path(Path(tmpdir))
+            await mount.sync()
+
+            full_entrypoint = str(mount.destination / entrypoint)
+            flow = load_flow_from_entrypoint(full_entrypoint)
+
+        deployment = cls(
+            name=Path(name).stem,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
+            mount=mount,
+        )
+        deployment._path = str(mount.destination).replace(tmpdir, "$MOUNT_PATH")
+
+        cls._set_defaults_from_flow(deployment, flow)
+
+        return deployment
+
+
+    @classmethod
+    async def from_remote(        
+        cls,
+        url: str,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        if not url.endswith(".git"):
+            raise ValueError("Unsupported URL format. Only git URLs are supported.")
+
+        mount = GitRepositoryMount(repository=url)
+
+        return await cls.from_mount(
+            mount=mount,
+            entrypoint=entrypoint,
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            parameters=parameters,
+            triggers=triggers,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+        )
 
     @classmethod
     def from_flow(

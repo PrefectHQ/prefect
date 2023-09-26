@@ -29,11 +29,15 @@ Example:
     ```
 
 """
+from contextlib import contextmanager
+from copy import deepcopy
 import datetime
 import inspect
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
+import tempfile
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Protocol, Set, Union
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import anyio
@@ -70,6 +74,8 @@ from prefect.settings import (
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.services import critical_service_loop
+from prefect.mounts import Mount
+
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -87,6 +93,16 @@ import sniffio
 from prefect.utilities.processutils import run_process
 
 __all__ = ["Runner", "serve"]
+
+
+@contextmanager
+def change_directory(destination: Path):
+    current_dir = os.getcwd()
+    try:
+        os.chdir(str(destination))
+        yield
+    finally:
+        os.chdir(current_dir)
 
 
 class Runner:
@@ -160,6 +176,10 @@ class Runner:
         self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
 
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self._mounts = []
+        self._deployment_working_dir_map = {}
+
     @sync_compatible
     async def add_deployment(
         self,
@@ -172,10 +192,18 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
+        mount = deployment.mount
+        if mount is not None:
+            mount = await self.add_mount(mount)
+
         deployment_id = await deployment.apply()
+        self._deployment_working_dir_map[deployment_id] = (
+            mount.destination if mount else None
+        )
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
+
 
     @sync_compatible
     async def add_flow(
@@ -243,6 +271,30 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
+    async def add_mount(self, mount: Mount) -> Mount:
+        """
+        Adds a mount to the runner. The mount will be synced to the runner's
+        working directory before the runner starts.
+
+        Args:
+            mount: The mount to add to the runner.
+
+        Returns:
+            The updated mount that was added to the runner.
+        """
+        if mount not in self._mounts:
+            mount_copy = deepcopy(mount)
+            mount_copy.set_mount_path(Path(self._tmp_dir.name))
+
+            self._logger.info(f"Adding mount '{mount_copy.name}' to runner at '{mount_copy.destination}'")
+            self._mounts.append(mount_copy)
+            await mount_copy.sync()
+
+            return mount_copy
+        else:
+            return next(m for m in self._mounts if m == mount)
+
+    @sync_compatible
     async def start(self, run_once: bool = False):
         """
         Starts a runner.
@@ -298,6 +350,16 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+                for mount in self._mounts:
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=mount.sync,
+                            interval=mount.sync_interval,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                        )
+                    )
 
     def stop(self):
         """Stops the runner's polling cycle."""
@@ -384,7 +446,10 @@ class Runner:
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update({"PREFECT__FLOW_RUN_ID": flow_run.id.hex})
+        env.update({"PREFECT__MOUNT_PATH": self._tmp_dir.name})
         env.update(**os.environ)  # is this really necessary??
+
+        self._logger.info(f"Working directory for flow run: {self._deployment_working_dir_map.get(flow_run.deployment_id)}")
 
         process = await run_process(
             command.split(" "),
@@ -392,6 +457,7 @@ class Runner:
             task_status=task_status,
             env=env,
             **kwargs,
+            cwd=self._deployment_working_dir_map.get(flow_run.deployment_id),
         )
 
         # Use the pid for display if no name was given
@@ -858,6 +924,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
+        self._tmp_dir.__enter__()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -875,6 +942,7 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
+        self._tmp_dir.__exit__(*exc_info)
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

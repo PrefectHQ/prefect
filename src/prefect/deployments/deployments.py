@@ -198,6 +198,8 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
+    mount_path = os.environ.get("PREFECT__MOUNT_PATH")
+
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
@@ -207,10 +209,21 @@ async def load_flow_from_flow_run(
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
+            basepath = (
+                deployment.path.replace("$MOUNT_PATH", mount_path)
+                if mount_path and deployment.path
+                else deployment.path
+            )
             storage_block = LocalFileSystem(basepath=basepath)
 
-        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        from_path = (
+            deployment.path.replace("$MOUNT_PATH", mount_path)
+            if mount_path and deployment.path
+            else deployment.path
+        )
+
+        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
