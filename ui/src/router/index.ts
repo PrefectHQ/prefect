@@ -1,7 +1,6 @@
 import { RouteGuardExecutioner, createWorkspaceRouteRecords } from '@prefecthq/prefect-ui-library'
 import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
-import { BASE_URL } from '@/utilities/meta'
 
 const workspaceRoutes = createWorkspaceRouteRecords({
   artifact: () => import('@/pages/Artifact.vue'),
@@ -63,7 +62,7 @@ const routeRecords: AppRouteRecord[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(BASE_URL()),
+  history: createWebHistory(),
   routes: routeRecords as RouteRecordRaw[],
 })
 

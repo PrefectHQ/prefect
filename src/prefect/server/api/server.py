@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
 from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
+from pathlib import Path
 
 import anyio
 import asyncpg
@@ -22,7 +23,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
@@ -99,10 +100,21 @@ class SPAStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope):
+        if path in ("", ".", "./", "./index.html"):
+           return await self.get_index(scope)
         try:
             return await super().get_response(path, scope)
         except HTTPException:
-            return await super().get_response("./index.html", scope)
+            return await self.get_index(scope)
+
+    async def get_index(self, scope):
+        response = await super().get_response("./index.html", scope)
+        content = Path(response.path).read_text()
+        content = content.replace(
+            '<!-- BASE_URL -->',
+            '<base href="{}/"/>'.format(prefect.settings.PREFECT_UI_BASE_PATH.value()),
+        )
+        return HTMLResponse(content)
 
 
 class RequestLimitMiddleware:

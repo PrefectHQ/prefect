@@ -1175,6 +1175,12 @@ Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated fr
 the aforementioned settings may be templated into the given string.
 """
 
+PREFECT_UI_BASE_PATH = Setting(
+    str,
+    default="/",
+)
+"""Base path (prefix) to be used for UI static assets."""
+
 PREFECT_SERVER_ANALYTICS_ENABLED = Setting(
     bool,
     default=True,
