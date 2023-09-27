@@ -55,7 +55,7 @@
 
 <script lang="ts" setup>
   import { Getter, PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRunsInfiniteScroll, useOffsetStickyRootMargin } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRuns, useOffsetStickyRootMargin } from '@prefecthq/prefect-ui-library'
   import { UsePositionStickyObserverOptions, useDebouncedRef, usePositionStickyObserver, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -85,18 +85,18 @@
       filter.flowRuns.parentTaskRunIdNull = val ? true : undefined
     },
   })
+  const interval = 30000
 
-  const subscriptionOptions = {
-    interval: 30000,
-  }
 
-  const flowRunCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [filter], subscriptionOptions)
-  const flowRunCount = computed(() => flowRunCountSubscription.response)
-
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], subscriptionOptions)
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], {
+    interval,
+  })
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, subscriptions: flowRunsSubscriptions, loadMore: loadMoreFlowRuns } = useFlowRunsInfiniteScroll(filter, subscriptionOptions)
+  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = useFlowRuns(filter, {
+    mode: 'infinite',
+    interval,
+  })
   const selectedFlowRuns = ref([])
 
   const { margin } = useOffsetStickyRootMargin()
@@ -118,7 +118,6 @@
   const deleteFlowRuns = (): void => {
     selectedFlowRuns.value = []
     flowRunsSubscriptions.refresh()
-    flowRunCountSubscription.refresh()
   }
 
   usePageTitle('Flow Runs')
