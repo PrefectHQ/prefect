@@ -1,15 +1,14 @@
 <template>
-  <p-layout-well class="deployment">
+  <p-layout-well v-if="deployment" class="deployment">
     <template #header>
       <PageHeadingDeployment
-        v-if="deployment"
         :deployment="deployment"
         @update="deploymentSubscription.refresh"
         @delete="routeToDeployments"
       />
     </template>
 
-    <p-tabs v-if="deployment" v-model:selected="tab" :tabs="tabs">
+    <p-tabs v-model:selected="tab" :tabs="tabs">
       <template #description>
         <p-content secondary>
           <DeploymentDeprecatedMessage v-if="deployment.deprecated" />
@@ -26,10 +25,8 @@
         <ParametersTable :deployment="deployment" />
       </template>
 
-      <template #infra-overrides>
-        <CopyableWrapper v-if="deployment" :text-to-copy="overrides">
-          <p-code-highlight lang="json" :text="overrides" class="deployment__infra-overrides" />
-        </CopyableWrapper>
+      <template #configuration>
+        <DeploymentConfiguration :deployment="deployment" />
       </template>
 
       <template #details>
@@ -42,14 +39,14 @@
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate @update="deploymentSubscription.refresh" />
+      <DeploymentDetails :deployment="deployment" alternate @update="deploymentSubscription.refresh" />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, useTabs, useWorkspaceApi, useFlowRunsFilter, DeploymentConfiguration } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -72,7 +69,7 @@
     { label: 'Details', hidden: media.xl },
     { label: 'Runs' },
     { label: 'Parameters', hidden: deployment.value?.deprecated },
-    { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
+    { label: 'Configuration', hidden: deployment.value?.deprecated },
     { label: 'Description' },
   ])
   const tab = useRouteQueryParam('tab', 'Details')
@@ -81,10 +78,6 @@
   function routeToDeployments(): void {
     router.push(routes.deployments())
   }
-
-  const overrides = computed(() => {
-    return deployment.value?.infrastructureOverrides ? JSON.stringify(deployment.value.infrastructureOverrides, undefined, 2) : '{}'
-  })
 
   const { filter: deploymentFilter } = useFlowRunsFilter({
     deployments: {
