@@ -63,7 +63,7 @@ class TestReadCollectionViews:
         respx_mock.get(self.collection_view_url("block")).mock(
             return_value=Response(200, json=mock_block_response)
         )
-        respx_mock.get(self.collection_view_url("collection")).mock(
+        respx_mock.get(self.collection_view_url("worker")).mock(
             return_value=Response(404, json=mock_collection_response)
         )
 
@@ -79,20 +79,18 @@ class TestReadCollectionViews:
         assert isinstance(res.json(), dict)
 
     async def test_read_collection_view_when_missing(self, client, mock_get_view):
-        res = await client.get("/collections/views/aggregate-collection-metadata")
+        res = await client.get("/collections/views/aggregate-worker-metadata")
         detail = res.json()["detail"]
 
         assert res.status_code == 404
-        assert (
-            detail == "Requested content missing for view aggregate-collection-metadata"
-        )
+        assert detail == "Requested content missing for view aggregate-worker-metadata"
 
     async def test_read_collection_view_invalid(self, client):
         res = await client.get("/collections/views/invalid")
         detail = res.json()["detail"]
 
         assert res.status_code == 404
-        assert detail == "Requested content missing for view invalid"
+        assert detail == "View invalid not found in registry"
 
     @pytest.mark.parametrize(
         "view", ["aggregate-flow-metadata", "aggregate-block-metadata"]
