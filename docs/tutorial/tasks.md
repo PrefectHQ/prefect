@@ -134,7 +134,7 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
 @flow(retries=3, retry_delay_seconds=5, log_prints=True)
 def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     repo_stats = get_url(f"https://api.github.com/repos/{repo_name}")
-    issues = get_open_issues(repo_name, repo["open_issues_count"])
+    issues = get_open_issues(repo_name, repo_stats["open_issues_count"])
     issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
     print(f"{repo_name} repository statistics 🤓:")
     print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
