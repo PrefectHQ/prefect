@@ -32,7 +32,7 @@ You can now set your own default filter view on your Flow Runs page! You must fi
 
 <img width="1034" alt="image" src="https://github.com/PrefectHQ/prefect/assets/22418768/cd3b20e2-7df6-4336-9f6c-21f55393b745" alt="new option to set a saved filter as the default">
 
-Note: The previous default (formerly known as "Default view") has been renamed to "Past week".
+Note: The previous default view ("Default view") has been renamed to "Past week".
 
 ### Enhancements
 - Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
