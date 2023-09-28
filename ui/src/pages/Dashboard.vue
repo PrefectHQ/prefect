@@ -22,6 +22,13 @@
         </div>
       </template>
     </template>
+    <MarketingBanner title="Ready to upgrade?" subtitle="Auth, Automations, and dedicated support on Prefect Cloud ">
+        <template #actions>
+          <p-button>
+            Upgrade to Cloud
+          </p-button>
+        </template>
+      </MarketingBanner>
   </p-layout-default>
 </template>
 
@@ -40,6 +47,7 @@
     subscriptionIntervalKey,
     mapper,
     TaskRunsFilter,
+    MarketingBanner,
     Getter
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
