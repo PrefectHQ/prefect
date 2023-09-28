@@ -684,7 +684,7 @@ class ORMTaskRun(ORMRun):
         return sa.Column(
             UUID(),
             sa.ForeignKey("flow_run.id", ondelete="cascade"),
-            nullable=False,
+            nullable=True,
             index=True,
         )
 
