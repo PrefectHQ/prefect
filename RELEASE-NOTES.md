@@ -3,7 +3,7 @@
 ## Release 2.13.3
 
 ## Allow configuration of a work pool's base job template via the CLI
-We've added the ability to configure a work pool's base job template via the CLI! Previously, the creation and modification of work pools, including editing the base job template, were done through the Prefect UI. Now you can alter the base job template through CLI commands:
+Previously, the creation and modification of work pools, including editing the base job template, were done through the Prefect UI. Now you can alter the base job template through CLI commands:
 
 Retrieve the default base job template for a given work pool:
 ```bash
