@@ -25,6 +25,7 @@ See the documentation on [work pools](https://docs.prefect.io/latest/concepts/wo
 - https://github.com/PrefectHQ/prefect/pull/10797
 - https://github.com/PrefectHQ/prefect/pull/10796
 - https://github.com/PrefectHQ/prefect/pull/10798
+- https://github.com/PrefectHQ/prefect/pull/10844
 
 ### Enhancements
 - Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
