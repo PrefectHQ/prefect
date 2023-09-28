@@ -3,14 +3,28 @@
 ## Release 2.13.3
 
 ## Allow configuration of a work pool's base job template via the CLI
-TBD
+We've added the ability to configure a work pool's base job template via the CLI! Previously, the creation and modification of work pools, including editing the base job template, were done through the Prefect UI. Now you can alter the base job template through CLI commands:
 
-See the following pull requests for implementation details:
-    # Remove the descriptions from these before merging
-    - Add ability to create work pools with a base template — https://github.com/PrefectHQ/prefect/pull/10793
-    - Return`` ObjectNotFound`` from `update_work_pool` — https://github.com/PrefectHQ/prefect/pull/10797
-    - Add command for updating work pools — https://github.com/PrefectHQ/prefect/pull/10796
-    - Configure base job template during worker startup — https://github.com/PrefectHQ/prefect/pull/10798
+Retrieve the default base job template for a given work pool:
+```bash
+prefect work-pool get-default-base-job-template --type kubernetes
+```
+
+You can customize the base job template by passing a JSON file to the `--base-job-template` flag:
+```bash
+prefect work-pool create my-k8s-pool --type kubernetes --base-job-template ./path/template.yaml
+```
+
+Useful for version control, you can now make updates to a work pool's base job template via the CLI:
+```bash
+prefect work-pool update my-work-pool --base-job-template base-job-template.json --description "My work pool" --concurrency-limit 10
+```
+
+See the documentation on [work pools](https://docs.prefect.io/latest/concepts/work-pools/) for more information, or see the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10793
+- https://github.com/PrefectHQ/prefect/pull/10797
+- https://github.com/PrefectHQ/prefect/pull/10796
+- https://github.com/PrefectHQ/prefect/pull/10798
 
 ### Enhancements
 - Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
