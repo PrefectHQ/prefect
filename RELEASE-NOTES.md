@@ -35,7 +35,6 @@ Finally, be aware that this setting is stored locally so it will not be shared a
 
 Note: The previous default (formerly known as "Default view") has been renamed to "Past week".
 
-
 ### Enhancements
 - Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
 - Add `/deployments/get_scheduled_flow_runs` endpoint for retrieving scheduled flow runs from deployments — https://github.com/PrefectHQ/prefect/pull/10817
