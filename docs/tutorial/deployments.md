@@ -150,10 +150,11 @@ You should spend some time experimenting with this setup; a few next steps for e
 - use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
 - use the UI to cancel an active run for the "sleeper" deployment (good luck cancelling the "fast" one 😉)
 
-## Next Steps
+## Next steps
 
 Congratulations! You now have your first working deployment. 
 You can pause here and begin exploring Prefect's features, or take your understanding of Prefect deployments even further:
 
+- see how to [run your deployment in a Docker container](/guides/docker/)
 - learn how to dynamically provision infrastructure with [the workers and work pools tutorial](/tutorial/workers/)
 - review the [deployments concept documentation](/concepts/deployments/)
