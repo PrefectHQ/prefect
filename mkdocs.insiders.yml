@@ -8,4 +8,5 @@ plugins:
         cards: !ENV [DOC_PROD, True]
         cards_layout_options:
             background_color: "#070E10"
+            logo: docs/img/logos/prefect-logo-white-social-cards.svg # requires starting one level up in the path
     typeset:
