@@ -86,7 +86,7 @@ async def create_task_run(
             sa.select(db.TaskRun)
             .where(
                 sa.and_(
-                    db.TaskRun.flow_run_id is None,
+                    db.TaskRun.flow_run_id.is_(None),
                     db.TaskRun.task_key == task_run.task_key,
                     db.TaskRun.dynamic_key == task_run.dynamic_key,
                 )
