@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.13.3
+
+## Allow configuration of a work pool's base job template via the CLI
+TBD
+
+See the following pull requests for implementation details:
+    # Remove the descriptions from these before merging
+    - Add ability to create work pools with a base template — https://github.com/PrefectHQ/prefect/pull/10793
+    - Return`` ObjectNotFound`` from `update_work_pool` — https://github.com/PrefectHQ/prefect/pull/10797
+    - Add command for updating work pools — https://github.com/PrefectHQ/prefect/pull/10796
+    - Configure base job template during worker startup — https://github.com/PrefectHQ/prefect/pull/10798
+
+### Enhancements
+- Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
+- Add `/deployments/get_scheduled_flow_runs` endpoint for retrieving scheduled flow runs from deployments — https://github.com/PrefectHQ/prefect/pull/10817
+- Add flow run filter for fetching the first-level subflows for a given flow — https://github.com/PrefectHQ/prefect/pull/10806
+
+### Fixes
+- Raise `RuntimeError` error if `pip_install_requirements` step fails — https://github.com/PrefectHQ/prefect/pull/10823
+- Use a fixed list of known collection registry views— https://github.com/PrefectHQ/prefect/pull/10838
+
+### Documentation
+- Fix typos in documentation and codebase — https://github.com/PrefectHQ/prefect/pull/10813
+- Fix example in tasks concept documentation — https://github.com/PrefectHQ/prefect/pull/10833
+- Update `git_clone` deployment step example in documentation — https://github.com/PrefectHQ/prefect/pull/10827
+- Add `prefect deploy` guide to guide index for visibility  — https://github.com/PrefectHQ/prefect/pull/10828
+- Fix warning in deployment storage guide documentation — https://github.com/PrefectHQ/prefect/pull/10825
+
+### Contributors
+* @arthurgtllr made their first contribution in https://github.com/PrefectHQ/prefect/pull/10833
+- @mj0nez
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.2...2.13.3
+
 ## Release 2.13.2
 
 ### Opt-in server-side enforcement of deployment parameter schemas
