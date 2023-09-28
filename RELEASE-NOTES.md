@@ -43,7 +43,7 @@ Note: The previous default (formerly known as "Default view") has been renamed t
 
 ### Fixes
 - Raise `RuntimeError` error if `pip_install_requirements` step fails — https://github.com/PrefectHQ/prefect/pull/10823
-- Use a fixed list of known collection registry views— https://github.com/PrefectHQ/prefect/pull/10838
+- Use a fixed list of known collection registry views - https://github.com/PrefectHQ/prefect/pull/10838
 
 ### Documentation
 - Fix typos in documentation and codebase — https://github.com/PrefectHQ/prefect/pull/10813
