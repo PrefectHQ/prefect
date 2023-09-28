@@ -27,8 +27,8 @@ See the documentation on [work pools](https://docs.prefect.io/latest/concepts/wo
 - https://github.com/PrefectHQ/prefect/pull/10798
 - https://github.com/PrefectHQ/prefect/pull/10844
 
-## Allow users to customize their default flow runs filter
-You can now set your own default filter for the `/flow-runs` page! You must first save and name a view before you can set it as your default.
+## Allow users to customize their default flow runs view in the Prefect UI
+You can now set your own default filter view on your Flow Runs page! You must first save and name a view before you can set it as your default.
 Finally, be aware that this setting is stored locally so it will not be shared across machines/browsers. 
 
 <img width="1034" alt="image" src="https://github.com/PrefectHQ/prefect/assets/22418768/cd3b20e2-7df6-4336-9f6c-21f55393b745" alt="new option to set a saved filter as the default">
