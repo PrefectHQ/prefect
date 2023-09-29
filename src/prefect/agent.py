@@ -150,7 +150,6 @@ class PrefectAgent:
                     work_pool_name=self.work_pool_name, name=name
                 )
             except (ObjectNotFound, Exception):
-                self.logger.exception("Failed to query work queue by name.")
                 work_queue = None
 
             # if the work queue wasn't found and the agent is NOT polling
