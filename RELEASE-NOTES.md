@@ -6,7 +6,6 @@
 - Lift API and database constraints that require task runs to have an associated flow run id — https://github.com/PrefectHQ/prefect/pull/10816
 
 ### Fixes
-
 - Fix an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
 
 ### Documentation
