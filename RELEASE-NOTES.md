@@ -7,7 +7,7 @@
 - Fixes an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
 
 ### Documentation
-
+- Drop beta tag from push work pools documentation — https://github.com/PrefectHQ/prefect/pull/10799
 - Improve logo sizing and general housekeeping - https://github.com/PrefectHQ/prefect/pull/10830
 
 ## Release 2.13.3
