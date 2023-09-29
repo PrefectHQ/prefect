@@ -21,8 +21,10 @@ Workers and work pools bridge the Prefect orchestration layer with the infrastru
 
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
-In this case, you don't want an idle process running within that infrastructure.  
-Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
+In this case, you don't want an idle process running within that infrastructure. Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
+
+!!! warning "Workers and work pools are an _alternative_ to flow.serve()"
+    In the previous section, we introduced the `flow.serve()` paradigm which is an _alternative_ to the worker and work pool paradigm. You can choose either pattern depending on your orchestration needs. If you _do_ decide to set up worker based execution, you'll define deployments in a slightly different way: using Prefect's CLI and a `prefect.yaml` file as is outlined below.
 
 Other advantages to using workers and work pools include:
 
@@ -148,6 +150,7 @@ Select the flow you want to deploy, and the deployment wizard will walk you thro
 6. **Image name (my-first-deployment):** Hit `Enter` to use the default image name.
 7. **Image tag (latest):** Hit `Enter` to use the default image tag `latest`.
 8. **Would you like to push this image to a remote registry? (y/n):** Select `n` for now; we can keep this image local.
+9. **Would you like to save configuration for this deployment for faster deployments in the future? (y/n):** Select `y` to initiate a `prefect.yaml` file.
 
 !!! tip "Disable interactive mode"
     You can disable the `prefect deploy` command's interactive prompts by passing in the `--no-prompt` flag, e.g. `prefect --no-prompt deploy -n my-deployment-name`. Alternatively, you can enable it by passing in the `--prompt` flag. This can be used for all `prefect` commands. To disable interactive mode for all `prefect` commands, set the `PREFECT_CLI_PROMPT` setting to 0.
