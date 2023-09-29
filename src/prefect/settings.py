@@ -5,7 +5,7 @@ Each setting is defined as a `Setting` type. The name of each setting is stylize
 caps, matching the environment variable that can be used to change the setting.
 
 All settings defined in this file are used to generate a dynamic Pydantic settings class
-called `Settings`. When insantiated, this class will load settings from environment
+called `Settings`. When instantiated, this class will load settings from environment
 variables and pull default values from the setting definitions.
 
 The current instance of `Settings` being used by the application is stored in a
@@ -61,6 +61,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 
 import pydantic
 import toml
@@ -368,6 +369,47 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def warn_on_misconfigured_api_url(values):
+    """
+    Validator for settings warning if the API URL is misconfigured.
+    """
+    api_url = values["PREFECT_API_URL"]
+    if api_url is not None:
+        misconfigured_mappings = {
+            "app.prefect.cloud": (
+                "`PREFECT_API_URL` points to `app.prefect.cloud`. Did you"
+                " mean `api.prefect.cloud`?"
+            ),
+            "account/": (
+                "`PREFECT_API_URL` uses `/account/` but should use `/accounts/`."
+            ),
+            "workspace/": (
+                "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
+            ),
+        }
+        warnings_list = []
+
+        for misconfig, warning in misconfigured_mappings.items():
+            if misconfig in api_url:
+                warnings_list.append(warning)
+
+        parsed_url = urlparse(api_url)
+        if parsed_url.path and not parsed_url.path.startswith("/api"):
+            warnings_list.append(
+                "`PREFECT_API_URL` should have `/api` after the base URL."
+            )
+
+        if warnings_list:
+            example = (
+                'e.g. PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"'
+            )
+            warnings_list.append(example)
+
+            warnings.warn("\n".join(warnings_list), stacklevel=2)
+
+    return values
+
+
 def default_database_connection_url(settings, value):
     templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
 
@@ -582,7 +624,7 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 )
 """
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
 """
 
@@ -632,13 +674,13 @@ Note: PREFECT_UI_URL will be workspace specific and will be usable in the open s
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
-    default=30.0,
+    default=60.0,
 )
 """The default timeout for requests to the API"""
 
 PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
 """
-If enabled, warn on usage of expirimental features.
+If enabled, warn on usage of experimental features.
 """
 
 PREFECT_PROFILES_PATH = Setting(
@@ -688,7 +730,7 @@ This value does not overwrite individually set retries values on a flow
 PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
 """
 This value sets the retry delay seconds for all flows.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
@@ -696,7 +738,7 @@ PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
 )
 """
 This value sets the default retry delay seconds for all tasks.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
@@ -779,7 +821,7 @@ PREFECT_LOGGING_LOG_PRINTS = Setting(
 )
 """
 If set, `print` statements in flows and tasks will be redirected to the Prefect logger
-for the given run. This setting can be overriden by individual tasks and flows.
+for the given run. This setting can be overridden by individual tasks and flows.
 """
 
 PREFECT_LOGGING_TO_API_ENABLED = Setting(
@@ -824,6 +866,22 @@ The following options are available:
 - "warn": Log a warning message.
 - "error": Raise an error.
 - "ignore": Do not log a warning message or raise an error.
+"""
+
+PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
+    int,
+    default=None,
+)
+"""
+Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+"""
+
+PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
+    int,
+    default=None,
+)
+"""
+Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
 """
 
 PREFECT_LOGGING_COLORS = Setting(
@@ -1205,6 +1263,16 @@ PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect workers are used.
 """
 
+PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
+"""
+Whether or not to warn when experimental Prefect visualize is used.
+"""
+
+PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
+"""
+Maximum number of processes a runner will execute in parallel.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
@@ -1243,453 +1311,6 @@ Whether or not to warn when the experimental workspace dashboard is enabled.
 
 
 # Deprecated settings ------------------------------------------------------------------
-
-
-PREFECT_LOGGING_ORION_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_ENABLED,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_ENABLED instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_INTERVAL` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_INTERVAL instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_SIZE,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_SIZE instead.
-"""
-
-PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-)
-
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
-PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
-    Optional[Literal["warn", "error", "ignore"]],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
-
-PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_BLOCKS_REGISTER_ON_START` instead.",
-    deprecated_renamed_to=PREFECT_API_BLOCKS_REGISTER_ON_START,
-)
-"""
-Deprecated. Use `PREFECT_API_BLOCKS_REGISTER_ON_START` instead.
-"""
-
-PREFECT_ORION_DATABASE_PASSWORD = Setting(
-    Optional[str],
-    default=None,
-    is_secret=True,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_PASSWORD` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_PASSWORD,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_PASSWORD` instead.
-"""
-
-PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD),
-    is_secret=True,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_CONNECTION_URL` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_CONNECTION_URL,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_CONNECTION_URL` instead.
-"""
-
-PREFECT_ORION_DATABASE_ECHO = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_ECHO` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_ECHO,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_ECHO` instead.
-"""
-
-PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_MIGRATE_ON_START` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_MIGRATE_ON_START,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_MIGRATE_ON_START` instead.
-"""
-
-PREFECT_ORION_DATABASE_TIMEOUT = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_TIMEOUT` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_TIMEOUT,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_TIMEOUT` instead.
-"""
-
-PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DATABASE_CONNECTION_TIMEOUT` instead.",
-    deprecated_renamed_to=PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
-)
-"""
-Deprecated. Use `PREFECT_API_DATABASE_CONNECTION_TIMEOUT` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help=(
-        "Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead."
-    ),
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    Optional[timedelta],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
-    Optional[timedelta],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` instead.
-"""
-
-PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS` instead.
-"""
-
-PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
-    Optional[timedelta],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS` instead.
-"""
-
-PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help=(
-        "Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead."
-    ),
-    deprecated_renamed_to=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead.
-"""
-
-PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help=(
-        "Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead."
-    ),
-    deprecated_renamed_to=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead.
-"""
-
-PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_DEFAULT_LIMIT` instead.",
-    deprecated_renamed_to=PREFECT_API_DEFAULT_LIMIT,
-)
-"""
-Deprecated. Use `PREFECT_API_DEFAULT_LIMIT` instead.
-"""
-
-PREFECT_ORION_API_HOST = Setting(
-    Optional[str],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_SERVER_API_HOST` instead.",
-    deprecated_renamed_to=PREFECT_SERVER_API_HOST,
-)
-"""
-Deprecated. Use `PREFECT_SERVER_API_HOST` instead.
-"""
-
-PREFECT_ORION_API_PORT = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_SERVER_API_PORT` instead.",
-    deprecated_renamed_to=PREFECT_SERVER_API_PORT,
-)
-"""
-Deprecated. Use `PREFECT_SERVER_API_PORT` instead.
-"""
-
-PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT` instead.",
-    deprecated_renamed_to=PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
-)
-"""
-Deprecated. Use `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT` instead.
-"""
-
-PREFECT_ORION_UI_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_UI_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_UI_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_UI_ENABLED` instead.
-"""
-
-PREFECT_ORION_UI_API_URL = Setting(
-    Optional[str],
-    default=None,
-    value_callback=default_ui_api_url,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_UI_API_URL` instead.",
-    deprecated_renamed_to=PREFECT_UI_API_URL,
-)
-"""
-Deprecated. Use `PREFECT_UI_API_URL` instead.
-"""
-
-PREFECT_ORION_ANALYTICS_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_SERVER_ANALYTICS_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_SERVER_ANALYTICS_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_SERVER_ANALYTICS_ENABLED` instead.
-"""
-
-PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_ENABLED` instead.
-"""
-
-PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_ENABLED` instead.
-"""
-
-PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help=(
-        "Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead."
-    ),
-    deprecated_renamed_to=PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead.
-"""
-
-PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED` instead.
-"""
-
-PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` instead.",
-    deprecated_renamed_to=PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
-)
-"""
-Deprecated. Use `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` instead.
-"""
-
-PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
-)
-"""
-Deprecated. Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED` instead.
-"""
 
 
 # Collect all defined settings ---------------------------------------------------------
@@ -1768,6 +1389,7 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
+        values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(

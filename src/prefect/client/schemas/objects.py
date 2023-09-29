@@ -1,5 +1,4 @@
 import datetime
-import json
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,11 +10,11 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
 from uuid import UUID
 
 import pendulum
 from pydantic import Field, HttpUrl, conint, root_validator, validator
+from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
@@ -24,7 +23,6 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
-from prefect.utilities.templating import find_placeholders
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -64,6 +62,21 @@ class StateType(AutoEnum):
     CRASHED = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
     CANCELLING = AutoEnum.auto()
+
+
+class WorkPoolStatus(AutoEnum):
+    """Enumeration of work pool statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+
+
+class WorkerStatus(AutoEnum):
+    """Enumeration of worker statuses."""
+
+    ONLINE = AutoEnum.auto()
+    OFFLINE = AutoEnum.auto()
 
 
 class StateDetails(PrefectBaseModel):
@@ -607,8 +620,8 @@ class Constant(TaskRunInput):
 
 class TaskRun(ObjectBaseModel):
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -981,6 +994,12 @@ class Deployment(ObjectBaseModel):
             "The id of the work pool queue to which this deployment is assigned."
         ),
     )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
+        ),
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -1113,8 +1132,8 @@ class Log(ObjectBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
@@ -1193,7 +1212,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
     ) -> bool:
         """
-        Given empirical information about the state of the work queue, evaulate its health status.
+        Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
             late_runs: the count of late runs for the work queue.
@@ -1313,12 +1332,19 @@ class WorkPool(ObjectBaseModel):
     concurrency_limit: Optional[conint(ge=0)] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    status: Optional[WorkPoolStatus] = Field(
+        default=None, description="The current status of the work pool."
+    )
 
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
     default_queue_id: UUID = Field(
         None, description="The id of the pool's default queue."
     )
+
+    @property
+    def is_push_pool(self) -> bool:
+        return self.type.endswith(":push")
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -1345,37 +1371,6 @@ class WorkPool(ObjectBaseModel):
             )
         return v
 
-    @validator("base_job_template")
-    def validate_base_job_template(cls, v):
-        if v == dict():
-            return v
-
-        job_config = v.get("job_configuration")
-        variables = v.get("variables")
-        if not (job_config and variables):
-            raise ValueError(
-                "The `base_job_template` must contain both a `job_configuration` key"
-                " and a `variables` key."
-            )
-        template_variables = set()
-        for template in job_config.values():
-            # find any variables inside of double curly braces, minus any whitespace
-            # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
-            # convert to json string to handle nested objects and lists
-            found_variables = find_placeholders(json.dumps(template))
-            template_variables = {placeholder.name for placeholder in found_variables}
-
-        provided_variables = set(variables["properties"].keys())
-        if not template_variables.issubset(provided_variables):
-            missing_variables = template_variables - provided_variables
-            raise ValueError(
-                "The variables specified in the job configuration template must be "
-                "present as properties in the variables schema. "
-                "Your job configuration uses the following undeclared "
-                f"variable(s): {' ,'.join(missing_variables)}."
-            )
-        return v
-
 
 class Worker(ObjectBaseModel):
     """An ORM representation of a worker"""
@@ -1386,6 +1381,16 @@ class Worker(ObjectBaseModel):
     )
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
+    )
+    heartbeat_interval_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of seconds to expect between heartbeats sent by the worker."
+        ),
+    )
+    status: WorkerStatus = Field(
+        WorkerStatus.OFFLINE,
+        description="Current status of the worker.",
     )
 
 

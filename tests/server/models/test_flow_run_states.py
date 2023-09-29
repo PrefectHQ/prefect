@@ -1,12 +1,13 @@
 import datetime
 from uuid import uuid4
 
-import pendulum
 import anyio
+import pendulum
 import pytest
 
 from prefect.server import models, schemas
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.orchestration.core_policy import PreventPendingTransitions
 from prefect.server.orchestration.dependencies import (
     provide_flow_orchestration_parameters,
     provide_flow_policy,
@@ -19,8 +20,7 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
 )
-from prefect.server.orchestration.core_policy import PreventPendingTransitions
-from prefect.server.schemas.states import Running, Scheduled, StateType, Pending
+from prefect.server.schemas.states import Pending, Running, Scheduled, StateType
 
 
 class TestSetFlowRunState:
@@ -38,7 +38,7 @@ class TestSetFlowRunState:
 
             - Set to SCHEDULED
             - Set to PENDING
-                - Before commiting, wait for session 2 to begin orchestrating
+                - Before committing, wait for session 2 to begin orchestrating
 
         Session 2:
 

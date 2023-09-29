@@ -1,43 +1,35 @@
 """
 Utilities for prompting the user for input
 """
-from datetime import timedelta
-from getpass import GetPassWarning
 import os
 import shutil
-import sys
-from prefect.deployments.base import _search_for_flow_functions
-from prefect.flows import load_flow_from_entrypoint
-from prefect.infrastructure.container import DockerRegistry
-from prefect.utilities.processutils import run_process
-from rich.prompt import PromptBase, InvalidResponse
-from rich.text import Text
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from datetime import timedelta
+from getpass import GetPassWarning
+from typing import Any, Dict, List, Optional
 
+import readchar
+from rich.console import Console, Group
+from rich.live import Live
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
+from rich.table import Table
+from rich.text import Text
+
+from prefect.cli._utilities import exit_with_error
+from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
-
-from typing import Any, Dict, List, Optional
-import readchar
-
-from rich.console import Console, Group
-from rich.table import Table
-from rich.live import Live
-from rich.prompt import Prompt, Confirm
-from prefect.cli._utilities import exit_with_error
-
 from prefect.client.utilities import inject_client
-
-from prefect.client.orchestration import PrefectClient
-
-from prefect.client.collections import get_collections_metadata_client
-
-from prefect.client.schemas.actions import WorkPoolCreate
-
+from prefect.deployments.base import _search_for_flow_functions
+from prefect.flows import load_flow_from_entrypoint
+from prefect.infrastructure.container import DockerRegistry
+from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
 
@@ -466,7 +458,7 @@ async def prompt_push_custom_docker_image(
             except ImportError:
                 console.print("Installing prefect-docker...")
                 await run_process(
-                    [sys.executable, "-m", "pip", "install", "prefect-docker"],
+                    [get_sys_executable(), "-m", "pip", "install", "prefect-docker"],
                     stream_output=True,
                 )
                 import prefect_docker

@@ -11,7 +11,6 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
@@ -470,7 +469,7 @@ class PrefectAgent:
                         )
                     except Exception:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid`"
+                            "An error occurred while setting the `infrastructure_pid`"
                             f" on flow run {flow_run.id!r}. The flow run will not be"
                             " cancellable."
                         )
@@ -511,7 +510,7 @@ class PrefectAgent:
                 )
             else:
                 self.logger.exception(
-                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )
@@ -667,10 +666,3 @@ class PrefectAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
-class OrionAgent(PrefectAgent):
-    """
-    Deprecated. Use `PrefectAgent` instead.
-    """

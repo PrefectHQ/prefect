@@ -16,7 +16,6 @@ search:
 # Contribute
 
 We welcome contributors! You can help contribute blocks and integrations by following these steps.
-We welcome contributors! You can help contribute blocks and integrations by following these steps.
 
 ## Contributing Blocks
 
@@ -51,7 +50,7 @@ class Secret(Block):
         ```
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5uUmyGBjRejYuGTWbTxz6E/3003e1829293718b3a5d2e909643a331/image8.png?h=250"
+    _logo_url = "https://example.com/logo.png"
 
     value: SecretStr = Field(
         default=..., description="A string value that should be kept secret."
@@ -65,7 +64,7 @@ To view in Prefect Cloud or the Prefect server UI, [register the block](https://
 
 ## Contributing Integrations
 
-Anyone can create and share a Prefect Integration and we encourage anyone interested in creating a integration to do so!
+Anyone can create and share a Prefect Integration and we encourage anyone interested in creating an integration to do so!
 
 ### Generate a project
 

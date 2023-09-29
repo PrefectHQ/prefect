@@ -21,7 +21,7 @@
         </template>
 
         <div class="flow-runs__list">
-          <div class="flow-runs__list-controls">
+          <div ref="listControls" class="flow-runs__list-controls" :class="classes.listControls">
             <div class="flow-runs__list-controls--right">
               <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
               <SelectedCount v-else :count="selectedFlowRuns.length" />
@@ -29,10 +29,11 @@
               <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
             </div>
 
+            <p-toggle v-model="parentTaskRunIdNull" class="flow-runs__subflows-toggle" append="Hide subflows" />
             <template v-if="media.md">
               <SearchInput v-model="flowRunNameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
-            <FlowRunsSort v-model="filter.sort" />
+            <FlowRunsSort v-model="filter.sort" class="flow-runs__sort" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" selectable :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
@@ -40,7 +41,7 @@
           <template v-if="!flowRuns.length">
             <PEmptyResults>
               <template v-if="isCustomFilter" #actions>
-                <p-button size="sm" secondary @click="clear">
+                <p-button small @click="clear">
                   Clear Filters
                 </p-button>
               </template>
@@ -53,9 +54,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRunsInfiniteScroll } from '@prefecthq/prefect-ui-library'
-  import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
+  import { Getter, PEmptyResults, media } from '@prefecthq/prefect-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute, useFlowRuns, useOffsetStickyRootMargin } from '@prefecthq/prefect-ui-library'
+  import { UsePositionStickyObserverOptions, useDebouncedRef, usePositionStickyObserver, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -63,6 +64,7 @@
 
   const router = useRouter()
   const api = useWorkspaceApi()
+  const listControls = ref<HTMLElement>()
 
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
@@ -75,19 +77,39 @@
       nameLike: flowRunNameLikeDebounced,
     },
   })
+  const parentTaskRunIdNull = computed({
+    get() {
+      return filter.flowRuns.parentTaskRunIdNull
+    },
+    set(val) {
+      filter.flowRuns.parentTaskRunIdNull = val ? true : undefined
+    },
+  })
+  const interval = 30000
 
-  const subscriptionOptions = {
-    interval: 30000,
-  }
 
-  const flowRunCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [filter], subscriptionOptions)
-  const flowRunCount = computed(() => flowRunCountSubscription.response)
-
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], subscriptionOptions)
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], {
+    interval,
+  })
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, subscriptions: flowRunsSubscriptions, loadMore: loadMoreFlowRuns } = useFlowRunsInfiniteScroll(filter, subscriptionOptions)
+  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = useFlowRuns(filter, {
+    mode: 'infinite',
+    interval,
+  })
   const selectedFlowRuns = ref([])
+
+  const { margin } = useOffsetStickyRootMargin()
+  const stickyObserverOptions: Getter<UsePositionStickyObserverOptions> = () => ({
+    rootMargin: margin.value,
+  })
+  const { stuck } = usePositionStickyObserver(listControls, stickyObserverOptions)
+
+  const classes = computed(() => ({
+    listControls: {
+      'flow-runs__list-controls--stuck': stuck.value && media.md,
+    },
+  }))
 
   function clear(): void {
     router.push(routes.flowRuns())
@@ -96,7 +118,6 @@
   const deleteFlowRuns = (): void => {
     selectedFlowRuns.value = []
     flowRunsSubscriptions.refresh()
-    flowRunCountSubscription.refresh()
   }
 
   usePageTitle('Flow Runs')
@@ -110,17 +131,25 @@
 
 .flow-runs__list-controls { @apply
   flex
+  flex-wrap
   gap-2
+  gap-y-4
   items-center
-  sticky
-  top-0
-  bg-opacity-90
-  dark:bg-opacity-90
   py-3
-  z-10
-  bg-background-600
-  dark:bg-background-400
+  rounded-b-default
+  border-t
+  border-t-divider
+  md:border-t-0
+  md:sticky
+  md:top-0
+  md:z-10
+}
+
+.flow-runs__list-controls--stuck { @apply
   px-2
+  bg-floating-sticky
+  backdrop-blur-sm
+  shadow-md
 }
 
 .flow-runs__list-controls--right { @apply
@@ -132,5 +161,14 @@
 
 .flow-runs__chart {
   height: 275px;
+}
+
+.flow-runs__subflows-toggle { @apply
+  mr-2
+}
+
+.flow-runs__sort { @apply
+  w-full
+  md:w-auto
 }
 </style>

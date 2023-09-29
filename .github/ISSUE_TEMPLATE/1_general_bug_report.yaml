@@ -1,6 +1,6 @@
 name: 🐞 Report a bug
 description: Errors and regression reports with complete reproducing test cases and/or stack traces.
-labels: ["status:triage", "bug"]
+labels: ["needs:triage", "bug"]
 body:
   - type: markdown
     attributes:
@@ -10,7 +10,11 @@ body:
         or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
         faster and learn more about the feature you're working with. If the issue is determined to be a bug,
         we will open an issue here.
-  
+
+        GitHub issues raised against this repository will receive community support. If you have an
+        [active support agreement](https://www.prefect.io/pricing/), we recommend creating a case to ensure
+        a faster response.
+
   - type: markdown
     attributes:
       value: >

@@ -1,580 +1,198 @@
 ---
-description: Prefect deployments encapsulate a flow, allowing flow runs to be scheduled and triggered via API.
+description: Prefect deployments elevate flows, allowing flow runs to be scheduled and triggered via API. Learn how to easily manage your code and deployments.
 tags:
-    - work queues
-    - agents
     - orchestration
     - flow runs
     - deployments
     - schedules
     - triggers
-    - automations
-    - deployments.yaml
+    - prefect.yaml
     - infrastructure
     - storage
+    - work pool
+    - worker
 search:
   boost: 2
 ---
-
 # Deployments
 
-A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
+Deployments are server-side representations of flows. They store the crucial metadata needed for remote orchestration including _when_, _where_, and _how_ a workflow should run.
+Deployments elevate workflows from functions that you must call manually to API-managed entities that can be triggered remotely.
 
-Each deployment references a single "entrypoint" flow (though that flow may, in turn, call any number of tasks and subflows). Any single flow, however, may be referenced by any number of deployments.
+Here we will focus largely on the metadata that defines a deployment and how it is used. Different ways of creating a deployment populate these fields differently.
 
-At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
+## Overview
 
-## Deployments overview
+Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of subflows). Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
 
-All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
-
-Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect agent.
-
-The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
-
-```mermaid
-%%{
-  init: {
-    'theme': 'base',
-    'themeVariables': {
-      'fontSize': '19px'
-    }
-  }
-}%%
-
-flowchart LR
-    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
-    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
-        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
-    end
-    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
-        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
-    end
-    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
-        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
-    end
-
-    A --> D
-    D --> E("<div style='margin: 5px 10px 5px 5px;'>Agent</div>"):::red
-    B -.-> E
-    A -.-> B
-    E -.-> G
-
-    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px
-    classDef yellow fill:gold,stroke:gold,stroke-width:4px
-    classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
-    classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
-    classDef green fill:green,stroke:green,stroke-width:4px,color:white
-    classDef red fill:red,stroke:red,stroke-width:4px,color:white
-    classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
-```
-
-!!! info "Your flow code and the Prefect hybrid model"
-    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
-
-    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect server, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
-
-When creating a deployment, a user must answer *two* basic questions:
-
-- What instructions does an [agent](/concepts/work-pools/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
-- How should the flow code be accessed?
-
-A deployment additionally enables you to:
-
-- Schedule flow runs.
-- Specify event triggers for flow runs.
-- Assign a work queue name to delegate deployment flow runs to work queues.
-- Assign one or more tags to organize your deployments and flow runs. You can use those tags as filters in the Prefect UI.
-- Assign custom parameter values for flow runs based on the deployment.
-- Create ad-hoc flow runs from the API or Prefect UI.
-- Upload flow files to a defined storage location for retrieval at run time.
-- Specify run time infrastructure for flow runs, such as Docker or Kubernetes configuration.
-
-With remote storage blocks, you can package not only your flow code script but also any supporting files, including your custom modules, SQL scripts and any configuration files needed in your project.
-
-To define how your flow execution environment should be configured, you may either reference pre-configured infrastructure blocks or let Prefect create those automatically for you as anonymous blocks (this happens when you specify the infrastructure type using `--infra` flag during the build process).
-
-!!! warning "Work queue affinity improved starting from Prefect 2.0.5"
-    Until Prefect 2.0.4, tags were used to associate flow runs with work queues. Starting in Prefect 2.0.5, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues.
-
-    Note that **backward compatibility is maintained** and work queues that use tag-based matching can still be created and will continue to work. However, those work queues are now considered legacy and we encourage you to use the new behavior by specifying work queues explicitly on agents and deployments.
-
-    See [Agents & Work Pools](/concepts/work-pools/) for details.
-
-## Deployments and flows
-
-Each deployment is associated with a single flow, but any given flow can be referenced by multiple deployments.
-
-Deployments are uniquely identified by the combination of: `flow_name/deployment_name`.
-
-```mermaid
-graph LR
-    F("my_flow"):::yellow -.-> A("Deployment 'daily'"):::tan --> W("my_flow/daily"):::fgreen
-    F -.-> B("Deployment 'weekly'"):::gold  --> X("my_flow/weekly"):::green
-    F -.-> C("Deployment 'ad-hoc'"):::dgold --> Y("my_flow/ad-hoc"):::dgreen
-    F -.-> D("Deployment 'trigger-based'"):::dgold --> Z("my_flow/trigger-based"):::dgreen
-
-    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:white
-    classDef yellow fill:gold,stroke:gold,stroke-width:4px
-    classDef dgold fill:darkgoldenrod,stroke:darkgoldenrod,stroke-width:4px,color:white
-    classDef tan fill:tan,stroke:tan,stroke-width:4px,color:white
-    classDef fgreen fill:forestgreen,stroke:forestgreen,stroke-width:4px,color:white
-    classDef green fill:green,stroke:green,stroke-width:4px,color:white
-    classDef dgreen fill:darkgreen,stroke:darkgreen,stroke-width:4px,color:white
-```
-
-This enables you to run a single flow with different parameters, based on multiple schedules and triggers, and in different environments. This also enables you to run different versions of the same flow for testing and production purposes.
-
-## Deployment definition
-
-A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
-
-- Run the [`prefect deployment build` CLI command](#create-a-deployment-on-the-cli) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
-- Define a [`Deployment`](/api-ref/prefect/deployments/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
-
-The minimum required information to create a deployment includes:
-
-- The path and filename of the file containing the flow script.
-- The name of the entrypoint flow function &mdash; this is the flow function that starts the flow and calls and additional tasks or subflows.
-- The name of the deployment.
-
-You may provide additional settings for the deployment. Any settings you do not explicitly specify are inferred from defaults.
-
-
-## Create a deployment on the CLI
-
-To create a deployment on the CLI, there are two steps:
-
-1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured remote storage location, if one is specified.
-1. Create the deployment on the API.
-
-
-### Build the deployment
-
-To build the deployment definition file `deployment.yaml`, run the `prefect deployment build` Prefect CLI command from the folder containing your flow script and any dependencies of the script.
-
-<div class="terminal">
-```bash
-$ prefect deployment build [OPTIONS] PATH
-```
-</div>
-
-Path to the flow is specified in the format `path-to-script:flow-function-name` &mdash; The path and filename of the flow script file, a colon, then the name of the entrypoint flow function.
-
-For example:
-
-<div class="terminal">
-```bash
-$ prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
-```
-</div>
-
-When you run this command, Prefect:
-
-- Creates a `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
-- Uploads your flow files to the configured storage location (local by default).
-- Submit your deployment to the work queue `test`. The work queue `test` will be created if it doesn't exist.
-
-!!! note "Uploading files may require storage filesystem libraries"
-    Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
-
-!!! tip "Ignore files or directories from a deployment"
-    By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
-
-    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments.
-
-    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage.
-
-### Deployment build options
-
-You may specify additional options to further customize your deployment.
-
-<span class="no-wrap">
-
-| Options                                                    | Description                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PATH                                                       | Path, filename, and flow name of the flow definition. (Required)                                                                                                                                                                                                                                                                                                   |
-| `--apply`, `-a`                                            | When provided, automatically registers the resulting deployment with the API.                                                                                                                                                                                                                                                                                      |
-| `--cron TEXT`                                              | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute.                                                                                                                                                                      |
-| `--help`                                                   | Display help for available commands and options.                                                                                                                                                                                                                                                                                                                   |
-| `--infra-block TEXT`, `-ib`                                | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format.                                                                                                                                                                                                                                                                          |
-| `--infra`, `-i`                                            | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`)                                                                                                                                                                                                                                                                                |
-| `--interval INTEGER`                                       | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute.                                                                                                                                       |
-| `--name TEXT`, `-n`                                        | The name of the deployment.                                                                                                                                                                                                                                                                                                                                        |
-| `--output TEXT`, `-o`                                      | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment.                                                                                                                                                 |
-| `--override TEXT`                                          | One or more optional infrastructure overrides provided as a dot delimited path. For example, specify an environment variable: `env.env_key=env_value`. For Kubernetes, specify customizations: `customizations='[{"op": "add","path": "/spec/template/spec/containers/0/resources/limits", "value": {"memory": "8Gi","cpu": "4000m"}}]'` (note the string format). |
-| `--param`                                                  | An optional parameter override, values are parsed as JSON strings. For example, `--param question=ultimate --param answer=42`.                                                                                                                                                                                                                                     |
-| `--params`                                                 | An optional parameter override in a JSON string format. For example, `--params=\'{"question": "ultimate", "answer": 42}\'`.                                                                                                                                                                                                                                        |
-| `--path`                                                   | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow.                                                                                                                                                                                                                                 |
-| `--pool TEXT`, `-p`                                        | The [work pool](/concepts/work-pools/) that will handle this deployment's runs. │                                                                                                                                                                                                                                                                                  |
-| `--rrule TEXT`                                             | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours.                                                                                   |
-| `--skip-upload`                                            | When provided, skips uploading this deployment's files to remote storage.                                                                                                                                                                                                                                                                                          |
-| <span class="no-wrap">`--storage-block TEXT`, `-sb`</span> | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed.                                                                                                                                                          |
-| `--tag TEXT`, `-t`                                         | One or more optional tags to apply to the deployment.                                                                                                                                                                                                                                                                                                              |
-| `--version TEXT`, `-v`                                     | An optional version for the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline.                                                                                                                                                                                                                                             |
-| `--work-queue TEXT`, `-q`                                  | The [work queue](/concepts/work-pools/) that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.                                                                                                                                             |
-
-### Block identifiers
-
-When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
-
-For example, `s3/example-block` is the slug for an S3 block named `example-block`.
-
-In addition, when passing the storage block slug, you may pass just the block slug or the block slug and a path.
-
-- `block-type/block-name` indicates just the block, including any path included in the block configuration.
-- `block-type/block-name/path` indicates a storage path in addition to any path included in the block configuration.
-
-When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
-
-| Block name         | Block class name   | Block type for a slug |
-| ------------------ | ------------------ | --------------------- |
-| Azure              | `Azure`            | `azure`               |
-| Docker Container   | `DockerContainer`  | `docker-container`    |
-| GitHub             | `GitHub`           | `github`              |
-| GCS                | `GCS`              | `gcs`                 |
-| Kubernetes Job     | `KubernetesJob`    | `kubernetes-job`      |
-| Process            | `Process`          | `process`             |
-| Remote File System | `RemoteFileSystem` | `remote-file-system`  |
-| S3                 | `S3`               | `s3`                  |
-| SMB                | `SMB`              | `smb`                 |
-| GitLab Repository  | `GitLabRepository` | `gitlab-repository`   |
-
-Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
-
-### deployment.yaml
-
-A deployment's YAML file configures additional settings needed to create a deployment on the server.
-
-As a single flow may have multiple deployments created for it, with different schedules, tags, and so on. A single flow definition may have multiple deployment YAML files referencing it, each specifying different settings. The only requirement is that each deployment must have a unique name.
-
-The default `{flow-name}-deployment.yaml` filename may be edited as needed with the `--output` flag to `prefect deployment build`.
-
-```yaml
-###
-### A complete description of a Prefect Deployment for flow 'Cat Facts'
-###
-name: catfact
-description: null
-version: c0fc95308d8137c50d2da51af138aa23
-# The work queue that will handle this deployment's runs
-work_queue_name: test
-work_pool_name: null
-tags: []
-parameters: {}
-schedule: null
-infra_overrides: {}
-infrastructure:
-  type: process
-  env: {}
-  labels: {}
-  name: null
-  command:
-  - python
-  - -m
-  - prefect.engine
-  stream_output: true
-###
-### DO NOT EDIT BELOW THIS LINE
-###
-flow_name: Cat Facts
-manifest_path: null
-storage: null
-path: /Users/terry/test/testflows/catfact
-entrypoint: catfact.py:catfacts_flow
-parameter_openapi_schema:
-  title: Parameters
-  type: object
-  properties:
-    url:
-      title: url
-  required:
-  - url
-  definitions: null
-```
-
-!!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API.
-
-    We recommend editing most of these fields from the CLI or Prefect UI for convenience.
-
-### Parameters in deployments
-
-You may provide default parameter values in the `deployment.yaml` configuration, and these parameter values will be used for flow runs based on the deployment. 
-
-To configure default parameter values, add them to the `parameters: {}` line of `deployment.yaml` as JSON key-value pairs. The parameter list configured in `deployment.yaml` *must* match the parameters expected by the entrypoint flow function.
-
-```yaml
-parameters: {"name": "Marvin", "num": 42, "url": "https://catfact.ninja/fact"}
-```
-
-!!! tip "Passing **kwargs as flow parameters"
-    You may pass `**kwargs` as a deployment parameter as a `"kwargs":{}` JSON object containing the key-value pairs of any passed keyword arguments.
-
-    ```yaml
-    parameters: {"name": "Marvin", "kwargs":{"cattype":"tabby","num": 42}
-    ```
-
-You can edit default parameters for deployments in the Prefect UI, and you can override default parameter values when creating ad-hoc flow runs via the Prefect UI.
-
-To edit parameters in the Prefect UI, go the the details page for a deployment, then select **Edit** from the commands menu. If you change parameter values, the new values are used for all future flow runs based on the deployment.
-
-To create an ad-hoc flow run with different parameter values, go the the details page for a deployment, select **Run**, then select **Custom**. You will be able to provide custom values for any editable deployment fields. Under **Parameters**, select **Custom**. Provide the new values, then select **Save**. Select **Run** to begin the flow run with custom values.
-
-![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
-
-### Create a deployment
-
-When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
-
-<div class="terminal">
-```bash
-$ prefect deployment apply catfacts_flow-deployment.yaml
-```
-</div>
-
-For example:
-
-<div class="terminal">
-```bash
-$ prefect deployment apply ./catfacts_flow-deployment.yaml
-Successfully loaded 'catfact'
-Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
-```
-</div>
-
-`prefect deployment apply` accepts an optional `--upload` flag that, when provided, uploads this deployment's files to remote storage.
-
-Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
-
-<div class="terminal">
-```bash
-$ prefect deployment ls
-                               Deployments
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name                           ┃ ID                                   ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Cat Facts/catfact              │ 76a9f1ac-4d8c-4a92-8869-615bec502685 │
-│ leonardo_dicapriflow/hello_leo │ fb4681d7-aa5a-4617-bf6f-f67e6f964984 │
-└────────────────────────────────┴──────────────────────────────────────┘
-```
-</div>
-
-![Viewing deployments in the Prefect UI](/img/concepts/deployments.png)
-
-When you run a deployed flow with Prefect, the following happens:
-
-- The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
-- An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
-- The flow run executes within the infrastructure.
-
-[Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
-
-!!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
-
-    Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
-
-## Create a deployment from a Python object
-
-You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
-
-Create a new deployment using configuration defaults for an imported flow:
+The complete schema that defines a deployment is as follows:
 
 ```python
-from my_project.flows import my_flow
-from prefect.deployments import Deployment
+class Deployment:
+    """
+    Structure of the schema defining a deployment
+    """
 
-deployment = Deployment.build_from_flow(
-    flow=my_flow,
-    name="example-deployment", 
-    version=1, 
-    work_queue_name="demo",
-    work_pool_name="default-agent-pool",
-)
-deployment.apply()
-```
+    # required defining data
+    name: str 
+    flow_id: UUID
+    entrypoint: str
+    path: str = None
 
-Create a new deployment with a pre-defined [storage block](/concepts/storage/) and an [infrastructure](/concepts/infrastructure/) override:
+    # workflow scheduling and parametrization
+    parameters: dict = None
+    parameter_openapi_schema: dict = None
+    schedule: Schedule = None
+    is_schedule_active: bool = True
+    trigger: Trigger = None
 
-```python
-from my_project.flows import my_flow
-from prefect.deployments import Deployment
-from prefect.filesystems import S3
+    # metadata for bookkeeping
+    version: str = None
+    description: str = None
+    tags: list = None
 
-storage = S3.load("dev-bucket") # load a pre-defined block
-
-deployment = Deployment.build_from_flow(
-    flow=my_flow,
-    name="s3-example",
-    version=2,
-    work_queue_name="aws",
-    work_pool_name="default-agent-pool",
-    storage=storage,
-    infra_overrides={
-        "env": {
-            "ENV_VAR": "value"
-        }
-    },
-)
-
-deployment.apply()
-```
-
-If you have settings that you want to share from an existing deployment you can load those settings:
-
-```python
-deployment = Deployment(
-    name="a-name-you-used", 
-    flow_name="name-of-flow"
-)
-deployment.load() # loads server-side settings
-```
-
-Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
-
-View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/deployments/).
-
-## Deployment API representation
-
-When you create a deployment, it is constructed from deployment definition data you provide and additional properties set by client-side utilities.
-
-Deployment properties include:
-
-| Property                                                  | Description                                                                     |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `id`                                                      | An auto-generated UUID ID value identifying the deployment.                     |
-| `created`                                                 | A `datetime` timestamp indicating when the deployment was created.              |
-| `updated`                                                 | A `datetime` timestamp indicating when the deployment was last changed.         |
-| `name`                                                    | The name of the deployment.                                                     |
-| `version`                                                 | The version of the deployment                                                   |
-| `description`                                             | A description of the deployment.                                                |
-| `flow_id`                                                 | The id of the flow associated with the deployment.                              |
-| `schedule`                                                | An optional schedule for the deployment.                                        |
-| `is_schedule_active`                                      | Boolean indicating whether the deployment schedule is active. Default is True.  |
-| `infra_overrides`                                         | One or more optional infrastructure overrides                                   |
-| `parameters`                                              | An optional dictionary of parameters for flow runs scheduled by the deployment. |
-| `tags`                                                    | An optional list of tags for the deployment.                                    |
-| `work_queue_name`                                         | The optional work queue that will handle the deployment's run                   |
-| `parameter_openapi_schema`                                | JSON schema for flow parameters.                                                |
-| `path`                                                    | The path to the deployment.yaml file                                            |
-| `entrypoint`                                              | The path to a flow entry point                                                  |
-| `storage_document_id`                                     | Storage block configured for the deployment.                                    |
-| <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment.                             |
-
-
-You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
-
-```bash
-$ prefect deployment inspect 'Cat Facts/catfact'
-{
-    'id': '76a9f1ac-4d8c-4a92-8869-615bec502685',
-    'created': '2022-07-26T03:48:14.723328+00:00',
-    'updated': '2022-07-26T03:50:02.043238+00:00',
-    'name': 'catfact',
-    'version': '899b136ebc356d58562f48d8ddce7c19',
-    'description': None,
-    'flow_id': '2c7b36d1-0bdb-462e-bb97-f6eb9fef6fd5',
-    'schedule': None,
-    'is_schedule_active': True,
-    'infra_overrides': {},
-    'parameters': {},
-    'tags': [],
-    'work_queue_name': 'test',
-    'parameter_openapi_schema': {
-        'title': 'Parameters',
-        'type': 'object',
-        'properties': {'url': {'title': 'url'}},
-        'required': ['url']
-    },
-    'path': '/Users/terry/test/testflows/catfact',
-    'entrypoint': 'catfact.py:catfacts_flow',
-    'manifest_path': None,
-    'storage_document_id': None,
-    'infrastructure_document_id': 'f958db1c-b143-4709-846c-321125247e07',
-    'infrastructure': {
-        'type': 'process',
-        'env': {},
-        'labels': {},
-        'name': None,
-        'command': ['python', '-m', 'prefect.engine'],
-        'stream_output': True
-    }
-}
-```
-
-## Create a flow run from a deployment
-
-### Create a flow run with a schedule
-
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
-
-### Create a flow run with an event trigger
-
-!!! cloud-ad "deployment triggers are only available in Prefect Cloud"
-
-Deployments can optionally take a trigger specification, which will configure an automation to run the deployment based on the presence or absence of events, and optionally pass event data into the deployment run as parameters via jinja templating.
-
-```yaml
-triggers:
-  - enabled: true
-    match:
-      prefect.resource.id: prefect.flow-run.*
-    expect:
-      - prefect.flow-run.Completed
-    match_related:
-      prefect.resource.name: prefect.flow.etl-flow
-      prefect.resource.role: flow
-    parameters:
-      param_1: "{{ event }}"
-```
-
-
-When applied, this deployment will start a flow run upon the completion of the upstream flow specified in the `match_related` key, with the flow run passed in as a parameter. Triggers can be configured to respond to the presence or absence of arbitrary internal or external [events](/cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
-
-
-### Create a flow run with Prefect UI
-In the Prefect UI, you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
-
-The `prefect deployment` CLI command provides commands for managing and running deployments locally.
-
-| Command           | Description                                                     |
-| ----------------- | --------------------------------------------------------------- |
-| `apply`           | Create or update a deployment from a YAML file.                 |
-| `build`           | Generate a deployment YAML from /path/to/file.py:flow_function. |
-| `delete`          | Delete a deployment.                                            |
-| `inspect`         | View details about a deployment.                                |
-| `ls`              | View all deployments or deployments for specific flows.         |
-| `pause-schedule`  | Pause schedule of a given deployment.                           |
-| `resume-schedule` | Resume schedule of a given deployment.                          |
-| `run`             | Create a flow run for the given flow and deployment.            |
-| `set-schedule`    | Set schedule for a given deployment.                            |
-
-### Create a flow run in a Python script 
-
-You can create a flow run from a deployment in a Python script with the `run_deployment` function.
-
-```python
-from prefect.deployments import run_deployment
-
-
-def main():
-    response = run_deployment(name="flow-name/deployment-name")
-    print(response)
-
-
-if __name__ == "__main__":
-   main()
+    # worker-specific fields
+    work_pool_name: str = None
+    work_queue_name: str = None
+    infra_overrides: dict = None
+    pull_steps: dict = None
 ``` 
 
-!!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
+All methods for creating Prefect deployments are interfaces for populating this schema. Let's look at each section in turn.
 
-    If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+### Required data 
 
-## Examples
+Deployments universally require both a `name` and a reference to an underlying `Flow`. 
+In almost all instances of deployment creation, users do not need to concern themselves with the `flow_id` as most interfaces will only need the flow's name. 
+Note that the deployment name is not required to be unique across all deployments but is required to be unique for a given flow ID.
+As a consequence, you will often see references to the deployment's unique identifying name `{FLOW_NAME}/{DEPLOYMENT_NAME}`. 
+For example, triggering a run of a deployment from the Prefect CLI can be done via:
 
-- [How to deploy Prefect flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
-- [How to deploy Prefect flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
-- [How to deploy Prefect flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
-- [How to deploy Prefect flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)
+<div class="terminal">
+```bash
+prefect deployment run my-first-flow/my-first-deployment
+```
+</div>
+
+The other two fields are less obvious:
+
+- **`path`**: the _path_ can generally be interpreted as the runtime working directory for the flow. For example, if a deployment references a workflow defined within a Docker image, the `path` will be the absolute path to the parent directory where that workflow will run anytime the deployment is triggered. This interpretation is more subtle in the case of flows defined in remote filesystems.
+- **`entrypoint`**: the _entrypoint_ of a deployment is a relative reference to a function decorated as a flow that exists on some filesystem. It is always specified relative to the `path`. Entrypoints use Python's standard path-to-object syntax (e.g., `path/to/file.py:function_name` or simply `path:object`).
+
+The entrypoint must reference the same flow as the flow ID. 
+
+Note that Prefect requires that deployments reference flows defined _within Python files_. 
+Flows defined within interactive REPLs or notebooks cannot currently be deployed as such. They are still valid flows that will be monitored by the API and observable in the UI whenever they are run, but Prefect cannot trigger them.
+
+!!! info "Deployments do not contain code definitions"
+    Deployment metadata references code that exists in potentially diverse locations within your environment; this separation of concerns means that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
+
+    This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/cloud/)). 
+
+### Scheduling and parametrization
+
+One of the primary motivations for creating deployments of flows is to remotely _schedule_ and _trigger_ them. 
+Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
+
+The six fields here capture the necessary metadata to perform such actions:
+
+- **`schedule`**: a [schedule object](/concepts/schedules/).
+Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves. 
+For example, when [updating a deployment schedule in the UI](/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
+- **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment. 
+For more information see [Automations](/concepts/automations/).
+- **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines the types and defaults for the flow's parameters.
+This is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
+- **`parameters`**: default values of flow parameters that this deployment will pass on each run. 
+These can be overwritten through a trigger or when manually creating a custom run.
+- **`enforce_parameter_schema`**: a boolean flag that determines whether the API should validate the parameters passed to a flow run against the schema defined by `parameter_openapi_schema`.
+
+!!! tip "Scheduling is asynchronous and decoupled" 
+    Because deployments are nothing more than metadata, runs can be created at anytime.
+    Note that pausing a schedule, updating your deployment, and other actions reset your auto-scheduled runs.
+
+### Versioning and bookkeeping
+
+Versions, descriptions and tags are omnipresent fields throughout Prefect that can be easy to overlook. However, putting some extra thought into how you use these fields can pay dividends down the road.
+
+- **`version`**: versions are always set by the client and can be any arbitrary string. We recommend tightly coupling this field on your deployments to your software development lifecycle. For example if you leverage `git` to manage code changes, use either a tag or commit hash in this field. If you don't set a value for the version, Prefect will compute a hash
+- **`description`**: the description field of a deployment is a place to provide rich reference material for downstream stakeholders such as intended use and parameter documentation. Markdown formatting will be rendered in the Prefect UI, allowing for section headers, links, tables, and other formatting. If not provided explicitly, Prefect will use the docstring of your flow function as a default value.
+- **`tags`**: tags are a mechanism for grouping related work together across a diverse set of objects. Tags set on a deployment will be inherited by that deployment's flow runs. These tags can then be used to filter what runs are displayed on the primary UI dashboard, allowing you to customize different views into your work. In addition, in Prefect Cloud you can easily find objects through searching by tag.
+
+All of these bits of metadata can be leveraged to great effect by injecting them into the processes that Prefect is orchestrating. For example you can use both run ID and versions to organize files that you produce from your workflows, or by associating your flow run's tags with the metadata of a job it orchestrates. 
+This metadata is available during execution through [Prefect runtime](/guides/runtime-context/).
+
+!!! tip "Everything has a version"
+    Deployments aren't the only entity in Prefect with a version attached; both flows and tasks also have versions that can be set through their respective decorators. These versions will be sent to the API anytime the flow or task is run and thereby allow you to audit your changes across all levels.
+
+### Workers and Work Pools
+
+[Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure for each flow run. 
+In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
+To do this, a deployment using workers needs to evaluate the following fields:
+
+- **`work_pool_name`**: the name of the work pool this deployment will be associated with. 
+Work pool types mirror infrastructure types and therefore the decision here affects the options available for the other fields.
+- **`work_queue_name`**: if you are using work queues to either manage priority or concurrency, you can associate a deployment with a specific queue within a work pool using this field.
+- **`infra_overrides`**: often called `job_variables` within various interfaces, this field allows deployment authors to customize whatever infrastructure options have been exposed on this work pool. 
+This field is often used for things such as Docker image names, Kubernetes annotations and limits, and environment variables.
+- **`pull_steps`**: a JSON description of steps that should be performed to retrieve flow code or configuration and prepare the runtime environment for workflow execution.
+
+Pull steps allow users to highly decouple their workflow architecture. 
+For example, a common use of pull steps is to dynamically pull code from remote filesystems such as GitHub with each run of their deployment.
+
+For more information see [the guide to deploying with a worker](/guides/prefect-deploy/).
+
+## Two approaches to deployments
+
+There are two primary ways to deploy flows with Prefect, differentiated by how much control Prefect has over the infrastructure in which the flows run.
+
+In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
+
+In the other setup, you do [a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure](/guides/prefect-deploy). 
+Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
+
+Both setups can support production workloads. The choice ultimately boils down to your use case and preferences. Read further to decide which setup is right for your situation.
+
+### Serving flows on long-lived infrastructure
+
+The simplest way to deploy a Prefect flow is to use [the `serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously. 
+
+Once you have authored your flow and decided on its deployment settings as described above, all that's left is to run this long-running process in a location of your choosing.
+The process will stay in communication with the Prefect API, monitoring for work and submitting each run within an individual subprocess.
+Note that because runs are submitted to subprocesses, any external infrastructure configuration will need to be setup beforehand and kept associated with this process.
+
+This approach has many benefits:
+
+- Users are in complete control of their infrastructure, and anywhere the "serve" Python process can run is a suitable deployment environment.
+- It is simple to reason about.
+- Creating deployments requires a minimal set of decisions.
+- Iteration speed is fast.
+
+However, there are a few reasons you might consider running flows on dynamically provisioned infrastructure with workers and work pools instead:
+
+- Flows that have expensive infrastructure needs may be more costly in this setup due to the long-running process.
+- Flows with heterogeneous infrastructure needs across runs will be more difficult to configure and schedule.
+- Large volumes of deployments can be harder to track.
+- If your internal team structure requires that deployment authors be members of a different team than the team managing infrastructure, the work pool interface may be preferred.
+
+### Dynamically provisioning infrastructure with workers
+
+[Work pools and workers](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure on which flows run. 
+This setup allows you to essentially "scale to zero" when nothing is running, as the worker process is lightweight and does not need the same resources that your workflows do.
+
+With this approach:
+
+- You can configure and monitor infrastructure configuration within the Prefect UI.
+- Infrastructure is ephemeral and dynamically provisioned.
+- Prefect is more infrastructure-aware and therefore collects more event data from your infrastructure by default.
+- Highly decoupled setups are possible.
+
+Of course, complexity always has a price. The worker approach has more components and may be more difficult to debug and understand.
+
+!!! note "You don't have to commit to one approach"
+    You are not required to use only one of these approaches for your deployments. You can mix and match approaches based on the needs of each flow. Further, you can change the deployment approach for a particular flow as its needs evolve.
+    For example, you might use workers for your expensive machine learning pipelines, but use the serve mechanics for smaller, more frequent file-processing pipelines.
+
+
+

@@ -8,9 +8,9 @@ from httpx import AsyncClient, Request, Response
 from prefect.client.base import PrefectHttpxClient, PrefectResponse
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
+    PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
-    PREFECT_CLIENT_MAX_RETRIES,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -470,4 +470,4 @@ class TestPrefectHttpxClient:
         with pytest.raises(PrefectHTTPStatusError) as exc:
             await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
-        assert expected in str(exc)
+        assert expected in str(exc.exconly())

@@ -1,9 +1,9 @@
 import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
-from typing_extensions import Literal
 from uuid import UUID
 
 from pydantic import Field
+from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
@@ -154,6 +154,7 @@ class FlowRunResponse(ObjectBaseModel):
     flow_id: UUID = FieldFrom(objects.FlowRun)
     state_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     deployment_id: Optional[UUID] = FieldFrom(objects.FlowRun)
+    work_queue_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_queue_name: Optional[str] = FieldFrom(objects.FlowRun)
     flow_version: Optional[str] = FieldFrom(objects.FlowRun)
     parameters: dict = FieldFrom(objects.FlowRun)
@@ -176,6 +177,7 @@ class FlowRunResponse(ObjectBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(objects.FlowRun)
     created_by: Optional[CreatedBy] = FieldFrom(objects.FlowRun)
+    work_pool_id: Optional[UUID] = FieldFrom(objects.FlowRun)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
@@ -223,6 +225,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    enforce_parameter_schema: bool = FieldFrom(objects.Deployment)
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):

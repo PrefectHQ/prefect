@@ -2,10 +2,10 @@ import json
 import logging
 import sys
 import time
-from io import StringIO
 import uuid
 from contextlib import nullcontext
 from functools import partial
+from io import StringIO
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -19,12 +19,12 @@ import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.infrastructure import Process
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -602,7 +602,7 @@ class TestAPILogHandler:
             updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
             # NOTE: We use `raises` instead of `warns` because pytest will otherwise
-            #       capture the warning call and skip checing that we use it correctly
+            #       capture the warning call and skip checking that we use it correctly
             #       See https://github.com/pytest-dev/pytest/issues/9288
             with pytest.raises(
                 UserWarning,
@@ -783,7 +783,7 @@ class TestAPILogWorker:
 
         assert (
             end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
+        ) < 5  # An arbitrary time less than the 10s interval
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
@@ -801,7 +801,7 @@ class TestAPILogWorker:
 
         assert (
             end_time - start_time
-        ) < 5  # An arbitary time less than the 10s interval
+        ) < 5  # An arbitrary time less than the 10s interval
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
@@ -1273,7 +1273,7 @@ def test_disable_run_logger(caplog):
     @task
     def task_with_run_logger():
         logger = get_run_logger()
-        logger.critical("wont show")
+        logger.critical("won't show")
         return 42
 
     flow_run_logger = get_logger("prefect.flow_run")
@@ -1288,7 +1288,7 @@ def test_disable_run_logger(caplog):
 
     assert not flow_run_logger.disabled
     assert task_run_logger.disabled  # was already disabled beforehand
-    assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]
+    assert caplog.record_tuples == [("null", logging.CRITICAL, "won't show")]
 
 
 def test_patch_print_writes_to_stdout_without_run_context(caplog, capsys):

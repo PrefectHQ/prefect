@@ -1,4 +1,4 @@
-<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
+<p align="center"><img src="https://github.com/PrefectHQ/prefect/assets/3407835/c654cbc6-63e8-4ada-a92a-efd2f8f24b85" width=1000></p>
 
 <p align="center">
     <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
@@ -10,7 +10,7 @@
     <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
         <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <br>
-    <a href="https://prefect-community.slack.com" alt="Slack">
+    <a href="https://prefect.io/slack" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
     <a href="https://discourse.prefect.io/" alt="Discourse">
         <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
@@ -51,7 +51,7 @@ After running some flows, fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![](/docs/img/ui/dashboard-oss.png)
+![Prefect UI dashboard](/docs/img/ui/cloud-dashboard.png)
 
 From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote environments, running on a scheduled or event-driven basis.
 

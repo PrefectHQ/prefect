@@ -13,7 +13,7 @@
         <p-content>
           <ArtifactDataView :artifact="artifact" />
 
-          <p-button class="artifact__raw-data-button" inset size="sm" @click="showRaw = !showRaw">
+          <p-button class="artifact__raw-data-button" small @click="showRaw = !showRaw">
             {{ showRaw ? 'Hide' : 'Show' }} raw data
           </p-button>
 
@@ -54,10 +54,9 @@
     ArtifactDataRaw,
     localization,
     capitalize,
-    useTabs,
     useWorkspaceApi
   } from '@prefecthq/prefect-ui-library'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
@@ -69,11 +68,12 @@
 
   const showRaw = ref(false)
 
-  const { tab, tabs } = useTabs([
+  const tabs = [
     { label: 'Artifact' },
     { label: 'Details' },
     { label: 'Raw' },
-  ])
+  ]
+  const tab = useRouteQueryParam('tab', 'Artifact')
 
   const pageTitle = computed<string>(() => {
     if (!artifact.value) {

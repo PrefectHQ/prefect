@@ -10,25 +10,24 @@ import contextvars
 import dataclasses
 import inspect
 import threading
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
-
-from typing_extensions import ParamSpec
-
-from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.cancellation import (
-    CancelledError,
-    cancel_async_at,
-    get_deadline,
-    cancel_sync_at,
-)
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
     FINISHED,
     RUNNING,
 )
-from prefect._internal.concurrency import logger
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
+from typing_extensions import ParamSpec
+
+from prefect._internal.concurrency import logger
+from prefect._internal.concurrency.cancellation import (
+    CancelledError,
+    cancel_async_at,
+    cancel_sync_at,
+    get_deadline,
+)
+from prefect._internal.concurrency.event_loop import get_running_loop
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -121,7 +120,7 @@ class Future(concurrent.futures.Future):
                 if self._cancel_scope is None:
                     return False
                 elif not self._cancel_scope.cancelled():
-                    # Perfom cancellation
+                    # Perform cancellation
                     if not self._cancel_scope.cancel():
                         return False
 
@@ -367,7 +366,7 @@ class Call(Generic[T]):
         """
         Execute the call and return its result.
 
-        All executions during excecution of the call are re-raised.
+        All executions during execution of the call are re-raised.
         """
         coro = self.run()
 

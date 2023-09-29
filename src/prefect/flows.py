@@ -4,10 +4,12 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import datetime
 import inspect
 import os
 import warnings
 from functools import partial, update_wrapper
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import (
     Any,
@@ -31,12 +33,16 @@ from typing import (
 import pydantic
 from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
+from rich.console import Console
+from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -48,11 +54,13 @@ from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_UI_URL,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import is_async_fn
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
@@ -62,7 +70,17 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
-
+from prefect.utilities.visualization import (
+    FlowVisualizationError,
+    GraphvizExecutableNotFoundError,
+    GraphvizImportError,
+    TaskVizTracker,
+    VisualizationUnsupportedError,
+    build_task_dependencies,
+    get_task_viz_tracker,
+    track_viz_task,
+    visualize_task_dependencies,
+)
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -113,7 +131,7 @@ class Flow(Generic[P, R]):
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this flow.
+        result_storage: An optional block to use to persist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
             a subflow, at which point the default will be loaded from the parent flow.
@@ -156,6 +174,19 @@ class Flow(Generic[P, R]):
         ] = None,
         on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
+        if name is not None and not isinstance(name, str):
+            raise TypeError(
+                "Expected string for flow parameter 'name'; got {} instead. {}".format(
+                    type(name).__name__,
+                    (
+                        "Perhaps you meant to call it? e.g."
+                        " '@flow(name=get_flow_run_name())'"
+                        if callable(name)
+                        else ""
+                    ),
+                )
+            )
+
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure, on_cancellation, on_crashed]
         hook_names = ["on_completion", "on_failure", "on_cancellation", "on_crashed"]
@@ -248,7 +279,7 @@ class Flow(Generic[P, R]):
             # We cannot, however, store the validated function on the flow because it
             # is not picklable in some environments
             try:
-                ValidatedFunction(self.fn, config=None)
+                ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -412,7 +443,9 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
-        validated_fn = ValidatedFunction(self.fn, config=None)
+        validated_fn = ValidatedFunction(
+            self.fn, config={"arbitrary_types_allowed": True}
+        )
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         try:
@@ -450,6 +483,185 @@ class Flow(Generic[P, R]):
                 )
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
+
+    def to_deployment(
+        self,
+        name: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        """
+        Creates a runner deployment object for this flow.
+
+        Args:
+            name: The name to give the created deployment.
+            interval: An interval on which to execute the new deployment. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+
+        Examples:
+            Prepare two deployments and serve them:
+
+            ```python
+            from prefect import flow, serve
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            @flow
+            def my_other_flow(name):
+                print(f"goodbye {name}")
+
+            if __name__ == "__main__":
+                hello_deploy = my_flow.to_deployment("hello", tags=["dev"])
+                bye_deploy = my_other_flow.to_deployment("goodbye", tags=["dev"])
+                serve(hello_deploy, bye_deploy)
+            ```
+        """
+        from prefect.deployments.runner import RunnerDeployment
+
+        return RunnerDeployment.from_flow(
+            self,
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            tags=tags,
+            triggers=triggers,
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+        )
+
+    @sync_compatible
+    async def serve(
+        self,
+        name: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[dict] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+        pause_on_shutdown: bool = True,
+        print_starting_message: bool = True,
+    ):
+        """
+        Creates a deployment for this flow and starts a runner to monitor for scheduled work.
+
+        Args:
+            name: The name to give the created deployment.
+            interval: An interval on which to execute the new deployment. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+            pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
+                If False, the schedules will continue running.
+            print_starting_message: Whether or not to print the starting message when flow is served.
+
+        Examples:
+            Serve a flow:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.serve("example-deployment")
+            ```
+
+            Serve a flow and run it every hour:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.serve("example-deployment", interval=3600)
+            ```
+        """
+        from prefect.runner import Runner
+
+        # Handling for my_flow.serve(__file__)
+        # Will set name to name of file where my_flow.serve() without the extension
+        # Non filepath strings will pass through unchanged
+        name = Path(name).stem
+
+        runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+        deployment_id = await runner.add_flow(
+            self,
+            name=name,
+            triggers=triggers,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+        )
+        if print_starting_message:
+            help_message = (
+                f"[green]Your flow {self.name!r} is being served and polling for"
+                " scheduled runs!\n[/]\nTo trigger a run for this flow, use the"
+                " following command:\n[blue]\n\t$ prefect deployment run"
+                f" '{self.name}/{name}'\n[/]"
+            )
+            if PREFECT_UI_URL:
+                help_message += (
+                    "\nYou can also run your flow via the Prefect UI:"
+                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+                )
+
+            console = Console()
+            console.print(Panel(help_message))
+        await runner.start()
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
@@ -537,6 +749,12 @@ class Flow(Generic[P, R]):
 
         return_type = "state" if return_state else "result"
 
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            # this is a subflow, for now return a single task and do not go further
+            # we can add support for exploring subflows for tasks in the future.
+            return track_viz_task(self.isasync, self.name, parameters)
+
         return enter_flow_run_engine_from_flow_call(
             self,
             parameters,
@@ -588,6 +806,55 @@ class Flow(Generic[P, R]):
             wait_for=wait_for,
             return_type="state",
         )
+
+    @sync_compatible
+    async def visualize(self, *args, **kwargs):
+        """
+        Generates a graphviz object representing the current flow. In IPython notebooks,
+        it's rendered inline, otherwise in a new window as a PNG.
+
+        Raises:
+            - ImportError: If `graphviz` isn't installed.
+            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        if not PREFECT_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.visualize()` will execute code inside of your flow that is not"
+                " decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    await self.fn(*args, **kwargs)
+                else:
+                    self.fn(*args, **kwargs)
+
+                graph = build_task_dependencies(tracker)
+
+                visualize_task_dependencies(graph, self.name)
+
+        except GraphvizImportError:
+            raise
+        except GraphvizExecutableNotFoundError:
+            raise
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
+            # Copy traceback information from the original exception
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
 
 
 @overload
@@ -682,7 +949,7 @@ def flow(
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this flow.
+        result_storage: An optional block to use to persist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
             a subflow, at which point the default will be loaded from the parent flow.

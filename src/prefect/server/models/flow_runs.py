@@ -264,7 +264,7 @@ async def read_flow_runs(
         flow_filter: only select flow runs whose flows match these filters
         flow_run_filter: only select flow runs match these filters
         task_run_filter: only select flow runs whose task runs match these filters
-        deployment_filter: only sleect flow runs whose deployments match these filters
+        deployment_filter: only select flow runs whose deployments match these filters
         offset: Query offset
         limit: Query limit
         sort: Query sort

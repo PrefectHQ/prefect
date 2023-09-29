@@ -24,40 +24,41 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.schemas.actions import (
+    ArtifactCreate,
+    LogCreate,
+    VariableCreate,
+    WorkPoolCreate,
+    WorkPoolUpdate,
+)
+from prefect.client.schemas.filters import (
+    ArtifactFilter,
+    ArtifactFilterKey,
+    FlowFilter,
+    FlowRunFilter,
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    LogFilterFlowRunId,
+)
+from prefect.client.schemas.objects import (
+    Flow,
+    FlowRunNotificationPolicy,
+    FlowRunPolicy,
+    StateType,
+    TaskRun,
+    Variable,
+    WorkQueue,
+)
 from prefect.client.schemas.responses import (
-    OrchestrationResult,
     DeploymentResponse,
+    OrchestrationResult,
     SetStateStatus,
 )
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.events.schemas import Automation, Posture, Trigger
 from prefect.server.api.server import SERVER_API_VERSION, create_app
-from prefect.client.schemas.actions import (
-    ArtifactCreate,
-    LogCreate,
-    WorkPoolCreate,
-    VariableCreate,
-)
-from prefect.client.schemas.objects import (
-    WorkQueue,
-    FlowRunNotificationPolicy,
-    Flow,
-    FlowRunPolicy,
-    TaskRun,
-    Variable,
-)
-from prefect.client.schemas.filters import (
-    FlowRunNotificationPolicyFilter,
-    FlowFilter,
-    FlowRunFilter,
-    ArtifactFilter,
-    ArtifactFilterKey,
-    LogFilter,
-    LogFilterFlowRunId,
-)
-from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.client.schemas.objects import StateType
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
@@ -1642,6 +1643,29 @@ class TestWorkPools:
             work_pool_1.id,
             work_pool_2.id,
         }
+
+    async def test_update_work_pool(self, prefect_client):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        assert work_pool.description is None
+
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                description="Foo description",
+            ),
+        )
+
+        result = await prefect_client.read_work_pool(work_pool_name=work_pool.name)
+        assert result.description == "Foo description"
+
+    async def test_update_missing_work_pool(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.update_work_pool(
+                work_pool_name="abcdefg",
+                work_pool=WorkPoolUpdate(),
+            )
 
     async def test_delete_work_pool(self, prefect_client, work_pool):
         await prefect_client.delete_work_pool(work_pool.name)

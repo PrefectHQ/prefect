@@ -92,7 +92,7 @@ class EnforceMinimumAPIVersion:
 def LimitBody() -> Depends:
     """
     A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
-    request body while determing the default from the current settings.
+    request body while determining the default from the current settings.
     """
 
     def get_limit(

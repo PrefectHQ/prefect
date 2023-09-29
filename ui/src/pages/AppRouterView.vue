@@ -3,10 +3,12 @@
     <template v-if="!media.lg">
       <PGlobalSidebar class="app-router-view__mobile-menu">
         <template #upper-links>
-          <p-icon icon="PrefectLight" class="app-router-view__prefect-icon" />
+          <router-link :to="appRoutes.root()">
+            <p-icon icon="Prefect" class="app-router-view__prefect-icon" />
+          </router-link>
         </template>
         <template #bottom-links>
-          <PIcon icon="Bars3Icon" class="app-router-view__menu-icon" @click="toggle" />
+          <p-button small icon="Bars3Icon" class="app-router-view__menu-icon" @click="toggle" />
         </template>
       </PGlobalSidebar>
     </template>
@@ -30,6 +32,7 @@
   import { useApiConfig } from '@/compositions/useApiConfig'
   import { useCreateCan } from '@/compositions/useCreateCan'
   import { useMobileMenuOpen } from '@/compositions/useMobileMenuOpen'
+  import { routes as appRoutes } from '@/router'
   import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
 
@@ -62,34 +65,44 @@
 }
 
 .app-router-view { @apply
-  text-foreground
-  bg-background-600
-  dark:bg-background-400
   flex
   flex-col
+  bg-no-repeat
+  overflow-auto;
+  --prefect-scroll-margin: theme('spacing.20');
+  height: 100vh;
+  background-image: url('/decorative_iso-pixel-grid_light.svg');
+  background-attachment: fixed;
+  background-position: bottom -140px left -140px;
 }
 
-.app-router-view {
-  --prefect-scroll-margin: theme('spacing.20');
-  min-height: 100vh;
+.dark .app-router-view {
+  background-image: url('/decorative_iso-pixel-grid_dark.svg');
 }
 
 .app-router-view__prefect-icon { @apply
-  w-6
-  h-6
+  w-7
+  h-7
 }
 
-.app-router-view__menu-icon { @apply
-  text-white
-  w-6
-  h-6
-  cursor-pointer
+.app-router-view__mobile-menu { @apply
+  h-auto
+  py-3
 }
 
-.app-router-view__view { @apply
-  relative
-  z-0;
+.app-router-view__sidebar { @apply
+  bg-floating
+  top-[54px]
+  lg:bg-transparent
+  lg:top-0
+}
 
+.app-router-view__sidebar .p-context-sidebar__header { @apply
+  hidden
+  lg:block
+}
+
+.app-router-view__view {
   /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
   flex: 1 0 1px;
   height: 100%;

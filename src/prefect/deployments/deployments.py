@@ -24,7 +24,8 @@ from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
-from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
+from prefect.deployments.steps.core import run_steps
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     BlockMissingCapabilities,
@@ -41,8 +42,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
-
-from prefect.deployments.steps.core import run_steps
 
 
 @sync_compatible
@@ -111,7 +110,8 @@ async def run_deployment(
         deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx:
+    task_run_ctx = TaskRunContext.get()
+    if flow_run_ctx or task_run_ctx:
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
             Pending,
@@ -137,10 +137,20 @@ async def run_deployment(
         )
         # Override the default task key to include the deployment name
         dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
+        flow_run_id = (
+            flow_run_ctx.flow_run.id
+            if flow_run_ctx
+            else task_run_ctx.task_run.flow_run_id
+        )
+        dynamic_key = (
+            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            if flow_run_ctx
+            else task_run_ctx.task_run.dynamic_key
+        )
         parent_task_run = await client.create_task_run(
             task=dummy_task,
-            flow_run_id=flow_run_ctx.flow_run.id,
-            dynamic_key=_dynamic_key_for_task_run(flow_run_ctx, dummy_task),
+            flow_run_id=flow_run_id,
+            dynamic_key=dynamic_key,
             task_inputs=task_inputs,
             state=Pending(),
         )
@@ -284,6 +294,8 @@ class Deployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
 
     Examples:
 
@@ -479,6 +491,14 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
+    # defaults to None to allow for backwards compatibility
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -580,7 +600,13 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp", "triggers"}
+                    {
+                        "infrastructure",
+                        "storage",
+                        "timestamp",
+                        "triggers",
+                        "enforce_parameter_schema",
+                    }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -733,6 +759,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:

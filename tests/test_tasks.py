@@ -2,7 +2,6 @@ import datetime
 import inspect
 import time
 import warnings
-import regex as re
 from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -10,6 +9,7 @@ from uuid import UUID
 
 import anyio
 import pytest
+import regex as re
 
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
@@ -3391,6 +3391,22 @@ async def test_sets_run_name_once_per_call():
     assert state.type == StateType.COMPLETED
     assert mocked_task_method.call_count == 2
     assert generate_task_run_name.call_count == 2
+
+
+def test_task_parameter_annotations_can_be_non_pydantic_classes():
+    class Test:
+        pass
+
+    @task
+    def my_task(instance: Test):
+        return instance
+
+    @flow
+    def my_flow(instance: Test):
+        return my_task(instance)
+
+    instance = my_flow(Test())
+    assert isinstance(instance, Test)
 
 
 def create_hook(mock_obj):

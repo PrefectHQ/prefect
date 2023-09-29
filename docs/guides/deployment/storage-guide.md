@@ -50,7 +50,7 @@ For example:
 Your Prefect workers will attempt to load your flow from: 
 /my-path/my-flow-file.py. To see more options for managing your flow's code, run:
 
-    $ prefect project recipes ls
+    $ prefect init
 ```
 </div>
 
@@ -111,7 +111,9 @@ Creating access tokens differs for each provider.
 
     We recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
     
-    You can create a Repository Access Token with Scopes->Repositories->Read. 
+    You can create a Repository Access Token with Scopes->Repositories->Read.
+
+    Bitbucket requires you prepend the token string with `x-token-auth:` So the full string looks like `x-token-auth:abc_123_this_is_my_token`. 
 
 === "GitLab"
 
@@ -177,8 +179,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     ```
 
 !!! warning "Push your code"
-    When you make a change to your code, Prefect does push your code to your git-based version control platform. 
-    You need to do push your code manually or as part of your CI/CD pipeline. 
+    When you make a change to your code, Prefect does not push your code to your git-based version control platform. 
+    You need to push your code manually or as part of your CI/CD pipeline. 
     This design decision is an intentional one to avoid confusion about the git history and push process.
 
 ## Option 3: Docker-based storage

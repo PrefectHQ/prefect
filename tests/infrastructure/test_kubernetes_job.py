@@ -1054,7 +1054,7 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         assert f"test {i}" not in stdout
 
 
-@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client,
     mock_watch,
@@ -1196,6 +1196,43 @@ async def test_watch_handles_deleted_job(
     assert result.status_code == -1
 
 
+async def test_watch_handles_pod_without_exit_code(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+    job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+    job_pod.status.phase = "Running"
+    mock_container_status = MagicMock(spec=kubernetes.client.V1ContainerStatus)
+    # The container may exist but because it has been forcefully terminated
+    # it will not have an exit code.
+    mock_container_status.state.terminated = None
+    job_pod.status.container_statuses = [mock_container_status]
+    mock_k8s_client.list_namespaced_pod.return_value.items = [job_pod]
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the job then return exiting the stream
+            job.status.completion_time = None
+            job.spec.backoff_limit = 6
+            for i in range(0, 8):
+                job.status.failed = i
+                yield {"object": job, "type": "ADDED"}
+
+    mock_watch.stream.side_effect = mock_stream
+
+    result = await KubernetesJob(command=["echo", "hello"]).run()
+
+    assert result.status_code == -1
+
+
 class TestCustomizingBaseJob:
     """Tests scenarios where a user is providing a customized base Job template"""
 
@@ -1276,7 +1313,7 @@ class TestCustomizingBaseJob:
             {
                 "loc": ("job",),
                 "msg": (
-                    "Job has incompatble values for the following attributes: "
+                    "Job has incompatible values for the following attributes: "
                     "/apiVersion must have value 'batch/v1', "
                     "/kind must have value 'Job'"
                 ),

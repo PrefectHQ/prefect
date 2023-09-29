@@ -1,12 +1,12 @@
 import contextlib
 import random
-import sqlalchemy.exc
+import sqlite3
 from itertools import product
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-import sqlite3
+import sqlalchemy.exc
 
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import provide_database_interface
@@ -773,7 +773,7 @@ class TestBaseOrchestrationRule:
             proposed_state=proposed_state,
         )
 
-        # an ExitStack is a python builtin contstruction that allows us to
+        # an ExitStack is a python builtin construction that allows us to
         # nest an arbitrary number of contexts (and therefore, rules), in this test
         # we'll enter the contexts one by one so we can follow what's happening
         async with contextlib.AsyncExitStack() as stack:
@@ -921,7 +921,7 @@ class TestBaseOrchestrationRule:
             proposed_state=proposed_state,
         )
 
-        # an ExitStack is a python builtin contstruction that allows us to
+        # an ExitStack is a python builtin construction that allows us to
         # nest an arbitrary number of contexts (and therefore, rules), in this test
         # we'll enter the contexts one by one so we can follow what's happening
         async with contextlib.AsyncExitStack() as stack:

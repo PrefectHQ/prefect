@@ -1,11 +1,13 @@
 <template>
   <p-layout-default class="workspace-dashboard">
-    <PageHeading :crumbs="crumbs">
-      <template v-if="!empty" #actions>
-        <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
-        <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
-      </template>
-    </PageHeading>
+    <template #header>
+      <PageHeading :crumbs="crumbs">
+        <template v-if="!empty" #actions>
+          <FlowRunTagsInput v-model:selected="tags" :filter="{}" empty-message="All tags" class="workspace-dashboard__tags" />
+          <TimeSpanFilter v-model:selected="timeSpanInSeconds" />
+        </template>
+      </PageHeading>
+    </template>
     <template v-if="loaded">
       <template v-if="empty">
         <FlowRunsPageEmptyState />
@@ -36,7 +38,9 @@
     FlowRunsPageEmptyState,
     useWorkspaceApi,
     subscriptionIntervalKey,
-    mapper
+    mapper,
+    TaskRunsFilter,
+    Getter
   } from '@prefecthq/prefect-ui-library'
   import { NumberRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { secondsInHour, secondsToMilliseconds } from 'date-fns'
@@ -61,7 +65,7 @@
     tags: tags.value,
   }))
 
-  const tasksFilter = computed(() => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter'))
+  const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter.value, 'TaskRunsFilter')
 </script>
 
 <style>

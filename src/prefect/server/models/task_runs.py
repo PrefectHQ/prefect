@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
@@ -21,6 +22,8 @@ from prefect.server.orchestration.global_policy import GlobalTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
+
+logger = get_logger("server")
 
 
 @inject_db
@@ -48,34 +51,63 @@ async def create_task_run(
     now = pendulum.now("UTC")
 
     # if a dynamic key exists, we need to guard against conflicts
-    insert_stmt = (
-        (await db.insert(db.TaskRun))
-        .values(
-            created=now,
-            **task_run.dict(
-                shallow=True, exclude={"state", "created"}, exclude_unset=True
-            ),
-        )
-        .on_conflict_do_nothing(
-            index_elements=db.task_run_unique_upsert_columns,
-        )
-    )
-    await session.execute(insert_stmt)
-
-    query = (
-        sa.select(db.TaskRun)
-        .where(
-            sa.and_(
-                db.TaskRun.flow_run_id == task_run.flow_run_id,
-                db.TaskRun.task_key == task_run.task_key,
-                db.TaskRun.dynamic_key == task_run.dynamic_key,
+    if task_run.flow_run_id:
+        insert_stmt = (
+            (await db.insert(db.TaskRun))
+            .values(
+                created=now,
+                **task_run.dict(
+                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                ),
+            )
+            .on_conflict_do_nothing(
+                index_elements=db.task_run_unique_upsert_columns,
             )
         )
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    model = result.scalar()
+        await session.execute(insert_stmt)
+
+        query = (
+            sa.select(db.TaskRun)
+            .where(
+                sa.and_(
+                    db.TaskRun.flow_run_id == task_run.flow_run_id,
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        result = await session.execute(query)
+        model = result.scalar()
+    else:
+        # Upsert on (task_key, dynamic_key) application logic.
+        query = (
+            sa.select(db.TaskRun)
+            .where(
+                sa.and_(
+                    db.TaskRun.flow_run_id.is_(None),
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+
+        result = await session.execute(query)
+        model = result.scalar()
+
+        if model is None:
+            model = db.TaskRun(
+                created=now,
+                **task_run.dict(
+                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                ),
+                state=None,
+            )
+            session.add(model)
+            await session.flush()
 
     if model.created == now and task_run.state:
         await models.task_runs.set_task_run_state(
@@ -152,6 +184,19 @@ async def _apply_task_run_filters(
 
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter(db))
+
+    # Return a simplified query in the case that the request is ONLY asking to filter on flow_run_id (and task_run_filter)
+    # In this case there's no need to generate the complex EXISTS subqueries; the generated query here is much more efficient
+    if (
+        flow_run_filter
+        and flow_run_filter.only_filters_on_id()
+        and not any(
+            [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
+        )
+    ):
+        query = query.where(db.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
+
+        return query
 
     if (
         flow_filter
@@ -243,6 +288,7 @@ async def read_task_runs(
     if limit is not None:
         query = query.limit(limit)
 
+    logger.debug(f"In read_task_runs, query generated is:\n{query}")
     result = await session.execute(query)
     return result.scalars().unique().all()
 

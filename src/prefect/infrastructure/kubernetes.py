@@ -82,7 +82,7 @@ class KubernetesJob(Infrastructure):
         stream_output: If set, stream output from the job to local standard output.
     """
 
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
@@ -184,7 +184,7 @@ class KubernetesJob(Infrastructure):
         )
         if incompatible:
             raise ValueError(
-                "Job has incompatble values for the following attributes: "
+                "Job has incompatible values for the following attributes: "
                 f"{', '.join(incompatible)}"
             )
         return value
@@ -707,9 +707,9 @@ class KubernetesJob(Infrastructure):
                         watch.stop()
                         break
 
-        with self.get_client() as client:
+        with self.get_client() as core_client:
             # Get all pods for the job
-            pods = client.list_namespaced_pod(
+            pods = core_client.list_namespaced_pod(
                 namespace=self.namespace, label_selector=f"job-name={job_name}"
             )
             # Get the status for only the most recently used pod
@@ -724,6 +724,21 @@ class KubernetesJob(Infrastructure):
             )
             if not first_container_status:
                 self.logger.error(f"Job {job_name!r}: No pods found for job.")
+                return -1
+
+            # In some cases, such as spot instance evictions, the pod will be forcibly
+            # terminated and not report a status correctly.
+            elif (
+                first_container_status.state is None
+                or first_container_status.state.terminated is None
+                or first_container_status.state.terminated.exit_code is None
+            ):
+                self.logger.error(
+                    f"Could not determine exit code for {job_name!r}."
+                    "Exit code will be reported as -1."
+                    "First container status info did not report an exit code."
+                    f"First container info: {first_container_status}."
+                )
                 return -1
 
         return first_container_status.state.terminated.exit_code

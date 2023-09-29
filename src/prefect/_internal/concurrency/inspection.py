@@ -2,15 +2,15 @@
 Utilities for inspection of stack frames and threads.
 """
 
-from types import FrameType
+import dis
 import linecache
 import sys
 import threading
-import dis
+from types import FrameType
 from typing import List
 
 """
-The following functions are dervived from dask/distributed which is licensed under the 
+The following functions are derived from dask/distributed which is licensed under the 
 BSD 3-Clause License.
 
 Copyright (c) 2015, Anaconda, Inc. and contributors

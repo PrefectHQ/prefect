@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 sa = lazy_import("sqlalchemy")
 
-# TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
+# TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
 
@@ -77,6 +77,34 @@ class FlowFilterId(PrefectFilterBaseModel):
         filters = []
         if self.any_ is not None:
             filters.append(db.Flow.id.in_(self.any_))
+        return filters
+
+
+class FlowFilterDeployment(PrefectOperatorFilterBaseModel):
+    """Filter by flows by deployment"""
+
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flows without deployments",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.is_null_ is not None:
+            deployments_subquery = (
+                sa.select(db.Deployment.flow_id).distinct().subquery()
+            )
+
+            if self.is_null_:
+                filters.append(
+                    db.Flow.id.not_in(sa.select(deployments_subquery.c.flow_id))
+                )
+            else:
+                filters.append(
+                    db.Flow.id.in_(sa.select(deployments_subquery.c.flow_id))
+                )
+
         return filters
 
 
@@ -140,6 +168,9 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
     id: Optional[FlowFilterId] = Field(
         default=None, description="Filter criteria for `Flow.id`"
     )
+    deployment: Optional[FlowFilterDeployment] = Field(
+        default=None, description="Filter criteria for Flow deployments"
+    )
     name: Optional[FlowFilterName] = Field(
         default=None, description="Filter criteria for `Flow.name`"
     )
@@ -152,6 +183,8 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
 
         if self.id is not None:
             filters.append(self.id.as_sql_filter(db))
+        if self.deployment is not None:
+            filters.append(self.deployment.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
         if self.tags is not None:
@@ -316,8 +349,12 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
 class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.state_type` and `FlowRun.state_name`."""
 
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_type`"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_name`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -420,6 +457,31 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
+    """Filter for subflows of a given flow run"""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of parent flow run ids to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(
+                db.FlowRun.id.in_(
+                    sa.select(db.FlowRun.id)
+                    .join(
+                        db.TaskRun,
+                        sa.and_(
+                            db.TaskRun.id == db.FlowRun.parent_task_run_id,
+                        ),
+                    )
+                    .where(db.TaskRun.flow_run_id.in_(self.any_))
+                )
+            )
+        return filters
+
+
 class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.parent_task_run_id`."""
 
@@ -497,12 +559,33 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         default=None,
         description="Filter criteria for `FlowRun.next_scheduled_start_time`",
     )
+    parent_flow_run_id: Optional[FlowRunFilterParentFlowRunId] = Field(
+        default=None, description="Filter criteria for subflows of the given flow runs"
+    )
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
+
+    def only_filters_on_id(self):
+        return (
+            self.id is not None
+            and (self.id.any_ and not self.id.not_any_)
+            and self.name is None
+            and self.tags is None
+            and self.deployment_id is None
+            and self.work_queue_name is None
+            and self.state is None
+            and self.flow_version is None
+            and self.start_time is None
+            and self.expected_start_time is None
+            and self.next_scheduled_start_time is None
+            and self.parent_flow_run_id is None
+            and self.parent_task_run_id is None
+            and self.idempotency_key is None
+        )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -527,6 +610,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.expected_start_time.as_sql_filter(db))
         if self.next_scheduled_start_time is not None:
             filters.append(self.next_scheduled_start_time.as_sql_filter(db))
+        if self.parent_flow_run_id is not None:
+            filters.append(self.parent_flow_run_id.as_sql_filter(db))
         if self.parent_task_run_id is not None:
             filters.append(self.parent_task_run_id.as_sql_filter(db))
         if self.idempotency_key is not None:

@@ -1,18 +1,17 @@
 import asyncio
 import statistics
 import sys
+import threading
 import time
 from contextlib import contextmanager
-import threading
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import anyio
 import pendulum
 import pytest
 from pydantic import BaseModel
-from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 
 import prefect.flows
 from prefect import engine, flow, task
@@ -23,6 +22,7 @@ from prefect.engine import (
     API_HEALTHCHECKS,
     begin_flow_run,
     check_api_reachable,
+    collect_task_run_inputs,
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
@@ -42,9 +42,9 @@ from prefect.exceptions import (
     PausedRun,
     SignatureMismatchError,
 )
-from prefect.server.schemas.core import FlowRun
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
+from prefect.server.schemas.core import FlowRun
 from prefect.server.schemas.filters import FlowRunFilter
 from prefect.server.schemas.responses import (
     SetStateStatus,
@@ -53,12 +53,16 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
-    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     temporary_settings,
 )
 from prefect.states import Cancelled, Failed, Paused, Pending, Running, State
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import (
+    BaseTaskRunner,
+    SequentialTaskRunner,
+    TaskConcurrencyType,
+)
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
@@ -783,7 +787,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        # this task should sleep for a total of 17 seconds across all conifgured retries
+        # this task should sleep for a total of 17 seconds across all configured retries
         with mock_anyio_sleep.assert_sleeps_for(17):
             state = await orchestrate_task_run(
                 task=flaky_function,
@@ -2243,3 +2247,30 @@ def test_subflow_call_with_task_runner_duplicate_not_implemented(caplog):
         " the same flow."
         in caplog.text
     )
+
+
+@patch(
+    "prefect.utilities.collections.visit_collection",
+    wraps=prefect.utilities.collections.visit_collection,
+)
+@patch("prefect.engine.visit_collection", wraps=prefect.engine.visit_collection)
+async def test_collect_task_run_inputs_respects_quote(
+    mock_outer_visit_collection, mock_recursive_visit_collection
+):
+    # Regression test for https://github.com/PrefectHQ/prefect/pull/10370
+    # This test patches the original `visit_collection` functional call in
+    # `collect_task_run_inputs` and the recursive call inside `visit_collection`
+    # separately.
+
+    await collect_task_run_inputs([{"a": 1}, {"b": 2}, {"c": 3}])
+    assert mock_outer_visit_collection.call_count == 1
+    assert mock_recursive_visit_collection.call_count == 9
+
+    mock_outer_visit_collection.reset_mock()
+    mock_recursive_visit_collection.reset_mock()
+
+    # Using `quote` should now keep recursive calls from happening,
+    # as we no longer introspect the input if annotated.
+    await collect_task_run_inputs(quote([{"a": 1}, {"b": 2}, {"c": 3}]))
+    assert mock_outer_visit_collection.call_count == 1
+    assert mock_recursive_visit_collection.call_count == 0

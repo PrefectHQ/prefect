@@ -16,7 +16,6 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -79,6 +78,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
+    FlowRunResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -1313,6 +1313,9 @@ class PrefectClient:
         Returns:
             A block document or None.
         """
+        assert (
+            block_document_id is not None
+        ), "Unexpected ID on block document. Was it persisted?"
         try:
             response = await self._client.get(
                 f"/block_documents/{block_document_id}",
@@ -1418,6 +1421,7 @@ class PrefectClient:
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
+        enforce_parameter_schema: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1457,6 +1461,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             pull_steps=pull_steps,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
         if work_pool_name is not None:
@@ -1475,6 +1480,9 @@ class PrefectClient:
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
 
+        if deployment_create.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
             "/deployments/",
@@ -1485,6 +1493,12 @@ class PrefectClient:
             raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(deployment_id)
+
+    async def update_schedule(self, deployment_id: UUID, active: bool = True):
+        path = "set_schedule_active" if active else "set_schedule_inactive"
+        await self._client.post(
+            f"/deployments/{deployment_id}/{path}",
+        )
 
     async def update_deployment(
         self,
@@ -1510,14 +1524,19 @@ class PrefectClient:
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
             infra_overrides=deployment.infra_overrides,
+            enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
 
+        exclude = set()
+        if deployment.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True, exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
@@ -2134,7 +2153,12 @@ class PrefectClient:
 
         return await resolve_inner(datadoc)
 
-    async def send_worker_heartbeat(self, work_pool_name: str, worker_name: str):
+    async def send_worker_heartbeat(
+        self,
+        work_pool_name: str,
+        worker_name: str,
+        heartbeat_interval_seconds: Optional[float] = None,
+    ):
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -2144,7 +2168,10 @@ class PrefectClient:
         """
         await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={"name": worker_name},
+            json={
+                "name": worker_name,
+                "heartbeat_interval_seconds": heartbeat_interval_seconds,
+            },
         )
 
     async def read_workers_for_work_pool(
@@ -2260,10 +2287,23 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: WorkPoolUpdate,
     ):
-        await self._client.patch(
-            f"/work_pools/{work_pool_name}",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        """
+        Updates a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to update.
+            work_pool: Fields to update in the work pool.
+        """
+        try:
+            await self._client.patch(
+                f"/work_pools/{work_pool_name}",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def delete_work_pool(
         self,
@@ -2327,6 +2367,25 @@ class PrefectClient:
             response = await self._client.post("/work_queues/filter", json=json)
 
         return pydantic.parse_obj_as(List[WorkQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_deployments(
+        self,
+        deployment_ids: List[UUID],
+        scheduled_before: Optional[datetime.datetime] = None,
+        limit: Optional[int] = None,
+    ):
+        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
+        if limit:
+            body["limit"] = limit
+
+        response = await self._client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[FlowRunResponse], response.json())
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
@@ -2546,11 +2605,15 @@ class PrefectClient:
         )
 
     async def release_concurrency_slots(
-        self, names: List[str], slots: int
+        self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
-            json={"names": names, "slots": slots},
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
         )
 
     async def __aenter__(self):
@@ -2613,10 +2676,3 @@ class PrefectClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
-
-
-@deprecated_callable(start_date="Feb 2023", help="Use `PrefectClient` instead.")
-class OrionClient(PrefectClient):
-    """
-    Deprecated. Use `PrefectClient` instead.
-    """
