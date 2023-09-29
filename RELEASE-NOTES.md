@@ -2,7 +2,9 @@
 
 ## Release 2.13.4
 ### Enhancements
+
 - Allow task runs without a flow run — https://github.com/PrefectHQ/prefect/pull/10816
+
 ### Fixes
 
 - Fixes an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
