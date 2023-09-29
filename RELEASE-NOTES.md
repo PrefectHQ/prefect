@@ -3,7 +3,7 @@
 ## Release 2.13.4
 ### Enhancements
 
-- Allow task runs without a flow run — https://github.com/PrefectHQ/prefect/pull/10816
+- Lift API and database constraints that require task runs to have an associated flow run id — https://github.com/PrefectHQ/prefect/pull/10816
 
 ### Fixes
 
