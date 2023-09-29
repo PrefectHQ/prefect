@@ -358,7 +358,8 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
 | [`ecs`](https://prefecthq.github.io/prefect-aws/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
-| [`cloud-run`](https://prefecthq.github.io/prefect-gcp/worker/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`cloud-run`](https://prefecthq.github.io/prefect-gcp/cloud_run_worker/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`vertex-a`](https://prefecthq.github.io/prefect-gcp/vertex_worker/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
 | [`azure-container-instance`](https://prefecthq.github.io/prefect-azure/container_instance_worker/) | Execute flow runs in ACI containers | `prefect-azure` |
 
 If you don’t see a worker type that meets your needs, consider [developing a new worker type](/guides/deployment/developing-a-new-worker-type/)!
