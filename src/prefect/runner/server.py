@@ -29,6 +29,14 @@ def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
     return _health_check
 
 
+def run_count(runner) -> int:
+    def _run_count():
+        run_count = len(runner._flow_run_process_map)
+        return run_count
+
+    return _run_count
+
+
 def start_webserver(
     runner,
     log_level: str = None,
@@ -46,6 +54,7 @@ def start_webserver(
     router.add_api_route(
         "/health", perform_health_check(runner=runner), methods=["GET"]
     )
+    router.add_api_route("/run_count", run_count(runner=runner), methods=["GET"])
 
     webserver.include_router(router)
 
