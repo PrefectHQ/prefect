@@ -31,6 +31,7 @@ Example:
 """
 import datetime
 import inspect
+import threading
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
@@ -84,6 +85,7 @@ import anyio
 import anyio.abc
 import sniffio
 
+from prefect.runner.server import start_webserver
 from prefect.utilities.processutils import run_process
 
 __all__ = ["Runner", "serve"]
@@ -97,6 +99,7 @@ class Runner:
         prefetch_seconds: float = 10,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
+        webserver: bool = False,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -110,6 +113,7 @@ class Runner:
             limit: The maximum number of flow runs this runner should be running at
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
+            webserver: a boolean flag for whether to start a webserver for this runner
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
@@ -144,6 +148,8 @@ class Runner:
         self.started = False
         self.pause_on_shutdown = pause_on_shutdown
         self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
+        self.webserver = webserver
+
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
 
@@ -243,7 +249,7 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
-    async def start(self, run_once: bool = False):
+    async def start(self, run_once: bool = False, webserver: bool = None) -> None:
         """
         Starts a runner.
 
@@ -251,6 +257,8 @@ class Runner:
 
         Args:
             run_once: If True, the runner will through one query loop and then exit.
+            webserver: a boolean for whether to start a webserver for this runner. If provided,
+                overrides the default on the runner
 
         Examples:
             Initialize a Runner, add two flows, and serve them by starting the Runner:
@@ -278,6 +286,21 @@ class Runner:
                 runner.start()
             ```
         """
+        webserver = webserver if webserver is not None else self.webserver
+
+        if webserver:
+            # we'll start the ASGI server in a separate thread so that
+            # uvicorn does not block the main thread
+            server_thread = threading.Thread(
+                name="runner-server-thread",
+                target=partial(
+                    start_webserver,
+                    runner=self,
+                ),
+                daemon=True,
+            )
+            server_thread.start()
+
         async with self as runner:
             async with self._loops_task_group as tg:
                 tg.start_soon(
@@ -498,7 +521,7 @@ class Runner:
 
     async def _get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
-
+        self.last_polled = pendulum.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
