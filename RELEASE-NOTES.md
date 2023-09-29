@@ -49,6 +49,9 @@ You can now set your own default filter view on your Flow Runs page! You must fi
 
 Note: The previous default view ("Default view") has been renamed to "Past week".
 
+## Integrations
+New Google Vertex AI work pool and worker. Run flows in containers on Google Vertex AI. Requires a Google Cloud Platform account and prefect-gcp installed. Read more [here](https://prefecthq.github.io/prefect-gcp/vertex_worker/).
+
 ### Enhancements
 - Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
 - Add `/deployments/get_scheduled_flow_runs` endpoint for retrieving scheduled flow runs from deployments — https://github.com/PrefectHQ/prefect/pull/10817
