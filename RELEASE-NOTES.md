@@ -60,7 +60,6 @@ Note: The previous default view ("Default view") has been renamed to "Past week"
 - Update `git_clone` deployment step example in documentation — https://github.com/PrefectHQ/prefect/pull/10827
 - Add `prefect deploy` guide to guide index for visibility  — https://github.com/PrefectHQ/prefect/pull/10828
 - Fix warning in deployment storage guide documentation — https://github.com/PrefectHQ/prefect/pull/10825
-Update logo for documentation - https://github.com/PrefectHQ/prefect/pull/10830)
 
 ### Contributors
 * @arthurgtllr made their first contribution in https://github.com/PrefectHQ/prefect/pull/10833
