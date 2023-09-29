@@ -9,7 +9,6 @@
 - Fix an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
 
 ### Documentation
-
 - Add dark mode base job template screenshot to work pools documentation — https://github.com/PrefectHQ/prefect/pull/10849
 - Drop beta tag from push work pools documentation — https://github.com/PrefectHQ/prefect/pull/10799
 - Improve logo sizing and general housekeeping - https://github.com/PrefectHQ/prefect/pull/10830
