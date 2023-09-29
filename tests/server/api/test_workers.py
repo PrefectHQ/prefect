@@ -3,7 +3,7 @@ from typing import List
 import pendulum
 import pydantic
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
