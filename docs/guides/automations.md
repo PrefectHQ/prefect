@@ -215,9 +215,6 @@ TODO: Output of the deployment running
 
 In a few quick changes, we are able to programatically create an automation that deploys workflows with custom parameters. 
 
-TODO: Deployment that recreates the same 20 names creation except with a different endpoint or feature
-
-
 # Using an underlying .yaml file
 
 We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
@@ -284,8 +281,6 @@ We can take advantage of Marvin that will help classify the data we are pulling 
 Based on the automation trigger, we will call the underlying deployment to kick off the workflow. 
 
 Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the ai function to start analyzing some of the work. 
-
-TODO: See how adding in events can help promote earlier ai analysis or generation
 
 Here is an example of pulling in that data and classifying using Marvin AI. We can simplify a classification model in a few functions using the underlying OpenAI model. 
 
