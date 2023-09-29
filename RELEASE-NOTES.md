@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## Release 2.13.4
+
+### Fixes
+
+- Fixes an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
+
+### Documentation
+
+- Improve logo sizing and general housekeeping - https://github.com/PrefectHQ/prefect/pull/10830
+
 ## Release 2.13.3
 
 ## Allow configuration of a work pool's base job template via the CLI
