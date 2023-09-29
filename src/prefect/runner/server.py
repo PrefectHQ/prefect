@@ -3,12 +3,17 @@ import uvicorn
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 
-from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY
+from prefect.settings import (
+    PREFECT_RUNNER_HEALTH_CHECK_DELAY,
+    PREFECT_RUNNER_SERVER_HOST,
+    PREFECT_RUNNER_SERVER_LOG_LEVEL,
+    PREFECT_RUNNER_SERVER_PORT,
+)
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
     if delay_threshold is None:
-        delay_threshold = 2 * PREFECT_RUNNER_POLL_FREQUENCY.value()
+        delay_threshold = PREFECT_RUNNER_HEALTH_CHECK_DELAY.value()
 
     def _health_check():
         now = pendulum.now("utc")
@@ -26,7 +31,7 @@ def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
 
 def start_webserver(
     runner,
-    log_level: str = "error",
+    log_level: str = None,
 ) -> None:
     """
     Run a FastAPI server for a runner.
@@ -44,4 +49,8 @@ def start_webserver(
 
     webserver.include_router(router)
 
-    uvicorn.run(webserver, host="0.0.0.0", port=8080, log_level=log_level)
+    host = PREFECT_RUNNER_SERVER_HOST.value()
+    port = PREFECT_RUNNER_SERVER_PORT.value()
+    log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
+
+    uvicorn.run(webserver, host=host, port=port, log_level=log_level)
