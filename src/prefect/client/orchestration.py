@@ -1503,29 +1503,46 @@ class PrefectClient:
     async def update_deployment(
         self,
         deployment: Deployment,
+        # This doesn't feel great, but we need to be able to pass in a
+        # DeploymentUpdate object, which is a subset of Deployment, but
+        # DeploymentUpdate doesn't contain the ID field.
+        deployment_id: Optional[UUID] = None,
         schedule: SCHEDULE_TYPES = None,
         is_schedule_active: bool = None,
     ):
-        deployment_update = DeploymentUpdate(
-            version=deployment.version,
-            schedule=schedule if schedule is not None else deployment.schedule,
-            is_schedule_active=(
+        deployment_update = DeploymentUpdate()
+        if deployment.version is not None:
+            deployment_update.version = deployment.version
+        if schedule is not None or deployment.schedule is not None:
+            deployment_update.schedule = schedule if schedule is not None else deployment.schedule
+        if is_schedule_active is not None or deployment.is_schedule_active is not None:
+            deployment_update.is_schedule_active = (
                 is_schedule_active
                 if is_schedule_active is not None
                 else deployment.is_schedule_active
-            ),
-            description=deployment.description,
-            work_queue_name=deployment.work_queue_name,
-            tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
-            path=deployment.path,
-            entrypoint=deployment.entrypoint,
-            parameters=deployment.parameters,
-            storage_document_id=deployment.storage_document_id,
-            infrastructure_document_id=deployment.infrastructure_document_id,
-            infra_overrides=deployment.infra_overrides,
-            enforce_parameter_schema=deployment.enforce_parameter_schema,
-        )
+            )
+        if deployment.description is not None:
+            deployment_update.description = deployment.description
+        if deployment.work_queue_name is not None:
+            deployment_update.work_queue_name = deployment.work_queue_name
+        if deployment.tags is not None:
+            deployment_update.tags = deployment.tags
+        if deployment.manifest_path is not None:
+            deployment_update.manifest_path = deployment.manifest_path
+        if deployment.path is not None:
+            deployment_update.path = deployment.path
+        if deployment.entrypoint is not None:
+            deployment_update.entrypoint = deployment.entrypoint
+        if deployment.parameters is not None:
+            deployment_update.parameters = deployment.parameters
+        if deployment.storage_document_id is not None:
+            deployment_update.storage_document_id = deployment.storage_document_id
+        if deployment.infrastructure_document_id is not None:
+            deployment_update.infrastructure_document_id = deployment.infrastructure_document_id
+        if deployment.infra_overrides is not None:
+            deployment_update.infra_overrides = deployment.infra_overrides
+        if deployment.enforce_parameter_schema is not None:
+            deployment_update.enforce_parameter_schema = deployment.enforce_parameter_schema 
 
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
@@ -1534,9 +1551,13 @@ class PrefectClient:
         if deployment.enforce_parameter_schema is None:
             exclude.add("enforce_parameter_schema")
 
+        deployment_id = deployment_id or deployment.id
+
         await self._client.patch(
-            f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True, exclude=exclude),
+            f"/deployments/{deployment_id}",
+            json=deployment_update.dict(
+                json_compatible=True, exclude=exclude, exclude_unset=True
+            ),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:

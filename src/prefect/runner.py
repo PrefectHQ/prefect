@@ -29,25 +29,28 @@ Example:
     ```
 
 """
-from contextlib import contextmanager
-from copy import deepcopy
 import datetime
 import inspect
+import tempfile
+from contextlib import contextmanager
+from copy import deepcopy
 from functools import partial
 from pathlib import Path
-import tempfile
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Protocol, Set, Union
-from urllib.parse import urlparse
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import docker
+import docker.errors
 import pendulum
+from docker.models.images import Image
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -57,6 +60,7 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.deployments.deployments import Deployment
 from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
@@ -65,6 +69,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.mounts import Mount
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_PROCESS_LIMIT,
@@ -73,9 +78,15 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.dockerutils import (
+    IMAGE_LABELS,
+    BuildError,
+    docker_client,
+    get_prefect_image_name,
+)
+from prefect.utilities.importtools import import_object
 from prefect.utilities.services import critical_service_loop
-from prefect.mounts import Mount
-
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -91,6 +102,7 @@ import anyio.abc
 import sniffio
 
 from prefect.utilities.processutils import run_process
+from prefect._internal.concurrency.api import from_sync, create_call
 
 __all__ = ["Runner", "serve"]
 
@@ -103,6 +115,21 @@ def change_directory(destination: Path):
         yield
     finally:
         os.chdir(current_dir)
+
+
+def get_runner_entrypoint(runner):
+    # Get the frame that called get_runner_entrypoint
+    frame = inspect.currentframe().f_back
+    while frame:
+        # Check the global variables of the calling frame to see if runner is among them
+        var_names = [name for name, var in frame.f_globals.items() if var is runner]
+        if var_names:
+            entrypoint_path = (
+                Path(frame.f_globals["__file__"]).relative_to(Path.cwd()).as_posix()
+            )
+            return f"{entrypoint_path}:{var_names[0]}"
+        frame = frame.f_back
+    return None
 
 
 class Runner:
@@ -163,12 +190,10 @@ class Runner:
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._runs_task_group: anyio.abc.TaskGroup = None
+        self._loops_task_group: anyio.abc.TaskGroup = None
 
-        self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
-            self.limit
-        )
+        self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
@@ -178,10 +203,12 @@ class Runner:
 
         self._tmp_dir = tempfile.TemporaryDirectory()
         self._mounts = []
-        self._deployment_working_dir_map = {}
+        self._deployment_mount_map = {}
 
-    @sync_compatible
-    async def add_deployment(
+        self._image_name: Optional[str] = None
+        self._image_tag: Optional[str] = None
+
+    def add_deployment(
         self,
         deployment: RunnerDeployment,
     ) -> UUID:
@@ -194,22 +221,26 @@ class Runner:
         """
         mount = deployment.mount
         if mount is not None:
-            mount = await self.add_mount(mount)
+            mount = self.add_mount(mount)
 
-        deployment_id = await deployment.apply()
-        self._deployment_working_dir_map[deployment_id] = (
-            mount.destination if mount else None
+        if os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is None:
+            deployment_id = from_sync.wait_for_call_in_new_thread(create_call(deployment.apply))
+        else:
+            api_deployment = from_sync.wait_for_call_in_new_thread(create_call(self._client.read_deployment_by_name,
+                f"{deployment.flow_name}/{deployment.name}"
+            ))
+            deployment_id = api_deployment.id
+        self._deployment_mount_map[deployment_id] = (
+            mount if mount else None
         )
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
 
-
-    @sync_compatible
-    async def add_flow(
+    def add_flow(
         self,
         flow: Flow,
-        name: str = None,
+        name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
@@ -253,7 +284,15 @@ class Runner:
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
             )
-        name = self.name if name is None else name
+
+        if os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None:
+            api_deployment = from_sync.wait_for_call_in_new_thread(create_call(self._client.read_deployment_by_name,
+                f"{flow.name}/{name}"
+            ))
+            deployment_id = api_deployment.id
+            self._deployment_ids.add(deployment_id)
+            return deployment_id
+
 
         deployment = flow.to_deployment(
             name=name,
@@ -268,9 +307,9 @@ class Runner:
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
         )
-        return await self.add_deployment(deployment)
+        deployment_id = from_sync.wait_for_call_in_new_thread(create_call(self.add_deployment, deployment))
+        return deployment_id
 
-    @sync_compatible
     async def add_mount(self, mount: Mount) -> Mount:
         """
         Adds a mount to the runner. The mount will be synced to the runner's
@@ -286,9 +325,11 @@ class Runner:
             mount_copy = deepcopy(mount)
             mount_copy.set_mount_path(Path(self._tmp_dir.name))
 
-            self._logger.info(f"Adding mount '{mount_copy.name}' to runner at '{mount_copy.destination}'")
+            self._logger.info(
+                f"Adding mount '{mount_copy.name}' to runner at '{mount_copy.destination}'"
+            )
             self._mounts.append(mount_copy)
-            await mount_copy.sync()
+            from_sync.wait_for_call_in_new_thread(create_call(mount_copy.sync))
 
             return mount_copy
         else:
@@ -330,6 +371,7 @@ class Runner:
                 runner.start()
             ```
         """
+        self._loops_task_group = anyio.create_task_group()
         async with self as runner:
             async with self._loops_task_group as tg:
                 tg.start_soon(
@@ -370,6 +412,130 @@ class Runner:
             )
         self._loops_task_group.cancel_scope.cancel()
 
+    def build_image(
+        self,
+        image_name: str,
+        tag: Optional[str] = None,
+        dockerfile: str = "auto",
+        **build_kwargs,
+    ):
+        """Builds Docker image for the runner."""
+        auto_build = dockerfile == "auto"
+        if auto_build:
+            lines = []
+            base_image = get_prefect_image_name()
+            lines.append(f"FROM {base_image}")
+            dir_name = os.path.basename(os.getcwd())
+
+            if Path("requirements.txt").exists():
+                lines.append(
+                    f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
+                )
+                lines.append(
+                    f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+                )
+
+            lines.append(f"COPY . /opt/prefect/{dir_name}/")
+            lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+
+            lines.append(
+                f"ENV PREFECT__RUNNER_ENTRYPOINT={get_runner_entrypoint(self)}"
+            )
+
+            temp_dockerfile = Path("Dockerfile")
+            if Path(temp_dockerfile).exists():
+                raise ValueError("Dockerfile already exists.")
+
+            with Path(temp_dockerfile).open("w") as f:
+                f.writelines(line + "\n" for line in lines)
+
+            dockerfile = str(temp_dockerfile)
+
+        build_kwargs["path"] = os.getcwd()
+        build_kwargs["dockerfile"] = dockerfile
+        build_kwargs["pull"] = build_kwargs.get("pull", True)
+        build_kwargs["decode"] = True
+        build_kwargs["labels"] = {**build_kwargs.get("labels", {}), **IMAGE_LABELS}
+        image_id = None
+
+        with docker_client() as client:
+            try:
+                events = client.api.build(**build_kwargs)
+
+                try:
+                    for event in events:
+                        if "stream" in event:
+                            sys.stdout.write(event["stream"])
+                            sys.stdout.flush()
+                        elif "aux" in event:
+                            image_id = event["aux"]["ID"]
+                        elif "error" in event:
+                            raise BuildError(event["error"])
+                        elif "message" in event:
+                            raise BuildError(event["message"])
+                except docker.errors.APIError as e:
+                    raise BuildError(e.explanation) from e
+
+            finally:
+                if auto_build:
+                    os.unlink(dockerfile)
+
+            if not isinstance(image_id, str):
+                raise BuildError("Docker did not return an image ID for built image.")
+
+            if not tag:
+                tag = slugify(pendulum.now("utc").isoformat())
+
+            image: Image = client.images.get(image_id)
+            image.tag(repository=image_name, tag=tag)
+
+        self._image_name = image_name
+        self._image_tag = tag
+
+    def push_image(self, credentials: Optional[Dict] = None):
+        with docker_client() as client:
+            if credentials is not None:
+                client.login(
+                    username=credentials.get("username"),
+                    password=credentials.get("password"),
+                    registry=credentials.get("registry_url"),
+                    reauth=credentials.get("reauth", True),
+                )
+            events = client.api.push(
+                repository=self._image_name,
+                tag=self._image_tag,
+                stream=True,
+                decode=True,
+            )
+            for event in events:
+                if "status" in event:
+                    sys.stdout.write(event["status"])
+                    if "progress" in event:
+                        sys.stdout.write(" " + event["progress"])
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                elif "error" in event:
+                    raise OSError(event["error"])
+
+    @sync_compatible
+    async def deploy(self, work_pool_name: str, job_variables: Optional[Dict] = None):
+        """Deploys the runner."""
+        if not self._image_name or not self._image_tag:
+            raise ValueError("Runner image has not been built.")
+        job_variables = job_variables or {}
+        for deployment_id in self._deployment_ids:
+            await self._client.update_deployment(
+                deployment_id=deployment_id,
+                deployment=DeploymentUpdate(
+                    work_pool_name=work_pool_name,
+                    infra_overrides={
+                        **job_variables,
+                        "image": f"{self._image_name}:{self._image_tag}",
+                        "command": "prefect flow-run execute"
+                    },
+                ),
+            )
+
     async def execute_flow_run(self, flow_run_id: UUID):
         """
         Executes a single flow run with the given ID.
@@ -377,23 +543,38 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
-        async with self:
-            if not self._acquire_limit_slot(flow_run_id):
+        runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
+        if runner_entrypoint is not None:
+            runner = import_object(runner_entrypoint)
+        else:
+            runner = self
+
+        runner.pause_on_shutdown = False
+
+        flow_run = await self._client.read_flow_run(flow_run_id)
+        mount = self._deployment_mount_map.get(flow_run.deployment_id)
+        if mount:
+            mount.set_mount_path(Path(self._tmp_dir.name))
+
+            await mount.sync()
+
+        async with runner:
+            if not runner._acquire_limit_slot(flow_run_id):
                 return
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
-                    self._submitting_flow_run_ids.add(flow_run_id)
-                    flow_run = await self._client.read_flow_run(flow_run_id)
+                    runner._submitting_flow_run_ids.add(flow_run_id)
+                    flow_run = await runner._client.read_flow_run(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
-                        self._submit_run_and_capture_errors, flow_run
+                    pid = await runner._runs_task_group.start(
+                        runner._submit_run_and_capture_errors, flow_run
                     )
 
-                    self._flow_run_process_map[flow_run.id] = pid
+                    runner._flow_run_process_map[flow_run.id] = pid
 
                     workload = partial(
-                        self._check_for_cancelled_flow_runs,
+                        runner._check_for_cancelled_flow_runs,
                         on_nothing_to_watch=tg.cancel_scope.cancel,
                     )
 
@@ -401,7 +582,7 @@ class Runner:
                         partial(
                             critical_service_loop,
                             workload=workload,
-                            interval=self._query_seconds,
+                            interval=runner._query_seconds,
                             jitter_range=0.3,
                         )
                     )
@@ -449,7 +630,7 @@ class Runner:
         env.update({"PREFECT__MOUNT_PATH": self._tmp_dir.name})
         env.update(**os.environ)  # is this really necessary??
 
-        self._logger.info(f"Working directory for flow run: {self._deployment_working_dir_map.get(flow_run.deployment_id)}")
+        mount = self._deployment_mount_map.get(flow_run.deployment_id)
 
         process = await run_process(
             command.split(" "),
@@ -457,7 +638,7 @@ class Runner:
             task_status=task_status,
             env=env,
             **kwargs,
-            cwd=self._deployment_working_dir_map.get(flow_run.deployment_id),
+            cwd=mount.destination if mount else None,
         )
 
         # Use the pid for display if no name was given
@@ -924,6 +1105,8 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
+        self._runs_task_group = anyio.create_task_group()
+        self._limiter = anyio.create_capacity_limiter(self.limit)
         self._tmp_dir.__enter__()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()

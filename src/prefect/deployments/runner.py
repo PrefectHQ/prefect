@@ -48,6 +48,7 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.mounts import GitRepositoryMount, Mount
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect._internal.concurrency.api import from_sync, create_call
 
 
 __all__ = ["RunnerDeployment"]
@@ -239,7 +240,7 @@ class RunnerDeployment(BaseModel):
             self.description = flow.description
 
     @classmethod
-    async def from_mount(
+    def from_mount(
         cls,
         mount: Mount,
         entrypoint: str,
@@ -261,7 +262,7 @@ class RunnerDeployment(BaseModel):
         
         with tempfile.TemporaryDirectory() as tmpdir:
             mount.set_mount_path(Path(tmpdir))
-            await mount.sync()
+            from_sync.wait_for_call_in_loop_thread(create_call(mount.sync))
 
             full_entrypoint = str(mount.destination / entrypoint)
             flow = load_flow_from_entrypoint(full_entrypoint)
@@ -285,9 +286,8 @@ class RunnerDeployment(BaseModel):
 
         return deployment
 
-
     @classmethod
-    async def from_remote(        
+    def from_remote(        
         cls,
         url: str,
         entrypoint: str,
@@ -308,7 +308,7 @@ class RunnerDeployment(BaseModel):
 
         mount = GitRepositoryMount(repository=url)
 
-        return await cls.from_mount(
+        return  cls.from_mount(
             mount=mount,
             entrypoint=entrypoint,
             name=name,
