@@ -91,7 +91,7 @@ Flows defined within interactive REPLs or notebooks cannot currently be deployed
 
 ### Scheduling and parametrization
 
-One of the primary motivations for creating deloyments of flows is to remotely _schedule_ and _trigger_ them. 
+One of the primary motivations for creating deployments of flows is to remotely _schedule_ and _trigger_ them. 
 Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
 
 The six fields here capture the necessary metadata to perform such actions:
