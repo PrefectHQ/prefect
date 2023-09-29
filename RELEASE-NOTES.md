@@ -1,5 +1,78 @@
 # Prefect Release Notes
 
+## Release 2.13.4
+
+### Enhancements
+- Lift API and database constraints that require task runs to have an associated flow run id — https://github.com/PrefectHQ/prefect/pull/10816
+
+### Fixes
+- Fix an issue with infinite scrolling on the sub flow runs tab in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/1788
+
+### Documentation
+- Add dark mode base job template screenshot to work pools documentation — https://github.com/PrefectHQ/prefect/pull/10849
+- Drop beta tag from push work pools documentation — https://github.com/PrefectHQ/prefect/pull/10799
+- Improve logo sizing and general housekeeping - https://github.com/PrefectHQ/prefect/pull/10830
+
+## Release 2.13.3
+
+## Allow configuration of a work pool's base job template via the CLI
+Previously, the creation and modification of work pools, including editing the base job template, were done through the Prefect UI. Now you can alter the base job template through CLI commands:
+
+Retrieve the default base job template for a given work pool:
+```bash
+prefect work-pool get-default-base-job-template --type kubernetes
+```
+
+You can customize the base job template by passing a JSON file to the `--base-job-template` flag:
+```bash
+prefect work-pool create my-k8s-pool --type kubernetes --base-job-template ./path/template.yaml
+```
+
+Useful for version control, you can now make updates to a work pool's base job template via the CLI:
+```bash
+prefect work-pool update my-work-pool --base-job-template base-job-template.json --description "My work pool" --concurrency-limit 10
+```
+
+See the documentation on [work pools](https://docs.prefect.io/latest/concepts/work-pools/) for more information, or see the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/10793
+- https://github.com/PrefectHQ/prefect/pull/10797
+- https://github.com/PrefectHQ/prefect/pull/10796
+- https://github.com/PrefectHQ/prefect/pull/10798
+- https://github.com/PrefectHQ/prefect/pull/10844
+
+## Allow users to customize their default flow runs view in the Prefect UI
+You can now set your own default filter view on your Flow Runs page! You must first save and name a view before you can set it as your default. This setting is only stored locally so it will not be shared across machines/browsers. 
+
+<img width="1034" alt="image" src="https://github.com/PrefectHQ/prefect/assets/22418768/cd3b20e2-7df6-4336-9f6c-21f55393b745" alt="new option to set a saved filter as the default">
+
+Note: The previous default view ("Default view") has been renamed to "Past week".
+
+## New Google Vertex AI work pool and worker
+- Run flows in containers on Google Vertex AI. 
+- Requires a Google Cloud Platform account and prefect-gcp library installed. Read more [here](https://prefecthq.github.io/prefect-gcp/vertex_worker/).
+
+### Enhancements
+- Display `pull_steps` on Deployments page in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10819
+- Add `/deployments/get_scheduled_flow_runs` endpoint for retrieving scheduled flow runs from deployments — https://github.com/PrefectHQ/prefect/pull/10817
+- Add flow run filter for fetching the first-level subflows for a given flow — https://github.com/PrefectHQ/prefect/pull/10806
+
+### Fixes
+- Raise `RuntimeError` error if `pip_install_requirements` step fails — https://github.com/PrefectHQ/prefect/pull/10823
+- Use a fixed list of known collection registry views - https://github.com/PrefectHQ/prefect/pull/10838
+
+### Documentation
+- Fix typos in documentation and codebase — https://github.com/PrefectHQ/prefect/pull/10813
+- Fix example in tasks concept documentation — https://github.com/PrefectHQ/prefect/pull/10833
+- Update `git_clone` deployment step example in documentation — https://github.com/PrefectHQ/prefect/pull/10827
+- Add `prefect deploy` guide to guide index for visibility  — https://github.com/PrefectHQ/prefect/pull/10828
+- Fix warning in deployment storage guide documentation — https://github.com/PrefectHQ/prefect/pull/10825
+
+### Contributors
+* @arthurgtllr made their first contribution in https://github.com/PrefectHQ/prefect/pull/10833
+- @mj0nez
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.2...2.13.3
+
 ## Release 2.13.2
 
 ### Opt-in server-side enforcement of deployment parameter schemas
