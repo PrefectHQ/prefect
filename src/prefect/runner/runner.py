@@ -64,6 +64,7 @@ from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
     get_current_settings,
@@ -95,7 +96,7 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
-        query_seconds: float = 10,
+        query_seconds: float = None,
         prefetch_seconds: float = 10,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
@@ -108,7 +109,7 @@ class Runner:
             name: The name of the runner. If not provided, a random one
                 will be generated. If provided, it cannot contain '/' or '%'.
             query_seconds: The number of seconds to wait between querying for
-                scheduled flow runs.
+                scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             limit: The maximum number of flow runs this runner should be running at
             pause_on_shutdown: A boolean for whether or not to automatically pause
@@ -150,7 +151,7 @@ class Runner:
         self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
         self.webserver = webserver
 
-        self._query_seconds = query_seconds
+        self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -307,7 +308,7 @@ class Runner:
                     partial(
                         critical_service_loop,
                         workload=runner._get_and_submit_flow_runs,
-                        interval=self._query_seconds,
+                        interval=self.query_seconds,
                         run_once=run_once,
                         jitter_range=0.3,
                     )
@@ -316,7 +317,7 @@ class Runner:
                     partial(
                         critical_service_loop,
                         workload=runner._check_for_cancelled_flow_runs,
-                        interval=self._query_seconds * 2,
+                        interval=self.query_seconds * 2,
                         run_once=run_once,
                         jitter_range=0.3,
                     )
@@ -362,7 +363,7 @@ class Runner:
                         partial(
                             critical_service_loop,
                             workload=workload,
-                            interval=self._query_seconds,
+                            interval=self.query_seconds,
                             jitter_range=0.3,
                         )
                     )

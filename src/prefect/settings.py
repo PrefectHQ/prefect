@@ -1273,6 +1273,11 @@ PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 Maximum number of processes a runner will execute in parallel.
 """
 
+PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
+"""
+Number of seconds a runner should wait between queries for scheduled work.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.

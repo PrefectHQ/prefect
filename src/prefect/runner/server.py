@@ -2,10 +2,14 @@ import pendulum
 import uvicorn
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
-from functools import partial
+
+from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY
 
 
-def perform_health_check(runner, delay_threshold: int = 15) -> JSONResponse:
+def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
+    if delay_threshold is None:
+        delay_threshold = 2 * PREFECT_RUNNER_POLL_FREQUENCY.value()
+
     def _health_check():
         now = pendulum.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
@@ -16,7 +20,9 @@ def perform_health_check(runner, delay_threshold: int = 15) -> JSONResponse:
                 content={"message": "Runner is unresponsive at this time"},
             )
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
+
     return _health_check
+
 
 def start_webserver(
     runner,
@@ -32,7 +38,9 @@ def start_webserver(
     webserver = FastAPI()
     router = APIRouter()
 
-    router.add_api_route("/health", perform_health_check(runner=runner), methods=["GET"])
+    router.add_api_route(
+        "/health", perform_health_check(runner=runner), methods=["GET"]
+    )
 
     webserver.include_router(router)
 
