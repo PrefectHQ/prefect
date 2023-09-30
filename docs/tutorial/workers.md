@@ -23,8 +23,8 @@ The primary reason to use workers and work pools is for __dynamic infrastructure
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
 In this case, you don't want an idle process running within that infrastructure. Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
 
-!!! warning "Workers and work pools are an _alternative_ to flow.serve()"
-    In the previous section, we introduced the `flow.serve()` paradigm which is an _alternative_ to the worker and work pool paradigm. You can choose either pattern depending on your orchestration needs. If you _do_ decide to set up worker based execution, you'll define deployments in a slightly different way: using Prefect's CLI and a `prefect.yaml` file as is outlined below.
+!!! warning "Choosing Between Workers/Work Pools and `flow.serve()`"
+    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. If you choose worker-based execution, the way you define deployments will be different: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below.
 
 Other advantages to using workers and work pools include:
 
