@@ -19,12 +19,12 @@ search:
 
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on. 
 
-The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
+The primary reason to use workers and work pools instead of `flows.serve()` is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
 In this case, you don't want an idle process running within that infrastructure. Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
 
 !!! warning "Choosing Between Workers/Work Pools and `flow.serve()`"
-    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. If you choose worker-based execution, **the way you define deployments will be different**: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below.
+    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. If you choose worker-based execution, **the way you define deployments will be different**: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
 
 Other advantages to using workers and work pools include:
 
@@ -156,6 +156,24 @@ Select the flow you want to deploy, and the deployment wizard will walk you thro
     You can disable the `prefect deploy` command's interactive prompts by passing in the `--no-prompt` flag, e.g. `prefect --no-prompt deploy -n my-deployment-name`. Alternatively, you can enable it by passing in the `--prompt` flag. This can be used for all `prefect` commands. To disable interactive mode for all `prefect` commands, set the `PREFECT_CLI_PROMPT` setting to 0.
 
 Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run. 
+
+If you selected `y` on the last prompt to save configuration, you should see a new `prefect.yaml` file appear. This file will allow you to easily modify and define multiple deployments for this repo.
+
+The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) can contain settings for multiple deployments as well as instructions for preparing the execution environment for a deployment run (for example, in this tutorial, a docker container is build in addition to the deployment being registered. )
+
+TODO - adding the infra override
+
+```yaml
+  work_pool:
+    name: local-docker
+    work_queue_name: null
+    job_variables:
+      image: '{{ build-image.image }}'
+      image_pull_policy: 'Never'
+  schedule: null
+```
+
+
 Try it out:
 
 ```bash
@@ -174,7 +192,7 @@ Check out the next section to learn about defining deployments in a `prefect.yam
 
 ## Next steps
 
-- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file).
+- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments).
 - Check out some of our other [work pools](/concepts/work-pools/).
 - [Concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step-by-step recipes for common Prefect operations including:
