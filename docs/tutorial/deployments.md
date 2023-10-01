@@ -150,11 +150,20 @@ You should spend some time experimenting with this setup; a few next steps for e
 - use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
 - use the UI to cancel an active run for the "sleeper" deployment (good luck cancelling the "fast" one 😉)
 
+!!! tip "Security Note"
+    Another implication of Prefect's deployment interface is our hybrid execution model. Whether you use Prefect Cloud host the OS server yourself, you'll always be able to run work flows in the environments best suited to their execution. This ensures efficient use of your infrastructure resources, all the while maintaining the privacy of your code and data.
+    There is no ingress required. 
+    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#overview).
+
 ## Next steps
 
 Congratulations! You now have your first working deployment. 
-You can pause here and begin exploring Prefect's features, or take your understanding of Prefect deployments even further:
 
-- see how to [run your deployment in a Docker container](/guides/docker/)
-- learn how to dynamically provision infrastructure with [the workers and work pools tutorial](/tutorial/workers/)
-- review the [deployments concept documentation](/concepts/deployments/)
+Deploying flows through the `.serve()` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [typed](/concepts/work-pools/#worker-types) worker.
+
+### A tale of two docker tutorials 📖
+
+To see how to host your served flow in a Docker container, head to our [**docker guide**](/guides/docker/). This should _serve_ the needs of most beginner use cases. 🥁
+
+Alternatively, if you want each flow to run within its own dedicated Docker container (or other ephemeral [infrastructure type](/concepts/work-pools/#worker-types)) learn how to start a prefect worker by heading to the [**next tutorial page**](/tutorial/workers/).
+
