@@ -22,7 +22,7 @@ Workers and work pools bridge the Prefect orchestration layer with the infrastru
 !!! tip "Choosing Between Workers/Work Pools and `flow.serve()`"
     The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. 
     
-    ☝️ If you choose worker-based execution, **the way you define deployments will be slightly different**: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
+    ☝️ If you choose worker-based execution, **the way you define deployments will be slightly different:** deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
 
 The primary reason to use workers and work pools instead of `flows.serve()` is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
@@ -53,6 +53,8 @@ graph TD
     worker --> |polls| work_pool
     worker --> |creates| flow_run_infra
 ```
+
+<sup>Notice above that the worker is in charge of provisioning the _flow run infra_. In context of this tutorial, the worker will spin up an ephemeral docker image to host each flow run. Different [worker types](/concepts/work-pools/#worker-types) can create different types of flow run infrastructure.</sup>
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
