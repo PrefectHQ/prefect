@@ -167,3 +167,4 @@ To see how to host your served flow in a Docker container, head to our [**docker
 
 Alternatively, if you want each flow to run within its own dedicated Docker container (or other ephemeral [infrastructure type](/concepts/work-pools/#worker-types)) learn how to start a prefect worker by heading to the [**next tutorial page**](/tutorial/workers/).
 
+For a deeper understanding of the differences and trade-offs between the serve and worker approaches, refer to our [deployment concept page](/concepts/deployments/#two-approaches-to-deployments).

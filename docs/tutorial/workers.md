@@ -20,7 +20,7 @@ search:
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on. 
 
 !!! tip "Choosing Between Workers/Work Pools and `flow.serve()`"
-    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. 
+    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. [Both patterns have their unique advantages, so choose based on your specific orchestration requirements.](/concepts/deployments/#two-approaches-to-deployments) 
     
     ☝️ If you choose worker-based execution, **the way you define deployments will be slightly different:** deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
 
