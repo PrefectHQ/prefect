@@ -284,3 +284,5 @@ If we navigate to the URL provided by the `prefect deployment run` command, we c
 We only served a single flow in this guide, but you can extend this setup to serve multiple flows in a single Docker image by updating your Python script to using `flow.to_deployment` and `serve` to [serve multiple flows or the same flow with different configuration](/concepts/flows#serving-multiple-flows-at-once).
 
 To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc!
+
+For advanced infrastructure requirements, say, if you wanted each flow run to execute within its own _dedicated_ docker container (or other ephemeral [infrastructure type](/concepts/work-pools/#worker-types)), learn more about our docker worker and work pool in our [tutorial pages](/tutorial/workers/).
