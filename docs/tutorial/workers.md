@@ -19,12 +19,14 @@ search:
 
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on. 
 
+!!! tip "Choosing Between Workers/Work Pools and `flow.serve()`"
+    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. 
+    
+    ☝️ If you choose worker-based execution, **the way you define deployments will be different**: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
+
 The primary reason to use workers and work pools instead of `flows.serve()` is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
 In this case, you don't want an idle process running within that infrastructure. Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
-
-!!! warning "Choosing Between Workers/Work Pools and `flow.serve()`"
-    The earlier section discussed the `flow.serve()` approach. Remember, this is an alternative to using workers and work pools. Both patterns have their unique advantages, so choose based on your specific orchestration requirements. If you choose worker-based execution, **the way you define deployments will be different**: deployments will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a work pool, and vice versa.
 
 Other advantages to using workers and work pools include:
 
@@ -163,7 +165,7 @@ If you selected `y` on the last prompt to save configuration, you should see a n
 
 The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only holds settings for various deployments but can also contain instructions that help set up the execution environment for your flow runs. For example, in the context of this tutorial, we employ a [build action](/guides/prefect-deploy/#the-build-action) to create Docker images specifically for containerized flow runs.
 
-Diving into the auto-generated `prefect.yaml`, you'll discern your deployment parameters, reflecting choices made during the deployment creation process:
+Upon examining the auto-generated `prefect.yaml`, you'll notice that the parameters for your deployment mirror the values you provided to the deployment creation wizard:
 
 ```yaml
 build:
@@ -205,7 +207,7 @@ To sidestep potential errors when pulling images locally (e.g., docker.errors.No
   schedule: null
 ```
 
-To register this update to the deployment with Prefect's API, run:
+To register this update to your deployment's parameters with Prefect's API, run:
 
 ```bash
 prefect deploy --name my-deployment
