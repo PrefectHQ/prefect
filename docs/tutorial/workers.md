@@ -159,9 +159,39 @@ Prefect will now build a custom Docker image containing your workflow code that 
 
 If you selected `y` on the last prompt to save configuration, you should see a new `prefect.yaml` file appear. This file will allow you to easily modify and define multiple deployments for this repo.
 
-The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) can contain settings for multiple deployments as well as instructions for preparing the execution environment for a deployment run (for example, in this tutorial, a docker container is build in addition to the deployment being registered. )
+The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only holds settings for various deployments but can also contain instructions that help set up the execution environment. For example, in the context of this tutorial, we employ a [build action](/guides/prefect-deploy/#the-build-action) to create Docker images specifically for containerized flow runs.
 
-TODO - adding the infra override
+Diving into the auto-generated `prefect.yaml`, you'll discern your deployment parameters, reflecting choices made during the deployment creation process:
+
+```yaml
+build:
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker>=0.3.1
+    id: build-image
+    dockerfile: auto
+    image_name: docker-user/deployment-image
+    tag: latest
+
+deployments:
+- name: my-deployment
+  version: null
+  tags: []
+  description: null
+  entrypoint: my_flow.py:get_repo_info
+  parameters: {}
+  work_pool:
+    name: my-docker-pool
+    work_queue_name: null
+    job_variables:
+      image: '{{ build-image.image }}' ## Resultant image from the build action
+  schedule: null
+```
+
+The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template).
+
+It's worth noting that the `prefect.yaml` also supports [referencing dynamic values](/guides/prefect-deploy/#templating-options). For instance, our setup designates the Docker image produced from the build action above.
+
+To sidestep potential errors when pulling images locally (e.g., docker.errors.NotFound errors), it's recommended to include an `image_pull_policy` job_variable that specifies `'Never'`:
 
 ```yaml
   work_pool:
@@ -169,23 +199,25 @@ TODO - adding the infra override
     work_queue_name: null
     job_variables:
       image: '{{ build-image.image }}'
-      image_pull_policy: 'Never'
+      image_pull_policy: 'Never' ## New Line Here
   schedule: null
 ```
 
-
-Try it out:
+To register this update to the deployment with Prefect's API, run:
 
 ```bash
-prefect deployment run 'get_repo_info/my-first-deployment'
+prefect deploy --name my-deployment
+```
+
+Now everything is set up for us to submit a flow-run to the Work Pool. Lets try it out:
+
+```bash
+prefect deployment run 'get_repo_info/my-deployment'
 ```
 
 !!! danger "Common Pitfalls"
     - When running `prefect deploy`, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
     - Ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
-
-As you continue to use Prefect, you'll likely author many different flows and deployments of them. 
-Check out the next section to learn about defining deployments in a `prefect.yaml` file.
 
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple schedules.
