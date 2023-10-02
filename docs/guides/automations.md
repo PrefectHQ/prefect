@@ -300,6 +300,4 @@ def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
 
 TODO: Clean up this data  
 - Some sort of MLOPS next steps so the guide seems organic
-- Use an events trigger in your flow to kick off a deployment of marvin 
 - low effort and does not force them to create a full blown automation to test out marvin
-- can showcase triggers and deployments being triggered from it
