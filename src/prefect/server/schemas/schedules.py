@@ -12,7 +12,8 @@ import pytz
 from croniter import croniter
 from pydantic import Field, validator
 
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer

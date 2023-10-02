@@ -10,7 +10,8 @@ from uuid import UUID
 from pydantic import Field
 
 import prefect.server.schemas as schemas
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
