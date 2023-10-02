@@ -159,7 +159,7 @@ You should spend some time experimenting with this setup; a few next steps for e
 
 Congratulations! You now have your first working deployment. 
 
-Deploying flows through the `.serve()` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [typed](/concepts/work-pools/#worker-types) worker.
+Deploying flows through the `serve` method is the most straight forward way to start scheduling flows with Prefect. However, if your team has complex infrastructure requirements, an alternative option involves deploying flows to a [worker](/concepts/work-pools/#worker-types).
 
 ### A tale of two docker tutorials 📖
 
