@@ -16,14 +16,14 @@ import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from fastapi import APIRouter, Depends, FastAPI, Request, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from prefect._vendor.fastapi import APIRouter, Depends, FastAPI, Request, status
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+from prefect._vendor.fastapi.exceptions import RequestValidationError
+from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
+from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
+from prefect._vendor.fastapi.openapi.utils import get_openapi
+from prefect._vendor.fastapi.responses import JSONResponse
+from prefect._vendor.fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 import prefect
@@ -446,11 +446,8 @@ def create_app(
         db = provide_database_interface()
         session = await db.session()
 
-        try:
-            async with session:
-                await run_block_auto_registration(session=session)
-        except Exception as exc:
-            logger.warning(f"Error occurred during block auto-registration: {exc!r}")
+        async with session:
+            await run_block_auto_registration(session=session)
 
     async def start_services():
         """Start additional services when the Prefect REST API starts up."""
@@ -555,7 +552,7 @@ def create_app(
         allow_headers=["*"],
     )
 
-    # Limit the number of concurrent requests when using a SQLite datbase to reduce
+    # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
     if (

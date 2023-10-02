@@ -107,7 +107,7 @@ class State(StateBaseModel, Generic[R]):
         """
         During orchestration, ORM states can be instantiated prior to inserting results
         into the artifact table and the `data` field will not be eagerly loaded. In
-        these cases, sqlalchemy will attept to lazily load the the relationship, which
+        these cases, sqlalchemy will attempt to lazily load the the relationship, which
         will fail when called within a synchronous pydantic method.
 
         This method will construct a `State` object from an ORM model without a loaded

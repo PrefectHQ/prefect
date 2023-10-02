@@ -6,7 +6,14 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
+from prefect._vendor.fastapi import (
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -199,6 +206,20 @@ async def read_work_pools(
             await schemas.responses.WorkPoolResponse.from_orm(w, session)
             for w in orm_work_pools
         ]
+
+
+@router.post("/count")
+async def count_work_pools(
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count work pools
+    """
+    async with db.session_context() as session:
+        return await models.workers.count_work_pools(
+            session=session, work_pool_filter=work_pools
+        )
 
 
 @router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)

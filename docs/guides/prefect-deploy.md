@@ -343,12 +343,11 @@ Below is an example of installing dependencies from a `requirements.txt` file af
 ```yaml
 pull:
     - prefect.deployments.steps.git_clone:
-        id: clone-step
+        id: clone-step  # needed in order to be referenced in subsequent steps
         repository: https://github.com/org/repo.git
     - prefect.deployments.steps.pip_install_requirements:
-        directory: {{ clone-step.directory }}
+        directory: {{ clone-step.directory }}  # `clone-step` is a user-provided `id` field
         requirements_file: requirements.txt
-        stream_output: False
 ```
 
 Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
@@ -468,7 +467,7 @@ deployments:
 
 This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name` field and can be deployed individually by using the `--name` flag when deploying.
 
-For example, to deploy `deployment-1` we would run:
+For example, to deploy `deployment-1` you would run:
 
 <div class="terminal">
 ```bash
@@ -499,6 +498,15 @@ To deploy all deployments you can use the `--all` flag:
 $ prefect deploy --all
 ```
 </div>
+
+To deploy deployments that match a pattern you can run:
+<div class="terminal">
+```bash
+$ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
+```
+</div>
+The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
+
 
 !!! note "CLI Options When Deploying Multiple Deployments"
     When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided via the CLI will be ignored.
@@ -590,6 +598,7 @@ Below are fields that can be added to each deployment declaration.
 | `triggers`                                  | An optional array of [triggers](/concepts/deployments/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
+| <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
 | `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
 ### Schedule Fields

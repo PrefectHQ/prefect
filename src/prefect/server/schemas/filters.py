@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 sa = lazy_import("sqlalchemy")
 
-# TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
+# TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
 
@@ -349,8 +349,12 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
 class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.state_type` and `FlowRun.state_name`."""
 
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_type`"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_name`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -453,6 +457,31 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
+    """Filter for subflows of a given flow run"""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of parent flow run ids to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(
+                db.FlowRun.id.in_(
+                    sa.select(db.FlowRun.id)
+                    .join(
+                        db.TaskRun,
+                        sa.and_(
+                            db.TaskRun.id == db.FlowRun.parent_task_run_id,
+                        ),
+                    )
+                    .where(db.TaskRun.flow_run_id.in_(self.any_))
+                )
+            )
+        return filters
+
+
 class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.parent_task_run_id`."""
 
@@ -530,6 +559,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         default=None,
         description="Filter criteria for `FlowRun.next_scheduled_start_time`",
     )
+    parent_flow_run_id: Optional[FlowRunFilterParentFlowRunId] = Field(
+        default=None, description="Filter criteria for subflows of the given flow runs"
+    )
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
         default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
@@ -550,6 +582,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             and self.start_time is None
             and self.expected_start_time is None
             and self.next_scheduled_start_time is None
+            and self.parent_flow_run_id is None
             and self.parent_task_run_id is None
             and self.idempotency_key is None
         )
@@ -577,6 +610,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.expected_start_time.as_sql_filter(db))
         if self.next_scheduled_start_time is not None:
             filters.append(self.next_scheduled_start_time.as_sql_filter(db))
+        if self.parent_flow_run_id is not None:
+            filters.append(self.parent_flow_run_id.as_sql_filter(db))
         if self.parent_task_run_id is not None:
             filters.append(self.parent_task_run_id.as_sql_filter(db))
         if self.idempotency_key is not None:

@@ -71,7 +71,7 @@ if sys.version_info < (3, 8):
 
         def _get_child_mock(self, **kw):
             """Patch to return async mocks for async methods"""
-            # This implemetation copied from unittest in Python 3.8
+            # This implementation copied from unittest in Python 3.8
             _new_name = kw.get("_new_name")
             if _new_name in self.__dict__.get("_spec_asyncs", {}):
                 return AsyncMock(**kw)

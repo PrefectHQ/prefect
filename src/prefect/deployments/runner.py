@@ -71,6 +71,8 @@ class RunnerDeployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
     """
 
     name: str = Field(..., description="The name of the deployment.")
@@ -101,6 +103,13 @@ class RunnerDeployment(BaseModel):
     triggers: List[DeploymentTrigger] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
+    )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
     )
 
     _path: Optional[str] = PrivateAttr(
@@ -143,6 +152,7 @@ class RunnerDeployment(BaseModel):
                 storage_document_id=None,
                 infrastructure_document_id=None,
                 parameter_openapi_schema=self._parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:
@@ -228,6 +238,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -248,6 +259,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
         """
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
@@ -262,6 +275,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
         if not deployment.entrypoint:
@@ -315,6 +329,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -336,7 +351,9 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            apply: If True, the deployment is automatically registered with the API
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
+
         """
         flow = load_flow_from_entrypoint(entrypoint)
 
@@ -357,6 +374,7 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         deployment._path = str(Path.cwd())
 

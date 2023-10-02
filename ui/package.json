@@ -12,27 +12,27 @@
   },
   "dependencies": {
     "@prefecthq/graphs": "1.1.0",
-    "@prefecthq/prefect-design": "2.0.9",
-    "@prefecthq/prefect-ui-library": "2.0.9",
+    "@prefecthq/prefect-design": "2.0.11",
+    "@prefecthq/prefect-ui-library": "2.0.17",
     "@prefecthq/vue-charts": "2.0.3",
-    "@prefecthq/vue-compositions": "1.5.9",
+    "@prefecthq/vue-compositions": "1.6.3",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.3.3",
     "vue": "3.3.4",
-    "vue-router": "4.2.4"
+    "vue-router": "4.2.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.38.0",
-    "@prefecthq/eslint-config": "1.0.29",
+    "@playwright/test": "1.38.1",
+    "@prefecthq/eslint-config": "1.0.31",
     "@vitejs/plugin-vue": "4.3.4",
-    "autoprefixer": "10.4.15",
+    "autoprefixer": "10.4.16",
     "dotenv": "16.3.1",
-    "eslint": "^8.49.0",
+    "eslint": "^8.50.0",
     "ts-node": "10.9.1",
     "typescript": "^5.2.2",
     "vite": "4.4.9",
-    "vue-tsc": "^1.8.11"
+    "vue-tsc": "^1.8.13"
   }
 }

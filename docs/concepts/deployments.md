@@ -91,10 +91,10 @@ Flows defined within interactive REPLs or notebooks cannot currently be deployed
 
 ### Scheduling and parametrization
 
-One of the primary motivations for creating deloyments of flows is to remotely _schedule_ and _trigger_ them. 
+One of the primary motivations for creating deployments of flows is to remotely _schedule_ and _trigger_ them. 
 Just as flows can be called as functions with different input values, so can deployments be triggered or scheduled with different values through the use of parameters.
 
-The five fields here capture the necessary metadata to perform such actions:
+The six fields here capture the necessary metadata to perform such actions:
 
 - **`schedule`**: a [schedule object](/concepts/schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves. 
@@ -105,6 +105,7 @@ For more information see [Automations](/concepts/automations/).
 This is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
 - **`parameters`**: default values of flow parameters that this deployment will pass on each run. 
 These can be overwritten through a trigger or when manually creating a custom run.
+- **`enforce_parameter_schema`**: a boolean flag that determines whether the API should validate the parameters passed to a flow run against the schema defined by `parameter_openapi_schema`.
 
 !!! tip "Scheduling is asynchronous and decoupled" 
     Because deployments are nothing more than metadata, runs can be created at anytime.
@@ -148,7 +149,7 @@ There are two primary ways to deploy flows with Prefect, differentiated by how m
 
 In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s). 
 
-In the other setup, you do a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure. 
+In the other setup, you do [a little extra up-front work to setup a work pool and a base job template that defines how individual flow runs will be submitted to infrastructure](/guides/prefect-deploy). 
 Workers then take these job definitions and submit them to the appropriate infrastructure with each run.
 
 Both setups can support production workloads. The choice ultimately boils down to your use case and preferences. Read further to decide which setup is right for your situation.

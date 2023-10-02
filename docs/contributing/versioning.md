@@ -13,7 +13,7 @@ search:
 
 Versions are composed of three parts: MAJOR.MINOR.PATCH. For example, the version 2.5.0 has a major version of 2, a minor version of 5, and patch version of 0.
 
-Ocassionally, we will add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can opt-into installing to test functionality before it is ready for release.
+Occasionally, we will add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can opt-into installing to test functionality before it is ready for release.
 
 Each release will increase one of the version numbers. If we increase a number other than the patch version, the versions to the right of it will be reset to zero.
 
@@ -24,7 +24,7 @@ Prefect will increase the major version when significant and widespread changes 
 Prefect will increase the minor version when:
 
 - Introducing a new concept that changes how Prefect can be used
-- Changing an existing concept in a way that fundementally alters how it is used
+- Changing an existing concept in a way that fundamentally alters how it is used
 - Removing a deprecated feature
 
 Prefect will increase the patch version when:
