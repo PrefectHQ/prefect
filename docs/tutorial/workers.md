@@ -23,7 +23,7 @@ Workers and work pools bridge the Prefect orchestration layer with the infrastru
     The earlier section discussed the `serve` approach. For many use cases, `serve` is sufficient to meet scheduling and orchestration needs. Workers and work pools are **optional**. Just remember, if infrastructure needs escalate, workers and work pools can become a handy tool. The best part? You're not locked into one method. You can seamlessly combine approaches as needed. 
     
 !!! note "Deployment definition methods differ slightly for workers"
-    If you choose to use worker-based execution, **the way you define deployments will be slightly different:** deployments for workers will be configured using Prefect's CLI and a `prefect.yaml` file, as detailed below. A serve deployment cannot be submitted to a worker, and vice versa.
+    If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured through the Prefect CLI with `prefect deploy`.  A deployment created with `serve` cannot be submitted to a worker.
 
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
