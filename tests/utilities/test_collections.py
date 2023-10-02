@@ -328,6 +328,19 @@ class TestVisitCollection:
             output_model.val == input_model.val
         ), "The fields value should be used, not the default factory"
 
+    def test_visit_collection_remembers_unset_pydantic_fields(self):
+        class RandomPydantic(pydantic.BaseModel):
+            val: uuid.UUID = pydantic.Field(default_factory=uuid.uuid4)
+
+        input_model = RandomPydantic()
+        output_model = visit_collection(
+            input_model, visit_fn=visit_even_numbers, return_data=True
+        )
+
+        assert output_model.json(exclude_unset=True) == input_model.json(
+            exclude_unset=True
+        ), "Unset fields values should be remembered and preserved"
+
     @pytest.mark.parametrize("immutable", [True, False])
     def test_visit_collection_mutation_with_private_pydantic_attributes(
         self, immutable

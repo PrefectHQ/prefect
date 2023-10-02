@@ -368,6 +368,8 @@ def visit_collection(
                 # Use `object.__setattr__` to avoid errors on immutable models
                 object.__setattr__(model_instance, attr, getattr(expr, attr))
 
+            # Preserve data about which fields were explicitly set on the original model
+            object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
             result = model_instance
         else:
             result = None
