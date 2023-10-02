@@ -285,4 +285,4 @@ We only served a single flow in this guide, but you can extend this setup to ser
 
 To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc!
 
-For advanced infrastructure requirements, say, if you wanted each flow run to execute within its own _dedicated_ docker container (or other ephemeral [infrastructure type](/concepts/work-pools/#worker-types)), learn more about our docker worker and work pool in our [tutorial pages](/tutorial/workers/).
+For advanced infrastructure requirements, such as executing each flow run within its own dedicated Docker container, learn more in our [worker and work pools tutorial page](/tutorial/workers/).
