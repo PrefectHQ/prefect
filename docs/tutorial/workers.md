@@ -70,7 +70,7 @@ For this tutorial you will create a **Docker** type work pool via the CLI.
 Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated Docker container using a Docker client available to the worker.
 
 !!! tip "Other work pool types"
-    There are [work pool types](/concepts/work-pools/#worker-types) for all major managed code execution platforms, such as Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
+    There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run. Kubernetes is also a popular type of work pool.
     
     These are expanded upon in the [Guides](/guides) section.
 
