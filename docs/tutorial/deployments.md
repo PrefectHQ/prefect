@@ -165,6 +165,6 @@ Deploying flows through the `serve` method is the most straight forward way to s
 
 To see how to host your served flow in a Docker container, head to our [**docker guide**](/guides/docker/). This should _serve_ 🥁 the needs of most scheduling and orchestration use cases.
 
-Alternatively, if you want each flow run to execute within its own _dedicated_ docker container (or other ephemeral [infrastructure type](/concepts/work-pools/#worker-types)) learn how to start a prefect worker by heading to the [**next tutorial page**](/tutorial/workers/).
+Alternatively, to execute each flow run within its own _dedicated_ Docker container (or other ephemeral [infrastructure](/concepts/work-pools/#worker-types)) learn how to use a Prefect worker by heading to the [worker and work pools tutorial pages](/tutorial/workers/).
 
 For a deeper understanding of the trade-offs between the serve and worker approaches or how you might mix and match both methods, refer to our [**deployment concept page**](/concepts/deployments/#two-approaches-to-deployments).
