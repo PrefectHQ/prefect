@@ -283,7 +283,7 @@ class TestDiscoverFlows:
             assert "Could not open foo.py" in caplog.text
 
     async def test_prefect_can_be_imported_from_non_main_thread(self):
-        """testing due to `asyncio.Semaphore` error when importing prefect from a non-main thread
+        """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
         in python <= 3.9
         """
 
