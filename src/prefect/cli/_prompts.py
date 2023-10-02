@@ -647,7 +647,7 @@ async def prompt_entrypoint(console: Console) -> str:
 @inject_client
 async def prompt_select_remote_flow_storage(
     console: Console, client: PrefectClient = None
-) -> str:
+) -> Optional[str]:
     valid_slugs_for_context = set()
 
     for (
@@ -687,6 +687,13 @@ async def prompt_select_remote_flow_storage(
             "description": "Use an Azure Blob Storage bucket.",
         },
     ]
+
+    valid_storage_options_for_context = [
+        row
+        for row in flow_storage_options
+        if row is not None and row["slug"] in valid_slugs_for_context
+    ]
+
     selected_flow_storage_row = prompt_select_from_table(
         console,
         prompt="Please select a remote code storage option.",
@@ -694,11 +701,7 @@ async def prompt_select_remote_flow_storage(
             {"header": "Storage Type", "key": "type"},
             {"header": "Description", "key": "description"},
         ],
-        data=[
-            row
-            for row in flow_storage_options
-            if row is not None and row["slug"] in valid_slugs_for_context
-        ],
+        data=valid_storage_options_for_context,
     )
 
     return selected_flow_storage_row["slug"]

@@ -618,11 +618,16 @@ class TestProjectDeploySingleDeploymentYAML:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            user_input="y"
-            + readchar.key.ENTER
-            + readchar.key.ENTER
-            + "n"
-            + readchar.key.ENTER,
+            user_input=(
+                "y"
+                + readchar.key.ENTER
+                + readchar.key.ENTER
+                + "n"
+                + readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_code=0,
         )
 
@@ -2166,8 +2171,11 @@ class TestProjectDeploy:
                 +
                 # choose existing deployment configuration
                 readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 +
-                # accept save
+                # decline save
                 "n"
                 + readchar.key.ENTER
             ),
@@ -3128,14 +3136,20 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # reject saving configuration
+                # decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
                 # accept naming deployment
                 + "y"
                 + readchar.key.ENTER
                 # enter deployment name
                 + "test-name-2"
+                + readchar.key.ENTER
+                # decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # reject saving configuration
                 + "n"
@@ -3814,7 +3828,15 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy",
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Would you like to use an existing deployment configuration?",
                 "test-name-1",
@@ -4143,9 +4165,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4176,14 +4200,15 @@ class TestSaveUserInputs:
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
             user_input=(
+                # decline remote storage
+                "n"
+                + readchar.key.ENTER
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter work pool name
-                "inflatable"
+                + "inflatable"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4231,9 +4256,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4260,18 +4287,19 @@ class TestSaveUserInputs:
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
             user_input=(
+                # decline remote storage
+                "n"
+                + readchar.key.ENTER
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
+                + readchar.key.ENTER
                 +
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
                 # accept found existing deployment
                 + "y"
