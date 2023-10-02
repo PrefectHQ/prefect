@@ -2205,7 +2205,7 @@ class TestProjectDeploy:
 
     @pytest.mark.parametrize("schedule_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
-    async def test_deploy_does_not_prompt_when_empty_schedule_prefect_yaml(
+    async def test_deploy_does_not_prompt_schedule_when_empty_schedule_prefect_yaml(
         self, schedule_value, work_pool, prefect_client
     ):
         prefect_yaml_file = Path("prefect.yaml")
@@ -2232,6 +2232,9 @@ class TestProjectDeploy:
             user_input=(
                 # Decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -2269,12 +2272,15 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy -n test-name",
-            expected_code=0,
             user_input=(
                 # Decline remote storage
                 "n"
                 + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
+                + readchar.key.ENTER
             ),
+            expected_code=0,
             expected_output_does_not_contain="Would you like to build a Docker image?",
         )
 
@@ -3122,16 +3128,16 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # Decline remote storage
+                # reject saving configuration
                 "n"
                 + readchar.key.ENTER
-                # Confirm unnamed deployment creation
+                # accept naming deployment
                 + "y"
                 + readchar.key.ENTER
-                # Provide a name
+                # enter deployment name
                 + "test-name-2"
                 + readchar.key.ENTER
-                # Decline remote storage
+                # reject saving configuration
                 + "n"
                 + readchar.key.ENTER
             ),
@@ -3179,10 +3185,13 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # Decline remote storage
+                # decline remote storage
                 "n"
                 + readchar.key.ENTER
-                # Decline unnamed deployment creation
+                # reject saving configuration
+                + "n"
+                + readchar.key.ENTER
+                # reject naming deployment
                 + "n"
                 + readchar.key.ENTER
             ),
@@ -3662,12 +3671,14 @@ class TestMultiDeploy:
             invoke_and_assert,
             command="deploy -n 'test-name-1'",
             user_input=(
-                # Select the second flow named my_flow2
+                # select 2nd flow named my_flow2
                 readchar.key.DOWN
                 + readchar.key.ENTER
-                +
-                # Reject scheduling when flow runs
-                "n"
+                # reject scheduling when flow runs
+                + "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
                 # Decline remote storage
                 + "n"
@@ -3859,7 +3870,10 @@ class TestMultiDeploy:
                 # accept migration
                 "y"
                 + readchar.key.ENTER
-                # Decline remote storage
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # reject saving configuration
                 + "n"
                 + readchar.key.ENTER
             ),
@@ -4100,6 +4114,189 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["schedule"]["timezone"] == "UTC"
         assert config["deployments"][1]["schedule"]["day_or"]
 
+    def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
+        # Set up initial deployment deployment
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # enter deployment name
+                "existing-deployment"
+                + readchar.key.ENTER
+                # accept create schedule
+                + "y"
+                + readchar.key.ENTER
+                # select cron schedule
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                # enter cron schedule
+                + "* * * * *"
+                + readchar.key.ENTER
+                # accept default timezone
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+
+        assert config["deployments"][1]["name"] == "existing-deployment"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"] == {
+            "cron": "* * * * *",
+            "day_or": True,
+            "timezone": "UTC",
+        }
+
+        invoke_and_assert(
+            command="deploy -n existing-deployment --cron '* * * * *'",
+            user_input=(
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                    "Deployment configuration saved to prefect.yaml"
+                ),
+            ],
+        )
+
+        # assert that the deployment was updated in the prefect.yaml
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "existing-deployment"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"] == {
+            "cron": "* * * * *",
+            "day_or": True,
+            "timezone": "UTC",
+        }
+
+    def test_deploy_existing_deployment_with_changes_prompts_save(self):
+        # Set up initial deployment deployment
+        invoke_and_assert(
+            command="deploy flows/hello.py:my_flow",
+            user_input=(
+                # enter deployment name
+                "existing-deployment"
+                + readchar.key.ENTER
+                # reject create schedule
+                + "n"
+                + readchar.key.ENTER
+                +
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+
+        assert config["deployments"][1]["name"] == "existing-deployment"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"] is None
+
+        invoke_and_assert(
+            command="deploy -n existing-deployment --cron '* * * * *'",
+            user_input=(
+                # accept create work pool
+                readchar.key.ENTER
+                +
+                # choose process work pool
+                readchar.key.ENTER
+                +
+                # enter work pool name
+                "inflatable"
+                + readchar.key.ENTER
+                +
+                # accept save user inputs
+                "y"
+                + readchar.key.ENTER
+                # accept found existing deployment
+                + "y"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
+        )
+
+        # assert that the deployment was updated in the prefect.yaml
+        with open("prefect.yaml", mode="r") as f:
+            config = yaml.safe_load(f)
+
+        assert len(config["deployments"]) == 2
+        assert config["deployments"][1]["name"] == "existing-deployment"
+        assert config["deployments"][1]["entrypoint"] == "flows/hello.py:my_flow"
+        assert config["deployments"][1]["work_pool"]["name"] == "inflatable"
+        assert config["deployments"][1]["schedule"]["cron"] == "* * * * *"
+
     def test_save_user_inputs_with_rrule_schedule(self):
         invoke_and_assert(
             command="deploy flows/hello.py:my_flow",
@@ -4227,7 +4424,7 @@ class TestSaveUserInputs:
         assert config["deployments"][1]["push"] == push_steps
         assert config["deployments"][1]["pull"] == pull_steps
 
-    def test_save_deployment_with_existing_deployment(self):
+    def test_save_new_deployment_with_same_name_as_existing_deployment_overwrites(self):
         # Set up initial 'prefect.yaml' file with a deployment
         initial_deployment = {
             "name": "existing_deployment",

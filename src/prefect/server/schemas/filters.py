@@ -80,6 +80,34 @@ class FlowFilterId(PrefectFilterBaseModel):
         return filters
 
 
+class FlowFilterDeployment(PrefectOperatorFilterBaseModel):
+    """Filter by flows by deployment"""
+
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flows without deployments",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.is_null_ is not None:
+            deployments_subquery = (
+                sa.select(db.Deployment.flow_id).distinct().subquery()
+            )
+
+            if self.is_null_:
+                filters.append(
+                    db.Flow.id.not_in(sa.select(deployments_subquery.c.flow_id))
+                )
+            else:
+                filters.append(
+                    db.Flow.id.in_(sa.select(deployments_subquery.c.flow_id))
+                )
+
+        return filters
+
+
 class FlowFilterName(PrefectFilterBaseModel):
     """Filter by `Flow.name`."""
 
@@ -140,6 +168,9 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
     id: Optional[FlowFilterId] = Field(
         default=None, description="Filter criteria for `Flow.id`"
     )
+    deployment: Optional[FlowFilterDeployment] = Field(
+        default=None, description="Filter criteria for Flow deployments"
+    )
     name: Optional[FlowFilterName] = Field(
         default=None, description="Filter criteria for `Flow.name`"
     )
@@ -152,6 +183,8 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
 
         if self.id is not None:
             filters.append(self.id.as_sql_filter(db))
+        if self.deployment is not None:
+            filters.append(self.deployment.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
         if self.tags is not None:
