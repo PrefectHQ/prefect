@@ -26,7 +26,7 @@ Workers and work pools bridge the Prefect orchestration layer with the infrastru
     If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured through the Prefect CLI with `prefect deploy`.  A deployment created with `serve` cannot be submitted to a worker.
 
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
-For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
+For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently. 
 In this case, you don't want an idle process running within that infrastructure. Instead, use a lightweight _worker_ to dynamically provision the infrastructure only when the workflow is scheduled to run.  
 
 Other advantages to using workers and work pools include:
