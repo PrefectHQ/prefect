@@ -63,9 +63,31 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+else:
+    from pydantic import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -94,12 +116,12 @@ class Setting(Generic[T]):
         deprecated_help: str = "",
         deprecated_when_message: str = "",
         deprecated_when: Optional[Callable[[Any], bool]] = None,
-        deprecated_renamed_to: Optional["Setting"] = None,
-        value_callback: Callable[["Settings", T], T] = None,
+        deprecated_renamed_to: Optional["Setting[T]"] = None,
+        value_callback: Optional[Callable[["Settings", T], T]] = None,
         is_secret: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
-        self.field: pydantic.fields.FieldInfo = Field(**kwargs)
+        self.field: fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self._name = None
@@ -480,7 +502,6 @@ def default_cloud_ui_url(settings, value):
 
 
 # Setting definitions
-
 
 PREFECT_HOME = Setting(
     Path,
@@ -1594,7 +1615,7 @@ def temporary_settings(
         yield new_settings
 
 
-class Profile(pydantic.BaseModel):
+class Profile(BaseModel):
     """
     A user profile containing settings.
     """
@@ -1603,7 +1624,7 @@ class Profile(pydantic.BaseModel):
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path]
 
-    @pydantic.validator("settings", pre=True)
+    @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
         if value is None:
             return value
