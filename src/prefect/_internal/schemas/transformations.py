@@ -36,7 +36,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
     Examples:
 
         >>> from pydantic import BaseModel
-        >>> from prefect.server.utilities.schemas import copy_model_fields, FieldFrom
+        >>> from prefect._internal.schemas.transformation import copy_model_fields, FieldFrom
         >>>
         >>> class Parent(BaseModel):
         ...     name: str

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from fastapi import status
+from starlette import status
 
 from prefect.server import schemas
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
