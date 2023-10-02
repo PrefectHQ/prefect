@@ -217,7 +217,7 @@ To register this update to your deployment's parameters with Prefect's API, run:
 prefect deploy --name my-deployment
 ```
 
-Now everything is set up for us to submit a flow-run to the Work Pool:
+Now everything is set up for us to submit a flow-run to the work pool:
 
 ```bash
 prefect deployment run 'get_repo_info/my-deployment'
