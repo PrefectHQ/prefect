@@ -120,6 +120,14 @@ class TestDeploymentBasicInterface:
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
 
+    def test_enforce_parameter_schema_defaults_to_none(self):
+        """
+        enforce_parameter_schema defaults to None to allow for backwards compatibility
+        with older servers
+        """
+        d = Deployment(name="foo")
+        assert d.enforce_parameter_schema is None
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
@@ -340,7 +348,7 @@ class TestDeploymentBuild:
         )
         assert d.path == "/opt/prefect/flows"
 
-        # can be overriden
+        # can be overridden
         d = await Deployment.build_from_flow(
             flow=flow_function,
             name="foo",
@@ -605,6 +613,21 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
+@pytest.fixture
+async def test_deployment_with_parameter_schema(patch_import, tmp_path):
+    d = Deployment(
+        name="TEST",
+        flow_name="fn",
+        enforce_parameter_schema=True,
+        parameter_openapi_schema={
+            "type": "object",
+            "properties": {"1": {"type": "string"}, "2": {"type": "string"}},
+        },
+    )
+    deployment_id = await d.apply()
+    return d, deployment_id
+
+
 class TestDeploymentApply:
     async def test_deployment_apply_updates_concurrency_limit(
         self,
@@ -707,6 +730,25 @@ class TestDeploymentApply:
         dep = await prefect_client.read_deployment(dep_id)
 
         assert dep is not None
+
+    async def test_deployment_apply_with_enforce_parameter_schema(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            enforce_parameter_schema=True,
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+        assert d.enforce_parameter_schema is True
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep.enforce_parameter_schema is True
 
 
 class TestRunDeployment:

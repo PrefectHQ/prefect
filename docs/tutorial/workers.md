@@ -34,13 +34,11 @@ The architecture of a worker/work pool deployment can be summarized with the fol
 
 ```mermaid
 graph TD
-
     subgraph your_infra["Your Execution Environment"]
         worker["Worker"]
 				subgraph flow_run_infra[Flow Run Infra]
 					flow_run(("Flow Run"))
-				end
-        
+				end    
     end
 
     subgraph api["Prefect API"]
@@ -55,7 +53,7 @@ graph TD
 !!! note "Security Note"
     Prefect provides execution through its hybrid model, which allows you to deploy workflows that run in the environments best suited to their execution while allowing you to keep your code and data completely private. 
     There is no ingress required. 
-    For more information [read more about our hybrid model].(https://www.prefect.io/security/overview/#overview)
+    For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#overview).
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
@@ -157,11 +155,9 @@ Select the flow you want to deploy, and the deployment wizard will walk you thro
 Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run. 
 Try it out:
 
-<div class="terminal">
 ```bash
 prefect deployment run 'get_repo_info/my-first-deployment'
 ```
-</div>
 
 !!! danger "Common Pitfalls"
     - When running `prefect deploy`, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!

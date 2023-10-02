@@ -190,7 +190,7 @@ Additionally:
 - Capitalize placeholder labels and wrap them in less than (<) and greater than (>) signs.
 - Utilize `textwrap.dedent` to remove extraneous spacing for strings that are written with triple quotes (""").
 
-Placholder Example:
+Placeholder Example:
 ```bash
 Create a work queue with tags:
     prefect work-queue create '<WORK QUEUE NAME>' -t '<OPTIONAL TAG 1>' -t '<OPTIONAL TAG 2>'

@@ -373,8 +373,8 @@ class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -573,6 +573,12 @@ class Deployment(ORMBaseModel):
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."
+        ),
+    )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the deployment should enforce the parameter schema."
         ),
     )
 
@@ -853,8 +859,8 @@ class Log(ORMBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
@@ -932,7 +938,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
     ) -> bool:
         """
-        Given empirical information about the state of the work queue, evaulate its health status.
+        Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
             late_runs: the count of late runs for the work queue.

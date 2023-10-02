@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Make slot_decay_per_second not nullable
+SQLite: `8167af8df781`
+Postgres: `4e9a6f93eb6c`
+
 # Add heartbeat_interval_seconds to worker table
 SQLite: `c2d001b7dd06`
 Postgres: `50f8c182c3ca`
@@ -272,7 +276,7 @@ Adds tables for storing block data.
 SQLite: `619bea85701a`
 Postgres: `5f376def75c3`
 
-## Intial
+## Initial
 
 Creates the database that previously was not managed by migrations.
 

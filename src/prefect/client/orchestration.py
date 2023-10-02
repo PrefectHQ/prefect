@@ -2,7 +2,15 @@ import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import httpcore
@@ -10,7 +18,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI, status
+from starlette import status
 
 import prefect
 import prefect.exceptions
@@ -78,6 +86,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
+    FlowRunResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -109,7 +118,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
 
 class ServerType(AutoEnum):
@@ -173,7 +182,7 @@ class PrefectClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI],
+        api: Union[str, ASGIApp],
         *,
         api_key: str = None,
         api_version: str = None,
@@ -196,7 +205,7 @@ class PrefectClient:
 
         # Context management
         self._exit_stack = AsyncExitStack()
-        self._ephemeral_app: Optional[FastAPI] = None
+        self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
         self.server_type: ServerType
 
@@ -244,7 +253,7 @@ class PrefectClient:
             )
 
         # Connect to an in-process application
-        elif isinstance(api, FastAPI):
+        elif isinstance(api, ASGIApp):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
 
@@ -267,7 +276,7 @@ class PrefectClient:
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'FastAPI'"
+                " 'str' or 'ASGIApp/FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -1449,6 +1458,7 @@ class PrefectClient:
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
+        enforce_parameter_schema: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1488,6 +1498,7 @@ class PrefectClient:
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             pull_steps=pull_steps,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
         if work_pool_name is not None:
@@ -1505,6 +1516,9 @@ class PrefectClient:
 
         if deployment_create.pull_steps is None:
             exclude.add("pull_steps")
+
+        if deployment_create.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
@@ -1547,14 +1561,19 @@ class PrefectClient:
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
             infra_overrides=deployment.infra_overrides,
+            enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
         if getattr(deployment, "work_pool_name", None) is not None:
             deployment_update.work_pool_name = deployment.work_pool_name
 
+        exclude = set()
+        if deployment.enforce_parameter_schema is None:
+            exclude.add("enforce_parameter_schema")
+
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True),
+            json=deployment_update.dict(json_compatible=True, exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
@@ -2305,10 +2324,23 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: WorkPoolUpdate,
     ):
-        await self._client.patch(
-            f"/work_pools/{work_pool_name}",
-            json=work_pool.dict(json_compatible=True, exclude_unset=True),
-        )
+        """
+        Updates a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to update.
+            work_pool: Fields to update in the work pool.
+        """
+        try:
+            await self._client.patch(
+                f"/work_pools/{work_pool_name}",
+                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def delete_work_pool(
         self,
@@ -2372,6 +2404,25 @@ class PrefectClient:
             response = await self._client.post("/work_queues/filter", json=json)
 
         return pydantic.parse_obj_as(List[WorkQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_deployments(
+        self,
+        deployment_ids: List[UUID],
+        scheduled_before: Optional[datetime.datetime] = None,
+        limit: Optional[int] = None,
+    ):
+        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
+        if limit:
+            body["limit"] = limit
+
+        response = await self._client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[FlowRunResponse], response.json())
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
