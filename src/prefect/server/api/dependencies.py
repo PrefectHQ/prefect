@@ -3,8 +3,8 @@ Utilities for injecting FastAPI dependencies.
 """
 import logging
 
-from fastapi import Body, Depends, Header, HTTPException, status
 from packaging.version import Version
+from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
 
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 

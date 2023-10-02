@@ -8,8 +8,8 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
-from fastapi.responses import ORJSONResponse
+from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi.responses import ORJSONResponse
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

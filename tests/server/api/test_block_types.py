@@ -5,7 +5,7 @@ from uuid import uuid4
 import pendulum
 import pydantic
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect
 from prefect.blocks.core import Block

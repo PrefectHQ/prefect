@@ -1,4 +1,4 @@
-from fastapi import status
+from starlette import status
 
 from prefect.testing.utilities import AsyncMock
 

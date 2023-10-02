@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 import httpx
 from cachetools import TTLCache
-from fastapi import HTTPException, status
+from prefect._vendor.fastapi import HTTPException, status
 
 from prefect.server.utilities.server import PrefectRouter
 

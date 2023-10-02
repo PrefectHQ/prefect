@@ -3,7 +3,7 @@ Routes for interacting with block capabilities.
 """
 from typing import List
 
-from fastapi import Depends
+from prefect._vendor.fastapi import Depends
 
 from prefect.server import models
 from prefect.server.database.dependencies import (

@@ -6,7 +6,15 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, Body, Depends, Header, HTTPException, Path, status
+from prefect._vendor.fastapi import (
+    BackgroundTasks,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Path,
+    status,
+)
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

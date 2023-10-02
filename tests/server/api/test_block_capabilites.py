@@ -1,5 +1,5 @@
 import pytest
-from fastapi import status
+from starlette import status
 
 from prefect.blocks.core import Block
 from prefect.server import models

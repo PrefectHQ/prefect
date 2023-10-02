@@ -16,8 +16,8 @@ import pendulum
 import pydantic
 import pytest
 import respx
-from fastapi import Depends, FastAPI, status
-from fastapi.security import HTTPBearer
+from prefect._vendor.fastapi import Depends, FastAPI, status
+from prefect._vendor.fastapi.security import HTTPBearer
 
 import prefect.client.schemas as client_schemas
 import prefect.context

@@ -6,8 +6,8 @@ import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Callable, Coroutine, Iterable, Set, get_type_hints
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.routing import APIRoute
+from prefect._vendor.fastapi import APIRouter, Request, Response, status
+from prefect._vendor.fastapi.routing import APIRoute
 
 
 def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
