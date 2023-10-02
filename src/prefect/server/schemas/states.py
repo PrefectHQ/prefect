@@ -10,7 +10,11 @@ from uuid import UUID
 import pendulum
 from pydantic import Field, root_validator, validator
 
-from prefect.server.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import (
+    IDBaseModel,
+    PrefectBaseModel,
+)
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
