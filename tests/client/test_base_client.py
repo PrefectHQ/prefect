@@ -2,8 +2,8 @@ from unittest.mock import call
 
 import httpx
 import pytest
-from fastapi import status
 from httpx import AsyncClient, Request, Response
+from starlette import status
 
 from prefect.client.base import PrefectHttpxClient, PrefectResponse
 from prefect.exceptions import PrefectHTTPStatusError

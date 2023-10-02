@@ -6,7 +6,7 @@ import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
-from fastapi import status
+from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
