@@ -193,15 +193,13 @@ deployments:
   schedule: null
 ```
 
+It's worth noting that the `prefect.yaml` supports [referencing dynamic values](/guides/prefect-deploy/#templating-options). You can see that our deployment references the Docker image produced from the build action above.
+
 The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template).
 
-It's worth noting that the `prefect.yaml` also supports [referencing dynamic values](/guides/prefect-deploy/#templating-options). You can see that our deployment references the Docker image produced from the build action above.
+When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), it's recommended to include an `image_pull_policy` job_variable set to `Never`. However, for production workflows, always consider pushing images to a remote registry for more reliability and accessibility.
 
-To sidestep potential errors when pulling images locally (e.g., docker.errors.NotFound errors), it's recommended to include an `image_pull_policy` job_variable that specifies `'Never'`:
-
-When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), it's recommended to include an image_pull_policy job_variable set to 'Never'. However, for production workflows, always consider pushing images to a remote registry for more reliability and accessibility.
-
-Here's how you can easily set the image_pull_policy to be `Never` for this tutorial deployment without affecting the default value set on your docker work pool:
+Here's how you can easily set the `image_pull_policy` to be `Never` for this tutorial deployment without affecting the default value set on your work pool:
 
 ```yaml
   work_pool:
