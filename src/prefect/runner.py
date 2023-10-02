@@ -198,12 +198,15 @@ class Runner:
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        # Lots of ways to track deployments. Find a way to consolidate these.
+        self._deployments: List[RunnerDeployment] = list()
+        self._deployment_id_map = dict()
         self._deployment_ids: Set[UUID] = set()
+        self._deployment_mount_map = {}
         self._flow_run_process_map = dict()
 
         self._tmp_dir = tempfile.TemporaryDirectory()
         self._mounts = []
-        self._deployment_mount_map = {}
 
         self._image_name: Optional[str] = None
         self._image_tag: Optional[str] = None
@@ -211,7 +214,7 @@ class Runner:
     def add_deployment(
         self,
         deployment: RunnerDeployment,
-    ) -> UUID:
+    ):
         """
         Registers the deployment with the Prefect API and will monitor for work once
         the runner is started.
@@ -219,23 +222,7 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        mount = deployment.mount
-        if mount is not None:
-            mount = self.add_mount(mount)
-
-        if os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is None:
-            deployment_id = from_sync.wait_for_call_in_new_thread(create_call(deployment.apply))
-        else:
-            api_deployment = from_sync.wait_for_call_in_new_thread(create_call(self._client.read_deployment_by_name,
-                f"{deployment.flow_name}/{deployment.name}"
-            ))
-            deployment_id = api_deployment.id
-        self._deployment_mount_map[deployment_id] = (
-            mount if mount else None
-        )
-        self._deployment_ids.add(deployment_id)
-
-        return deployment_id
+        self._deployments.append(deployment)
 
     def add_flow(
         self,
@@ -251,7 +238,7 @@ class Runner:
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
-    ) -> UUID:
+    ):
         """
         Provides a flow to the runner to be run based on the provided configuration.
 
@@ -285,15 +272,6 @@ class Runner:
                 " start` to start the scheduler."
             )
 
-        if os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None:
-            api_deployment = from_sync.wait_for_call_in_new_thread(create_call(self._client.read_deployment_by_name,
-                f"{flow.name}/{name}"
-            ))
-            deployment_id = api_deployment.id
-            self._deployment_ids.add(deployment_id)
-            return deployment_id
-
-
         deployment = flow.to_deployment(
             name=name,
             interval=interval,
@@ -307,10 +285,9 @@ class Runner:
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
         )
-        deployment_id = from_sync.wait_for_call_in_new_thread(create_call(self.add_deployment, deployment))
-        return deployment_id
+        self.add_deployment(deployment)
 
-    async def add_mount(self, mount: Mount) -> Mount:
+    def add_mount(self, mount: Mount) -> Mount:
         """
         Adds a mount to the runner. The mount will be synced to the runner's
         working directory before the runner starts.
@@ -329,7 +306,6 @@ class Runner:
                 f"Adding mount '{mount_copy.name}' to runner at '{mount_copy.destination}'"
             )
             self._mounts.append(mount_copy)
-            from_sync.wait_for_call_in_new_thread(create_call(mount_copy.sync))
 
             return mount_copy
         else:
@@ -371,9 +347,30 @@ class Runner:
                 runner.start()
             ```
         """
+        # Apply added deployments. Deployment application happens here
+        # so that all add methods are side-effect free and synchronous.
+        for deployment in self._deployments:
+            deployment_id = await deployment.apply()
+            self._deployment_id_map[deployment_id] = deployment
+            if deployment.mount:
+                mount = self.add_mount(deployment.mount)
+                self._deployment_mount_map[deployment_id] = mount
+
         self._loops_task_group = anyio.create_task_group()
         async with self as runner:
             async with self._loops_task_group as tg:
+                # Might need to sync mounts before starting the loops
+                # to avoid a race condition
+                for mount in self._mounts:
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=mount.sync,
+                            interval=mount.sync_interval,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                        )
+                    )
                 tg.start_soon(
                     partial(
                         critical_service_loop,
@@ -392,16 +389,6 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                for mount in self._mounts:
-                    tg.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=mount.sync,
-                            interval=mount.sync_interval,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                        )
-                    )
 
     def stop(self):
         """Stops the runner's polling cycle."""
@@ -522,8 +509,18 @@ class Runner:
         """Deploys the runner."""
         if not self._image_name or not self._image_tag:
             raise ValueError("Runner image has not been built.")
+        # Need relative path for locally stored flows so that it works in a container.
+        # This doesn't feel like the right place to do this. Should it be the responsibility
+        # of the deployment to handle this?
+        for deployment in self._deployments:
+            if deployment.mount is None:
+                deployment._path = str(Path(deployment._path).relative_to(Path.cwd()))
+            deployment_id = await deployment.apply()
+            self._deployment_id_map[deployment_id] = deployment
         job_variables = job_variables or {}
-        for deployment_id in self._deployment_ids:
+        # Update all deployments with the image name and tag , work pool, and runner command
+        # Can this be added to the deployment's apply method?
+        for deployment_id in self._deployment_id_map.keys():
             await self._client.update_deployment(
                 deployment_id=deployment_id,
                 deployment=DeploymentUpdate(
@@ -531,7 +528,7 @@ class Runner:
                     infra_overrides={
                         **job_variables,
                         "image": f"{self._image_name}:{self._image_tag}",
-                        "command": "prefect flow-run execute"
+                        "command": "prefect flow-run execute",
                     },
                 ),
             )
@@ -543,18 +540,33 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
+        # Load the runner instance from the entrypoint if it exists
         runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
         if runner_entrypoint is not None:
+            self._logger.info("Runner entrypoint: %s", runner_entrypoint)
             runner = import_object(runner_entrypoint)
         else:
             runner = self
 
         runner.pause_on_shutdown = False
 
+        # Check to see if the flow run matches a deployment known to the runner
+        # and sync the corresponding mount if it exists
+        # Making three API calls here is not ideal. Likely needs to be refactored.
         flow_run = await self._client.read_flow_run(flow_run_id)
-        mount = self._deployment_mount_map.get(flow_run.deployment_id)
-        if mount:
-            mount.set_mount_path(Path(self._tmp_dir.name))
+        api_flow = await self._client.read_flow(flow_run.flow_id)
+        api_deployment = await self._client.read_deployment(flow_run.deployment_id)
+        picked_deployment = None
+        for deployment in runner._deployments:
+            if not deployment.is_flow_loaded:
+                await deployment.load_flow()
+            if f"{api_flow.name}/{api_deployment.name}" == deployment.full_name:
+                picked_deployment = deployment
+                break
+
+        if picked_deployment is not None and  picked_deployment.mount:
+            mount = runner.add_mount(picked_deployment.mount)
+            runner._deployment_mount_map[flow_run.deployment_id] = mount
 
             await mount.sync()
 
@@ -738,7 +750,7 @@ class Runner:
         Pauses all deployment schedules.
         """
         self._logger.info("Pausing schedules for all deployments...")
-        for deployment_id in self._deployment_ids:
+        for deployment_id in self._deployment_id_map.keys():
             self._logger.debug(f"Pausing schedule for deployment '{deployment_id}'")
             await self._client.update_schedule(deployment_id, active=False)
         self._logger.info("All deployment schedules have been paused!")
@@ -760,7 +772,7 @@ class Runner:
         # To stop loop service checking for cancelled runs.
         # Need to find a better way to stop runner spawned by
         # a worker.
-        if not self._flow_run_process_map and not self._deployment_ids:
+        if not self._flow_run_process_map and not self._deployment_id_map:
             self._logger.debug(
                 "Runner has no active flow runs or deployments. Sending message to loop"
                 " service that no further cancellation checks are needed."
@@ -859,7 +871,7 @@ class Runner:
 
         scheduled_flow_runs = (
             await self._client.get_scheduled_flow_runs_for_deployments(
-                deployment_ids=list(self._deployment_ids),
+                deployment_ids=list(self._deployment_id_map.keys()),
                 scheduled_before=scheduled_before,
             )
         )

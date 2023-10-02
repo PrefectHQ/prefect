@@ -142,12 +142,46 @@ class RunnerDeployment(BaseModel):
                 trigger.name = f"{values['name']}__automation_{i}"
 
         return field_value
+    
+    @property
+    def is_flow_loaded(self) -> bool:
+        return self.flow_name is not None and self._parameter_openapi_schema is not None
+    
+    @property
+    def full_name(self) -> str:
+        return f"{self.flow_name}/{self.name}"
+    
+    async def load_flow(self):
+        if self.is_flow_loaded:
+            return
+        
+        if self.entrypoint is None:
+            raise ValueError("Cannot load flow without entrypoint.")
+
+        if self.mount:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                self.mount.set_mount_path(Path(tmpdir))
+                await self.mount.sync()
+
+                full_entrypoint = str(self.mount.destination / self.entrypoint)
+                flow = load_flow_from_entrypoint(full_entrypoint)
+
+                self._path = str(self.mount.destination).replace(tmpdir, "$MOUNT_PATH")
+        else:
+            flow = load_flow_from_entrypoint(self.entrypoint)
+            self._path = str(Path.cwd())
+
+        self.flow_name = flow.name
+        self._set_defaults_from_flow(flow)
+
 
     @sync_compatible
     async def apply(self) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
         """
+        await self.load_flow()
+
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
@@ -259,17 +293,9 @@ class RunnerDeployment(BaseModel):
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
-        
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mount.set_mount_path(Path(tmpdir))
-            from_sync.wait_for_call_in_loop_thread(create_call(mount.sync))
-
-            full_entrypoint = str(mount.destination / entrypoint)
-            flow = load_flow_from_entrypoint(full_entrypoint)
 
         deployment = cls(
             name=Path(name).stem,
-            flow_name=flow.name,
             schedule=schedule,
             tags=tags or [],
             triggers=triggers or [],
@@ -280,9 +306,6 @@ class RunnerDeployment(BaseModel):
             enforce_parameter_schema=enforce_parameter_schema,
             mount=mount,
         )
-        deployment._path = str(mount.destination).replace(tmpdir, "$MOUNT_PATH")
-
-        cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
 
