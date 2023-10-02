@@ -65,8 +65,14 @@ from urllib.parse import urlparse
 
 import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
 from typing_extensions import Literal
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseSettings, Field, create_model, root_validator, validator
+else:
+    from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.exceptions import MissingProfileError
