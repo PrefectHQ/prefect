@@ -27,7 +27,7 @@ Workers and work pools bridge the Prefect orchestration layer with the infrastru
 
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
-In this case, you don't want an idle process running within that infrastructure. Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
+In this case, you don't want an idle process running within that infrastructure. Instead, use a lightweight _worker_ to dynamically provision the infrastructure only when the workflow is scheduled to run.  
 
 Other advantages to using workers and work pools include:
 
