@@ -199,6 +199,10 @@ It's worth noting that the `prefect.yaml` also supports [referencing dynamic val
 
 To sidestep potential errors when pulling images locally (e.g., docker.errors.NotFound errors), it's recommended to include an `image_pull_policy` job_variable that specifies `'Never'`:
 
+When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), it's recommended to include an image_pull_policy job_variable set to 'Never'. However, for production workflows, always consider pushing images to a remote registry for more reliability and accessibility.
+
+Here's how you can easily set the image_pull_policy to be `Never` for this tutorial deployment without affecting the default value set on your docker work pool:
+
 ```yaml
   work_pool:
     name: local-docker
