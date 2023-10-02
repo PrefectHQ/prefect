@@ -31,7 +31,7 @@ from typing import (
 )
 
 import pydantic
-from fastapi.encoders import jsonable_encoder
+from prefect._vendor.fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from rich.console import Console
 from rich.panel import Panel

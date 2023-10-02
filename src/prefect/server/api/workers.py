@@ -6,7 +6,14 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
+from prefect._vendor.fastapi import (
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies

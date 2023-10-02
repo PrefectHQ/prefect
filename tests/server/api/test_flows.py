@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pydantic
 import pytest
-from fastapi import status
+from starlette import status
 
 from prefect.server import models, schemas
 

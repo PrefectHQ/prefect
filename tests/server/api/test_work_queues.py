@@ -4,7 +4,7 @@ from uuid import uuid4
 import pendulum
 import pydantic
 import pytest
-from fastapi import status
+from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate

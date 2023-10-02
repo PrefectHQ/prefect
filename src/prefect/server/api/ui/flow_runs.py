@@ -2,7 +2,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
-from fastapi import Body, Depends
+from prefect._vendor.fastapi import Body, Depends
 from pydantic import Field
 
 import prefect.server.schemas as schemas

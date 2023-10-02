@@ -2,7 +2,7 @@ from typing import List
 
 import pydantic
 import pytest
-from fastapi import status
+from starlette import status
 
 from prefect.server import models
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
