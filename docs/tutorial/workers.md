@@ -165,7 +165,7 @@ Prefect will now build a custom Docker image containing your workflow code that 
 
 If you selected `y` on the last prompt to save configuration, you should see a new `prefect.yaml` file appear. This file will allow you to easily modify and define multiple deployments for this repo.
 
-The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only holds settings for various deployments but can also contain instructions that help set up the execution environment for your flow runs. In the context of this tutorial, we employ a [build action](/guides/prefect-deploy/#the-build-action) to create Docker images that the worker can use as it containerizes your flow runs.
+The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only holds settings for various deployments but can also contain instructions that help set up the execution environment for your flow runs. In the context of this tutorial, we employ a [build action](/guides/prefect-deploy/#the-build-action) to create a Docker image that the worker will use when running your flow.
 
 Upon examining the auto-generated `prefect.yaml`, you'll notice that the parameters for your deployment mirror the values you provided to the deployment creation wizard:
 
