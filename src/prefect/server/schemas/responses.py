@@ -12,11 +12,10 @@ from typing_extensions import TYPE_CHECKING, Literal
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
-from prefect.server.utilities.schemas import (
-    DateTimeTZ,
+from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
-    ORMBaseModel,
-    PrefectBaseModel,
     copy_model_fields,
 )
 from prefect.utilities.collections import AutoEnum
@@ -271,7 +270,7 @@ class DeploymentResponse(ORMBaseModel):
         return response
 
 
-class WorkQueueResponse(schemas.core.WorkQueue.subclass()):
+class WorkQueueResponse(schemas.core.WorkQueue):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the work pool the work pool resides within.",
