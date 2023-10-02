@@ -16,7 +16,7 @@ From the Automations tutorial, we were able to see the capabilities of what an a
 In this guide, we will showcase common usecases where automations can shine when responding to your workflows. First we will create a simple notification automation in just a few UI clicks. Then build upon that with an event based automation where a deployment will be kicked off. Lastly, we will combine these ideas to create a well alerted and responsive deployment pattern. 
 
 !!! Warning "Available only on Prefect Cloud"
-        Automations are only available on Prefect Cloud, please refer to the Cloud documentation to see what 
+        Automations are only available on Prefect Cloud, please refer to the [Cloud documentation](https://docs.prefect.io/2.13.4/cloud/#welcome-to-prefect-cloud) to see what 
         additional features are available such as Events and webhooks!
 
 
@@ -84,14 +84,14 @@ Now let us try to send a notification based off a completed state outcome. We ca
 3. Now that we created a notification block, we can go to the automations page to create our first automation.
 ![Automations page](/img/guides/automation-list.png)
 
-4. Next we try to find the trigger type, in this case let us do a flow completion (keep in mind task failures get cascading upstream back to the parent flow). 
+4. Next we try to find the trigger type, in this case let us do a flow completion. 
 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
+5. Finally, let us create the actions that will be done once the triggered is hit. In this case, let us create a notification to be sent out to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
-Now the automation is ready to be triggered from a flow run completion. Let us locally run the file and see that the notification being sent to our inbox after the completion.
+6. Now the automation is ready to be triggered from a flow run completion. Let us locally run the file and see that the notification being sent to our inbox after the completion.
 ![Final notification](/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
@@ -124,7 +124,7 @@ push: null
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
 - prefect.deployments.steps.set_working_directory:
-    directory: /Users/sahilrangwala/src/prefect/Playground/automations-guide
+    directory: /Users/src/prefect/Playground/automations-guide
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
@@ -158,7 +158,7 @@ prefect deployment ls
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
 ``` 
-We can an automation via a POST call, where we can programatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
+We can create an automation via a POST call, where we can programatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id` are handy. 
 
 ```python
 def create_event_driven_automation():
@@ -168,14 +168,6 @@ def create_event_driven_automation():
     "description": "Programmatically created an automation to redeploy a flow based on an event",
     "enabled": "true",
     "trigger": {
-    "match": {
-        "property1": "string",
-        "property2": "string"
-    },
-    "match_related": {
-        "property1": "string",
-        "property2": "string"
-    },
     "after": [
         "string"
     ],
@@ -186,7 +178,7 @@ def create_event_driven_automation():
         "prefect.resource.id"
     ],
     "posture": "Proactive",
-    "threshold": 0,
+    "threshold": 30,
     "within": 0
     },
     "actions": [
@@ -298,6 +290,4 @@ def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
 
 ```
 
-TODO: Clean up this data  
-- Some sort of MLOPS next steps so the guide seems organic
-- low effort and does not force them to create a full blown automation to test out marvin
+TODO: clean up marvin example so its more organic
