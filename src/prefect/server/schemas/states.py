@@ -8,7 +8,13 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
 
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,

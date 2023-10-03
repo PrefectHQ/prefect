@@ -1,5 +1,11 @@
 import cloudpickle
-from pydantic import BaseModel, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, validator
+else:
+    from pydantic import BaseModel, validator
 
 from prefect.exceptions import (
     ParameterBindError,
