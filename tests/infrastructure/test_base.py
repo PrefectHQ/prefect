@@ -104,7 +104,7 @@ async def test_submission_adds_flow_run_metadata(
     MockInfrastructure._run.assert_called_once_with(
         {
             "type": "mock",
-            "env": {"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            "env": {"PREFECT__FLOW_RUN_ID": str(flow_run.id)},
             "labels": {
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,
@@ -144,7 +144,7 @@ async def test_submission_adds_deployment_metadata(
     MockInfrastructure._run.assert_called_once_with(
         {
             "type": "mock",
-            "env": {"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            "env": {"PREFECT__FLOW_RUN_ID": str(flow_run.id)},
             "labels": {
                 **{
                     "prefect.io/flow-run-id": str(flow_run.id),
@@ -170,7 +170,7 @@ async def test_submission_adds_flow_metadata(
     MockInfrastructure._run.assert_called_once_with(
         {
             "type": "mock",
-            "env": {"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            "env": {"PREFECT__FLOW_RUN_ID": str(flow_run.id)},
             "labels": {
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,

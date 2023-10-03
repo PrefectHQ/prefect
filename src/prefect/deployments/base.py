@@ -17,7 +17,14 @@ from typing import Dict, List, Optional
 
 import anyio
 import yaml
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.schedules import IntervalSchedule

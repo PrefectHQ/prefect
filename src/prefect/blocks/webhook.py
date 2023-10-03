@@ -1,7 +1,14 @@
 from typing import Optional
 
 from httpx import AsyncClient, AsyncHTTPTransport, Response
-from pydantic import Field, SecretStr
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, SecretStr
+else:
+    from pydantic import Field, SecretStr
+
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block

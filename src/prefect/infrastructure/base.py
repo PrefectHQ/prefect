@@ -2,7 +2,14 @@ import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import anyio.abc
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from typing_extensions import Self
 
 import prefect
@@ -142,7 +149,7 @@ class Infrastructure(Block, abc.ABC):
         Generate a dictionary of environment variables for a flow run job.
         """
         environment = {}
-        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+        environment["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
         return environment
 
     @staticmethod

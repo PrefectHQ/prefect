@@ -8,10 +8,17 @@ from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
 import jsonschema
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
+from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
@@ -23,7 +30,6 @@ from prefect.server.utilities.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
 )
-from prefect.utilities.pydantic import get_class_fields_only
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.validation import (
     validate_schema,

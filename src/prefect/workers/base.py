@@ -6,7 +6,13 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+else:
+    from pydantic import BaseModel, Field, PrivateAttr, validator
 
 import prefect
 from prefect._internal.compatibility.experimental import experimental
@@ -238,7 +244,7 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a dictionary of environment variables for a flow run job.
         """
-        return {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
+        return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
 
     @staticmethod
     def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:
