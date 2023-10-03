@@ -6,7 +6,7 @@ from time import sleep
 import anyio
 import pendulum
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect.runner
 from prefect import flow, serve
