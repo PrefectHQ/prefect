@@ -4,7 +4,13 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from pydantic import SecretBytes, SecretStr
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretBytes, SecretStr
+else:
+    from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict

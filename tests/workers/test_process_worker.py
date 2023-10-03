@@ -10,7 +10,13 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 import prefect
 from prefect import flow
