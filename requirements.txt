@@ -33,7 +33,7 @@ readchar >= 4.0.0, < 5.0.0
 rich >= 11.0, < 14.0
 ruamel-yaml >= 0.17.0
 sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 3.0.0
-starlette >= 0.27.0, < 0.28.0
+starlette >= 0.27.0, < 0.32.0
 toml >= 0.10.0
 typer >= 0.4.2
 typing_extensions >= 4.5.0, < 5.0.0
