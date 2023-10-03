@@ -91,6 +91,7 @@ else:
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -286,14 +287,11 @@ def only_return_value_in_test_mode(settings, value):
 def default_ui_api_url(settings, value):
     """
     `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
-    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    relative path '/api', otherwise it constructs an API URL from the API settings.
     """
     if value is None:
         # Set a default value
-        if PREFECT_API_URL.value_from(settings):
-            value = "${PREFECT_API_URL}"
-        else:
-            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
+        value = "/api"
 
     return template_with_settings(
         PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL

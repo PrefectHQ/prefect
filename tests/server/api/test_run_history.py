@@ -2,7 +2,14 @@ from datetime import timedelta
 from typing import List
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import sqlalchemy as sa
 from prefect._vendor.fastapi import Response, status
