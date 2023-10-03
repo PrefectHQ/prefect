@@ -1,6 +1,14 @@
 from typing import Any, Dict, Optional, Sequence, Type
 
-from pydantic import BaseModel, create_model
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, ValidationError, create_model
+    from pydantic.v1.error_wrappers import ErrorList
+else:
+    from pydantic import BaseModel, ValidationError, create_model
+    from pydantic.error_wrappers import ErrorList
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.exceptions import WebSocketException as WebSocketException  # noqa: F401
 
@@ -25,31 +33,12 @@ class FastAPIError(RuntimeError):
     """
 
 
-class ValidationException(Exception):
-    def __init__(self, errors: Sequence[Any]) -> None:
-        self._errors = errors
-
-    def errors(self) -> Sequence[Any]:
-        return self._errors
-
-
-class RequestValidationError(ValidationException):
-    def __init__(self, errors: Sequence[Any], *, body: Any = None) -> None:
-        super().__init__(errors)
+class RequestValidationError(ValidationError):
+    def __init__(self, errors: Sequence[ErrorList], *, body: Any = None) -> None:
         self.body = body
+        super().__init__(errors, RequestErrorModel)
 
 
-class WebSocketRequestValidationError(ValidationException):
-    pass
-
-
-class ResponseValidationError(ValidationException):
-    def __init__(self, errors: Sequence[Any], *, body: Any = None) -> None:
-        super().__init__(errors)
-        self.body = body
-
-    def __str__(self) -> str:
-        message = f"{len(self._errors)} validation errors:\n"
-        for err in self._errors:
-            message += f"  {err}\n"
-        return message
+class WebSocketRequestValidationError(ValidationError):
+    def __init__(self, errors: Sequence[ErrorList]) -> None:
+        super().__init__(errors, WebSocketErrorModel)

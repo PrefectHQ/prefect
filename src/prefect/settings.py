@@ -63,12 +63,35 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+else:
+    from pydantic import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -94,12 +117,12 @@ class Setting(Generic[T]):
         deprecated_help: str = "",
         deprecated_when_message: str = "",
         deprecated_when: Optional[Callable[[Any], bool]] = None,
-        deprecated_renamed_to: Optional["Setting"] = None,
-        value_callback: Callable[["Settings", T], T] = None,
+        deprecated_renamed_to: Optional["Setting[T]"] = None,
+        value_callback: Optional[Callable[["Settings", T], T]] = None,
         is_secret: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
-        self.field: pydantic.fields.FieldInfo = Field(**kwargs)
+        self.field: fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self._name = None
@@ -264,14 +287,11 @@ def only_return_value_in_test_mode(settings, value):
 def default_ui_api_url(settings, value):
     """
     `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
-    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    relative path '/api', otherwise it constructs an API URL from the API settings.
     """
     if value is None:
         # Set a default value
-        if PREFECT_API_URL.value_from(settings):
-            value = "${PREFECT_API_URL}"
-        else:
-            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
+        value = "/api"
 
     return template_with_settings(
         PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
@@ -480,7 +500,6 @@ def default_cloud_ui_url(settings, value):
 
 
 # Setting definitions
-
 
 PREFECT_HOME = Setting(
     Path,
@@ -1594,7 +1613,7 @@ def temporary_settings(
         yield new_settings
 
 
-class Profile(pydantic.BaseModel):
+class Profile(BaseModel):
     """
     A user profile containing settings.
     """
@@ -1603,7 +1622,7 @@ class Profile(pydantic.BaseModel):
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path]
 
-    @pydantic.validator("settings", pre=True)
+    @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
         if value is None:
             return value

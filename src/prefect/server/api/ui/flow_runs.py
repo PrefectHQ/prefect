@@ -3,7 +3,13 @@ from typing import List
 from uuid import UUID
 
 from prefect._vendor.fastapi import Body, Depends
-from pydantic import Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
