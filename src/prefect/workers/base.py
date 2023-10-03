@@ -244,7 +244,7 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a dictionary of environment variables for a flow run job.
         """
-        return {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
+        return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
 
     @staticmethod
     def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:

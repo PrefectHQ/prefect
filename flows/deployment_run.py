@@ -53,7 +53,7 @@ def main():
     flow_run = anyio.run(create_flow_run, deployment_id)
 
     env = os.environ.copy()
-    env["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+    env["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
     subprocess.check_call(
         [sys.executable, "-m", "prefect.engine"],
         env=env,
