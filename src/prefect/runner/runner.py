@@ -97,7 +97,7 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
-        query_seconds: float = None,
+        query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
