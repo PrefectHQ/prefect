@@ -6,6 +6,7 @@ from time import sleep
 import anyio
 import pytest
 
+import prefect.runner
 from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
@@ -323,6 +324,39 @@ class TestRunner:
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
         assert flow_run.state.is_completed()
+
+    async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10820
+        """
+        import sys
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(return_value=mock_process,)
+
+        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+
+        sys.executable = "C:/Program Files/Python38/python.exe"
+
+        runner = Runner()
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        # Previously the command would have been
+        # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
+        assert mock_run_process_call.call_args[0][0] == [
+            "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
 
 
 class TestRunnerDeployment:

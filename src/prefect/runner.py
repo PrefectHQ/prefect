@@ -42,6 +42,7 @@ import pendulum
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+import shlex
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -368,7 +369,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{sys.executable} -m prefect.engine"
+        command = f"{shlex.quote(sys.executable)} -m prefect.engine"
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -387,7 +388,7 @@ class Runner:
         env.update(**os.environ)  # is this really necessary??
 
         process = await run_process(
-            command.split(" "),
+            shlex.split(command),
             stream_output=True,
             task_status=task_status,
             env=env,
