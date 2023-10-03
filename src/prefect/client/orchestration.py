@@ -1298,6 +1298,34 @@ class PrefectClient:
         response = await self._client.post("/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[BlockSchema], response.json())
 
+    async def get_most_recent_block_schema_for_block_type(
+        self,
+        block_type_id: UUID,
+    ) -> Optional[BlockSchema]:
+        """
+        Fetches the most recent block schema for a specified block type ID.
+
+        Args:
+            block_type_id: The ID of the block type.
+
+        Raises:
+            httpx.RequestError: If the request fails for any reason.
+
+        Returns:
+            The most recent block schema or None.
+        """
+        try:
+            response = await self._client.post(
+                "/block_schemas/filter",
+                json={
+                    "block_schemas": {"block_type_id": {"any_": [str(block_type_id)]}},
+                    "limit": 1,
+                },
+            )
+        except httpx.HTTPStatusError:
+            raise
+        return BlockSchema.parse_obj(response.json()[0]) if response.json() else None
+
     async def read_block_document(
         self,
         block_document_id: UUID,

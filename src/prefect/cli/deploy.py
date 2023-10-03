@@ -1028,7 +1028,11 @@ async def _generate_actions_for_remote_flow_storage(
         )
 
         step_fields = {
-            "bucket": bucket,
+            (
+                "container"
+                if selected_storage_provider == "azure_blob_storage"
+                else "bucket"
+            ): bucket,
             "folder": folder,
             "credentials": credentials,
         }

@@ -8,7 +8,6 @@ from getpass import GetPassWarning
 from typing import Any, Dict, List, Optional
 
 import readchar
-from pydantic import parse_obj_as
 from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -16,7 +15,6 @@ from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
 from rich.text import Text
 
-from prefect.blocks.core import BlockSchema
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
@@ -750,19 +748,9 @@ async def prompt_select_blob_storage_credentials(
 
     credentials_block_type = await client.read_block_type_by_slug(creds_block_type_slug)
 
-    credentials_block_schemas = (
-        await client._client.post(
-            "/block_schemas/filter",
-            json={
-                "block_schemas": {
-                    "block_type_id": {"any_": [str(credentials_block_type.id)]}
-                },
-                "limit": 1,
-            },
-        )
-    ).json()
-
-    credentials_block_schema = parse_obj_as(BlockSchema, credentials_block_schemas[0])
+    credentials_block_schema = await client.get_most_recent_block_schema_for_block_type(
+        block_type_id=credentials_block_type.id
+    )
 
     console.print(
         f"\nProvide details on your new {pretty_storage_provider} credentials:"
@@ -778,38 +766,28 @@ async def prompt_select_blob_storage_credentials(
 
     console.print(f"[blue]\n{pretty_storage_provider} credentials specified![/]\n")
 
-    credentials_block_name = prompt(
-        "Give a name to your new credentials block",
-        default=f"{storage_provider_slug}-storage-credentials",
-    )
-
-    try:
-        new_block_document = await client.create_block_document(
-            block_document=BlockDocumentCreate(
-                name=credentials_block_name,
-                data=hydrated_fields,
-                block_schema_id=credentials_block_schema.id,
-                block_type_id=credentials_block_type.id,
-            )
-        )
-    except ObjectAlreadyExists:
+    while True:
         credentials_block_name = prompt(
-            (
-                f"A {pretty_creds_block_type!r} block named"
-                f" {credentials_block_name!r} already exists. Please choose another"
-                " name"
-            ),
+            "Give a name to your new credentials block",
             default=f"{storage_provider_slug}-storage-credentials",
         )
 
-        new_block_document = await client.create_block_document(
-            block_document=BlockDocumentCreate(
-                name=credentials_block_name,
-                data=hydrated_fields,
-                block_schema_id=credentials_block_schema.id,
-                block_type_id=credentials_block_type.id,
+        try:
+            new_block_document = await client.create_block_document(
+                block_document=BlockDocumentCreate(
+                    name=credentials_block_name,
+                    data=hydrated_fields,
+                    block_schema_id=credentials_block_schema.id,
+                    block_type_id=credentials_block_type.id,
+                )
             )
-        )
+            break
+        except ObjectAlreadyExists:
+            console.print(
+                f"A {pretty_creds_block_type!r} block named"
+                f" {credentials_block_name!r} already exists. Please choose another"
+                " name"
+            )
 
     if PREFECT_UI_URL:
         console.print(
