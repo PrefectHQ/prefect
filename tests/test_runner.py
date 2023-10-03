@@ -335,7 +335,9 @@ class TestRunner:
         mock_process.returncode = 0
         mock_process.pid = 4242
 
-        mock_run_process_call = AsyncMock(return_value=mock_process,)
+        mock_run_process_call = AsyncMock(
+            return_value=mock_process,
+        )
 
         monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
 

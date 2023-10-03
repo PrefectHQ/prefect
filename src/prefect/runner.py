@@ -31,6 +31,7 @@ Example:
 """
 import datetime
 import inspect
+import shlex
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
@@ -42,7 +43,6 @@ import pendulum
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
-import shlex
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
