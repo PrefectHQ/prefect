@@ -31,7 +31,7 @@ from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import LazySemaphore, run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
 
@@ -489,7 +489,7 @@ def _save_deployment_to_prefect_file(
 
 # Only allow half of the open file limit to be open at once to allow for other
 # actors to open files.
-OPEN_FILE_SEMAPHORE = asyncio.Semaphore(math.floor(get_open_file_limit() * 0.5))
+OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
 
 
 async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
