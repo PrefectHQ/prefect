@@ -161,7 +161,7 @@ async def test_worker_process_run_flow_run(
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
 
 
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
@@ -191,7 +191,7 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert (
             mock.call_args.kwargs["env"]["CONFIG_ENV_VAR"] == "from_job_configuration"
@@ -225,7 +225,7 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
 

@@ -360,6 +360,40 @@ class TestRunner:
             "prefect.engine",
         ]
 
+    async def test_runner_sets_flow_run_env_var_with_dashes(
+        self, monkeypatch, prefect_client
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10851
+        """
+        env_var_value = None
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        def capture_env_var(*args, **kwargs):
+            nonlocal env_var_value
+            nonlocal mock_process
+            env_var_value = kwargs["env"].get("PREFECT__FLOW_RUN_ID")
+            return mock_process
+
+        mock_run_process_call = AsyncMock(side_effect=capture_env_var)
+
+        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        assert env_var_value == str(flow_run.id)
+        assert env_var_value != flow_run.id.hex
+
 
 class TestRunnerDeployment:
     @pytest.fixture
