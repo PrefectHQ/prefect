@@ -1,7 +1,7 @@
 import pendulum
 import uvicorn
-from fastapi import APIRouter, FastAPI, status
-from fastapi.responses import JSONResponse
+from prefect._vendor.fastapi import APIRouter, FastAPI, status
+from prefect._vendor.fastapi.responses import JSONResponse
 
 from prefect.settings import (
     PREFECT_RUNNER_HEALTH_CHECK_DELAY,
