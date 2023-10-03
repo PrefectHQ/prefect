@@ -102,7 +102,7 @@ import anyio.abc
 import sniffio
 
 from prefect.utilities.processutils import run_process
-from prefect._internal.concurrency.api import from_sync, create_call
+from prefect._internal.concurrency.api import from_async, from_sync, create_call
 
 __all__ = ["Runner", "serve"]
 
@@ -544,7 +544,7 @@ class Runner:
         runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
         if runner_entrypoint is not None:
             self._logger.info("Runner entrypoint: %s", runner_entrypoint)
-            runner = import_object(runner_entrypoint)
+            runner: Runner = await from_async.wait_for_call_in_new_thread(create_call(import_object, runner_entrypoint))
         else:
             runner = self
 
