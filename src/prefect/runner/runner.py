@@ -31,6 +31,7 @@ Example:
 """
 import datetime
 import inspect
+import shlex
 import threading
 from functools import partial
 from pathlib import Path
@@ -401,7 +402,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{sys.executable} -m prefect.engine"
+        command = f"{shlex.quote(sys.executable)} -m prefect.engine"
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -416,11 +417,11 @@ class Runner:
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
-        env.update({"PREFECT__FLOW_RUN_ID": flow_run.id.hex})
+        env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
         env.update(**os.environ)  # is this really necessary??
 
         process = await run_process(
-            command.split(" "),
+            shlex.split(command),
             stream_output=True,
             task_status=task_status,
             env=env,
