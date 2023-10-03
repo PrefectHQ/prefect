@@ -341,7 +341,7 @@ class TestRunner:
 
         monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
 
-        sys.executable = "C:/Program Files/Python38/python.exe"
+        monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
 
         runner = Runner()
 
