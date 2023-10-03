@@ -161,7 +161,7 @@ def flow_run_logger(
     Additional keyword arguments can be provided to attach custom data to the log
     records.
 
-    If the context is available, see `run_logger` instead.
+    If the flow run context is available, see `get_run_logger` instead.
     """
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
@@ -189,8 +189,17 @@ def task_run_logger(
     Additional keyword arguments can be provided to attach custom data to the log
     records.
 
-    If the context is available, see `run_logger` instead.
+    If the task run context is available, see `get_run_logger` instead.
+
+    If only the flow run context is available, it will be used for default values
+    of `flow_run` and `flow`.
     """
+    if not flow_run or not flow:
+        flow_run_context = prefect.context.FlowRunContext.get()
+        if flow_run_context:
+            flow_run = flow_run or flow_run_context.flow_run
+            flow = flow or flow_run_context.flow
+
     return PrefectLogAdapter(
         get_logger("prefect.task_runs"),
         extra={
