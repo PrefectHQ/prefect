@@ -357,7 +357,7 @@ class TestRunner:
             return_value=mock_process,
         )
 
-        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
 
         monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
 
@@ -398,7 +398,7 @@ class TestRunner:
 
         mock_run_process_call = AsyncMock(side_effect=capture_env_var)
 
-        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
 
         runner = Runner()
 
