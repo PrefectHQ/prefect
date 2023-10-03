@@ -1297,9 +1297,9 @@ PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
 Number of seconds a runner should wait between queries for scheduled work.
 """
 
-PREFECT_RUNNER_HEALTH_CHECK_DELAY = Setting(int, default=20)
+PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
 """
-Number of seconds from the last poll before a runner is considered unhealthy.
+Number of missed polls before a runner is considered unhealthy by its webserver.
 """
 
 PREFECT_RUNNER_SERVER_HOST = Setting(str, default="0.0.0.0")

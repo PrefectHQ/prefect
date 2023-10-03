@@ -4,16 +4,20 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, status
 from prefect._vendor.fastapi.responses import JSONResponse
 
 from prefect.settings import (
-    PREFECT_RUNNER_HEALTH_CHECK_DELAY,
+    PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_SERVER_HOST,
     PREFECT_RUNNER_SERVER_LOG_LEVEL,
+    PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
 
 
 def perform_health_check(runner, delay_threshold: int = None) -> JSONResponse:
     if delay_threshold is None:
-        delay_threshold = PREFECT_RUNNER_HEALTH_CHECK_DELAY.value()
+        delay_threshold = (
+            PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE.value()
+            * PREFECT_RUNNER_POLL_FREQUENCY.value()
+        )
 
     def _health_check():
         now = pendulum.now("utc")
