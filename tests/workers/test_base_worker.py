@@ -1325,7 +1325,7 @@ class TestPrepareForFlowRun:
         assert job_config.env == {
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": flow_run.id.hex,
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1344,7 +1344,7 @@ class TestPrepareForFlowRun:
         assert job_config.env == {
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": flow_run.id.hex,
+            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
         }
         assert job_config.labels == {
             "my-label": "foo",
