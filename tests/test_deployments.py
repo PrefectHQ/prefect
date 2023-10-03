@@ -9,7 +9,13 @@ import pytest
 import respx
 import yaml
 from httpx import Response
-from pydantic.error_wrappers import ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1.error_wrappers import ValidationError
+else:
+    from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas

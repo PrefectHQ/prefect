@@ -4,7 +4,13 @@ Command line interface for working with profiles
 import os
 from typing import List, Optional
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import typer
 
 import prefect.context
@@ -148,10 +154,10 @@ that are changed from default values.
 
 show_sources_help = """
 Toggle display of the source of a value for
-a setting. 
+a setting.
 
-The value for a setting can come from the 
-current profile, environment variables, or 
+The value for a setting can come from the
+current profile, environment variables, or
 the defaults.
 
 """

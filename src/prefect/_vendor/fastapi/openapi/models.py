@@ -1,24 +1,28 @@
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 
-from prefect._vendor.fastapi._compat import (
-    PYDANTIC_V2,
-    CoreSchema,
-    GetJsonSchemaHandler,
-    JsonSchemaValue,
-    _model_rebuild,
-    with_info_plain_validator_function,
-)
 from prefect._vendor.fastapi.logger import logger
-from pydantic import AnyUrl, BaseModel, Field
-from typing_extensions import Annotated, Literal, TypedDict
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import AnyUrl, BaseModel, Field
+else:
+    from pydantic import AnyUrl, BaseModel, Field
+
+from typing_extensions import Annotated, Literal
 from typing_extensions import deprecated as typing_deprecated
 
 try:
-    import email_validator
+    import email_validator  # type: ignore
 
     assert email_validator  # make autoflake ignore the unused import
-    from pydantic import EmailStr
+
+    if HAS_PYDANTIC_V2:
+        from pydantic.v1 import EmailStr
+    else:
+        from pydantic import EmailStr
+
 except ImportError:  # pragma: no cover
 
     class EmailStr(str):  # type: ignore
@@ -34,39 +38,14 @@ except ImportError:  # pragma: no cover
             )
             return str(v)
 
-        @classmethod
-        def _validate(cls, __input_value: Any, _: Any) -> str:
-            logger.warning(
-                "email-validator not installed, email fields will be treated as str.\n"
-                "To install, run: pip install email-validator"
-            )
-            return str(__input_value)
-
-        @classmethod
-        def __get_pydantic_json_schema__(
-            cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-        ) -> JsonSchemaValue:
-            return {"type": "string", "format": "email"}
-
-        @classmethod
-        def __get_pydantic_core_schema__(
-            cls, source: Type[Any], handler: Callable[[Any], CoreSchema]
-        ) -> CoreSchema:
-            return with_info_plain_validator_function(cls._validate)
-
 
 class Contact(BaseModel):
     name: Optional[str] = None
     url: Optional[AnyUrl] = None
     email: Optional[EmailStr] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class License(BaseModel):
@@ -74,13 +53,8 @@ class License(BaseModel):
     identifier: Optional[str] = None
     url: Optional[AnyUrl] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Info(BaseModel):
@@ -92,27 +66,17 @@ class Info(BaseModel):
     license: Optional[License] = None
     version: str
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class ServerVariable(BaseModel):
-    enum: Annotated[Optional[List[str]], Field(min_length=1)] = None
+    enum: Annotated[Optional[List[str]], Field(min_items=1)] = None
     default: str
     description: Optional[str] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Server(BaseModel):
@@ -120,13 +84,8 @@ class Server(BaseModel):
     description: Optional[str] = None
     variables: Optional[Dict[str, ServerVariable]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Reference(BaseModel):
@@ -145,26 +104,16 @@ class XML(BaseModel):
     attribute: Optional[bool] = None
     wrapped: Optional[bool] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class ExternalDocumentation(BaseModel):
     description: Optional[str] = None
     url: AnyUrl
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Schema(BaseModel):
@@ -253,13 +202,8 @@ class Schema(BaseModel):
         ),
     ] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra: str = "allow"
 
 
 # Ref: https://json-schema.org/draft/2020-12/json-schema-core.html#name-json-schema-documents
@@ -267,19 +211,14 @@ class Schema(BaseModel):
 SchemaOrBool = Union[Schema, bool]
 
 
-class Example(TypedDict, total=False):
-    summary: Optional[str]
-    description: Optional[str]
-    value: Optional[Any]
-    externalValue: Optional[AnyUrl]
+class Example(BaseModel):
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    value: Optional[Any] = None
+    externalValue: Optional[AnyUrl] = None
 
-    if PYDANTIC_V2:  # type: ignore [misc]
-        __pydantic_config__ = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class ParameterInType(Enum):
@@ -296,13 +235,8 @@ class Encoding(BaseModel):
     explode: Optional[bool] = None
     allowReserved: Optional[bool] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class MediaType(BaseModel):
@@ -311,13 +245,8 @@ class MediaType(BaseModel):
     examples: Optional[Dict[str, Union[Example, Reference]]] = None
     encoding: Optional[Dict[str, Encoding]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class ParameterBase(BaseModel):
@@ -334,13 +263,8 @@ class ParameterBase(BaseModel):
     # Serialization rules for more complex scenarios
     content: Optional[Dict[str, MediaType]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Parameter(ParameterBase):
@@ -357,13 +281,8 @@ class RequestBody(BaseModel):
     content: Dict[str, MediaType]
     required: Optional[bool] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Link(BaseModel):
@@ -374,13 +293,8 @@ class Link(BaseModel):
     description: Optional[str] = None
     server: Optional[Server] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Response(BaseModel):
@@ -389,13 +303,8 @@ class Response(BaseModel):
     content: Optional[Dict[str, MediaType]] = None
     links: Optional[Dict[str, Union[Link, Reference]]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Operation(BaseModel):
@@ -413,13 +322,8 @@ class Operation(BaseModel):
     security: Optional[List[Dict[str, List[str]]]] = None
     servers: Optional[List[Server]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class PathItem(BaseModel):
@@ -437,13 +341,8 @@ class PathItem(BaseModel):
     servers: Optional[List[Server]] = None
     parameters: Optional[List[Union[Parameter, Reference]]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class SecuritySchemeType(Enum):
@@ -457,13 +356,8 @@ class SecurityBase(BaseModel):
     type_: SecuritySchemeType = Field(alias="type")
     description: Optional[str] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class APIKeyIn(Enum):
@@ -492,13 +386,8 @@ class OAuthFlow(BaseModel):
     refreshUrl: Optional[str] = None
     scopes: Dict[str, str] = {}
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class OAuthFlowImplicit(OAuthFlow):
@@ -524,13 +413,8 @@ class OAuthFlows(BaseModel):
     clientCredentials: Optional[OAuthFlowClientCredentials] = None
     authorizationCode: Optional[OAuthFlowAuthorizationCode] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class OAuth2(SecurityBase):
@@ -561,13 +445,8 @@ class Components(BaseModel):
     callbacks: Optional[Dict[str, Union[Dict[str, PathItem], Reference, Any]]] = None
     pathItems: Optional[Dict[str, Union[PathItem, Reference]]] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class Tag(BaseModel):
@@ -575,13 +454,8 @@ class Tag(BaseModel):
     description: Optional[str] = None
     externalDocs: Optional[ExternalDocumentation] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
 class OpenAPI(BaseModel):
@@ -597,15 +471,10 @@ class OpenAPI(BaseModel):
     tags: Optional[List[Tag]] = None
     externalDocs: Optional[ExternalDocumentation] = None
 
-    if PYDANTIC_V2:
-        model_config = {"extra": "allow"}
-
-    else:
-
-        class Config:
-            extra = "allow"
+    class Config:
+        extra = "allow"
 
 
-_model_rebuild(Schema)
-_model_rebuild(Operation)
-_model_rebuild(Encoding)
+Schema.update_forward_refs()
+Operation.update_forward_refs()
+Encoding.update_forward_refs()

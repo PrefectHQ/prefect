@@ -1,6 +1,12 @@
 import asyncio
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 

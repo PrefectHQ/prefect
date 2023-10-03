@@ -3,7 +3,13 @@ from typing import Optional
 from uuid import UUID
 
 import pendulum
-from pydantic import BaseModel, Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field
+else:
+    from pydantic import BaseModel, Field
 
 
 class DateTimeTZ(pendulum.DateTime):

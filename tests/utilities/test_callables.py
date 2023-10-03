@@ -3,7 +3,14 @@ from enum import Enum
 from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
-import pydantic.version
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic.version
+
 import pytest
 from packaging.version import Version
 
