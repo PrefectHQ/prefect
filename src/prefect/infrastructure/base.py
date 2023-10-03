@@ -149,7 +149,7 @@ class Infrastructure(Block, abc.ABC):
         Generate a dictionary of environment variables for a flow run job.
         """
         environment = {}
-        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+        environment["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
         return environment
 
     @staticmethod
