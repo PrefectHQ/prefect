@@ -17,6 +17,7 @@ from prefect.deployments.base import (
     register_flow,
 )
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -280,3 +281,13 @@ class TestDiscoverFlows:
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             assert await _find_flow_functions_in_file("foo.py") == []
             assert "Could not open foo.py" in caplog.text
+
+    async def test_prefect_can_be_imported_from_non_main_thread(self):
+        """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
+        in python <= 3.9
+        """
+
+        def import_prefect():
+            import prefect  # noqa: F401
+
+        await run_sync_in_worker_thread(import_prefect)

@@ -10,6 +10,7 @@ import pytest
 
 from prefect.utilities.asyncutils import (
     GatherIncomplete,
+    LazySemaphore,
     add_event_loop_shutdown_callback,
     create_gather_task_group,
     gather,
@@ -431,3 +432,21 @@ async def test_gather_task_group_get_result_bad_uuid():
 
     with pytest.raises(KeyError):
         tg.get_result(uuid.uuid4())
+
+
+async def test_lazy_semaphore_initialization():
+    initial_value = 5
+    lazy_semaphore = LazySemaphore(lambda: initial_value)
+
+    assert lazy_semaphore._semaphore is None
+
+    lazy_semaphore._initialize_semaphore()
+
+    assert lazy_semaphore._semaphore._value == initial_value
+
+    async with lazy_semaphore as semaphore:
+        assert lazy_semaphore._semaphore is not None
+        assert isinstance(semaphore, asyncio.Semaphore)
+        assert lazy_semaphore._semaphore._value == initial_value - 1
+
+    assert lazy_semaphore._semaphore._value == initial_value
