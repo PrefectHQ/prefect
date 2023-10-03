@@ -9,7 +9,13 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, SecretStr, validator
+else:
+    from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError

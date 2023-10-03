@@ -5,7 +5,7 @@ When a deprecated item is used, a warning will be displayed. Warnings may not be
 disabled with Prefect settings. Instead, the standard Python warnings filters can be
 used.
 
-Deprecated items require a start or end date. If a start date is given, the end date 
+Deprecated items require a start or end date. If a start date is given, the end date
 will be calculated 6 months later. Start and end dates are always in the format MMM YYYY
 e.g. Jan 2023.
 """
@@ -15,7 +15,13 @@ import warnings
 from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (

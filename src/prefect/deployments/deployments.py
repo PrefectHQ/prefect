@@ -15,7 +15,13 @@ from uuid import UUID
 import anyio
 import pendulum
 import yaml
-from pydantic import BaseModel, Field, parse_obj_as, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+else:
+    from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block

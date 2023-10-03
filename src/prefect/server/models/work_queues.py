@@ -7,7 +7,14 @@ import datetime
 from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import parse_obj_as
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import parse_obj_as
+else:
+    from pydantic import parse_obj_as
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -35,7 +35,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+else:
+    from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.schedules import (

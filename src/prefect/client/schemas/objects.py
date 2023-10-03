@@ -13,7 +13,14 @@ from typing import (
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+else:
+    from pydantic import Field, HttpUrl, conint, root_validator, validator
+
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel

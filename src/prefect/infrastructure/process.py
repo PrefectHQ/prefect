@@ -12,7 +12,14 @@ from typing import Dict, Tuple, Union
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound

@@ -2,15 +2,23 @@ import datetime
 import json
 import os
 from functools import partial
-from typing import Any, Dict, Generator, Optional, Set, TypeVar
+from typing import Any, Dict, Generator, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import orjson
 import pendulum
-import pydantic
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretField
-from pydantic.json import custom_pydantic_encoder
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1 import BaseModel, Field, SecretField
+    from pydantic.v1.json import custom_pydantic_encoder
+else:
+    import pydantic
+    from pydantic import BaseModel, Field, SecretField
+    from pydantic.json import custom_pydantic_encoder
 
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.server.utilities.schemas.fields import DateTimeTZ
@@ -18,6 +26,23 @@ from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_comp
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
+
+
+def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+    """
+    Gets all the field names defined on the model class but not any parent classes.
+    Any fields that are on the parent but redefined on the subclass are included.
+    """
+    subclass_class_fields = set(model.__annotations__.keys())
+    parent_class_fields = set()
+
+    for base in model.__class__.__bases__:
+        if issubclass(base, pydantic.BaseModel):
+            parent_class_fields.update(base.__annotations__.keys())
+
+    return (subclass_class_fields - parent_class_fields) | (
+        subclass_class_fields & parent_class_fields
+    )
 
 
 class PrefectBaseModel(BaseModel):

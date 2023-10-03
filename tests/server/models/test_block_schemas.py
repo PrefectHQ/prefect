@@ -3,7 +3,13 @@ from typing import List, Union
 
 import pytest
 import sqlalchemy as sa
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 from prefect.blocks.core import Block
 from prefect.server import models, schemas

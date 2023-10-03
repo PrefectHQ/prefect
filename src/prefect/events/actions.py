@@ -1,7 +1,13 @@
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import PrefectBaseModel
