@@ -37,6 +37,14 @@ def run_count(runner) -> int:
     return _run_count
 
 
+def shutdown(runner) -> int:
+    def _shutdown():
+        runner.should_stop = True
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
+
+    return _shutdown
+
+
 def start_webserver(
     runner,
     log_level: str = None,
@@ -55,6 +63,7 @@ def start_webserver(
         "/health", perform_health_check(runner=runner), methods=["GET"]
     )
     router.add_api_route("/run_count", run_count(runner=runner), methods=["GET"])
+    router.add_api_route("/shutdown", shutdown(runner=runner), methods=["POST"])
 
     webserver.include_router(router)
 
