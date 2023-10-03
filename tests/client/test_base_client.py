@@ -47,6 +47,7 @@ class TestPrefectHttpxClient:
             status.HTTP_429_TOO_MANY_REQUESTS,
             status.HTTP_503_SERVICE_UNAVAILABLE,
             status.HTTP_502_BAD_GATEWAY,
+            status.HTTP_408_REQUEST_TIMEOUT,
         ],
     )
     async def test_prefect_httpx_client_retries_on_designated_error_codes(
