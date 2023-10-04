@@ -580,6 +580,7 @@ class Flow(Generic[P, R]):
         enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
+        webserver: bool = False,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
@@ -604,6 +605,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
+            webserver: Whether or not to start a monitoring webserver for this flow.
 
         Examples:
             Serve a flow:
@@ -669,7 +671,7 @@ class Flow(Generic[P, R]):
 
             console = Console()
             console.print(Panel(help_message))
-        await runner.start()
+        await runner.start(webserver=webserver)
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:

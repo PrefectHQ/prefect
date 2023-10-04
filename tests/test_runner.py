@@ -4,7 +4,9 @@ from pathlib import Path
 from time import sleep
 
 import anyio
+import pendulum
 import pytest
+from starlette import status
 
 import prefect.runner
 from prefect import flow, serve
@@ -13,8 +15,13 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import RunnerDeployment
 from prefect.flows import load_flow_from_entrypoint
-from prefect.runner import Runner
-from prefect.settings import PREFECT_RUNNER_PROCESS_LIMIT, temporary_settings
+from prefect.runner.runner import Runner
+from prefect.runner.server import perform_health_check
+from prefect.settings import (
+    PREFECT_RUNNER_POLL_FREQUENCY,
+    PREFECT_RUNNER_PROCESS_LIMIT,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 
 
@@ -49,6 +56,17 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_PROCESS_LIMIT: 100}):
             runner = Runner()
             assert runner.limit == 100
+
+    async def test_runner_respects_poll_setting(self):
+        runner = Runner()
+        assert runner.query_seconds == PREFECT_RUNNER_POLL_FREQUENCY.value()
+
+        runner = Runner(query_seconds=50)
+        assert runner.query_seconds == 50
+
+        with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
+            runner = Runner()
+            assert runner.query_seconds == 100
 
 
 class TestServe:
@@ -277,7 +295,7 @@ class TestRunner:
                 if flow_run.state.is_cancelled():
                     break
 
-            runner.stop()
+            await runner.stop()
             tg.cancel_scope.cancel()
 
         assert flow_run.state.is_cancelled()
@@ -339,7 +357,7 @@ class TestRunner:
             return_value=mock_process,
         )
 
-        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
 
         monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
 
@@ -380,7 +398,7 @@ class TestRunner:
 
         mock_run_process_call = AsyncMock(side_effect=capture_env_var)
 
-        monkeypatch.setattr(prefect.runner, "run_process", mock_run_process_call)
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
 
         runner = Runner()
 
@@ -593,3 +611,15 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == str(Path.cwd())
         assert deployment.enforce_parameter_schema is False
+
+
+class TestServer:
+    async def test_healthcheck_fails_as_expected(self):
+        runner = Runner()
+        runner.last_polled = pendulum.now("utc").subtract(minutes=5)
+
+        health_check = perform_health_check(runner)
+        assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+        runner.last_polled = pendulum.now("utc")
+        assert health_check().status_code == status.HTTP_200_OK
