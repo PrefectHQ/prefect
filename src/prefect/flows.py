@@ -36,7 +36,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
-    from pydantic.v1.decorator import ValidatedFunction
+
+    from ._internal.pydantic.v2_validated_func import (
+        V2ValidatedFunction as ValidatedFunction,
+    )
 else:
     import pydantic
     from pydantic.decorator import ValidatedFunction
