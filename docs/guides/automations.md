@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Using Automations to respond to your workflows
+# Using Automations for Dynamic Responses
 
 From the Automations tutorial, we were able to see the capabilities of what an automation can do and how to configure them within the UI. 
 
@@ -71,8 +71,6 @@ if __name__ == "__main__":
 From here, we can see that the data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
 
 ## Create notification block within the UI
-TODO: replace pictures with high quality alternatives
-
 Now let us try to send a notification based off a completed state outcome. We can configure a notification to be thrown so that we know when to look into our workflow logic. 
 
 1. Prior to creating the automation, let us confirm the notification location. We have to create a notification block to help define where the notification will be thrown. 
@@ -97,7 +95,7 @@ Now let us try to send a notification based off a completed state outcome. We ca
 !!! Tip "No deployment created"
         Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not tied to creating a full deployment in order to have safe responses to our desired outcomes.
 
-# Event based deployment automation 
+## Event based deployment automation 
 We can create an automation that can kick off a deployment instead of a notification. Let us explore how we can programatically create this automation. We will take advantage of our extensive REST API catelog to help 'automate' the creation of this automation.  
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
@@ -203,11 +201,9 @@ After running this function, you will see within the UI the changes that came fr
 
 Let us run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
 
-TODO: Output of the deployment running 
-
 In a few quick changes, we are able to programatically create an automation that deploys workflows with custom parameters. 
 
-# Using an underlying .yaml file
+## Using an underlying .yaml file
 
 We can extend this idea one step further by utilizing our own .yaml interpretation of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
@@ -264,23 +260,22 @@ if __name__ == "__main__":
 
 You can find a complete repo with these examples in our [recipes repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
 
-In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when creating the automation with the UI. 
+In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when trying to create an automation. 
 
-# AI function extension
+## Using triggers, an AI function extension
 
-We can take advantage of Marvin that will help classify the data we are pulling in. Additionally, we can use Marvin to help replicate a dataset we could use. You can find more on potential usecases with Marvin on their page. 
+Lets take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of Marvin that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use Marvin to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
 
-Based on the automation trigger, we will call the underlying deployment to kick off the workflow. 
+Based on the automation trigger, similarly we can add a trigger to a deployment, that would be waiting for this specified event. 
 
 Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the ai function to start analyzing some of the work. 
 
-Here is an example of pulling in that data and classifying using Marvin AI. We can simplify a classification model in a few functions using the underlying OpenAI model. 
+Here is an example of pulling in that data and classifying using Marvin AI. We can help create dummy data based on classifications we have already created.
 
 ```python
 from marvin import ai_classifier
 from enum import Enum
 import pandas as pd
-
 
 @ai_fn
 def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
@@ -288,6 +283,65 @@ def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
     Generates synthetic data points for userID, location, and time as separate columns
     """
 
+@flow
+def create_fake_user_dataset():
+  df = build_names()
+  artifact_df = generate_synthetic_user_data(df)
+  
+  create_table_artifact(
+      key="fake-user-data",
+      table=artifact_df,
+      description= "Dataset that is comprised of a mix of autogenerated data based on user data"
+  )
+
+if __name__ == "__main__":
+    create_fake_artifact()  
+    
 ```
 
-TODO: clean up marvin example so its more organic
+Now in order for us to kick off a deployment similarly done in an automation, we can utilize the underlying trigger to help kick off the deployment. The prefect.yaml file needs us to capture the event that is thrown from a flow running, and staying in the running state for longer than 30 seconds. The prefect.yaml file would look like:
+```yaml
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: automations-guide
+prefect-version: 2.13.1
+
+# build section allows you to manage and build docker images
+build: null
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push: null
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /Users/src/prefect/Playground/marvin-extension
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: create-fake-user-dataset
+  triggers:
+    - enabled: true
+      match:
+        prefect.resource.id: my.external.resource
+      expect:
+        - external.resource.pinged
+      parameters:
+        param_1: "10"
+  version: null
+  tags: []
+  description: null
+  entrypoint: marvin-extension.py:create_fake_user_dataset
+  parameters: {}
+  work_pool:
+    name: tutorial-process-pool
+    work_queue_name: null
+    job_variables: {}
+  schedule: null
+```
+TODO: modify the trigger so that it gets triggered off of flow runs being put in running longer than 30 seconds
+
+Marvin allows us to extend our current workflows by offering robust data science applications without more maintenance. This offers a lightweight framework in responding to changes in your orchestrator unaccompanied by the extra overhead of setting up an automation within the UI. 
