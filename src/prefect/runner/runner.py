@@ -148,7 +148,7 @@ class Runner:
         self._logger = get_logger("runner")
 
         self.started = False
-        self.should_stop = False
+        self.stopping = False
         self.pause_on_shutdown = pause_on_shutdown
         self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
         self.webserver = webserver
@@ -350,6 +350,7 @@ class Runner:
                 " .start()"
             )
 
+        self.stopping = True
         await self.cancel_all()
         try:
             self._loops_task_group.cancel_scope.cancel()
@@ -549,7 +550,7 @@ class Runner:
         self._logger.info("All deployment schedules have been paused!")
 
     async def _get_and_submit_flow_runs(self):
-        if self.should_stop:
+        if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
         self.last_polled = pendulum.now("UTC")
@@ -558,7 +559,7 @@ class Runner:
     async def _check_for_cancelled_flow_runs(
         self, on_nothing_to_watch: Callable = lambda: None
     ):
-        if self.should_stop:
+        if self.stopping:
             return
         if not self.started:
             raise RuntimeError(
