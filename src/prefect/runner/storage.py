@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from anyio import run_process
 
@@ -56,12 +56,29 @@ class GitRepository:
     def __init__(
         self,
         repository: str,
+        access_token: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
         name: Optional[str] = None,
         branch: str = "main",
         sync_interval: Optional[int] = 60,
     ):
+        if access_token and (username or password):
+            raise ValueError(
+                "Cannot specify both an access token and a username/password"
+            )
+
+        if username and not password:
+            raise ValueError("Cannot specify a username without a password")
+
+        if password and not username:
+            raise ValueError("Cannot specify a password without a username")
+
         self._repository = repository
         self._branch = branch
+        self._access_token = access_token
+        self._username = username
+        self._password = password
         repo_name = urlparse(repository).path.split("/")[-1].replace(".git", "")
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
@@ -98,6 +115,20 @@ class GitRepository:
             existing_repo_url = None
             if result.stdout is not None:
                 existing_repo_url = result.stdout.decode().strip()
+                existing_repo_url_parts = urlparse(existing_repo_url)
+                if self._access_token:
+                    existing_repo_url_parts = existing_repo_url_parts._replace(
+                        netloc=existing_repo_url_parts.netloc.replace(
+                            f"{self._access_token}@", ""
+                        )
+                    )
+                if self._username and self._password:
+                    existing_repo_url_parts = existing_repo_url_parts._replace(
+                        netloc=existing_repo_url_parts.netloc.replace(
+                            f"{self._username}:{self._password}@", ""
+                        )
+                    )
+                existing_repo_url = urlunparse(existing_repo_url_parts)
 
             if existing_repo_url != self._repository:
                 raise ValueError(
@@ -114,13 +145,28 @@ class GitRepository:
         else:
             self._logger.debug("Cloning repository %s", self._repository)
             # Clone the repository if it doesn't exist at the destination
+
+            repo_url_parts = urlparse(self._repository)
+            if self._access_token:
+                updated_components = repo_url_parts._replace(
+                    netloc=f"{self._access_token}@{repo_url_parts.netloc}"
+                )
+                repository_url = urlunparse(updated_components)
+            elif self._username and self._password:
+                updated_components = repo_url_parts._replace(
+                    netloc=f"{self._username}:{self._password}@{repo_url_parts.netloc}"
+                )
+                repository_url = urlunparse(updated_components)
+            else:
+                repository_url = self._repository
+
             await run_process(
                 [
                     "git",
                     "clone",
                     "--branch",
                     self._branch,
-                    self._repository,
+                    repository_url,
                     str(self.destination),
                 ]
             )
