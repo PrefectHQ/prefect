@@ -56,7 +56,7 @@ class GitRepository:
 
     def __init__(
         self,
-        repository: str,
+        url: str,
         access_token: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
@@ -75,12 +75,12 @@ class GitRepository:
         if password and not username:
             raise ValueError("Cannot specify a password without a username")
 
-        self._repository = repository
+        self._url = url
         self._branch = branch
         self._access_token = access_token
         self._username = username
         self._password = password
-        repo_name = urlparse(repository).path.split("/")[-1].replace(".git", "")
+        repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._mount_path = Path.cwd()
@@ -133,10 +133,10 @@ class GitRepository:
                     )
                 existing_repo_url = urlunparse(existing_repo_url_parts)
 
-            if existing_repo_url != self._repository:
+            if existing_repo_url != self._url:
                 raise ValueError(
                     f"The existing repository at {str(self.destination)} "
-                    f"does not match the configured repository {self._repository}"
+                    f"does not match the configured repository {self._url}"
                 )
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
@@ -146,10 +146,10 @@ class GitRepository:
                 cwd=self.destination,
             )
         else:
-            self._logger.debug("Cloning repository %s", self._repository)
+            self._logger.debug("Cloning repository %s", self._url)
             # Clone the repository if it doesn't exist at the destination
 
-            repo_url_parts = urlparse(self._repository)
+            repo_url_parts = urlparse(self._url)
             if self._access_token:
                 updated_components = repo_url_parts._replace(
                     netloc=f"{self._access_token}@{repo_url_parts.netloc}"
@@ -161,7 +161,7 @@ class GitRepository:
                 )
                 repository_url = urlunparse(updated_components)
             else:
-                repository_url = self._repository
+                repository_url = self._url
 
             await run_process(
                 [
@@ -177,7 +177,7 @@ class GitRepository:
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
             return (
-                self._repository == __value._repository
+                self._url == __value._url
                 and self._branch == __value._branch
                 and self._name == __value._name
             )
@@ -185,7 +185,7 @@ class GitRepository:
 
     def __repr__(self) -> str:
         return (
-            f"GitRepositoryMount(name={self._name!r} repository={self._repository!r},"
+            f"GitRepositoryMount(name={self._name!r} repository={self._url!r},"
             f" branch={self._branch!r})"
         )
 
@@ -206,5 +206,5 @@ def create_storage_from_url(
     """
     parsed_url = urlparse(url)
     if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(repository=url, pull_interval=pull_interval)
+        return GitRepository(url=url, pull_interval=pull_interval)
     raise ValueError(f"Unsupported storage URL: {url}. Only git URLs are supported.")

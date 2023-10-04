@@ -7,6 +7,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 import datetime
 import inspect
 import os
+import tempfile
 import warnings
 from functools import partial, update_wrapper
 from pathlib import Path
@@ -32,7 +33,9 @@ from typing import (
 
 from prefect._vendor.fastapi.encoders import jsonable_encoder
 
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.runner.storage import RunnerStorage, create_storage_from_url
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -320,6 +323,10 @@ class Flow(Generic[P, R]):
         self.on_cancellation = on_cancellation
         self.on_crashed = on_crashed
 
+        # Used for flows loaded from remote storage
+        self._storage: Optional[RunnerStorage] = None
+        self._entrypoint: Optional[str] = None
+
     def with_options(
         self,
         *,
@@ -492,7 +499,8 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    def to_deployment(
+    @sync_compatible
+    async def to_deployment(
         self,
         name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
@@ -549,20 +557,37 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
-        return RunnerDeployment.from_flow(
-            self,
-            name=name,
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            schedule=schedule,
-            tags=tags,
-            triggers=triggers,
-            parameters=parameters or {},
-            description=description,
-            version=version,
-            enforce_parameter_schema=enforce_parameter_schema,
-        )
+        if self._storage and self._entrypoint:
+            return await RunnerDeployment.from_storage(
+                storage=self._storage,
+                entrypoint=self._entrypoint,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+            )
+        else:
+            return RunnerDeployment.from_flow(
+                self,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+            )
 
     @sync_compatible
     async def serve(
@@ -672,6 +697,84 @@ class Flow(Generic[P, R]):
             console = Console()
             console.print(Panel(help_message))
         await runner.start(webserver=webserver)
+
+    @classmethod
+    @sync_compatible
+    async def from_url(cls, url: str, entrypoint: str) -> "Flow":
+        """
+        Loads a flow from a URL.
+
+        Args:
+            url: The URL of the remote storage location. Only git URLs are supported.
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+
+        Returns:
+            A new `Flow` instance.
+
+        Examples:
+            Load a flow from a git repository:
+
+            ```python
+            from prefect import Flow
+
+            my_flow = Flow.from_url(
+                url="https://github.com/org/repo.git",
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+        """
+        storage = create_storage_from_url(url)
+        return await cls.from_storage(entrypoint=entrypoint, storage=storage)
+
+    @classmethod
+    @sync_compatible
+    async def from_storage(cls, entrypoint: str, storage: RunnerStorage) -> "Flow":
+        """
+        Loads a flow from storage.
+
+        Args:
+            storage: A storage object to use for retrieving flow code. If not provided, a
+                URL must be provided.
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+
+        Returns:
+            A new `Flow` instance.
+
+        Examples:
+            Load a flow from a private git repository:
+
+            ```python
+            from prefect import Flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
+
+            my_flow = Flow.from_storage(
+                storage=GitRepository(
+                    url="https://github.com/org/repo.git",
+                    access_token=Secret.load("github-access-token").get(),
+                ),
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage.set_base_path(Path(tmpdir))
+            await storage.pull()
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow: "Flow" = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+            flow._storage = storage
+            flow._entrypoint = entrypoint
+
+        return flow
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:

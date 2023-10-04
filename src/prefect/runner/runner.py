@@ -240,7 +240,7 @@ class Runner:
             )
         name = self.name if name is None else name
 
-        deployment = flow.to_deployment(
+        deployment = await flow.to_deployment(
             name=name,
             interval=interval,
             cron=cron,
