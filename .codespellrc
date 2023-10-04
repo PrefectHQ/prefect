@@ -1,0 +1,5 @@
+[codespell]
+skip = .git,*.pdf,*.svg,versioneer.py,package-lock.json,_vendor,*.css
+# from https://github.com/PrefectHQ/prefect/pull/10813#issuecomment-1732676130
+ignore-regex = .*lazy=\"selectin\"|.*e import Bloc$
+ignore-words-list = selectin,aci,wqs,aks,ines
