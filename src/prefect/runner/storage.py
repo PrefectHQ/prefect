@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Protocol, runtime_checkable
+from typing import Optional, Protocol, TypedDict, runtime_checkable
 from urllib.parse import urlparse, urlunparse
 
 from anyio import run_process
@@ -36,7 +36,7 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    async def pull(self):
+    async def pull_code(self):
         """
         Pulls contents from remote storage to the local filesystem.
         """
@@ -49,37 +49,61 @@ class RunnerStorage(Protocol):
         ...
 
 
+class GitCredentials(TypedDict, total=False):
+    username: str
+    access_token: str
+
+
 class GitRepository:
     """
-    Syncs a git repository to the local filesystem.
+    Pulls the contents of a git repository to the local filesystem.
+
+    Parameters:
+        url: The URL of the git repository to pull from
+        credentials: A dictionary of credentials to use when pulling from the
+            repository. If a username is provided, an access token must also be
+            provided.
+        name: The name of the repository. If not provided, the name will be
+            inferred from the repository URL.
+        branch: The branch to pull from. Defaults to "main".
+        pull_interval: The interval in seconds at which to pull contents from
+            remote storage to local storage. If None, remote storage will perform
+            a one-time sync.
+
+    Examples:
+        Pull the contents of a private git repository to the local filesystem:
+
+        ```python
+        from prefect.runner.storage import GitRepository
+
+        storage = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "my-access-token"},
+        )
+
+        await storage.pull_code()
+        ```
     """
 
     def __init__(
         self,
         url: str,
-        access_token: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        credentials: Optional[GitCredentials] = None,
         name: Optional[str] = None,
         branch: str = "main",
         pull_interval: Optional[int] = 60,
     ):
-        if access_token and (username or password):
+        if credentials is None:
+            credentials = {}
+
+        if credentials.get("username") and not credentials.get("access_token"):
             raise ValueError(
-                "Cannot specify both an access token and a username/password"
+                "If a username is provided, an access token must also be provided."
             )
-
-        if username and not password:
-            raise ValueError("Cannot specify a username without a password")
-
-        if password and not username:
-            raise ValueError("Cannot specify a password without a username")
-
         self._url = url
         self._branch = branch
-        self._access_token = access_token
-        self._username = username
-        self._password = password
+        self._username = credentials.get("username")
+        self._access_token = credentials.get("access_token")
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
@@ -97,7 +121,7 @@ class GitRepository:
     def pull_interval(self) -> Optional[int]:
         return self._pull_interval
 
-    async def pull(self):
+    async def pull_code(self):
         """
         Pulls the contents of the configured repository to the local filesystem.
         """
@@ -119,16 +143,16 @@ class GitRepository:
             if result.stdout is not None:
                 existing_repo_url = result.stdout.decode().strip()
                 existing_repo_url_parts = urlparse(existing_repo_url)
-                if self._access_token:
+                if self._access_token and not self._username:
                     existing_repo_url_parts = existing_repo_url_parts._replace(
                         netloc=existing_repo_url_parts.netloc.replace(
                             f"{self._access_token}@", ""
                         )
                     )
-                if self._username and self._password:
+                if self._username and self._access_token:
                     existing_repo_url_parts = existing_repo_url_parts._replace(
                         netloc=existing_repo_url_parts.netloc.replace(
-                            f"{self._username}:{self._password}@", ""
+                            f"{self._username}:{self._access_token}@", ""
                         )
                     )
                 existing_repo_url = urlunparse(existing_repo_url_parts)
@@ -150,14 +174,16 @@ class GitRepository:
             # Clone the repository if it doesn't exist at the destination
 
             repo_url_parts = urlparse(self._url)
-            if self._access_token:
+            if self._access_token and not self._username:
                 updated_components = repo_url_parts._replace(
                     netloc=f"{self._access_token}@{repo_url_parts.netloc}"
                 )
                 repository_url = urlunparse(updated_components)
-            elif self._username and self._password:
+            elif self._username and self._access_token:
                 updated_components = repo_url_parts._replace(
-                    netloc=f"{self._username}:{self._password}@{repo_url_parts.netloc}"
+                    netloc=(
+                        f"{self._username}:{self._access_token}@{repo_url_parts.netloc}"
+                    )
                 )
                 repository_url = urlunparse(updated_components)
             else:

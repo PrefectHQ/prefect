@@ -765,7 +765,7 @@ class Flow(Generic[P, R]):
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
-            await storage.pull()
+            await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
             flow: "Flow" = await from_async.wait_for_call_in_new_thread(

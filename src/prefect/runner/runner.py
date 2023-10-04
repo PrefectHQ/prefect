@@ -275,7 +275,7 @@ class Runner:
                 f" {str(storage_copy.destination)!r}"
             )
             self._storage_objs.append(storage_copy)
-            await storage_copy.pull()
+            await storage_copy.pull_code()
 
             return storage_copy
         else:
@@ -343,14 +343,14 @@ class Runner:
                         tg.start_soon(
                             partial(
                                 critical_service_loop,
-                                workload=storage.pull,
+                                workload=storage.pull_code,
                                 interval=storage.pull_interval,
                                 run_once=run_once,
                                 jitter_range=0.3,
                             )
                         )
                     else:
-                        tg.start_soon(storage.pull)
+                        tg.start_soon(storage.pull_code)
                 tg.start_soon(
                     partial(
                         critical_service_loop,
