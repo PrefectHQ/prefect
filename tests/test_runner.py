@@ -295,7 +295,7 @@ class TestRunner:
                 if flow_run.state.is_cancelled():
                     break
 
-            runner.stop()
+            await runner.stop()
             tg.cancel_scope.cancel()
 
         assert flow_run.state.is_cancelled()
