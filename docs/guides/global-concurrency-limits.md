@@ -15,6 +15,8 @@ Rate Limits ensure system stability by governing the frequency of requests or op
 
 When selecting between Concurrency and Rate Limits, consider your primary goal. Choose Concurrency Limits for resource optimization and task management. Choose Rate Limits to maintain system stability and fair access to services.
 
+The core difference between a rate limit and a concurrency limit is the way in which slots are released. With a rate limit, slots are released at a controlled rate, controlled by `slot_decay_per_second` whereas with a concurrency limit, slots are released when the concurrency manager is exited. 
+
 ## Managing Global concurrency limits and rate limits
 
 You can create, read, edit and delete concurrency limits via the Prefect UI. 
@@ -175,6 +177,104 @@ async def main():
         await rate_limit("rate-limited-api")
         print("Making an HTTP request...")
 
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Use cases
+
+### Throttling task submission
+
+Throttling task submission to avoid overloading resources, to comply with external rate limits, or ensure a steady, controlled flow of work.
+
+In this scenario the `rate_limit` function is used to throttle the submission of tasks. The rate limit acts as a bottleneck, ensuring that tasks are submitted at a controlled rate, governed by the `slot_decay_per_second` setting on the associated concurrency limit.
+
+```python
+from prefect import flow, task
+from prefect.concurrency.sync import rate_limit
+
+
+@task
+def my_task(i):
+    return i
+
+
+@flow
+def my_flow():
+    for _ in range(100):
+        rate_limit("slow-my-flow", occupy=1)
+        my_task.submit(1)
+
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+### Managing Database Connections
+
+Managing the maximum number of concurrent database connections to avoid exhausting database resources.
+
+In this scenario we've setup a 'database' concurrency limit and given it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections that are used at any one time.
+
+```python
+from prefect import flow, task, concurrency
+import psycopg2
+
+@task
+def database_query(query):
+    # Here we request a single slot on the 'database' concurrency limit. This
+    # will block in the case that all of the database connections are in use
+    # ensuring that we never exceed the maximum number of database connections.
+    with concurrency("database", occupy=1):
+        connection = psycopg2.connect("<connection_string>")
+        cursor = connection.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+        connection.close()
+        return result
+
+@flow
+def my_flow():
+    queries = ["SELECT * FROM table1", "SELECT * FROM table2", "SELECT * FROM table3"]
+
+    for query in queries:
+        database_query.submit(query)
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+### Parallel Data Processing
+
+Limiting the maximum number of parallel processing tasks.
+
+In this scenario we want to limit the number of `process_data` tasks to 5 at any one time. We do this by using the `concurrency` context manager to request 5 slots on the `data-processing` concurrency limit. This will block until 5 slots are free and then submit 5 more tasks, ensuring that we never exceed the maximum number of parallel processing tasks. 
+
+```python
+import asyncio
+from prefect.concurrency.sync import concurrency
+
+
+async def process_data(data):
+    print(f"Processing: {data}")
+    await asyncio.sleep(1)
+    return f"Processed: {data}"
+
+
+async def main():
+    data_items = list(range(100))
+    processed_data = []
+
+    while data_items:
+        with concurrency("data-processing", occupy=5):
+            chunk = [data_items.pop() for _ in range(5)]
+            processed_data += await asyncio.gather(
+                *[process_data(item) for item in chunk]
+            )
+
+    print(processed_data)
 
 
 if __name__ == "__main__":
