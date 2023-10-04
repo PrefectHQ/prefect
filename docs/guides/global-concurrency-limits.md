@@ -37,11 +37,17 @@ Global concurrency limits can be in either an `active` or `inactive` state.
 
 ### Slot decay
 
-Global concurrency limits can be configured with `slot decay`. This is used when the concurrency limit is used as a rate limit, and it controls the rate at which these slots are released.
+Global concurrency limits can be configured with slot decay. This is used when the concurrency limit is used as a rate limit, and it governs the pace at which slots are released or become available for reuse after being occupied. These slots effectively represent the concurrency capacity within a specific concurrency limit. The concept is best understood as the rate at which these slots "decay" or refresh.
 
-The rate of slot decay is determined by the parameter `slot decay per second`. This parameter defines how quickly slots become available again after being consumed. For example, if you set slot decay per second to 0.5, one slot will become available again every two seconds.
+To configure slot decay, you can set the `slot_decay_per_second` parameter when defining or adjusting a concurrency limit.
 
-Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the concurrency of your workflow based on your specific requirements.
+For practical use, consider the following:
+
+- *Higher values*: Setting `slot_decay_per_second` to a higher value, such as 5.0, results in slots becoming available relatively quickly. In this scenario, a slot that was occupied by a task will free up after just `0.2` (`1.0 / 5.0`) seconds.
+
+- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy
+
+Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
 
 ## Using the `concurrency` context manager
 The `concurrency `context manager allows control over the maximum number of concurrent operations. You can select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
