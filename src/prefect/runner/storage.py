@@ -21,9 +21,10 @@ class RunnerStorage(Protocol):
         ...
 
     @property
-    def sync_interval(self) -> int:
+    def sync_interval(self) -> Optional[int]:
         """
         The interval at which remote storage should be synced to local storage.
+        If None, remote storage will perform a one-time sync.
         """
         ...
 
@@ -57,7 +58,7 @@ class GitRepository:
         repository: str,
         name: Optional[str] = None,
         branch: str = "main",
-        sync_interval: int = 60,
+        sync_interval: Optional[int] = 60,
     ):
         self._repository = repository
         self._branch = branch
@@ -75,7 +76,7 @@ class GitRepository:
         self._mount_path = path
 
     @property
-    def sync_interval(self) -> int:
+    def sync_interval(self) -> Optional[int]:
         return self._sync_interval
 
     async def sync(self):
@@ -140,17 +141,20 @@ class GitRepository:
         )
 
 
-def create_storage_from_url(url: str) -> RunnerStorage:
+def create_storage_from_url(
+    url: str, sync_interval: Optional[int] = 60
+) -> RunnerStorage:
     """
     Creates a storage object from a URL.
 
     Args:
-        url: the URL to create a storage object from
+        url: The URL to create a storage object from
+        sync_interval: The interval at which to sync remote storage to local storage
 
     Returns:
-        RunnerStorage: a runner storage compatible object
+        RunnerStorage: A runner storage compatible object
     """
     parsed_url = urlparse(url)
     if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(url)
-    raise ValueError(f"Unsupported storage URL: {url}")
+        return GitRepository(repository=url, sync_interval=sync_interval)
+    raise ValueError(f"Unsupported storage URL: {url}. Only git URLs are supported.")

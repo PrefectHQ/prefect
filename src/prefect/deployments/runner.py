@@ -36,9 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from build.lib.prefect._internal.concurrency.api import from_async
-
-from prefect._internal.concurrency.api import create_call
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
 
@@ -419,6 +417,32 @@ class RunnerDeployment(BaseModel):
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
     ):
+        """
+        Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+        local storage location.
+
+        Args:
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+            name: A name for the deployment
+            storage: A storage object to use for retrieving flow code. If not provided, a
+                URL must be provided.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
+        """
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
@@ -459,6 +483,7 @@ async def remote_flow_to_deployment(
     entrypoint: str,
     name: str,
     url: Optional[str] = None,
+    sync_interval: Optional[int] = 60,
     storage: Optional[RunnerStorage] = None,
     interval: Optional[Union[int, float, timedelta]] = None,
     cron: Optional[str] = None,
@@ -471,6 +496,38 @@ async def remote_flow_to_deployment(
     version: Optional[str] = None,
     enforce_parameter_schema: bool = False,
 ):
+    """
+    Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+    remote storage location.
+
+    Args:
+        entrypoint:  The path to a file containing a flow and the name of the flow function in
+            the format `./path/to/file.py:flow_func_name`.
+        name: A name for the deployment
+        url: The URL of the remote storage location. If not provided, a storage object
+            must be provided. Only git URLs are supported.
+        sync_interval: The interval at which to sync the remote storage to the local
+            filesystem. If None, remote storage will perform a one-time sync. Used in
+            conjunction with the `url` parameter. If a storage object is provided, this
+            parameter is ignored.
+        storage: A storage object to use for retrieving flow code. If not provided, a
+            URL must be provided.
+        interval: An interval on which to execute the current flow. Accepts either a number
+            or a timedelta object. If a number is given, it will be interpreted as seconds.
+        cron: A cron schedule of when to execute runs of this flow.
+        rrule: An rrule schedule of when to execute runs of this flow.
+        schedule: A schedule object of when to execute runs of this flow. Used for
+            advanced scheduling options like timezone.
+        triggers: A list of triggers that should kick of a run of this flow.
+        parameters: A dictionary of default parameter values to pass to runs of this flow.
+        description: A description for the created deployment. Defaults to the flow's
+            description if not provided.
+        tags: A list of tags to associate with the created deployment for organizational
+            purposes.
+        version: A version for the created deployment. Defaults to the flow's version.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
+    """
     if url and storage:
         raise ValueError("Only one of url or storage can be provided.")
 
@@ -478,7 +535,7 @@ async def remote_flow_to_deployment(
         raise ValueError("One of url or storage must be provided.")
 
     if url:
-        storage = create_storage_from_url(url)
+        storage = create_storage_from_url(url, sync_interval=sync_interval)
 
     assert storage is not None, "Storage was not properly passed or initialized."
 

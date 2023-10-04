@@ -335,6 +335,19 @@ class Runner:
 
         async with self as runner:
             async with self._loops_task_group as tg:
+                for storage in self._storage_objs:
+                    if storage.sync_interval:
+                        tg.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=storage.sync,
+                                interval=storage.sync_interval,
+                                run_once=run_once,
+                                jitter_range=0.3,
+                            )
+                        )
+                    else:
+                        tg.start_soon(storage.sync)
                 tg.start_soon(
                     partial(
                         critical_service_loop,
@@ -353,16 +366,6 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                for storage in self._storage_objs:
-                    tg.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=storage.sync,
-                            interval=storage.sync_interval,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                        )
-                    )
 
     async def cancel_all(self):
         runs_to_cancel = []
@@ -476,7 +479,7 @@ class Runner:
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
-        env.update({"PREFECT__MOUNT_PATH": self._tmp_dir.name})
+        env.update({"PREFECT__STORAGE_BASE_PATH": self._tmp_dir.name})
         env.update(**os.environ)  # is this really necessary??
 
         process = await run_process(

@@ -219,10 +219,11 @@ async def load_flow_from_flow_run(
                 basepath = str(basepath).replace(
                     "$STORAGE_BASE_PATH", runner_storage_base_path
                 )
+                logger.info(f"Using storage base path {basepath!r}")
             storage_block = LocalFileSystem(basepath=basepath)
 
         from_path = (
-            deployment.path.replace("$STORAGE_BASE_PATH", runner_storage_base_path)
+            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
             if runner_storage_base_path and deployment.path
             else deployment.path
         )
