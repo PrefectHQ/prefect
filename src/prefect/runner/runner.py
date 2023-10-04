@@ -325,6 +325,22 @@ class Runner:
                     )
                 )
 
+    async def cancel_all(self):
+        runs_to_cancel = []
+
+        # done to avoid dictionary size changing during iteration
+        for flow_run_id, info in self._flow_run_process_map.items():
+            runs_to_cancel.append(info["flow_run"])
+        if runs_to_cancel:
+            for run in runs_to_cancel:
+                try:
+                    await self._cancel_run(run, state_msg="Runner is shutting down.")
+                except Exception:
+                    self._logger.exception(
+                        f"Exception encountered while cancelling {run.id}",
+                        exc_info=True,
+                    )
+
     @sync_compatible
     async def stop(self):
         """Stops the runner's polling cycle."""
@@ -334,6 +350,7 @@ class Runner:
                 " .start()"
             )
 
+        await self.cancel_all()
         try:
             self._loops_task_group.cancel_scope.cancel()
         except Exception:
@@ -605,7 +622,7 @@ class Runner:
 
         return cancelling_flow_runs
 
-    async def _cancel_run(self, flow_run: "FlowRun"):
+    async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
         run_logger = self._get_flow_run_logger(flow_run)
 
         pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
@@ -635,7 +652,12 @@ class Runner:
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            await self._mark_flow_run_as_cancelled(flow_run)
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": state_msg or "Flow run was cancelled successfully."
+                },
+            )
             run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def _get_scheduled_flow_runs(
