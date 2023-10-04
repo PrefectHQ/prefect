@@ -1292,6 +1292,31 @@ PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 Maximum number of processes a runner will execute in parallel.
 """
 
+PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
+"""
+Number of seconds a runner should wait between queries for scheduled work.
+"""
+
+PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
+"""
+Number of missed polls before a runner is considered unhealthy by its webserver.
+"""
+
+PREFECT_RUNNER_SERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
+"""
+The port the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
+"""
+The log level of the runner's webserver.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
