@@ -329,12 +329,8 @@ jobs:
 
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
-        uses:
-          - docker/build-push-action@v5
-          - nick-fields/retry@v2
+        uses: docker/build-push-action@v5
         with:
-          retry_on: failure
-          max_attempts: 3
           context: .
           # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
           #       so that CI test runs are faster
