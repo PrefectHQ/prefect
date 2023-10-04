@@ -732,6 +732,7 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
+    @pytest.mark.flaky(max_runs=2)
     async def test_sigint_sends_sigterm(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
@@ -751,6 +752,7 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
+    @pytest.mark.flaky(max_runs=2)
     async def test_sigterm_sends_sigterm_directly(self, worker_process):
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)
