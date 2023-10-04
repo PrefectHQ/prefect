@@ -83,15 +83,15 @@ class GitRepository:
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
-        self._mount_path = Path.cwd()
+        self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
 
     @property
     def destination(self) -> Path:
-        return self._mount_path / self._name
+        return self._storage_base_path / self._name
 
     def set_base_path(self, path: Path):
-        self._mount_path = path
+        self._storage_base_path = path
 
     @property
     def pull_interval(self) -> Optional[int]:
@@ -185,7 +185,7 @@ class GitRepository:
 
     def __repr__(self) -> str:
         return (
-            f"GitRepositoryMount(name={self._name!r} repository={self._url!r},"
+            f"GitRepository(name={self._name!r} repository={self._url!r},"
             f" branch={self._branch!r})"
         )
 

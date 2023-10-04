@@ -186,7 +186,7 @@ class Runner:
         deployment_id = await deployment.apply()
         storage = deployment.storage
         if storage is not None:
-            storage = await self.add_mount(storage)
+            storage = await self.add_storage(storage)
             self._deployment_working_dir_map[deployment_id] = storage.destination
         self._deployment_ids.add(deployment_id)
 
@@ -256,14 +256,15 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
-    async def add_mount(self, storage: RunnerStorage) -> RunnerStorage:
+    async def add_storage(self, storage: RunnerStorage) -> RunnerStorage:
         """
-        Adds a mount to the runner. The mount will be synced to the runner's
-        working directory before the runner starts.
+        Adds a storage object to the runner. The storage object will be used to pull
+        code to the runner's working directory before the runner starts.
+
         Args:
-            mount: The mount to add to the runner.
+            storage: The storage object to add to the runner.
         Returns:
-            The updated mount that was added to the runner.
+            The updated storage object that was added to the runner.
         """
         if storage not in self._storage_objs:
             storage_copy = deepcopy(storage)
@@ -281,7 +282,9 @@ class Runner:
             return next(s for s in self._storage_objs if s == storage)
 
     @sync_compatible
-    async def start(self, run_once: bool = False, webserver: Optional[bool] = None) -> None:
+    async def start(
+        self, run_once: bool = False, webserver: Optional[bool] = None
+    ) -> None:
         """
         Starts a runner.
 
