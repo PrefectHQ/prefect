@@ -30,9 +30,17 @@ from typing import (
     overload,
 )
 
-import pydantic
-from fastapi.encoders import jsonable_encoder
-from pydantic.decorator import ValidatedFunction
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1.decorator import ValidatedFunction
+else:
+    import pydantic
+    from pydantic.decorator import ValidatedFunction
+
 from rich.console import Console
 from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec

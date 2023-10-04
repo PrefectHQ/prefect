@@ -2,15 +2,30 @@ import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import httpcore
 import httpx
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI, status
+from starlette import status
 
 import prefect
 import prefect.exceptions
@@ -110,7 +125,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
 
 class ServerType(AutoEnum):
@@ -174,7 +189,7 @@ class PrefectClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI],
+        api: Union[str, ASGIApp],
         *,
         api_key: str = None,
         api_version: str = None,
@@ -197,7 +212,7 @@ class PrefectClient:
 
         # Context management
         self._exit_stack = AsyncExitStack()
-        self._ephemeral_app: Optional[FastAPI] = None
+        self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
         self.server_type: ServerType
 
@@ -245,7 +260,7 @@ class PrefectClient:
             )
 
         # Connect to an in-process application
-        elif isinstance(api, FastAPI):
+        elif isinstance(api, ASGIApp):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
 
@@ -268,7 +283,7 @@ class PrefectClient:
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'FastAPI'"
+                " 'str' or 'ASGIApp/FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -1025,12 +1040,14 @@ class PrefectClient:
     async def match_work_queues(
         self,
         prefixes: List[str],
+        work_pool_name: Optional[str] = None,
     ) -> List[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
         Args:
             prefixes: a list of strings used to match work queue name prefixes
+            work_pool_name: an optional work pool name to scope the query to
 
         Returns:
             a list of WorkQueue model representations
@@ -1042,6 +1059,7 @@ class PrefectClient:
 
         while True:
             new_queues = await self.read_work_queues(
+                work_pool_name=work_pool_name,
                 offset=current_page * page_length,
                 limit=page_length,
                 work_queue_filter=WorkQueueFilter(

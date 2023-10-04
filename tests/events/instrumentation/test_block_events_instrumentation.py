@@ -1,6 +1,11 @@
 from unittest import mock
 
-from pydantic import SecretStr
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import SecretStr
+else:
+    from pydantic import SecretStr
 
 from prefect.blocks.notifications import PagerDutyWebHook
 from prefect.blocks.system import Secret

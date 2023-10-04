@@ -10,9 +10,16 @@ import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from pydantic import Field, validator
 
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
+
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
