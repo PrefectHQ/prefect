@@ -149,7 +149,6 @@ class Runner:
 
         self.started = False
         self.should_stop = False
-        self.is_stopping = False
         self.pause_on_shutdown = pause_on_shutdown
         self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
         self.webserver = webserver
@@ -326,14 +325,14 @@ class Runner:
                     )
                 )
 
-    def stop(self):
+    @sync_compatible
+    async def stop(self):
         """Stops the runner's polling cycle."""
         if not self.started:
             raise RuntimeError(
                 "Runner has not yet started. Please start the runner by calling"
                 " .start()"
             )
-        self.is_stopping = True
 
         try:
             self._loops_task_group.cancel_scope.cancel()
@@ -532,10 +531,7 @@ class Runner:
 
     async def _get_and_submit_flow_runs(self):
         if self.should_stop:
-            if self.is_stopping:
-                return
-            else:
-                self.stop()
+            return
         runs_response = await self._get_scheduled_flow_runs()
         self.last_polled = pendulum.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
@@ -544,10 +540,7 @@ class Runner:
         self, on_nothing_to_watch: Callable = lambda: None
     ):
         if self.should_stop:
-            if self.is_stopping:
-                return
-            else:
-                self.stop()
+            return
         if not self.started:
             raise RuntimeError(
                 "Runner is not set up. Please make sure you are running this runner "

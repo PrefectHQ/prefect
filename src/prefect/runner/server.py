@@ -44,6 +44,7 @@ def run_count(runner) -> int:
 def shutdown(runner) -> int:
     def _shutdown():
         runner.should_stop = True
+        runner.stop()
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
 
     return _shutdown
