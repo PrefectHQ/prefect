@@ -5,7 +5,7 @@ install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
 setup(
-    # Package metadata
+    # Package metadata and stuff
     name="prefect",
     description="Workflow orchestration and management.",
     author="Prefect Technologies, Inc.",
