@@ -27,6 +27,12 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
+# All tests that invoke invoke_and_assert() can end up running our CLI command
+# coroutines off the main thread. If the CLI command calls
+# forward_signal_handler(), which prefect.cli.worker.start does, the test run
+# will fail because only the main thread can attach signal handlers.
+pytestmark = pytest.mark.flaky(max_runs=2)
+
 
 class MockKubernetesWorker(BaseWorker):
     type = "kubernetes"
