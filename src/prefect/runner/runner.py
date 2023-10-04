@@ -274,7 +274,7 @@ class Runner:
                 f" {str(storage_copy.destination)!r}"
             )
             self._storage_objs.append(storage_copy)
-            await storage_copy.sync()
+            await storage_copy.pull()
 
             return storage_copy
         else:
@@ -336,18 +336,18 @@ class Runner:
         async with self as runner:
             async with self._loops_task_group as tg:
                 for storage in self._storage_objs:
-                    if storage.sync_interval:
+                    if storage.pull_interval:
                         tg.start_soon(
                             partial(
                                 critical_service_loop,
-                                workload=storage.sync,
-                                interval=storage.sync_interval,
+                                workload=storage.pull,
+                                interval=storage.pull_interval,
                                 run_once=run_once,
                                 jitter_range=0.3,
                             )
                         )
                     else:
-                        tg.start_soon(storage.sync)
+                        tg.start_soon(storage.pull)
                 tg.start_soon(
                     partial(
                         critical_service_loop,

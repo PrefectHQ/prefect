@@ -449,7 +449,7 @@ class RunnerDeployment(BaseModel):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
-            await storage.sync()
+            await storage.pull()
 
             full_entrypoint = str(storage.destination / entrypoint)
             flow = await from_async.wait_for_call_in_new_thread(
@@ -483,7 +483,7 @@ async def remote_flow_to_deployment(
     entrypoint: str,
     name: str,
     url: Optional[str] = None,
-    sync_interval: Optional[int] = 60,
+    pull_interval: Optional[int] = 60,
     storage: Optional[RunnerStorage] = None,
     interval: Optional[Union[int, float, timedelta]] = None,
     cron: Optional[str] = None,
@@ -506,8 +506,8 @@ async def remote_flow_to_deployment(
         name: A name for the deployment
         url: The URL of the remote storage location. If not provided, a storage object
             must be provided. Only git URLs are supported.
-        sync_interval: The interval at which to sync the remote storage to the local
-            filesystem. If None, remote storage will perform a one-time sync. Used in
+        pull_interval: The interval at which to pull contents from the remote storage to the local
+            filesystem. If None, remote storage will perform a one-time pull. Used in
             conjunction with the `url` parameter. If a storage object is provided, this
             parameter is ignored.
         storage: A storage object to use for retrieving flow code. If not provided, a
@@ -535,7 +535,7 @@ async def remote_flow_to_deployment(
         raise ValueError("One of url or storage must be provided.")
 
     if url:
-        storage = create_storage_from_url(url, sync_interval=sync_interval)
+        storage = create_storage_from_url(url, pull_interval=pull_interval)
 
     assert storage is not None, "Storage was not properly passed or initialized."
 

@@ -16,28 +16,29 @@ class RunnerStorage(Protocol):
 
     def set_base_path(self, path: Path):
         """
-        Sets the base path to use when syncing remote storage to local storage.
+        Sets the base path to use when pulling contents from remote storage to
+        local storage.
         """
         ...
 
     @property
-    def sync_interval(self) -> Optional[int]:
+    def pull_interval(self) -> Optional[int]:
         """
-        The interval at which remote storage should be synced to local storage.
-        If None, remote storage will perform a one-time sync.
+        The interval at which contents from remote storage should be pulled to
+        local storage. If None, remote storage will perform a one-time sync.
         """
         ...
 
     @property
     def destination(self) -> Path:
         """
-        The local file path to sync remote storage to.
+        The local file path to pull contents from remote storage to.
         """
         ...
 
-    async def sync(self):
+    async def pull(self):
         """
-        Syncs remote storage to the local filesystem.
+        Pulls contents from remote storage to the local filesystem.
         """
         ...
 
@@ -61,7 +62,7 @@ class GitRepository:
         password: Optional[str] = None,
         name: Optional[str] = None,
         branch: str = "main",
-        sync_interval: Optional[int] = 60,
+        pull_interval: Optional[int] = 60,
     ):
         if access_token and (username or password):
             raise ValueError(
@@ -83,7 +84,7 @@ class GitRepository:
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._mount_path = Path.cwd()
-        self._sync_interval = sync_interval
+        self._pull_interval = pull_interval
 
     @property
     def destination(self) -> Path:
@@ -93,15 +94,17 @@ class GitRepository:
         self._mount_path = path
 
     @property
-    def sync_interval(self) -> Optional[int]:
-        return self._sync_interval
+    def pull_interval(self) -> Optional[int]:
+        return self._pull_interval
 
-    async def sync(self):
+    async def pull(self):
         """
-        Syncs the repository to the local filesystem.
+        Pulls the contents of the configured repository to the local filesystem.
         """
         self._logger.debug(
-            "Syncing repository %s to %s...", self._name, self.destination
+            "Pull contents from repository '%s' to '%s'...",
+            self._name,
+            self.destination,
         )
 
         git_dir = self.destination / ".git"
@@ -188,19 +191,20 @@ class GitRepository:
 
 
 def create_storage_from_url(
-    url: str, sync_interval: Optional[int] = 60
+    url: str, pull_interval: Optional[int] = 60
 ) -> RunnerStorage:
     """
     Creates a storage object from a URL.
 
     Args:
         url: The URL to create a storage object from
-        sync_interval: The interval at which to sync remote storage to local storage
+        pull_interval: The interval at which to pull contents from remote storage to
+            local storage
 
     Returns:
         RunnerStorage: A runner storage compatible object
     """
     parsed_url = urlparse(url)
     if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
-        return GitRepository(repository=url, sync_interval=sync_interval)
+        return GitRepository(repository=url, pull_interval=pull_interval)
     raise ValueError(f"Unsupported storage URL: {url}. Only git URLs are supported.")
