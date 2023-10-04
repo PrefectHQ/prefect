@@ -19,7 +19,7 @@ The core difference between a rate limit and a concurrency limit is the way in w
 
 ## Managing Global concurrency limits and rate limits
 
-You can create, read, edit and delete concurrency limits via the Prefect UI. 
+You can create, read, edit, and delete concurrency limits via the Prefect UI. 
 
 When creating a concurrency limit, you can specify the following parameters:
 
@@ -212,11 +212,11 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-### Managing Database Connections
+### Managing database connections
 
 Managing the maximum number of concurrent database connections to avoid exhausting database resources.
 
-In this scenario we've setup a 'database' concurrency limit and given it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections that are used at any one time.
+In this scenario we've setup a concurrency limit named `database` and given it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections allowed at any one time.
 
 ```python
 from prefect import flow, task, concurrency
@@ -246,11 +246,11 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-### Parallel Data Processing
+### Parallel data processing
 
 Limiting the maximum number of parallel processing tasks.
 
-In this scenario we want to limit the number of `process_data` tasks to 5 at any one time. We do this by using the `concurrency` context manager to request 5 slots on the `data-processing` concurrency limit. This will block until 5 slots are free and then submit 5 more tasks, ensuring that we never exceed the maximum number of parallel processing tasks. 
+In this scenario we want to limit the number of `process_data` tasks to five at any one time. We do this by using the `concurrency` context manager to request five slots on the `data-processing` concurrency limit. This will block until five slots are free and then submit five more tasks, ensuring that we never exceed the maximum number of parallel processing tasks. 
 
 ```python
 import asyncio
