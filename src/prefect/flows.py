@@ -1177,6 +1177,11 @@ def flow(
         )
 
 
+# Add factory methods so they are available on the flow function we all know and love
+flow.from_url = Flow.from_url
+flow.from_storage = Flow.from_storage
+
+
 def select_flow(
     flows: Iterable[Flow], flow_name: str = None, from_message: str = None
 ) -> Flow:
