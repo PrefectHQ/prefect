@@ -44,6 +44,7 @@ class TestPrefectHttpxClient:
     @pytest.mark.parametrize(
         "error_code",
         [
+            status.HTTP_408_REQUEST_TIMEOUT,
             status.HTTP_429_TOO_MANY_REQUESTS,
             status.HTTP_503_SERVICE_UNAVAILABLE,
             status.HTTP_502_BAD_GATEWAY,
@@ -87,8 +88,8 @@ class TestPrefectHttpxClient:
     @pytest.mark.parametrize(
         "error_code,extra_codes",
         [
-            (status.HTTP_408_REQUEST_TIMEOUT, "408"),
-            (status.HTTP_409_CONFLICT, "408,409"),
+            (status.HTTP_508_LOOP_DETECTED, "508"),
+            (status.HTTP_409_CONFLICT, "508,409"),
         ],
     )
     async def test_prefect_httpx_client_retries_on_extra_error_codes(
@@ -134,7 +135,7 @@ class TestPrefectHttpxClient:
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxClient()
         retry_response = Response(
-            status.HTTP_408_REQUEST_TIMEOUT,
+            status.HTTP_508_LOOP_DETECTED,
             request=Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
