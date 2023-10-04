@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Optional, Protocol, runtime_checkable
 from urllib.parse import urlparse
 
 from anyio import run_process
@@ -7,6 +7,7 @@ from anyio import run_process
 from prefect.logging.loggers import get_logger
 
 
+@runtime_checkable
 class RunnerStorage(Protocol):
     """
     A storage interface for a runner to use to retrieve
@@ -39,7 +40,7 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    def __eq__(self, __value):
+    def __eq__(self, __value) -> bool:
         """
         Equality check for runner storage objects.
         """
@@ -70,7 +71,7 @@ class GitRepository:
     def destination(self) -> Path:
         return self._mount_path / self._name
 
-    def set_mount_path(self, path: Path):
+    def set_base_path(self, path: Path):
         self._mount_path = path
 
     @property
@@ -123,7 +124,7 @@ class GitRepository:
                 ]
             )
 
-    def __eq__(self, __value):
+    def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
             return (
                 self._repository == __value._repository
@@ -137,3 +138,19 @@ class GitRepository:
             f"GitRepositoryMount(name={self._name!r} repository={self._repository!r},"
             f" branch={self._branch!r})"
         )
+
+
+def create_storage_from_url(url: str) -> RunnerStorage:
+    """
+    Creates a storage object from a URL.
+
+    Args:
+        url: the URL to create a storage object from
+
+    Returns:
+        RunnerStorage: a runner storage compatible object
+    """
+    parsed_url = urlparse(url)
+    if parsed_url.scheme == "git" or parsed_url.path.endswith(".git"):
+        return GitRepository(url)
+    raise ValueError(f"Unsupported storage URL: {url}")

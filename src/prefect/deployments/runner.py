@@ -30,12 +30,17 @@ Example:
 """
 
 import importlib
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+from build.lib.prefect._internal.concurrency.api import from_async
+
+from prefect._internal.concurrency.api import create_call
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.runner.storage import RunnerStorage, create_storage_from_url
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -80,6 +85,9 @@ class RunnerDeployment(BaseModel):
             parameter schema for this deployment.
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
         None, description="The name of the underlying flow; typically inferred."
@@ -114,6 +122,12 @@ class RunnerDeployment(BaseModel):
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
+        ),
+    )
+    storage: Optional[RunnerStorage] = Field(
+        default=None,
+        description=(
+            "The storage object used to retrieve flow code for this deployment."
         ),
     )
 
@@ -386,3 +400,100 @@ class RunnerDeployment(BaseModel):
         cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
+
+    @classmethod
+    @sync_compatible
+    async def from_storage(
+        cls,
+        storage: RunnerStorage,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        schedule = cls._construct_schedule(
+            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage.set_base_path(Path(tmpdir))
+            await storage.sync()
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+
+        deployment = cls(
+            name=Path(name).stem,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
+            storage=storage,
+        )
+        deployment._path = str(storage.destination).replace(
+            tmpdir, "$STORAGE_BASE_PATH"
+        )
+
+        cls._set_defaults_from_flow(deployment, flow)
+
+        return deployment
+
+
+@sync_compatible
+async def remote_flow_to_deployment(
+    entrypoint: str,
+    name: str,
+    url: Optional[str] = None,
+    storage: Optional[RunnerStorage] = None,
+    interval: Optional[Union[int, float, timedelta]] = None,
+    cron: Optional[str] = None,
+    rrule: Optional[str] = None,
+    schedule: Optional[SCHEDULE_TYPES] = None,
+    parameters: Optional[dict] = None,
+    triggers: Optional[List[DeploymentTrigger]] = None,
+    description: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    version: Optional[str] = None,
+    enforce_parameter_schema: bool = False,
+):
+    if url and storage:
+        raise ValueError("Only one of url or storage can be provided.")
+
+    if not url and not storage:
+        raise ValueError("One of url or storage must be provided.")
+
+    if url:
+        storage = create_storage_from_url(url)
+
+    assert storage is not None, "Storage was not properly passed or initialized."
+
+    return await RunnerDeployment.from_storage(
+        storage=storage,
+        entrypoint=entrypoint,
+        name=name,
+        interval=interval,
+        cron=cron,
+        rrule=rrule,
+        schedule=schedule,
+        parameters=parameters,
+        triggers=triggers,
+        description=description,
+        tags=tags,
+        version=version,
+        enforce_parameter_schema=enforce_parameter_schema,
+    )
