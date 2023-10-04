@@ -29,10 +29,17 @@ Example:
     ```
 
 """
+import asyncio
 import datetime
 import inspect
+import os
 import shlex
+import signal
+import subprocess
+import sys
+import tempfile
 import threading
+from copy import deepcopy
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
@@ -41,6 +48,7 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+import sniffio
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
@@ -63,6 +71,8 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.runner.server import start_webserver
+from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -72,23 +82,11 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
-
-import asyncio
-import os
-import signal
-import subprocess
-import sys
-
-import anyio
-import anyio.abc
-import sniffio
-
-from prefect.runner.server import start_webserver
-from prefect.utilities.processutils import run_process
 
 __all__ = ["Runner", "serve"]
 
@@ -169,6 +167,10 @@ class Runner:
         self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
 
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self._storage_objs: List[RunnerStorage] = []
+        self._deployment_working_dir_map: Dict[UUID, Path] = {}
+
     @sync_compatible
     async def add_deployment(
         self,
@@ -182,6 +184,10 @@ class Runner:
             deployment: A deployment for the runner to register.
         """
         deployment_id = await deployment.apply()
+        storage = deployment.storage
+        if storage is not None:
+            storage = await self.add_mount(storage)
+            self._deployment_working_dir_map[deployment_id] = storage.destination
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
@@ -226,8 +232,6 @@ class Runner:
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
         """
-        # TODO: expose a filesystem interface with hot reloading
-        # will need to create a separate method for deployment creation
         api = PREFECT_API_URL.value()
         if any([interval, cron, rrule]) and not api:
             self._logger.warning(
@@ -252,7 +256,32 @@ class Runner:
         return await self.add_deployment(deployment)
 
     @sync_compatible
-    async def start(self, run_once: bool = False, webserver: bool = None) -> None:
+    async def add_mount(self, storage: RunnerStorage) -> RunnerStorage:
+        """
+        Adds a mount to the runner. The mount will be synced to the runner's
+        working directory before the runner starts.
+        Args:
+            mount: The mount to add to the runner.
+        Returns:
+            The updated mount that was added to the runner.
+        """
+        if storage not in self._storage_objs:
+            storage_copy = deepcopy(storage)
+            storage_copy.set_base_path(Path(self._tmp_dir.name))
+
+            self._logger.debug(
+                f"Adding storage {storage_copy!r} to runner at"
+                f" {str(storage_copy.destination)!r}"
+            )
+            self._storage_objs.append(storage_copy)
+            await storage_copy.sync()
+
+            return storage_copy
+        else:
+            return next(s for s in self._storage_objs if s == storage)
+
+    @sync_compatible
+    async def start(self, run_once: bool = False, webserver: Optional[bool] = None) -> None:
         """
         Starts a runner.
 
@@ -324,6 +353,16 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+                for storage in self._storage_objs:
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=storage.sync,
+                            interval=storage.sync_interval,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                        )
+                    )
 
     async def cancel_all(self):
         runs_to_cancel = []
@@ -437,6 +476,7 @@ class Runner:
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
+        env.update({"PREFECT__MOUNT_PATH": self._tmp_dir.name})
         env.update(**os.environ)  # is this really necessary??
 
         process = await run_process(
@@ -445,6 +485,7 @@ class Runner:
             task_status=task_status,
             env=env,
             **kwargs,
+            cwd=self._deployment_working_dir_map.get(flow_run.deployment_id),
         )
 
         # Use the pid for display if no name was given
@@ -922,6 +963,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
+        self._tmp_dir.__enter__()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -939,6 +981,7 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
+        self._tmp_dir.__exit__(*exc_info)
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"
