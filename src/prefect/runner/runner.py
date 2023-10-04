@@ -361,7 +361,9 @@ class Runner:
                         self._submit_run_and_capture_errors, flow_run
                     )
 
-                    self._flow_run_process_map[flow_run.id] = pid
+                    self._flow_run_process_map[flow_run.id] = dict(
+                        pid=pid, flow_run=flow_run
+                    )
 
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
@@ -606,7 +608,7 @@ class Runner:
     async def _cancel_run(self, flow_run: "FlowRun"):
         run_logger = self._get_flow_run_logger(flow_run)
 
-        pid = self._flow_run_process_map.get(flow_run.id)
+        pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
         if not pid:
             await self._mark_flow_run_as_cancelled(
                 flow_run,
@@ -729,7 +731,9 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                self._flow_run_process_map[flow_run.id] = readiness_result
+                self._flow_run_process_map[flow_run.id] = dict(
+                    pid=readiness_result, flow_run=flow_run
+                )
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
