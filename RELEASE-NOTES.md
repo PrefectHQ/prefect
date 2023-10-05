@@ -1,5 +1,71 @@
 # Prefect Release Notes
 
+## Release 2.13.5
+
+### Load and serve remotely stored flows
+
+You can now load and serve flows from a git repository! 
+
+With the new `flow.from_source` method, you can specify a git repository and a path to a flow file in that repository. This method will return a flow object that can be run or served with `flow.serve()`.
+
+Here's an example of loading a flow from a git repository and serving it:
+
+```python
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/org/repo.git",
+        entrypoint="path/to/flow.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+When you load and serve a flow from a git repository, the serving process will periodically poll the repository for changes. This means that you can update the flow in the repository and the changes will be reflected in the served flow without restarting the serve script!
+
+To learn more about loading and serving flows from a git repository, check out [the docs](https://docs.prefect.io/latest/concepts/flows/#retrieve-a-flow-from-remote-storage)!
+
+See the following pull requests for details:
+- https://github.com/PrefectHQ/prefect/pull/10884
+- https://github.com/PrefectHQ/prefect/pull/10850
+
+### Experimental Pydantic 2 Compatibility
+
+We're working eagerly toward having `prefect` installable with either `pydantic<2` or `pydantic>2`.  As a first step toward compatibility, we've ensured that Prefect's use of `pydantic` is isolated from _your_ use of `pydantic` in as many ways as possible.  As of this release, `prefect` still has a stated `pydantic` requirement of `<2`, but we are testing against `pydantic>2` in our continuous integration tests.  If you're feeling adventurous, feel free to manually install `pydantic>2` and run some flows with it.  If you do, please let us know how it's going with a note in Slack or with a Github issue.
+
+See the following pull requests for details
+- https://github.com/PrefectHQ/prefect/pull/10860
+- https://github.com/PrefectHQ/prefect/pull/10867
+- https://github.com/PrefectHQ/prefect/pull/10868
+- https://github.com/PrefectHQ/prefect/pull/10870
+- https://github.com/PrefectHQ/prefect/pull/10873
+- https://github.com/PrefectHQ/prefect/pull/10891
+- https://github.com/PrefectHQ/prefect/pull/10876
+
+### Enhancements
+- Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
+- Default `PREFECT_UI_API_URL` to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
+- Add blob storage options to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10656
+- Add retries on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
+
+### Fixes
+- Ensure agents only query work queues in `default-agent-pool`  work pool if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
+- Update `Runner` to correctly handle spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
+- Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
+- Fix bug preventing importing `prefect` in a thread — https://github.com/PrefectHQ/prefect/pull/10871
+
+### Documentation
+- Add GCP Vertex AI worker to worker types list in work pools documentation — https://github.com/PrefectHQ/prefect/pull/10858
+- Expound upon rate limit info and global concurrency use cases in concurrency guide — https://github.com/PrefectHQ/prefect/pull/10886
+- Point docker guide link to tutorial on workers — https://github.com/PrefectHQ/prefect/pull/10872
+- Clarify workers and work pools as an alternative to `.serve()` in tutorials — https://github.com/PrefectHQ/prefect/pull/10861
+- Fix typo in deployments concept page — https://github.com/PrefectHQ/prefect/pull/10857
+- Remove beta label from push work pool documentation — https://github.com/PrefectHQ/prefect/pull/10848
+
+### Contributors
+* @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.4...2.13.5
+
 ## Release 2.13.4
 
 ### Enhancements
