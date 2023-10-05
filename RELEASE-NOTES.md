@@ -37,6 +37,7 @@
 * @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.4...2.13.5
+
 ## Release 2.13.4
 
 ### Enhancements
