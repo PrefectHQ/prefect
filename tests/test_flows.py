@@ -512,10 +512,7 @@ class TestFlowCall:
 
         state = foo._run(x="foo")
 
-        with pytest.raises(
-            ParameterTypeError,
-            match="value is not a valid integer",
-        ):
+        with pytest.raises(ParameterTypeError):
             state.result()
 
     def test_call_ignores_incompatible_parameter_types_if_asked(self):

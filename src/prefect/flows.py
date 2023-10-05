@@ -36,13 +36,18 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic import ValidationError as V2ValidationError
+    from pydantic.v1.decorator import ValidatedFunction
 
     from ._internal.pydantic.v2_validated_func import (
-        V2ValidatedFunction as ValidatedFunction,
+        V2ValidatedFunction as ValidatedFunction,  # noqa: F811
     )
+
 else:
     import pydantic
     from pydantic.decorator import ValidatedFunction
+
+    V2ValidationError = None
 
 from rich.console import Console
 from rich.panel import Panel
@@ -462,6 +467,10 @@ class Flow(Generic[P, R]):
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
+            # We capture the pydantic exception and raise our own because the pydantic
+            # exception is not picklable when using a cythonized pydantic installation
+            raise ParameterTypeError.from_validation_error(exc) from None
+        except V2ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
             raise ParameterTypeError.from_validation_error(exc) from None
