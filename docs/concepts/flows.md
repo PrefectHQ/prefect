@@ -858,6 +858,8 @@ my_flow()
         ).serve(name="my-deployment")
     ```
 
+    When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
+
 
 ## Pause a flow run
 
