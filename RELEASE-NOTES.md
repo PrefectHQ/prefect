@@ -59,7 +59,7 @@ See the following pull requests for details
 - Change docker guide link to point to worker tutorial — https://github.com/PrefectHQ/prefect/pull/10872
 - A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
 - Fix typo in deployments concept page — https://github.com/PrefectHQ/prefect/pull/10857
-- Remove push pool beta label — https://github.com/PrefectHQ/prefect/pull/10848
+- Remove beta label from push work pool documentation — https://github.com/PrefectHQ/prefect/pull/10848
 
 ## Contributors
 * @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
