@@ -14,7 +14,7 @@
 - Conditional imports for `pydantic` Settings — https://github.com/PrefectHQ/prefect/pull/10870
 - Conditional imports for `pydantic` throughout — https://github.com/PrefectHQ/prefect/pull/10873
 - Handle validation on `pydantic` v2 models used as parameters in tasks and flows - https://github.com/PrefectHQ/prefect/pull/10891
-- Retry on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
+- Add retries on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
 
 ### Fixes
 - Enforce that agents only query WorkQueues in `prefect-agent` typed work pools if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
