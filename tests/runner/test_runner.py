@@ -2,6 +2,7 @@ import datetime
 from itertools import combinations
 from pathlib import Path
 from time import sleep
+from unittest.mock import MagicMock
 
 import anyio
 import pendulum
@@ -78,9 +79,9 @@ class TestServe:
 
     async def test_serve_prints_help_message_on_startup(self, capsys):
         await serve(
-            dummy_flow_1.to_deployment(__file__),
-            dummy_flow_2.to_deployment(__file__),
-            tired_flow.to_deployment(__file__),
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            await tired_flow.to_deployment(__file__),
         )
 
         captured = capsys.readouterr()
@@ -98,8 +99,8 @@ class TestServe:
         self,
         prefect_client: PrefectClient,
     ):
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         await serve(deployment_1, deployment_2)
 
@@ -120,7 +121,7 @@ class TestServe:
     async def test_serve_starts_a_runner(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):
-        deployment = dummy_flow_1.to_deployment("test")
+        deployment = await dummy_flow_1.to_deployment("test")
 
         await serve(deployment)
 
@@ -175,8 +176,8 @@ class TestRunner:
         """Runner.add_deployment should apply the deployment passed to it"""
         runner = Runner()
 
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         deployment_id_1 = await runner.add_deployment(deployment_1)
         deployment_id_2 = await runner.add_deployment(deployment_2)
@@ -197,8 +198,8 @@ class TestRunner:
     ):
         runner = Runner()
 
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         await runner.add_deployment(deployment_1)
         await runner.add_deployment(deployment_2)
@@ -234,7 +235,7 @@ class TestRunner:
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner()
 
-        deployment = dummy_flow_1.to_deployment(__file__)
+        deployment = await dummy_flow_1.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
@@ -257,7 +258,7 @@ class TestRunner:
     async def test_runner_can_cancel_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner(query_seconds=2)
 
-        deployment = tired_flow.to_deployment(__file__)
+        deployment = await tired_flow.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
@@ -306,7 +307,7 @@ class TestRunner:
     ):
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -322,7 +323,7 @@ class TestRunner:
     ):
         runner = Runner(limit=1)
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         good_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -363,7 +364,7 @@ class TestRunner:
 
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -402,7 +403,7 @@ class TestRunner:
 
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -411,6 +412,57 @@ class TestRunner:
 
         assert env_var_value == str(flow_run.id)
         assert env_var_value != flow_run.id.hex
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_runs_a_remotely_stored_flow(self, prefect_client):
+        runner = Runner()
+
+        deployment = await (
+            await flow.from_source(
+                source=MockStorage(), entrypoint="flows.py:test_flow"
+            )
+        ).to_deployment(__file__)
+
+        deployment_id = await runner.add_deployment(deployment)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
+        assert flow_run.state.is_completed()
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_caches_adhoc_pulls(self, prefect_client):
+        runner = Runner()
+
+        pull_code_spy = MagicMock()
+
+        deployment = await RunnerDeployment.from_storage(
+            storage=MockStorage(pull_code_spy=pull_code_spy),
+            entrypoint="flows.py:test_flow",
+            name=__file__,
+        )
+
+        deployment_id = await runner.add_deployment(deployment)
+
+        await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner.start(run_once=True)
+
+        # 1 for deployment creation, 1 for runner start up, 1 for ad hoc pull
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
+
+        await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Should be 3 because the ad hoc pull should have been cached
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
 
 
 class TestRunnerDeployment:
@@ -488,7 +540,7 @@ class TestRunnerDeployment:
         assert deployment.description == "I'm just here for tests"
 
     def test_from_flow_raises_when_using_flow_loaded_from_entrypoint(self):
-        da_flow = load_flow_from_entrypoint("tests/test_runner.py:dummy_flow_1")
+        da_flow = load_flow_from_entrypoint("tests/runner/test_runner.py:dummy_flow_1")
 
         with pytest.raises(
             ValueError,
@@ -534,7 +586,7 @@ class TestRunnerDeployment:
 
         assert deployment.name == "test_runner"
         assert deployment.flow_name == "dummy-flow-1"
-        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
@@ -603,7 +655,7 @@ class TestRunnerDeployment:
         deployment = await prefect_client.read_deployment(deployment_id)
 
         assert deployment.name == "test_runner"
-        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
@@ -611,6 +663,68 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == str(Path.cwd())
         assert deployment.enforce_parameter_schema is False
+
+    async def test_create_runner_deployment_from_storage(self):
+        storage = MockStorage()
+
+        deployment = await RunnerDeployment.from_storage(
+            storage=storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            interval=datetime.timedelta(seconds=30),
+            description="Test Deployment Description",
+            tags=["tag1", "tag2"],
+            version="1.0.0",
+            enforce_parameter_schema=True,
+        )
+
+        # Verify the created RunnerDeployment's attributes
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "test-flow"
+        assert deployment.schedule.interval == datetime.timedelta(seconds=30)
+        assert deployment.tags == ["tag1", "tag2"]
+        assert deployment.version == "1.0.0"
+        assert deployment.description == "Test Deployment Description"
+        assert deployment.enforce_parameter_schema is True
+        assert "$STORAGE_BASE_PATH" in deployment._path
+        assert deployment.entrypoint == "flows.py:test_flow"
+        assert deployment.storage == storage
+
+
+class MockStorage:
+    """
+    A mock storage class that simulates pulling code from a remote location.
+    """
+
+    def __init__(self, pull_code_spy=None):
+        self._base_path = Path.cwd()
+        self._pull_code_spy = pull_code_spy
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        if self._pull_code_spy:
+            self._pull_code_spy()
+
+        code = """
+from prefect import Flow
+
+@Flow
+def test_flow():
+    return 1
+"""
+        if self._base_path:
+            with open(self._base_path / "flows.py", "w") as f:
+                f.write(code)
 
 
 class TestServer:
