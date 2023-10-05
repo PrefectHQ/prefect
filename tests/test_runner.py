@@ -78,9 +78,9 @@ class TestServe:
 
     async def test_serve_prints_help_message_on_startup(self, capsys):
         await serve(
-            dummy_flow_1.to_deployment(__file__),
-            dummy_flow_2.to_deployment(__file__),
-            tired_flow.to_deployment(__file__),
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            await tired_flow.to_deployment(__file__),
         )
 
         captured = capsys.readouterr()
@@ -98,8 +98,8 @@ class TestServe:
         self,
         prefect_client: PrefectClient,
     ):
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         await serve(deployment_1, deployment_2)
 
@@ -120,7 +120,7 @@ class TestServe:
     async def test_serve_starts_a_runner(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):
-        deployment = dummy_flow_1.to_deployment("test")
+        deployment = await dummy_flow_1.to_deployment("test")
 
         await serve(deployment)
 
@@ -175,8 +175,8 @@ class TestRunner:
         """Runner.add_deployment should apply the deployment passed to it"""
         runner = Runner()
 
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         deployment_id_1 = await runner.add_deployment(deployment_1)
         deployment_id_2 = await runner.add_deployment(deployment_2)
@@ -197,8 +197,8 @@ class TestRunner:
     ):
         runner = Runner()
 
-        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
-        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+        deployment_1 = await dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = await dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         await runner.add_deployment(deployment_1)
         await runner.add_deployment(deployment_2)
@@ -234,7 +234,7 @@ class TestRunner:
     async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner()
 
-        deployment = dummy_flow_1.to_deployment(__file__)
+        deployment = await dummy_flow_1.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
@@ -257,7 +257,7 @@ class TestRunner:
     async def test_runner_can_cancel_flow_runs(self, prefect_client: PrefectClient):
         runner = Runner(query_seconds=2)
 
-        deployment = tired_flow.to_deployment(__file__)
+        deployment = await tired_flow.to_deployment(__file__)
 
         await runner.add_deployment(deployment)
 
@@ -306,7 +306,7 @@ class TestRunner:
     ):
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -322,7 +322,7 @@ class TestRunner:
     ):
         runner = Runner(limit=1)
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         good_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -363,7 +363,7 @@ class TestRunner:
 
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -402,7 +402,7 @@ class TestRunner:
 
         runner = Runner()
 
-        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id

@@ -34,6 +34,7 @@ import datetime
 import inspect
 import os
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -167,7 +168,9 @@ class Runner:
         self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
 
-        self._tmp_dir = tempfile.TemporaryDirectory()
+        self._tmp_dir: Path = (
+            Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
+        )
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_working_dir_map: Dict[UUID, Path] = {}
 
@@ -268,14 +271,13 @@ class Runner:
         """
         if storage not in self._storage_objs:
             storage_copy = deepcopy(storage)
-            storage_copy.set_base_path(Path(self._tmp_dir.name))
+            storage_copy.set_base_path(self._tmp_dir)
 
             self._logger.debug(
                 f"Adding storage {storage_copy!r} to runner at"
                 f" {str(storage_copy.destination)!r}"
             )
             self._storage_objs.append(storage_copy)
-            await storage_copy.pull_code()
 
             return storage_copy
         else:
@@ -482,7 +484,7 @@ class Runner:
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
         env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
-        env.update({"PREFECT__STORAGE_BASE_PATH": self._tmp_dir.name})
+        env.update({"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)})
         env.update(**os.environ)  # is this really necessary??
 
         process = await run_process(
@@ -969,7 +971,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
-        self._tmp_dir.__enter__()
+        self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -987,7 +989,7 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
-        self._tmp_dir.__exit__(*exc_info)
+        shutil.rmtree(str(self._tmp_dir))
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

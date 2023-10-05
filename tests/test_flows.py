@@ -3083,7 +3083,7 @@ class TestFlowHooksOnCrashed:
 
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
-        deployment = test_flow.to_deployment(
+        deployment = await test_flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3125,18 +3125,18 @@ class TestFlowToDeployment:
         ]
 
     async def test_to_deployment_accepts_interval(self):
-        deployment = test_flow.to_deployment(name="test", interval=3600)
+        deployment = await test_flow.to_deployment(name="test", interval=3600)
 
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_to_deployment_accepts_cron(self):
-        deployment = test_flow.to_deployment(name="test", cron="* * * * *")
+        deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
-        deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+        deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
