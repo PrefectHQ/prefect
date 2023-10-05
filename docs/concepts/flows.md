@@ -1,13 +1,13 @@
 ---
 description: Prefect flows are the foundational containers for workflow logic.
 tags:
-  - flows
-  - subflows
-  - workflows
-  - scripts
-  - parameters
-  - states
-  - final state
+- flows
+- subflows
+- workflows
+- scripts
+- parameters
+- states
+- final state
 search:
   boost: 2
 ---
@@ -32,7 +32,7 @@ Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, 
 [Deployments](/concepts/deployments/) elevate individual workflows from functions that you call manually to API-managed entities.
 
 !!! warning "Tasks must be called from flows"
-All tasks must be called from within a flow. Tasks may not be called from other tasks.
+    All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
 ## Flow runs
 
@@ -89,7 +89,7 @@ def hello_world(name="world"):
 ```
 
 !!! tip "Flows and tasks"
-There's nothing stopping you from putting all of your code in a single flow function &mdash; Prefect will happily run it!
+    There's nothing stopping you from putting all of your code in a single flow function &mdash; Prefect will happily run it!
 
     However, organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
 
@@ -399,7 +399,7 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
+    In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
 
     "When should I use a subflow instead of a task?"
 
@@ -765,7 +765,7 @@ This interface provides all of the configuration needed for a deployment with no
 - default parameter values
 
 !!! tip "Schedules are auto-paused on shutdown"
-By default, stopping the process running `flow.serve` will pause the schedule for the deployment (if it has one). When running this in environments where restarts are expected use the `pause_on_shutdown=False` flag to prevent this behavior:
+    By default, stopping the process running `flow.serve` will pause the schedule for the deployment (if it has one). When running this in environments where restarts are expected use the `pause_on_shutdown=False` flag to prevent this behavior:
 
     ```python hl_lines="5"
     if __name__ == "__main__":
@@ -845,7 +845,7 @@ my_flow = flow.from_storage(
 my_flow()
 ```
 
-!!!tip "You can serve loaded flows"
+!!! tip "You can serve loaded flows"
     Flows loaded from remote storage can be served using the same [`serve`](#serving-a-flow) method as local flows:
 
     ```python title="serve_loaded_flow.py"
@@ -945,7 +945,7 @@ async def longrunning():
 ```
 
 !!! tip "Pausing flow runs is blocking by default"
-By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
+    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
 
     Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused.
 
@@ -961,7 +961,7 @@ You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, o
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 !!! warning "A deployment is required"
-Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
+    Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
 
 Support for cancellation is included for all core library infrastructure types:
 
