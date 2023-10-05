@@ -1125,3 +1125,18 @@ async def serve(
         console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()
+
+
+def get_runner_entrypoint(runner):
+    # Get the frame that called get_runner_entrypoint
+    frame = inspect.currentframe().f_back
+    while frame:
+        # Check the global variables of the calling frame to see if runner is among them
+        var_names = [name for name, var in frame.f_globals.items() if var is runner]
+        if var_names:
+            entrypoint_path = (
+                Path(frame.f_globals["__file__"]).relative_to(Path.cwd()).as_posix()
+            )
+            return f"{entrypoint_path}:{var_names[0]}"
+        frame = frame.f_back
+    return None
