@@ -156,17 +156,16 @@ class Runner:
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._loops_task_group: Optional[anyio.abc.TaskGroup] = None
 
-        self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
-            self.limit
-        )
+        self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
         self._deployment_ids: Set[UUID] = set()
+        self.registered_deployments: List[RunnerDeployment] = []
         self._flow_run_process_map = dict()
 
         self._tmp_dir: Path = (
@@ -193,6 +192,7 @@ class Runner:
             storage = await self._add_storage(storage)
             self._deployment_storage_map[deployment_id] = storage
         self._deployment_ids.add(deployment_id)
+        self.registered_deployments.append(deployment)
 
         return deployment_id
 
@@ -338,6 +338,8 @@ class Runner:
                 daemon=True,
             )
             server_thread.start()
+
+        self._loops_task_group = anyio.create_task_group()
 
         async with self as runner:
             async with self._loops_task_group as tg:
@@ -1001,6 +1003,8 @@ class Runner:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
+        self._limiter = anyio.CapacityLimiter(self.limit)
+        self._runs_task_group = anyio.create_task_group()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 

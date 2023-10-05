@@ -153,6 +153,7 @@ def load_script_as_module(path: str) -> ModuleType:
         submodule_search_locations=[parent_path, working_directory],
     )
     module = importlib.util.module_from_spec(spec)
+    orig_module = sys.modules.get("__prefect_loader__", None)
     sys.modules["__prefect_loader__"] = module
 
     # Support implicit relative imports i.e. `from foo import bar`
@@ -163,7 +164,10 @@ def load_script_as_module(path: str) -> ModuleType:
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
     finally:
-        sys.modules.pop("__prefect_loader__")
+        if orig_module:
+            sys.modules["__prefect_loader__"] = orig_module
+        else:
+            sys.modules.pop("__prefect_loader__")
         sys.path.remove(parent_path)
         sys.path.remove(working_directory)
 
