@@ -25,7 +25,6 @@
 
 ### Documentation
 - Add GCP Vertex AI worker to work-pools.md — https://github.com/PrefectHQ/prefect/pull/10858
-- Update pinned mkdocs-material insiders version in netlify.toml — https://github.com/PrefectHQ/prefect/pull/10859
 - Add more info about rate limits and include use cases for global concurrency — https://github.com/PrefectHQ/prefect/pull/10886
 - Change docker guide link to point to worker tutorial — https://github.com/PrefectHQ/prefect/pull/10872
 - A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
