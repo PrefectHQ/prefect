@@ -807,15 +807,15 @@ The behavior and interfaces are identical to the single flow case.
 
 ## Retrieve a flow from remote storage
 
-Flows can be retrieved from remote storage using the [`flow.from_url`](/api-ref/prefect/flows/#prefect.flows.Flow.from_url) or[`flow.from_storage`](/api-ref/prefect/flows/#prefect.flows.Flow.from_storage) method.
+Flows can be retrieved from remote storage using the [`flow.from_source`](/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
 
-`flow.from_url` accepts a git repository URL and an entrypoint pointing to the flow to load from the repository:
+`flow.from_source` accepts a git repository URL  and an entrypoint pointing to the flow to load from the repository:
 
 ```python title="load_from_url.py"
 from prefect import flow
 
-my_flow = flow.from_url(
-    url="https://github.com/org/repo.git",
+my_flow = flow.from_source(
+    source="https://github.com/org/repo.git",
     entrypoint="flows.py:my_flow"
 )
 
@@ -824,15 +824,15 @@ my_flow()
 
 A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
 
-If you need additional configuration, such as specifying a private repository, use `flow.from_storage` in conjunction with [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository):
+If you need additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) instead of URL:
 
 ```python title="load_from_storage.py"
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect.blocks.system import Secret
 
-my_flow = flow.from_storage(
-    storage=GitRepository(
+my_flow = flow.from_source(
+    source=GitRepository(
         url="https://github.com/org/private-repo.git",
         branch="dev",
         credentials={
@@ -852,8 +852,8 @@ my_flow()
     from prefect import flow
 
     if __name__ == "__main__":
-        flow.from_url(
-            url="https://github.com/org/repo.git",
+        flow.from_source(
+            source="https://github.com/org/repo.git",
             entrypoint="flows.py:my_flow"
         ).serve(name="my-deployment")
     ```
