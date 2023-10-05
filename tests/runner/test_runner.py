@@ -2,6 +2,7 @@ import datetime
 from itertools import combinations
 from pathlib import Path
 from time import sleep
+from unittest.mock import MagicMock
 
 import anyio
 import pendulum
@@ -424,8 +425,6 @@ class TestRunner:
 
         deployment_id = await runner.add_deployment(deployment)
 
-        await runner.start(run_once=True)
-
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
@@ -434,6 +433,36 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
 
         assert flow_run.state.is_completed()
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_caches_adhoc_pulls(self, prefect_client):
+        runner = Runner()
+
+        pull_code_spy = MagicMock()
+
+        deployment = await RunnerDeployment.from_storage(
+            storage=MockStorage(pull_code_spy=pull_code_spy),
+            entrypoint="flows.py:test_flow",
+            name=__file__,
+        )
+
+        deployment_id = await runner.add_deployment(deployment)
+
+        await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner.start(run_once=True)
+
+        # 1 for deployment creation, 1 for runner start up, 1 for ad hoc pull
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
+
+        await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Should be 3 because the ad hoc pull should have been cached
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
 
 
 class TestRunnerDeployment:
@@ -667,8 +696,9 @@ class MockStorage:
     A mock storage class that simulates pulling code from a remote location.
     """
 
-    def __init__(self):
+    def __init__(self, pull_code_spy=None):
         self._base_path = Path.cwd()
+        self._pull_code_spy = pull_code_spy
 
     def set_base_path(self, path: Path):
         self._base_path = path
@@ -682,6 +712,9 @@ class MockStorage:
         return 60
 
     async def pull_code(self):
+        if self._pull_code_spy:
+            self._pull_code_spy()
+
         code = """
 from prefect import Flow
 
