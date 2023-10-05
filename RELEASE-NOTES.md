@@ -30,7 +30,7 @@
 - A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
 - Add documentation for `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/10897
 - Update deployments.md — https://github.com/PrefectHQ/prefect/pull/10857
-- Remove push pool beta label since gone GA — https://github.com/PrefectHQ/prefect/pull/10848
+- Remove push pool beta label — https://github.com/PrefectHQ/prefect/pull/10848
 
 ## Contributors
 * @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
