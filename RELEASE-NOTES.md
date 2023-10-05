@@ -4,7 +4,7 @@
 
 ### Enhancements
 - Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
-- Default PREFECT_UI_API_URL to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
+- Default `PREFECT_UI_API_URL` to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
 - Runner webserver — https://github.com/PrefectHQ/prefect/pull/10850
 - deployment wizard: select blob storage — https://github.com/PrefectHQ/prefect/pull/10656
 - Add the ability to serve remotely stored flows — https://github.com/PrefectHQ/prefect/pull/10884
