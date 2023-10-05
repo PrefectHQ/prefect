@@ -481,6 +481,8 @@ class TestFlowCall:
         assert await state.result() == 6
 
     def test_call_coerces_parameter_types(self):
+        import pydantic  # force this test to use pydantic v2 as its BaseModel iff pydantic v2 is installed
+
         class CustomType(pydantic.BaseModel):
             z: int
 
