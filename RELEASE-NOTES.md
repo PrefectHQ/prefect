@@ -1,5 +1,40 @@
 # Prefect Release Notes
 
+## Release 2.13.5
+
+### Enhancements
+- Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
+- Default PREFECT_UI_API_URL to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
+- Runner webserver — https://github.com/PrefectHQ/prefect/pull/10850
+- deployment wizard: select blob storage — https://github.com/PrefectHQ/prefect/pull/10656
+- Add the ability to serve remotely stored flows — https://github.com/PrefectHQ/prefect/pull/10884
+- Vendoring FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
+- Isolating the server-side schemas from the client-side schemas — https://github.com/PrefectHQ/prefect/pull/10867
+- Pydanticv2 compat — https://github.com/PrefectHQ/prefect/pull/10868
+- PydanticV2 Settings — https://github.com/PrefectHQ/prefect/pull/10870
+- Conditional imports for `pydantic` — https://github.com/PrefectHQ/prefect/pull/10873
+- Retry on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
+
+### Fixes
+- By default, agents only query WorkQueues in `prefect-agent` typed WorkPools — https://github.com/PrefectHQ/prefect/pull/10804
+- Preserve set attribute information in tasks during execution — https://github.com/PrefectHQ/prefect/pull/10876
+- Fix spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
+- Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
+- lazily initialize semaphore for flow entrypoint discovery — https://github.com/PrefectHQ/prefect/pull/10871
+
+### Documentation
+- Add GCP Vertex AI worker to work-pools.md — https://github.com/PrefectHQ/prefect/pull/10858
+- Update pinned mkdocs-material insiders version in netlify.toml — https://github.com/PrefectHQ/prefect/pull/10859
+- Add more info about rate limits and include use cases for global concurrency — https://github.com/PrefectHQ/prefect/pull/10886
+- Change docker guide link to point to worker tutorial — https://github.com/PrefectHQ/prefect/pull/10872
+- A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
+- Documentation for `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/10897
+- Update deployments.md — https://github.com/PrefectHQ/prefect/pull/10857
+- Remove push pool beta label since gone GA — https://github.com/PrefectHQ/prefect/pull/10848
+
+## Contributors
+* @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
+
 ## Release 2.13.4
 
 ### Enhancements
