@@ -2,6 +2,33 @@
 
 ## Release 2.13.5
 
+### Load and serve remotely stored flows
+
+You can now load and serve flows from a git repository! 
+
+With the new `flow.from_source` method, you can specify a git repository and a path to a flow file in that repository. This method will return a flow object that can be run or served with `flow.serve()`.
+
+Here's an example of loading a flow from a git repository and serving it:
+
+```python
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/org/repo.git",
+        entrypoint="path/to/flow.py:my_flow",
+    ).serve(name="deployment-from-remote-flow")
+```
+
+When you load and serve a flow from a git repository, the serving process will periodically poll the repository for changes. This means that you can update the flow in the repository and the changes will be reflected in the served flow without restarting the serve script!
+
+To learn more about loading and serving flows from a git repository, check out our [the docs](https://docs.prefect.io/latest/concepts/flows/#retrieve-a-flow-from-remote-storage)!
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10884
+
+### Experimental Pydantic 2 Compatibility
+
 We're working eagerly toward having `prefect` installable with either `pydantic<2` and `pydantic>2`.  As a first step toward compatibility, we've ensured that Prefect's use of `pydantic` is isolated from _your_ use of `pydantic` in as many ways as possible.  As of this release, `prefect` still has a stated `pydantic` requirement of `<2`, but we are testing against `pydantic>2` in our continuous integration tests.  If you're feeling adventurous, feel free to manually install `pydantic>2` and run some flows with it.  If you do, please let us know how it's going with a note in Slack or with a Github issue.
 
 ### Enhancements
@@ -9,7 +36,6 @@ We're working eagerly toward having `prefect` installable with either `pydantic<
 - Default `PREFECT_UI_API_URL` to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
 - Add server to monitor a `flow.serve` process — https://github.com/PrefectHQ/prefect/pull/10850
 - Add blob storage options to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10656
-- Add the ability to serve remotely stored flows — https://github.com/PrefectHQ/prefect/pull/10884
 - Vendor FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
 - Isolate the server-side schemas from the client-side schemas in preparation for `pydantic` v2-native constructs — https://github.com/PrefectHQ/prefect/pull/10867
 - Introduce a `pydantic` v2 compatability flag — https://github.com/PrefectHQ/prefect/pull/10868
@@ -30,7 +56,6 @@ We're working eagerly toward having `prefect` installable with either `pydantic<
 - Add more info about rate limits and include use cases for global concurrency — https://github.com/PrefectHQ/prefect/pull/10886
 - Change docker guide link to point to worker tutorial — https://github.com/PrefectHQ/prefect/pull/10872
 - A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
-- Add documentation for `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/10897
 - Fix typo in deployments concept page — https://github.com/PrefectHQ/prefect/pull/10857
 - Remove push pool beta label — https://github.com/PrefectHQ/prefect/pull/10848
 
