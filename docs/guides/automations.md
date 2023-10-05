@@ -264,7 +264,7 @@ In this example, we managed to create the automation by registering the .yaml fi
 
 ## Using triggers, an AI function extension
 
-Lets take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of Marvin that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use Marvin to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
+Lets take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of [Marvin](https://www.askmarvin.ai/) that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use [Marvin AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
 
 Based on the automation trigger, similarly we can add a trigger to a deployment, that would be waiting for this specified event. 
 
@@ -278,15 +278,15 @@ from enum import Enum
 import pandas as pd
 
 @ai_fn
-def generate_synthetic_user_data(build_of_names: dict) -> pd.DataFrame:
+def generate_synthetic_user_data(build_of_names: list[dict]) -> list:
     """
-    Generates synthetic data points for userID, location, and time as separate columns
+    Generate additional data for userID (numerical values with 6 digits), location, and timestamp as seperate columns and append the data onto 'build_of_names'. Make userID the first column
     """
 
 @flow
-def create_fake_user_dataset():
-  df = build_names()
+def create_fake_user_dataset(df):
   artifact_df = generate_synthetic_user_data(df)
+  print(artifact_df)
   
   create_table_artifact(
       key="fake-user-data",
@@ -326,11 +326,12 @@ deployments:
   triggers:
     - enabled: true
       match:
-        prefect.resource.id: my.external.resource
-      expect:
-        - external.resource.pinged
+        prefect.resource.id: "prefect.flow-run.*"
+      expect: [
+
+      ],
       parameters:
-        param_1: "10"
+        param_1: 10
   version: null
   tags: []
   description: null
@@ -342,6 +343,5 @@ deployments:
     job_variables: {}
   schedule: null
 ```
-TODO: modify the trigger so that it gets triggered off of flow runs being put in running longer than 30 seconds
 
 Marvin allows us to extend our current workflows by offering robust data science applications without more maintenance. This offers a lightweight framework in responding to changes in your orchestrator unaccompanied by the extra overhead of setting up an automation within the UI. 
