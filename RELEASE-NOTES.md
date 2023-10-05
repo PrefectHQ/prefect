@@ -61,7 +61,7 @@ See the following pull requests for details
 - Fix typo in deployments concept page — https://github.com/PrefectHQ/prefect/pull/10857
 - Remove beta label from push work pool documentation — https://github.com/PrefectHQ/prefect/pull/10848
 
-## Contributors
+### Contributors
 * @alexmojaki made their first contribution in https://github.com/PrefectHQ/prefect/pull/10334
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.4...2.13.5
