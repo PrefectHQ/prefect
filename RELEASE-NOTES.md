@@ -21,7 +21,7 @@
 - Preserve set attribute information on `pydantic` models used in tasks — https://github.com/PrefectHQ/prefect/pull/10876
 - Fix spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
 - Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
-- lazily initialize semaphore for flow entrypoint discovery — https://github.com/PrefectHQ/prefect/pull/10871
+- Fix bug preventing importing `prefect` in a thread — https://github.com/PrefectHQ/prefect/pull/10871
 
 ### Documentation
 - Add GCP Vertex AI worker to work-pools.md — https://github.com/PrefectHQ/prefect/pull/10858
