@@ -52,7 +52,7 @@ def repositories(root: Path) -> Generator[Path, None, None]:
         raise typer.BadParameter(f"Root directory {root} does not exist")
 
     for collection in prefect_collections():
-        yield ensure_repo(DEFAULT_ROOT, collection)
+        yield ensure_repo(root, collection)
 
 
 def _shell(repo: Path, command: str):
