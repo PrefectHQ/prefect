@@ -57,7 +57,7 @@ See the following pull requests for details
 - Add GCP Vertex AI worker to worker types list in work pools documentation — https://github.com/PrefectHQ/prefect/pull/10858
 - Expound upon rate limit info and global concurrency use cases in concurrency guide — https://github.com/PrefectHQ/prefect/pull/10886
 - Point docker guide link to tutorial on workers — https://github.com/PrefectHQ/prefect/pull/10872
-- A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
+- Clarify workers and work pools as an alternative to `.serve()` in tutorials — https://github.com/PrefectHQ/prefect/pull/10861
 - Fix typo in deployments concept page — https://github.com/PrefectHQ/prefect/pull/10857
 - Remove beta label from push work pool documentation — https://github.com/PrefectHQ/prefect/pull/10848
 
