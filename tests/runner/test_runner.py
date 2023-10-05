@@ -412,6 +412,7 @@ class TestRunner:
         assert env_var_value == str(flow_run.id)
         assert env_var_value != flow_run.id.hex
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_a_remotely_stored_flow(self, prefect_client):
         runner = Runner()
 
@@ -421,16 +422,12 @@ class TestRunner:
             )
         ).to_deployment(__file__)
 
-        await runner.add_deployment(deployment)
+        deployment_id = await runner.add_deployment(deployment)
 
         await runner.start(run_once=True)
 
-        deployment = await prefect_client.read_deployment_by_name(
-            name="test-flow/test_runner"
-        )
-
         flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment.id
+            deployment_id=deployment_id
         )
 
         await runner.start(run_once=True)
