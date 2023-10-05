@@ -417,8 +417,8 @@ class TestRunner:
         runner = Runner()
 
         deployment = await (
-            await flow.from_storage(
-                storage=MockStorage(), entrypoint="flows.py:test_flow"
+            await flow.from_source(
+                source=MockStorage(), entrypoint="flows.py:test_flow"
             )
         ).to_deployment(__file__)
 
@@ -636,10 +636,8 @@ class TestRunnerDeployment:
         assert deployment.enforce_parameter_schema is False
 
     async def test_create_runner_deployment_from_storage(self):
-        # Instantiate the mock storage
         storage = MockStorage()
 
-        # Use the `from_storage` method to create a RunnerDeployment
         deployment = await RunnerDeployment.from_storage(
             storage=storage,
             entrypoint="flows.py:test_flow",
