@@ -44,12 +44,6 @@ See the following pull requests for details
 - Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
 - Default `PREFECT_UI_API_URL` to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
 - Add blob storage options to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10656
-- Vendor FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
-- Isolate the server-side schemas from the client-side schemas in preparation for `pydantic` v2-native constructs — https://github.com/PrefectHQ/prefect/pull/10867
-- Introduce a `pydantic` v2 compatability flag — https://github.com/PrefectHQ/prefect/pull/10868
-- Conditional imports for `pydantic` Settings — https://github.com/PrefectHQ/prefect/pull/10870
-- Conditional imports for `pydantic` throughout — https://github.com/PrefectHQ/prefect/pull/10873
-- Handle validation on `pydantic` v2 models used as parameters in tasks and flows - https://github.com/PrefectHQ/prefect/pull/10891
 - Add retries on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
 
 ### Fixes
