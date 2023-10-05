@@ -91,6 +91,7 @@ else:
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -286,14 +287,11 @@ def only_return_value_in_test_mode(settings, value):
 def default_ui_api_url(settings, value):
     """
     `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
-    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    relative path '/api', otherwise it constructs an API URL from the API settings.
     """
     if value is None:
         # Set a default value
-        if PREFECT_API_URL.value_from(settings):
-            value = "${PREFECT_API_URL}"
-        else:
-            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
+        value = "/api"
 
     return template_with_settings(
         PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
@@ -1292,6 +1290,31 @@ Whether or not to warn when experimental Prefect visualize is used.
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
+"""
+
+PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
+"""
+Number of seconds a runner should wait between queries for scheduled work.
+"""
+
+PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
+"""
+Number of missed polls before a runner is considered unhealthy by its webserver.
+"""
+
+PREFECT_RUNNER_SERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
+"""
+The port the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
+"""
+The log level of the runner's webserver.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)

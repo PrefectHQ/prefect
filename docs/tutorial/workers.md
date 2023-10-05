@@ -59,7 +59,7 @@ graph TD
     worker --> |creates| flow_run_infra_2
 ```
 
-<sup>Notice above that the worker is in charge of provisioning the _flow run infra_. In context of this tutorial, that flow run infra is an ephemeral Docker container to host each flow run. Different [worker types](/concepts/work-pools/#worker-types)  create different types of flow run infrastructure.</sup>
+<sup>Notice above that the worker is in charge of provisioning the _flow run infrastructure_. In context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run. Different [worker types](/concepts/work-pools/#worker-types)  create different types of flow run infrastructure.</sup>
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 

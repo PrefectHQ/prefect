@@ -4,16 +4,24 @@ from pathlib import Path
 from time import sleep
 
 import anyio
+import pendulum
 import pytest
+from starlette import status
 
+import prefect.runner
 from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.deployments.runner import RunnerDeployment
 from prefect.flows import load_flow_from_entrypoint
-from prefect.runner import Runner
-from prefect.settings import PREFECT_RUNNER_PROCESS_LIMIT, temporary_settings
+from prefect.runner.runner import Runner
+from prefect.runner.server import perform_health_check
+from prefect.settings import (
+    PREFECT_RUNNER_POLL_FREQUENCY,
+    PREFECT_RUNNER_PROCESS_LIMIT,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 
 
@@ -48,6 +56,17 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_PROCESS_LIMIT: 100}):
             runner = Runner()
             assert runner.limit == 100
+
+    async def test_runner_respects_poll_setting(self):
+        runner = Runner()
+        assert runner.query_seconds == PREFECT_RUNNER_POLL_FREQUENCY.value()
+
+        runner = Runner(query_seconds=50)
+        assert runner.query_seconds == 50
+
+        with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
+            runner = Runner()
+            assert runner.query_seconds == 100
 
 
 class TestServe:
@@ -276,7 +295,7 @@ class TestRunner:
                 if flow_run.state.is_cancelled():
                     break
 
-            runner.stop()
+            await runner.stop()
             tg.cancel_scope.cancel()
 
         assert flow_run.state.is_cancelled()
@@ -323,6 +342,75 @@ class TestRunner:
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
         assert flow_run.state.is_completed()
+
+    async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10820
+        """
+        import sys
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(
+            return_value=mock_process,
+        )
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
+
+        runner = Runner()
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        # Previously the command would have been
+        # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
+        assert mock_run_process_call.call_args[0][0] == [
+            "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    async def test_runner_sets_flow_run_env_var_with_dashes(
+        self, monkeypatch, prefect_client
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10851
+        """
+        env_var_value = None
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        def capture_env_var(*args, **kwargs):
+            nonlocal env_var_value
+            nonlocal mock_process
+            env_var_value = kwargs["env"].get("PREFECT__FLOW_RUN_ID")
+            return mock_process
+
+        mock_run_process_call = AsyncMock(side_effect=capture_env_var)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await dummy_flow_1.to_deployment(__file__).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        assert env_var_value == str(flow_run.id)
+        assert env_var_value != flow_run.id.hex
 
 
 class TestRunnerDeployment:
@@ -523,3 +611,15 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == str(Path.cwd())
         assert deployment.enforce_parameter_schema is False
+
+
+class TestServer:
+    async def test_healthcheck_fails_as_expected(self):
+        runner = Runner()
+        runner.last_polled = pendulum.now("utc").subtract(minutes=5)
+
+        health_check = perform_health_check(runner)
+        assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+        runner.last_polled = pendulum.now("utc")
+        assert health_check().status_code == status.HTTP_200_OK

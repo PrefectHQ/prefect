@@ -7,7 +7,14 @@ from prefect._vendor.fastapi.openapi.models import HTTPBase as HTTPBaseModel
 from prefect._vendor.fastapi.openapi.models import HTTPBearer as HTTPBearerModel
 from prefect._vendor.fastapi.security.base import SecurityBase
 from prefect._vendor.fastapi.security.utils import get_authorization_scheme_param
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
 from starlette.requests import Request
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
