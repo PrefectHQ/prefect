@@ -81,7 +81,6 @@ class TestGitRepository:
         repo = GitRepository(url="https://github.com/org/repo.git")
         assert repo.pull_interval == 60
 
-    @pytest.mark.asyncio
     async def test_pull_code_existing_repo_different_url(self, monkeypatch):
         async def mock_run_process(*args, **kwargs):
             class Result:
@@ -101,7 +100,6 @@ class TestGitRepository:
         ):
             await repo.pull_code()
 
-    @pytest.mark.asyncio
     async def test_pull_code_clone_repo(self, monkeypatch):
         calls = []
 

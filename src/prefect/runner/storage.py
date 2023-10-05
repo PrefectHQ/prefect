@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 from typing import Optional, Protocol, TypedDict, runtime_checkable
 from urllib.parse import urlparse, urlunparse
@@ -189,16 +190,24 @@ class GitRepository:
             else:
                 repository_url = self._url
 
-            await run_process(
-                [
-                    "git",
-                    "clone",
-                    "--branch",
-                    self._branch,
-                    repository_url,
-                    str(self.destination),
-                ]
-            )
+            try:
+                await run_process(
+                    [
+                        "git",
+                        "clone",
+                        "--branch",
+                        self._branch,
+                        repository_url,
+                        str(self.destination),
+                    ]
+                )
+            except subprocess.CalledProcessError as exc:
+                # Hide the command used to avoid leaking the access token
+                exc_chain = None if self._access_token else exc
+                raise RuntimeError(
+                    f"Failed to clone repository {self._url!r} with exit code"
+                    f" {exc.returncode}."
+                ) from exc_chain
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
