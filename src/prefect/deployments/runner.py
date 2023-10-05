@@ -1,26 +1,61 @@
 """
-Objects for specifying deployments and utilities for loading flows from deployments.
+Objects for creating and configuring deployments for flows using `serve` functionality.
+
+Example:
+    ```python
+    import time
+    from prefect import flow, serve
+
+
+    @flow
+    def slow_flow(sleep: int = 60):
+        "Sleepy flow - sleeps the provided amount of time (in seconds)."
+        time.sleep(sleep)
+
+
+    @flow
+    def fast_flow():
+        "Fastest flow this side of the Mississippi."
+        return
+
+
+    if __name__ == "__main__":
+        # to_deployment creates RunnerDeployment instances
+        slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+        fast_deploy = fast_flow.to_deployment(name="fast")
+
+        serve(slow_deploy, fast_deploy)
+    ```
+
 """
 
 import importlib
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.runner.storage import RunnerStorage
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+else:
+    from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
+    construct_schedule,
 )
 from prefect.events.schemas import DeploymentTrigger
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+
+__all__ = ["RunnerDeployment"]
 
 
 class RunnerDeployment(BaseModel):
@@ -44,7 +79,12 @@ class RunnerDeployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
     """
+
+    class Config:
+        arbitrary_types_allowed = True
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -74,6 +114,19 @@ class RunnerDeployment(BaseModel):
     triggers: List[DeploymentTrigger] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
+    )
+    enforce_parameter_schema: bool = Field(
+        default=False,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
+    storage: Optional[RunnerStorage] = Field(
+        default=None,
+        description=(
+            "The storage object used to retrieve flow code for this deployment."
+        ),
     )
 
     _path: Optional[str] = PrivateAttr(
@@ -116,6 +169,7 @@ class RunnerDeployment(BaseModel):
                 storage_document_id=None,
                 infrastructure_document_id=None,
                 parameter_openapi_schema=self._parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:
@@ -134,7 +188,7 @@ class RunnerDeployment(BaseModel):
             return deployment_id
 
     @staticmethod
-    def construct_schedule(
+    def _construct_schedule(
         interval: Optional[Union[int, float, timedelta]] = None,
         anchor_date: Optional[Union[datetime, str]] = None,
         cron: Optional[str] = None,
@@ -145,12 +199,18 @@ class RunnerDeployment(BaseModel):
         """
         Construct a schedule from the provided arguments.
 
+        This is a single path for all serve schedules. If schedule is provided,
+        it is returned. Otherwise, the other arguments are used to construct a schedule.
+
         Args:
             interval: An interval on which to schedule runs. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             anchor_date: The start date for an interval schedule.
             cron: A cron schedule for runs.
             rrule: An rrule schedule of when to execute runs of this flow.
+            timezone: A timezone to use for the schedule.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
         """
         num_schedules = sum(
             1 for entry in (interval, cron, rrule, schedule) if entry is not None
@@ -160,26 +220,18 @@ class RunnerDeployment(BaseModel):
                 "Only one of interval, cron, rrule, or schedule can be provided."
             )
 
-        if anchor_date and not interval:
-            raise ValueError(
-                "An anchor date can only be provided with an interval schedule"
+        if schedule:
+            return schedule
+        elif interval or cron or rrule:
+            return construct_schedule(
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                timezone=timezone,
+                anchor_date=anchor_date,
             )
-
-        if timezone and not (interval or cron or rrule):
-            raise ValueError(
-                "A timezone can only be provided with interval, cron, or rrule"
-            )
-
-        if interval:
-            if isinstance(interval, (int, float)):
-                interval = timedelta(seconds=interval)
-            schedule = IntervalSchedule(interval=interval)
-        elif cron:
-            schedule = CronSchedule(cron=cron)
-        elif rrule:
-            schedule = RRuleSchedule(rrule=rrule)
-
-        return schedule
+        else:
+            return None
 
     def _set_defaults_from_flow(self, flow: Flow):
         self._parameter_openapi_schema = parameter_schema(flow)
@@ -203,6 +255,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -223,8 +276,10 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
         """
-        schedule = cls.construct_schedule(
+        schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
 
@@ -237,21 +292,34 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
 
-        # TODO: better error messages with doc links
         if not deployment.entrypoint:
+            no_file_location_error = (
+                "Flows defined interactively cannot be deployed. Check out the"
+                " quickstart guide for help getting started:"
+                " https://docs.prefect.io/latest/getting-started/quickstart"
+            )
             ## first see if an entrypoint can be determined
             flow_file = getattr(flow, "__globals__", {}).get("__file__")
             mod_name = getattr(flow, "__module__", None)
             if not flow_file:
                 if not mod_name:
-                    # todo, check if the file location was manually set already
-                    raise ValueError("Could not determine flow's file location.")
-                module = importlib.import_module(mod_name)
-                flow_file = getattr(module, "__file__", None)
+                    raise ValueError(no_file_location_error)
+                try:
+                    module = importlib.import_module(mod_name)
+                    flow_file = getattr(module, "__file__", None)
+                except ModuleNotFoundError as exc:
+                    if "__prefect_loader__" in str(exc):
+                        raise ValueError(
+                            "Cannot create a RunnerDeployment from a flow that has been"
+                            " loaded from an entrypoint. To deploy a flow via"
+                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                        )
+                    raise ValueError(no_file_location_error)
                 if not flow_file:
-                    raise ValueError("Could not determine flow's file location.")
+                    raise ValueError(no_file_location_error)
 
             # set entrypoint
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
@@ -278,6 +346,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -299,11 +368,13 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            apply: If True, the deployment is automatically registered with the API
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
+
         """
         flow = load_flow_from_entrypoint(entrypoint)
 
-        schedule = cls.construct_schedule(
+        schedule = cls._construct_schedule(
             interval=interval,
             cron=cron,
             rrule=rrule,
@@ -320,8 +391,87 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         deployment._path = str(Path.cwd())
+
+        cls._set_defaults_from_flow(deployment, flow)
+
+        return deployment
+
+    @classmethod
+    @sync_compatible
+    async def from_storage(
+        cls,
+        storage: RunnerStorage,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        """
+        Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+        local storage location.
+
+        Args:
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+            name: A name for the deployment
+            storage: A storage object to use for retrieving flow code. If not provided, a
+                URL must be provided.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
+        """
+        schedule = cls._construct_schedule(
+            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage.set_base_path(Path(tmpdir))
+            await storage.pull_code()
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+
+        deployment = cls(
+            name=Path(name).stem,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
+            storage=storage,
+        )
+        deployment._path = str(storage.destination).replace(
+            tmpdir, "$STORAGE_BASE_PATH"
+        )
 
         cls._set_defaults_from_flow(deployment, flow)
 

@@ -3,6 +3,7 @@ import asyncio
 import atexit
 import concurrent.futures
 import contextlib
+import logging
 import queue
 import sys
 import threading
@@ -101,7 +102,7 @@ class QueueService(abc.ABC, Generic[T]):
             if self._stopped:
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
-            logger.debug("Service %r enqueing item %r", self, item)
+            logger.debug("Service %r enqueuing item %r", self, item)
             self._queue.put_nowait(self._prepare_item(item))
 
     def _prepare_item(self, item: T) -> T:
@@ -121,10 +122,12 @@ class QueueService(abc.ABC, Generic[T]):
             self._remove_instance()
             # The logging call yields to another thread, so we must remove the instance
             # before reporting the failure to prevent retrieval of a dead instance
-            logger.exception(
+            log_traceback = logger.isEnabledFor(logging.DEBUG)
+            logger.error(
                 "Service %r failed with %s pending items.",
                 type(self).__name__,
                 self._queue.qsize(),
+                exc_info=log_traceback,
             )
         finally:
             self._remove_instance()
@@ -149,8 +152,12 @@ class QueueService(abc.ABC, Generic[T]):
                 logger.debug("Service %r handling item %r", self, item)
                 await self._handle(item)
             except Exception:
-                logger.exception(
-                    "Service %r failed to process item %r", type(self).__name__, item
+                log_traceback = logger.isEnabledFor(logging.DEBUG)
+                logger.error(
+                    "Service %r failed to process item %r",
+                    type(self).__name__,
+                    item,
+                    exc_info=log_traceback,
                 )
 
     @abc.abstractmethod
@@ -216,7 +223,7 @@ class QueueService(abc.ABC, Generic[T]):
                     [asyncio.wrap_future(fut) for fut in futures], timeout=timeout
                 )
                 if futures
-                # `wait` errors if it receieves an empty list but we need to return a
+                # `wait` errors if it receives an empty list but we need to return a
                 # coroutine still
                 else asyncio.sleep(0)
             )
@@ -313,10 +320,12 @@ class BatchedQueueService(QueueService[T]):
             try:
                 await self._handle_batch(batch)
             except Exception:
-                logger.exception(
+                log_traceback = logger.isEnabledFor(logging.DEBUG)
+                logger.error(
                     "Service %r failed to process batch of size %s",
                     self,
                     batch_size,
+                    exc_info=log_traceback,
                 )
 
     @abc.abstractmethod

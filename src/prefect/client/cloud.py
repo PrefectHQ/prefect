@@ -3,8 +3,15 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic
-from fastapi import status
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
+from starlette import status
 
 import prefect.context
 import prefect.settings

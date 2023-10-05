@@ -7,6 +7,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 import datetime
 import inspect
 import os
+import tempfile
 import warnings
 from functools import partial, update_wrapper
 from pathlib import Path
@@ -30,14 +31,23 @@ from typing import (
     overload,
 )
 
-import pydantic
-from fastapi.encoders import jsonable_encoder
-from pydantic.decorator import ValidatedFunction
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+
+from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.runner.storage import RunnerStorage, create_storage_from_url
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1.decorator import ValidatedFunction
+else:
+    import pydantic
+    from pydantic.decorator import ValidatedFunction
+
 from rich.console import Console
 from rich.panel import Panel
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.compatibility.experimental import experimental
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun
@@ -132,7 +142,7 @@ class Flow(Generic[P, R]):
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this flow.
+        result_storage: An optional block to use to persist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
             a subflow, at which point the default will be loaded from the parent flow.
@@ -280,7 +290,7 @@ class Flow(Generic[P, R]):
             # We cannot, however, store the validated function on the flow because it
             # is not picklable in some environments
             try:
-                ValidatedFunction(self.fn, config=None)
+                ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -312,6 +322,10 @@ class Flow(Generic[P, R]):
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
         self.on_crashed = on_crashed
+
+        # Used for flows loaded from remote storage
+        self._storage: Optional[RunnerStorage] = None
+        self._entrypoint: Optional[str] = None
 
     def with_options(
         self,
@@ -444,7 +458,9 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
-        validated_fn = ValidatedFunction(self.fn, config=None)
+        validated_fn = ValidatedFunction(
+            self.fn, config={"arbitrary_types_allowed": True}
+        )
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         try:
@@ -483,7 +499,8 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    def to_deployment(
+    @sync_compatible
+    async def to_deployment(
         self,
         name: str,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
@@ -495,25 +512,28 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ):
         """
-        Creates a deployment object for this flow.
+        Creates a runner deployment object for this flow.
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the current flow. Accepts either a number
+            interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this flow.
-            rrule: An rrule schedule of when to execute runs of this flow.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            triggers: A list of triggers that should kick of a run of this flow.
-            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
 
         Examples:
             Prepare two deployments and serve them:
@@ -537,19 +557,37 @@ class Flow(Generic[P, R]):
         """
         from prefect.deployments.runner import RunnerDeployment
 
-        return RunnerDeployment.from_flow(
-            self,
-            name=name,
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            schedule=schedule,
-            tags=tags,
-            triggers=triggers,
-            parameters=parameters or {},
-            description=description,
-            version=version,
-        )
+        if self._storage and self._entrypoint:
+            return await RunnerDeployment.from_storage(
+                storage=self._storage,
+                entrypoint=self._entrypoint,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+            )
+        else:
+            return RunnerDeployment.from_flow(
+                self,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+            )
 
     @sync_compatible
     async def serve(
@@ -564,30 +602,35 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
+        webserver: bool = False,
     ):
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
         Args:
             name: The name to give the created deployment.
-            interval: An interval on which to execute the current flow. Accepts either a number
+            interval: An interval on which to execute the new deployment. Accepts either a number
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
-            anchor_date: The start date for an interval schedule.
-            cron: A cron schedule of when to execute runs of this flow.
-            rrule: An rrule schedule of when to execute runs of this flow.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
             timezone: A timezone to use for the schedule. Defaults to UTC.
-            triggers: A list of triggers that should kick of a run of this flow.
-            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
+            webserver: Whether or not to start a monitoring webserver for this flow.
 
         Examples:
             Serve a flow:
@@ -600,7 +643,7 @@ class Flow(Generic[P, R]):
                 print(f"hello {name}")
 
             if __name__ == "__main__":
-                my_flow.serve(__file__)
+                my_flow.serve("example-deployment")
             ```
 
             Serve a flow and run it every hour:
@@ -613,7 +656,7 @@ class Flow(Generic[P, R]):
                 print(f"hello {name}")
 
             if __name__ == "__main__":
-                my_flow.serve(__file__, interval=3600)
+                my_flow.serve("example-deployment", interval=3600)
             ```
         """
         from prefect.runner import Runner
@@ -636,6 +679,7 @@ class Flow(Generic[P, R]):
             description=description,
             tags=tags,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         if print_starting_message:
             help_message = (
@@ -647,12 +691,80 @@ class Flow(Generic[P, R]):
             if PREFECT_UI_URL:
                 help_message += (
                     "\nYou can also run your flow via the Prefect UI:"
-                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
                 )
 
             console = Console()
             console.print(Panel(help_message))
-        await runner.start()
+        await runner.start(webserver=webserver)
+
+    @classmethod
+    @sync_compatible
+    async def from_source(
+        cls, source: Union[str, RunnerStorage], entrypoint: str
+    ) -> "Flow":
+        """
+        Loads a flow from a remote s ource.
+
+        Args:
+            source: Either a URL to a git repository or a storage object.
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+
+        Returns:
+            A new `Flow` instance.
+
+        Examples:
+            Load a flow from a public git repository:
+
+
+            ```python
+            from prefect import flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
+
+            my_flow = flow.from_source(
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+
+            Load a flow from a private git repository:
+
+            ```python
+            from prefect import flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
+
+            my_flow = flow.from_source(
+                source=GitRepository(
+                    url="https://github.com/org/repo.git",
+                    access_token=Secret.load("github-access-token").get(),
+                ),
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+        """
+        if isinstance(source, str):
+            storage = create_storage_from_url(source)
+        else:
+            storage = source
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage.set_base_path(Path(tmpdir))
+            await storage.pull_code()
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow: "Flow" = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+            flow._storage = storage
+            flow._entrypoint = entrypoint
+
+        return flow
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
@@ -799,7 +911,6 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    @experimental(feature="The visualize feature", group="visualize", stacklevel=1)
     async def visualize(self, *args, **kwargs):
         """
         Generates a graphviz object representing the current flow. In IPython notebooks,
@@ -941,7 +1052,7 @@ def flow(
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this flow.
+        result_storage: An optional block to use to persist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
             a subflow, at which point the default will be loaded from the parent flow.
@@ -1054,6 +1165,10 @@ def flow(
                 on_crashed=on_crashed,
             ),
         )
+
+
+# Add from_source so it is available on the flow function we all know and love
+flow.from_source = Flow.from_source
 
 
 def select_flow(

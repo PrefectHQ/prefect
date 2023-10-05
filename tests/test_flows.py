@@ -7,12 +7,20 @@ import signal
 import sys
 import time
 from itertools import combinations
+from pathlib import Path
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
 
 import anyio
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import regex as re
 
@@ -1367,6 +1375,17 @@ class TestFlowParameterTypes:
         # See #1638.
         assert my_flow(data) == data
 
+    def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
+        class Test:
+            pass
+
+        @flow
+        def my_flow(instance: Test):
+            return instance
+
+        instance = my_flow(Test())
+        assert isinstance(instance, Test)
+
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
@@ -1409,6 +1428,21 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow() == ParameterTestModel(data=1)
+
+    def test_subflow_parameter_annotations_can_be_non_pydantic_classes(self):
+        class Test:
+            pass
+
+        @flow
+        def my_flow(i: Test):
+            return my_subflow(i)
+
+        @flow
+        def my_subflow(i: Test):
+            return i
+
+        instance = my_flow(Test())
+        assert isinstance(instance, Test)
 
 
 class TestSubflowTaskInputs:
@@ -1999,7 +2033,7 @@ class TestFlowRetries:
         assert parent_flow() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
-        assert child_task_run_count == 2, "Child taks should run again with child flow"
+        assert child_task_run_count == 2, "Child tasks should run again with child flow"
 
     def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries(self):
         task_run_retry_count = 0
@@ -3050,12 +3084,13 @@ class TestFlowHooksOnCrashed:
 
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
-        deployment = test_flow.to_deployment(
+        deployment = await test_flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            enforce_parameter_schema=True,
             triggers=[
                 {
                     "name": "Happiness",
@@ -3076,6 +3111,7 @@ class TestFlowToDeployment:
         assert deployment.parameters == {"name": "Arthur"}
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
+        assert deployment.enforce_parameter_schema
         assert deployment.triggers == [
             DeploymentTrigger(
                 name="Happiness",
@@ -3090,18 +3126,18 @@ class TestFlowToDeployment:
         ]
 
     async def test_to_deployment_accepts_interval(self):
-        deployment = test_flow.to_deployment(name="test", interval=3600)
+        deployment = await test_flow.to_deployment(name="test", interval=3600)
 
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_to_deployment_accepts_cron(self):
-        deployment = test_flow.to_deployment(name="test", cron="* * * * *")
+        deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
-        deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+        deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
@@ -3153,12 +3189,13 @@ class TestFlowServe:
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            enforce_parameter_schema=True,
         )
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
-        # Flow.serve should created deployments with a work queue or work pool
+        # Flow.serve should created deployments without a work queue or work pool
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.name == "test"
@@ -3166,6 +3203,7 @@ class TestFlowServe:
         assert deployment.parameters == {"name": "Arthur"}
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
+        assert deployment.enforce_parameter_schema
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
         await test_flow.serve(__file__)
@@ -3240,3 +3278,78 @@ class TestFlowServe:
         await test_flow.serve("test")
 
         mock_runner_start.assert_awaited_once()
+
+
+class MockStorage:
+    """
+    A mock storage class that simulates pulling code from a remote location.
+    """
+
+    def __init__(self):
+        self._base_path = Path.cwd()
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        code = """
+from prefect import Flow
+
+@Flow
+def test_flow():
+    return 1
+"""
+        if self._base_path:
+            with open(self._base_path / "flows.py", "w") as f:
+                f.write(code)
+
+
+class TestFlowFromSource:
+    async def test_load_flow_from_source_with_storage(self):
+        storage = MockStorage()
+
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=storage
+        )
+
+        # Check that the loaded flow is indeed an instance of Flow and has the expected name
+        assert isinstance(loaded_flow, Flow)
+        assert loaded_flow.name == "test-flow"
+        assert loaded_flow() == 1
+
+    def test_loaded_flow_to_deployment_has_storage(self):
+        storage = MockStorage()
+
+        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        deployment = loaded_flow.to_deployment(name="test")
+
+        assert deployment.storage == storage
+
+    async def test_load_flow_from_source_with_url(self, monkeypatch):
+        def mock_create_storage_from_url(url):
+            return MockStorage()
+
+        monkeypatch.setattr(
+            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
+        )  # adjust the import path as per your module's name and location
+
+        loaded_flow = await Flow.from_source(
+            source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
+        )
+
+        # Check that the loaded flow is indeed an instance of Flow and has the expected name
+        assert isinstance(loaded_flow, Flow)
+        assert loaded_flow.name == "test-flow"
+        assert loaded_flow() == 1
+
+    def test_load_flow_from_source_on_flow_function(self):
+        assert hasattr(flow, "from_source")

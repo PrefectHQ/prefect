@@ -1,6 +1,8 @@
 """
 Command line interface for working with work queues.
 """
+import json
+
 import pendulum
 import typer
 from rich.pretty import Pretty
@@ -31,6 +33,15 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 @work_pool_app.command()
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
+    base_job_template: typer.FileText = typer.Option(
+        None,
+        "--base-job-template",
+        help=(
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type."
+        ),
+    ),
     paused: bool = typer.Option(
         False,
         "--paused",
@@ -47,10 +58,11 @@ async def create(
     Examples:
         $ prefect work-pool create "my-pool" --paused
     """
-    async with get_collections_metadata_client() as collections_client:
-        if not name.lower().strip("'\" "):
-            exit_with_error("Work pool name cannot be empty.")
-        if type is None:
+    if not name.lower().strip("'\" "):
+        exit_with_error("Work pool name cannot be empty.")
+
+    if type is None:
+        async with get_collections_metadata_client() as collections_client:
             if not is_interactive():
                 exit_with_error(
                     "When not using an interactive terminal, you must supply a `--type`"
@@ -72,21 +84,28 @@ async def create(
                 table_kwargs={"show_lines": True},
             )
             type = worker["type"]
-        base_job_template = await get_default_base_job_template_for_infrastructure_type(
+
+    available_work_pool_types = await get_available_work_pool_types()
+    if type not in available_work_pool_types:
+        exit_with_error(
+            f"Unknown work pool type {type!r}. "
+            "Please choose from"
+            f" {', '.join(available_work_pool_types)}."
+        )
+
+    if base_job_template is None:
+        template_contents = await get_default_base_job_template_for_infrastructure_type(
             type
         )
-        if base_job_template is None:
-            exit_with_error(
-                f"Unknown work pool type {type!r}. "
-                "Please choose from"
-                f" {', '.join(await get_available_work_pool_types())}."
-            )
+    else:
+        template_contents = json.load(base_job_template)
+
     async with get_client() as client:
         try:
             wp = WorkPoolCreate(
                 name=name,
                 type=type,
-                base_job_template=base_job_template,
+                base_job_template=template_contents,
                 is_paused=paused,
             )
             work_pool = await client.create_work_pool(work_pool=wp)
@@ -222,6 +241,63 @@ async def resume(
 
 
 @work_pool_app.command()
+async def update(
+    name: str = typer.Argument(..., help="The name of the work pool to update."),
+    base_job_template: typer.FileText = typer.Option(
+        None,
+        "--base-job-template",
+        help=(
+            "The path to a JSON file containing the base job template to use. If"
+            " unspecified, Prefect will use the default base job template for the given"
+            " worker type. If None, the base job template will not be modified."
+        ),
+    ),
+    concurrency_limit: int = typer.Option(
+        None,
+        "--concurrency-limit",
+        help=(
+            "The concurrency limit for the work pool. If None, the concurrency limit"
+            " will not be modified."
+        ),
+    ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        help=(
+            "The description for the work pool. If None, the description will not be"
+            " modified."
+        ),
+    ),
+):
+    """
+    Update a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool update "my-pool"
+
+    """
+    wp = WorkPoolUpdate()
+    if base_job_template:
+        wp.base_job_template = json.load(base_job_template)
+    if concurrency_limit:
+        wp.concurrency_limit = concurrency_limit
+    if description:
+        wp.description = description
+
+    async with get_client() as client:
+        try:
+            await client.update_work_pool(
+                work_pool_name=name,
+                work_pool=wp,
+            )
+        except ObjectNotFound:
+            exit_with_error("Work pool named {name!r} does not exist.")
+
+        exit_with_success(f"Updated work pool {name!r}")
+
+
+@work_pool_app.command()
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
@@ -297,6 +373,42 @@ async def clear_concurrency_limit(
             exit_with_error(exc)
 
         exit_with_success(f"Cleared concurrency limit for work pool {name!r}")
+
+
+@work_pool_app.command()
+async def get_default_base_job_template(
+    type: str = typer.Option(
+        None,
+        "-t",
+        "--type",
+        help="The type of work pool for which to get the default base job template.",
+    ),
+    file: str = typer.Option(
+        None, "-f", "--file", help="If set, write the output to a file."
+    ),
+):
+    """
+    Get the default base job template for a given work pool type.
+
+    \b
+    Examples:
+        $ prefect work-pool get-default-base-job-template --type kubernetes
+    """
+    base_job_template = await get_default_base_job_template_for_infrastructure_type(
+        type
+    )
+    if base_job_template is None:
+        exit_with_error(
+            f"Unknown work pool type {type!r}. "
+            "Please choose from"
+            f" {', '.join(await get_available_work_pool_types())}."
+        )
+
+    if file is None:
+        print(json.dumps(base_job_template, indent=2))
+    else:
+        with open(file, mode="w") as f:
+            json.dump(base_job_template, fp=f, indent=2)
 
 
 @work_pool_app.command()

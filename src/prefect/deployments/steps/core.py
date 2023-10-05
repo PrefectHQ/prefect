@@ -12,7 +12,6 @@ Whenever a step is run, the following actions are taken:
 """
 import os
 import subprocess
-import sys
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,6 +21,7 @@ from prefect._internal.concurrency.api import Call, from_async
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
+from prefect.utilities.processutils import get_sys_executable
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,
@@ -55,7 +55,9 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
     else:
         packages = requires
 
-    subprocess.check_call([sys.executable, "-m", "pip", "install", ",".join(packages)])
+    subprocess.check_call(
+        [get_sys_executable(), "-m", "pip", "install", ",".join(packages)]
+    )
     step_func = import_object(fully_qualified_name)
     return step_func
 

@@ -2,7 +2,6 @@
 Command line interface for working with Prefect
 """
 import os
-import sys
 import textwrap
 from functools import partial
 
@@ -26,7 +25,11 @@ from prefect.settings import (
     PREFECT_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import run_process, setup_signal_handlers_server
+from prefect.utilities.processutils import (
+    get_sys_executable,
+    run_process,
+    setup_signal_handlers_server,
+)
 
 server_app = PrefectTyper(
     name="server",
@@ -37,26 +40,6 @@ database_app = PrefectTyper(
 )
 server_app.add_typer(database_app)
 app.add_typer(server_app)
-
-# Deprecated compatiblity
-orion_app = PrefectTyper(
-    name="orion",
-    help="Deprecated. Use 'prefect server' instead.",
-    deprecated=True,
-    deprecated_name="prefect orion",
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use 'prefect server' instead.",
-)
-orion_database_app = PrefectTyper(
-    name="database",
-    help="Deprecated. Use 'prefect server database' instead.",
-    deprecated=True,
-    deprecated_name="prefect orion database",
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use 'prefect server database' instead.",
-)
-orion_app.add_typer(orion_database_app)
-app.add_typer(orion_app, hidden=True)
 
 logger = get_logger(__name__)
 
@@ -92,7 +75,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 
     dashboard_disabled = textwrap.dedent(
         """
-        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to reenable it.
+        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to re-enable it.
         """
     )
 
@@ -106,7 +89,6 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
-@orion_app.command()
 @server_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
@@ -139,7 +121,7 @@ async def start(
             partial(
                 run_process,
                 command=[
-                    sys.executable,
+                    get_sys_executable(),
                     "-m",
                     "uvicorn",
                     "--app-dir",
@@ -173,7 +155,6 @@ async def start(
     app.console.print("Server stopped!")
 
 
-@orion_database_app.command()
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Prefect database tables"""
@@ -195,7 +176,6 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     exit_with_success(f'Prefect database "{engine.url!r}" reset!')
 
 
-@orion_database_app.command()
 @database_app.command()
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
@@ -235,7 +215,6 @@ async def upgrade(
     exit_with_success(f"Prefect database at {engine.url!r} upgraded!")
 
 
-@orion_database_app.command()
 @database_app.command()
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
@@ -279,7 +258,6 @@ async def downgrade(
     exit_with_success(f"Prefect database at {engine.url!r} downgraded!")
 
 
-@orion_database_app.command()
 @database_app.command()
 async def revision(
     message: str = typer.Option(
@@ -302,7 +280,6 @@ async def revision(
     exit_with_success("Creating new migration file succeeded!")
 
 
-@orion_database_app.command()
 @database_app.command()
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don't run any migrations"""

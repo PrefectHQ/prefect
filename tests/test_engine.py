@@ -11,7 +11,13 @@ from uuid import uuid4
 import anyio
 import pendulum
 import pytest
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
@@ -787,7 +793,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        # this task should sleep for a total of 17 seconds across all conifgured retries
+        # this task should sleep for a total of 17 seconds across all configured retries
         with mock_anyio_sleep.assert_sleeps_for(17):
             state = await orchestrate_task_run(
                 task=flaky_function,

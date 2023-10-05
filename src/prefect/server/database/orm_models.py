@@ -684,7 +684,7 @@ class ORMTaskRun(ORMRun):
         return sa.Column(
             UUID(),
             sa.ForeignKey("flow_run.id", ondelete="cascade"),
-            nullable=False,
+            nullable=True,
             index=True,
         )
 
@@ -872,6 +872,9 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    enforce_parameter_schema = sa.Column(
+        sa.Boolean, default=False, server_default="0", nullable=False
+    )
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
@@ -974,7 +977,7 @@ class ORMConcurrencyLimitV2:
     active_slots = sa.Column(sa.Integer, nullable=False)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
-    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=True)
+    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
     avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
@@ -1254,6 +1257,7 @@ class ORMWorker:
         default=lambda: pendulum.now("UTC"),
         index=True,
     )
+    heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
 
     @declared_attr
     def __table_args__(cls):

@@ -6,8 +6,14 @@ from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-import pydantic
-import pydantic.schema
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
@@ -29,7 +35,7 @@ def get_call_parameters(
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
-    signature will be included if not overriden.
+    signature will be included if not overridden.
 
     Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """

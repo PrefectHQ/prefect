@@ -10,9 +10,16 @@ import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from pydantic import Field, validator
 
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
+
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -324,6 +331,10 @@ class CronSchedule(PrefectBaseModel):
         # as an event (if it meets the cron criteria)
         start = start.subtract(seconds=1)
 
+        # Respect microseconds by rounding up
+        if start.microsecond > 0:
+            start += datetime.timedelta(seconds=1)
+
         # croniter's DST logic interferes with all other datetime libraries except pytz
         start_localized = pytz.timezone(start.tz.name).localize(
             datetime.datetime(
@@ -336,17 +347,21 @@ class CronSchedule(PrefectBaseModel):
                 microsecond=start.microsecond,
             )
         )
+        start_naive_tz = start.naive()
 
-        # Respect microseconds by rounding up
-        if start_localized.microsecond > 0:
-            start_localized += datetime.timedelta(seconds=1)
-
-        cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
+        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)  # type: ignore
         dates = set()
         counter = 0
 
         while True:
-            next_date = pendulum.instance(cron.get_next(datetime.datetime))
+            # croniter does not handle DST properly when the start time is
+            # in and around when the actual shift occurs. To work around this,
+            # we use the naive start time to get the next cron date delta, then
+            # add that time to the original scheduling anchor.
+            next_time = cron.get_next(datetime.datetime)
+            delta = next_time - start_naive_tz
+            next_date = pendulum.instance(start_localized + delta)
+
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break

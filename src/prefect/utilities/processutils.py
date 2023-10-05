@@ -400,3 +400,13 @@ def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable
         setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
         # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+
+
+def get_sys_executable() -> str:
+    # python executable needs to be quotable on windows
+    if os.name == "nt":
+        executable_path = f'"{sys.executable}"'
+    else:
+        executable_path = sys.executable
+
+    return executable_path

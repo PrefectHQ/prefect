@@ -1,12 +1,19 @@
 """
 Routes for interacting with work queue objects.
 """
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
+from prefect._vendor.fastapi import (
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -124,7 +131,7 @@ class WorkerLookups:
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkPool:
+) -> schemas.responses.WorkPoolResponse:
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
@@ -147,13 +154,13 @@ async def create_work_pool(
             model = await models.workers.create_work_pool(
                 session=session, work_pool=work_pool, db=db
             )
+            return await schemas.responses.WorkPoolResponse.from_orm(model, session)
+
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A work pool with this name already exists.",
         )
-
-    return model
 
 
 @router.get("/{name}")
@@ -161,7 +168,7 @@ async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkPool:
+) -> schemas.responses.WorkPoolResponse:
     """
     Read a work pool by name
     """
@@ -170,9 +177,10 @@ async def read_work_pool(
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
-        return await models.workers.read_work_pool(
+        orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id, db=db
         )
+        return await schemas.responses.WorkPoolResponse.from_orm(orm_work_pool, session)
 
 
 @router.post("/filter")
@@ -180,18 +188,37 @@ async def read_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkPool]:
+) -> List[schemas.responses.WorkPoolResponse]:
     """
     Read multiple work pools
     """
     async with db.session_context() as session:
-        return await models.workers.read_work_pools(
+        orm_work_pools = await models.workers.read_work_pools(
             db=db,
             session=session,
             work_pool_filter=work_pools,
             offset=offset,
             limit=limit,
+        )
+        return [
+            await schemas.responses.WorkPoolResponse.from_orm(w, session)
+            for w in orm_work_pools
+        ]
+
+
+@router.post("/count")
+async def count_work_pools(
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count work pools
+    """
+    async with db.session_context() as session:
+        return await models.workers.count_work_pools(
+            session=session, work_pool_filter=work_pools
         )
 
 
@@ -349,7 +376,7 @@ async def _record_work_queue_polls(
                 session=session,
                 work_queue_id=work_queue.id,
                 work_queue=schemas.actions.WorkQueueUpdate(
-                    last_polled=pendulum.now("UTC")
+                    last_polled=datetime.now(tz=timezone.utc)
                 ),
             )
 
@@ -528,6 +555,9 @@ async def delete_work_queue(
 async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
     name: str = Body(..., description="The worker process name", embed=True),
+    heartbeat_interval_seconds: Optional[int] = Body(
+        None, description="The worker's heartbeat interval in seconds", embed=True
+    ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
@@ -540,6 +570,7 @@ async def worker_heartbeat(
             session=session,
             work_pool_id=work_pool_id,
             worker_name=name,
+            heartbeat_interval_seconds=heartbeat_interval_seconds,
             db=db,
         )
 
@@ -552,7 +583,7 @@ async def read_workers(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.Worker]:
+) -> List[schemas.responses.WorkerResponse]:
     """
     Read all worker processes
     """
