@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
 When you load and serve a flow from a git repository, the serving process will periodically poll the repository for changes. This means that you can update the flow in the repository and the changes will be reflected in the served flow without restarting the serve script!
 
-To learn more about loading and serving flows from a git repository, check out our [the docs](https://docs.prefect.io/latest/concepts/flows/#retrieve-a-flow-from-remote-storage)!
+To learn more about loading and serving flows from a git repository, check out [the docs](https://docs.prefect.io/latest/concepts/flows/#retrieve-a-flow-from-remote-storage)!
 
 See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10884
