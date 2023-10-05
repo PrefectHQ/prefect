@@ -412,6 +412,32 @@ class TestRunner:
         assert env_var_value == str(flow_run.id)
         assert env_var_value != flow_run.id.hex
 
+    async def test_runner_runs_a_remotely_stored_flow(self, prefect_client):
+        runner = Runner()
+
+        deployment = await (
+            await flow.from_storage(
+                storage=MockStorage(), entrypoint="flows.py:test_flow"
+            )
+        ).to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        await runner.start(run_once=True)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="test-flow/test_runner"
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id
+        )
+
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
+        assert flow_run.state.is_completed()
+
 
 class TestRunnerDeployment:
     @pytest.fixture
