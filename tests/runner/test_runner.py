@@ -488,7 +488,7 @@ class TestRunnerDeployment:
         assert deployment.description == "I'm just here for tests"
 
     def test_from_flow_raises_when_using_flow_loaded_from_entrypoint(self):
-        da_flow = load_flow_from_entrypoint("tests/test_runner.py:dummy_flow_1")
+        da_flow = load_flow_from_entrypoint("tests/runner/test_runner.py:dummy_flow_1")
 
         with pytest.raises(
             ValueError,
@@ -534,7 +534,7 @@ class TestRunnerDeployment:
 
         assert deployment.name == "test_runner"
         assert deployment.flow_name == "dummy-flow-1"
-        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
@@ -603,7 +603,7 @@ class TestRunnerDeployment:
         deployment = await prefect_client.read_deployment(deployment_id)
 
         assert deployment.name == "test_runner"
-        assert deployment.entrypoint == "tests/test_runner.py:dummy_flow_1"
+        assert deployment.entrypoint == "tests/runner/test_runner.py:dummy_flow_1"
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
@@ -611,6 +611,66 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == str(Path.cwd())
         assert deployment.enforce_parameter_schema is False
+
+    async def test_create_runner_deployment_from_storage(self):
+        # Instantiate the mock storage
+        storage = MockStorage()
+
+        # Use the `from_storage` method to create a RunnerDeployment
+        deployment = await RunnerDeployment.from_storage(
+            storage=storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            interval=datetime.timedelta(seconds=30),
+            description="Test Deployment Description",
+            tags=["tag1", "tag2"],
+            version="1.0.0",
+            enforce_parameter_schema=True,
+        )
+
+        # Verify the created RunnerDeployment's attributes
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "test-flow"
+        assert deployment.schedule.interval == datetime.timedelta(seconds=30)
+        assert deployment.tags == ["tag1", "tag2"]
+        assert deployment.version == "1.0.0"
+        assert deployment.description == "Test Deployment Description"
+        assert deployment.enforce_parameter_schema is True
+        assert "$STORAGE_BASE_PATH" in deployment._path
+        assert deployment.entrypoint == "flows.py:test_flow"
+        assert deployment.storage == storage
+
+
+class MockStorage:
+    """
+    A mock storage class that simulates pulling code from a remote location.
+    """
+
+    def __init__(self):
+        self._base_path = Path.cwd()
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        code = """
+from prefect import Flow
+
+@Flow
+def test_flow():
+    return 1
+"""
+        if self._base_path:
+            with open(self._base_path / "flows.py", "w") as f:
+                f.write(code)
 
 
 class TestServer:
