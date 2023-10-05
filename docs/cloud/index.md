@@ -37,7 +37,7 @@ Prefect Cloud includes all the features in the open-source Prefect server plus t
     - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
     - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's server based on automation triggers.
     - [Organizations](/cloud/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
-    - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
+    - [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
     - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
     - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
@@ -107,7 +107,7 @@ See the [Organizations](/cloud/organizations/) documentation for more informatio
 ## Service accounts <span class="badge orgs"></span>
 
 Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
-Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure.
+Service accounts are typically used to configure API access for running workers or executing flow runs on remote infrastructure.
 
 See the [service accounts](/cloud/users/service-accounts/) documentation for more information about creating and managing service accounts in a Prefect Cloud organization.
 

@@ -4,7 +4,6 @@ tags:
     - Prefect Cloud
     - API keys
     - configuration
-    - agents
     - workers
     - troubleshooting
     - connecting
@@ -16,10 +15,10 @@ search:
 
 To create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you need to  
 
-- Configure the execution environment with the location of the API. 
+- Configure the execution environment with the location of the API.
 - Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
 
-## Log into Prefect Cloud from a terminal 
+## Log into Prefect Cloud from a terminal
 
 Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 
@@ -112,9 +111,9 @@ This section provides tips that may be helpful if you run into problems using Pr
 
 ## Prefect Cloud and proxies
 
-Proxies intermediate network requests between a server and a client. 
+Proxies intermediate network requests between a server and a client.
 
-To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests. These requests are made using the [`httpx`](https://www.python-httpx.org/) Python library. `httpx` respects accepted proxy environment variables, so the Prefect client is able to communicate through proxies. 
+To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests. These requests are made using the [`httpx`](https://www.python-httpx.org/) Python library. `httpx` respects accepted proxy environment variables, so the Prefect client is able to communicate through proxies.
 
 To enable communication via proxies, simply set the `HTTPS_PROXY` and `SSL_CERT_FILE` environment variables as appropriate in your execution environment and things should “just work.”
 
@@ -167,28 +166,28 @@ You can also check that the account and workspace IDs specified in the URL for `
 
 If you're having difficulty logging in to Prefect Cloud, the following troubleshooting steps may resolve the issue, or will provide more information when sharing your case to the support channel.
 
-- Are you logging into Prefect Cloud 2? Prefect Cloud 1 and Prefect Cloud 2 use separate accounts. Make sure to use the right Prefect Cloud 2 URL: https://app.prefect.cloud/
+- Are you logging into Prefect Cloud 2? Prefect Cloud 1 and Prefect Cloud 2 use separate accounts. Make sure to use the right Prefect Cloud 2 URL: <https://app.prefect.cloud/>
 - Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, try creating an account first using the email associated with the invitation, then accept the invitation.
-- Are you using a single sign-on (SSO) provider (Google or Microsoft) or just using a username and password login? 
+- Are you using a single sign-on (SSO) provider (Google or Microsoft) or just using a username and password login?
 - Did you utilize the “having trouble/forgot password” link on the login page? If so, did you receive the password reset email? Occasionally the password reset email can get filtered into your spam folder.
 
 Other tips to help with login difficulties:
 
 - Hard refresh your browser with Cmd+Shift+R.
 - Try in a different browser. We actively test against the following browsers:
-    - Chrome
-    - Edge
-    - Firefox
-    - Safari
+  - Chrome
+  - Edge
+  - Firefox
+  - Safari
 - Clear recent browser history/cookies
 
 In some cases, logging in to Prefect Cloud results in a "404 Page Not Found" page or fails with the error: "Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of “text/html”. Strict MIME type checking is enforced for module scripts per HTML spec."
 
-This error may be caused by a bad service worker. 
+This error may be caused by a bad service worker.
 
-To resolve the problem, we recommend unregistering service workers. 
+To resolve the problem, we recommend unregistering service workers.
 
-In your browser, start by opening the developer console. 
+In your browser, start by opening the developer console.
 
 - In Chrome: **View > Developer > Developer Tools**
 - In Firefox: **Tools > Browser Tools > Web Developer Tools**
@@ -204,4 +203,4 @@ See the [Login to Prefect Cloud fails...](https://discourse.prefect.io/t/login-t
 
 None of this worked?
 
-Email us at help@prefect.io and provide answers to the questions above in your email to make it faster to troubleshoot and unblock you. Make sure you add the email address with which you were trying to log in, your Prefect Cloud account name, and, if applicable, the organization to which it belongs.
+Email us at <help@prefect.io> and provide answers to the questions above in your email to make it faster to troubleshoot and unblock you. Make sure you add the email address with which you were trying to log in, your Prefect Cloud account name, and, if applicable, the organization to which it belongs.
