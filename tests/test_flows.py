@@ -7,6 +7,7 @@ import signal
 import sys
 import time
 from itertools import combinations
+from pathlib import Path
 from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock, call, create_autospec
@@ -3083,7 +3084,7 @@ class TestFlowHooksOnCrashed:
 
 class TestFlowToDeployment:
     async def test_to_deployment_returns_runner_deployment(self):
-        deployment = test_flow.to_deployment(
+        deployment = await test_flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3125,18 +3126,18 @@ class TestFlowToDeployment:
         ]
 
     async def test_to_deployment_accepts_interval(self):
-        deployment = test_flow.to_deployment(name="test", interval=3600)
+        deployment = await test_flow.to_deployment(name="test", interval=3600)
 
         assert isinstance(deployment.schedule, IntervalSchedule)
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
 
     async def test_to_deployment_accepts_cron(self):
-        deployment = test_flow.to_deployment(name="test", cron="* * * * *")
+        deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
-        deployment = test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+        deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
@@ -3277,3 +3278,78 @@ class TestFlowServe:
         await test_flow.serve("test")
 
         mock_runner_start.assert_awaited_once()
+
+
+class MockStorage:
+    """
+    A mock storage class that simulates pulling code from a remote location.
+    """
+
+    def __init__(self):
+        self._base_path = Path.cwd()
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        code = """
+from prefect import Flow
+
+@Flow
+def test_flow():
+    return 1
+"""
+        if self._base_path:
+            with open(self._base_path / "flows.py", "w") as f:
+                f.write(code)
+
+
+class TestFlowFromSource:
+    async def test_load_flow_from_source_with_storage(self):
+        storage = MockStorage()
+
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=storage
+        )
+
+        # Check that the loaded flow is indeed an instance of Flow and has the expected name
+        assert isinstance(loaded_flow, Flow)
+        assert loaded_flow.name == "test-flow"
+        assert loaded_flow() == 1
+
+    def test_loaded_flow_to_deployment_has_storage(self):
+        storage = MockStorage()
+
+        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        deployment = loaded_flow.to_deployment(name="test")
+
+        assert deployment.storage == storage
+
+    async def test_load_flow_from_source_with_url(self, monkeypatch):
+        def mock_create_storage_from_url(url):
+            return MockStorage()
+
+        monkeypatch.setattr(
+            "prefect.flows.create_storage_from_url", mock_create_storage_from_url
+        )  # adjust the import path as per your module's name and location
+
+        loaded_flow = await Flow.from_source(
+            source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
+        )
+
+        # Check that the loaded flow is indeed an instance of Flow and has the expected name
+        assert isinstance(loaded_flow, Flow)
+        assert loaded_flow.name == "test-flow"
+        assert loaded_flow() == 1
+
+    def test_load_flow_from_source_on_flow_function(self):
+        assert hasattr(flow, "from_source")

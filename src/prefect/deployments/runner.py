@@ -30,12 +30,15 @@ Example:
 """
 
 import importlib
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.runner.storage import RunnerStorage
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -80,6 +83,9 @@ class RunnerDeployment(BaseModel):
             parameter schema for this deployment.
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
         None, description="The name of the underlying flow; typically inferred."
@@ -114,6 +120,12 @@ class RunnerDeployment(BaseModel):
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
+        ),
+    )
+    storage: Optional[RunnerStorage] = Field(
+        default=None,
+        description=(
+            "The storage object used to retrieve flow code for this deployment."
         ),
     )
 
@@ -382,6 +394,84 @@ class RunnerDeployment(BaseModel):
             enforce_parameter_schema=enforce_parameter_schema,
         )
         deployment._path = str(Path.cwd())
+
+        cls._set_defaults_from_flow(deployment, flow)
+
+        return deployment
+
+    @classmethod
+    @sync_compatible
+    async def from_storage(
+        cls,
+        storage: RunnerStorage,
+        entrypoint: str,
+        name: str,
+        interval: Optional[Union[int, float, timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        parameters: Optional[dict] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        """
+        Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+        local storage location.
+
+        Args:
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+            name: A name for the deployment
+            storage: A storage object to use for retrieving flow code. If not provided, a
+                URL must be provided.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            schedule: A schedule object of when to execute runs of this flow. Used for
+                advanced scheduling options like timezone.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for this deployment.
+        """
+        schedule = cls._construct_schedule(
+            interval=interval, cron=cron, rrule=rrule, schedule=schedule
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage.set_base_path(Path(tmpdir))
+            await storage.pull_code()
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow = await from_async.wait_for_call_in_new_thread(
+                create_call(load_flow_from_entrypoint, full_entrypoint)
+            )
+
+        deployment = cls(
+            name=Path(name).stem,
+            flow_name=flow.name,
+            schedule=schedule,
+            tags=tags or [],
+            triggers=triggers or [],
+            parameters=parameters or {},
+            description=description,
+            version=version,
+            entrypoint=entrypoint,
+            enforce_parameter_schema=enforce_parameter_schema,
+            storage=storage,
+        )
+        deployment._path = str(storage.destination).replace(
+            tmpdir, "$STORAGE_BASE_PATH"
+        )
 
         cls._set_defaults_from_flow(deployment, flow)
 
