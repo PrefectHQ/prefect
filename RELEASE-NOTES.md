@@ -17,7 +17,7 @@
 - Add retries on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
 
 ### Fixes
-- Enforce that agents only query WorkQueues in `prefect-agent` typed work pools if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
+- Ensure agents only query work queues in `default-agent-pool`  work pool if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
 - Preserve set attribute information on `pydantic` models used in tasks — https://github.com/PrefectHQ/prefect/pull/10876
 - Update `Runner` to correctly handle spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
 - Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
