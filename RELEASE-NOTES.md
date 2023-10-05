@@ -24,8 +24,9 @@ When you load and serve a flow from a git repository, the serving process will p
 
 To learn more about loading and serving flows from a git repository, check out our [the docs](https://docs.prefect.io/latest/concepts/flows/#retrieve-a-flow-from-remote-storage)!
 
-See the following pull request for details:
+See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10884
+- https://github.com/PrefectHQ/prefect/pull/10850
 
 ### Experimental Pydantic 2 Compatibility
 
