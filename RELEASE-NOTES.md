@@ -49,7 +49,6 @@ See the following pull requests for details
 
 ### Fixes
 - Ensure agents only query work queues in `default-agent-pool`  work pool if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
-- Preserve set attribute information on `pydantic` models used in tasks — https://github.com/PrefectHQ/prefect/pull/10876
 - Update `Runner` to correctly handle spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
 - Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
 - Fix bug preventing importing `prefect` in a thread — https://github.com/PrefectHQ/prefect/pull/10871
