@@ -169,7 +169,7 @@ The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only
 
 Upon examining the auto-generated `prefect.yaml`, you'll notice that the parameters for your deployment mirror the values you provided to the deployment creation wizard:
 
-```yaml
+```yaml title="prefect.yaml"
 build:
 - prefect_docker.deployments.steps.build_docker_image:
     requires: prefect-docker>=0.3.1
@@ -201,7 +201,7 @@ When testing images locally without pushing them to a registry (to avoid potenti
 
 Here's how you can easily set the `image_pull_policy` to be `Never` for this tutorial deployment without affecting the default value set on your work pool:
 
-```yaml
+```yaml title="prefect.yaml" hl_lines="6"
   work_pool:
     name: local-docker
     work_queue_name: null
