@@ -824,7 +824,7 @@ my_flow()
 
 A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
 
-For more additional configuration, use `flow.from_storage` in conjunction with [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository):
+If you need additional configuration, such as specifying a private repository, use `flow.from_storage` in conjunction with [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository):
 
 ```python title="load_from_storage.py"
 from prefect import flow
