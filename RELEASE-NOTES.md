@@ -39,6 +39,7 @@ See the following pull requests for details
 - https://github.com/PrefectHQ/prefect/pull/10870
 - https://github.com/PrefectHQ/prefect/pull/10873
 - https://github.com/PrefectHQ/prefect/pull/10891
+- https://github.com/PrefectHQ/prefect/pull/10876
 
 ### Enhancements
 - Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
