@@ -460,7 +460,7 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 ## Final state determination
 
 !!! note "Prerequisite"
-Read the documentation about [states](/concepts/states) before proceeding with this section.
+    Read the documentation about [states](/concepts/states) before proceeding with this section.
 
 The final state of the flow is determined by its return value. The following rules apply:
 
@@ -643,7 +643,7 @@ Failed(message='1/3 states failed.', type=FAILED, result=(Failed(message='Task r
 </div>
 
 !!! note "Returning multiple states"
-When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
 
 ### Return a manual state
 
