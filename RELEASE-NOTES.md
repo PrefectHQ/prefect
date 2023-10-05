@@ -28,7 +28,7 @@
 - Add more info about rate limits and include use cases for global concurrency — https://github.com/PrefectHQ/prefect/pull/10886
 - Change docker guide link to point to worker tutorial — https://github.com/PrefectHQ/prefect/pull/10872
 - A tale of two docker tutorials: Increasing the emphasis that workers are an optional alternative to .serve() in the tutorials — https://github.com/PrefectHQ/prefect/pull/10861
-- Documentation for `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/10897
+- Add documentation for `flow.from_source` — https://github.com/PrefectHQ/prefect/pull/10897
 - Update deployments.md — https://github.com/PrefectHQ/prefect/pull/10857
 - Remove push pool beta label since gone GA — https://github.com/PrefectHQ/prefect/pull/10848
 
