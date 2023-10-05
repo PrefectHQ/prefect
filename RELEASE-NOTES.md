@@ -6,7 +6,7 @@
 - Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
 - Default `PREFECT_UI_API_URL` to relative path /api — https://github.com/PrefectHQ/prefect/pull/10755
 - Add server to monitor a `flow.serve` process — https://github.com/PrefectHQ/prefect/pull/10850
-- deployment wizard: select blob storage — https://github.com/PrefectHQ/prefect/pull/10656
+- Add blob storage options to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/10656
 - Add the ability to serve remotely stored flows — https://github.com/PrefectHQ/prefect/pull/10884
 - Vendor FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
 - Isolate the server-side schemas from the client-side schemas in preparation for `pydantic` v2-native constructs — https://github.com/PrefectHQ/prefect/pull/10867
