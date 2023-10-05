@@ -11,6 +11,9 @@
       class="md-header__button md-logo" aria-label="{{ config.site_name }}" data-md-component="logo">
       {% include "partials/logo.html" %}
     </a>
+    <div id="search-container">
+      <div id="autocomplete"></div>
+    </div>
     <label class="md-header__button md-icon" for="__drawer">
       {% set icon = config.theme.icon.menu or "material/menu" %}
       {% include ".icons/" ~ icon ~ ".svg" %}
@@ -69,13 +72,4 @@
   {% include "partials/tabs.html" %}
   {% endif %}
   {% endif %}
-
-  <!--algolia search js and css imports from cdn - not sure if we want to load elsewhere-->
-  <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4.20.0/dist/algoliasearch-lite.umd.js"
-    integrity="sha256-DABVk+hYj0mdUzo+7ViJC6cwLahQIejFvC+my2M/wfM=" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4.57.0/dist/instantsearch.production.min.js"
-    integrity="sha256-foJtB+Wd0wvvK+VU3KO0/H6CjwSwJfB1RnWlgx0Ov9U=" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.1.0/themes/reset-min.css"
-    integrity="sha256-2AeJLzExpZvqLUxMfcs+4DWcMwNfpnjUeAAvEtPr0wU=" crossorigin="anonymous">
-
 </header>

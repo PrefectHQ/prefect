@@ -3,6 +3,8 @@ site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
 extra_css:
+    - https://cdn.jsdelivr.net/npm/@algolia/autocomplete-theme-classic
+    - stylesheets/algolia.css
     - stylesheets/theme.css
     - stylesheets/admonitions.css
     - stylesheets/api_ref.css
@@ -11,6 +13,8 @@ extra_css:
     - stylesheets/termynal.css
     - stylesheets/extra.css
 extra_javascript:
+    - https://cdn.jsdelivr.net/npm/algoliasearch@4.20.0/dist/algoliasearch-lite.umd.js
+    - https://cdn.jsdelivr.net/npm/@algolia/autocomplete-js
     - js/custom.js
     - js/termynal.js
     - js/algolia.js
