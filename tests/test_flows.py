@@ -3312,12 +3312,12 @@ def test_flow():
                 f.write(code)
 
 
-class TestFlowFromStorage:
-    async def test_load_flow_from_storage(self):
+class TestFlowFromSource:
+    async def test_load_flow_from_source_with_storage(self):
         storage = MockStorage()
 
-        loaded_flow = await Flow.from_storage(
-            entrypoint="flows.py:test_flow", storage=storage
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=storage
         )
 
         # Check that the loaded flow is indeed an instance of Flow and has the expected name
@@ -3325,23 +3325,16 @@ class TestFlowFromStorage:
         assert loaded_flow.name == "test-flow"
         assert loaded_flow() == 1
 
-    def test_load_flow_from_storage_on_flow_function(self):
-        assert hasattr(flow, "from_storage")
-
     def test_loaded_flow_to_deployment_has_storage(self):
         storage = MockStorage()
 
-        loaded_flow = Flow.from_storage(
-            entrypoint="flows.py:test_flow", storage=storage
-        )
+        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
 
         deployment = loaded_flow.to_deployment(name="test")
 
         assert deployment.storage == storage
 
-
-class TestFlowFromUrl:
-    async def test_load_flow_from_url(self, monkeypatch):
+    async def test_load_flow_from_source_with_url(self, monkeypatch):
         def mock_create_storage_from_url(url):
             return MockStorage()
 
@@ -3349,9 +3342,8 @@ class TestFlowFromUrl:
             "prefect.flows.create_storage_from_url", mock_create_storage_from_url
         )  # adjust the import path as per your module's name and location
 
-        # Use the `from_url` method to load the flow
-        loaded_flow = await Flow.from_url(
-            url="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
+        loaded_flow = await Flow.from_source(
+            source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
         )
 
         # Check that the loaded flow is indeed an instance of Flow and has the expected name
@@ -3359,5 +3351,5 @@ class TestFlowFromUrl:
         assert loaded_flow.name == "test-flow"
         assert loaded_flow() == 1
 
-    def test_load_flow_from_url_on_flow_function(self):
-        assert hasattr(flow, "from_url")
+    def test_load_flow_from_source_on_flow_function(self):
+        assert hasattr(flow, "from_source")

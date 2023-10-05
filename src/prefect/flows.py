@@ -700,12 +700,14 @@ class Flow(Generic[P, R]):
 
     @classmethod
     @sync_compatible
-    async def from_url(cls, url: str, entrypoint: str) -> "Flow":
+    async def from_source(
+        cls, source: Union[str, RunnerStorage], entrypoint: str
+    ) -> "Flow":
         """
-        Loads a flow from a URL.
+        Loads a flow from a remote s ource.
 
         Args:
-            url: The URL of the remote storage location. Only git URLs are supported.
+            source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
                 the format `./path/to/file.py:flow_func_name`.
 
@@ -713,47 +715,31 @@ class Flow(Generic[P, R]):
             A new `Flow` instance.
 
         Examples:
-            Load a flow from a git repository:
+            Load a flow from a public git repository:
+
 
             ```python
-            from prefect import Flow
+            from prefect import flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
 
-            my_flow = Flow.from_url(
-                url="https://github.com/org/repo.git",
+            my_flow = flow.from_source(
+                source="https://github.com/org/repo.git",
                 entrypoint="flows.py:my_flow",
             )
 
             my_flow()
             ```
-        """
-        storage = create_storage_from_url(url)
-        return await cls.from_storage(entrypoint=entrypoint, storage=storage)
 
-    @classmethod
-    @sync_compatible
-    async def from_storage(cls, entrypoint: str, storage: RunnerStorage) -> "Flow":
-        """
-        Loads a flow from storage.
-
-        Args:
-            storage: A storage object to use for retrieving flow code. If not provided, a
-                URL must be provided.
-            entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
-
-        Returns:
-            A new `Flow` instance.
-
-        Examples:
             Load a flow from a private git repository:
 
             ```python
-            from prefect import Flow
+            from prefect import flow
             from prefect.runner.storage import GitRepository
             from prefect.blocks.system import Secret
 
-            my_flow = Flow.from_storage(
-                storage=GitRepository(
+            my_flow = flow.from_source(
+                source=GitRepository(
                     url="https://github.com/org/repo.git",
                     access_token=Secret.load("github-access-token").get(),
                 ),
@@ -763,6 +749,10 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
         """
+        if isinstance(source, str):
+            storage = create_storage_from_url(source)
+        else:
+            storage = source
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
@@ -1177,9 +1167,8 @@ def flow(
         )
 
 
-# Add factory methods so they are available on the flow function we all know and love
-flow.from_url = Flow.from_url
-flow.from_storage = Flow.from_storage
+# Add from_source so it is available on the flow function we all know and love
+flow.from_source = Flow.from_source
 
 
 def select_flow(
