@@ -172,7 +172,7 @@ class Runner:
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
         )
         self._storage_objs: List[RunnerStorage] = []
-        self._deployment_working_dir_map: Dict[UUID, Path] = {}
+        self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
     @sync_compatible
     async def add_deployment(
@@ -190,7 +190,7 @@ class Runner:
         storage = deployment.storage
         if storage is not None:
             storage = await self._add_storage(storage)
-            self._deployment_working_dir_map[deployment_id] = storage.destination
+            self._deployment_storage_map[deployment_id] = storage
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
@@ -487,13 +487,33 @@ class Runner:
         env.update({"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)})
         env.update(**os.environ)  # is this really necessary??
 
+        storage = self._deployment_storage_map.get(flow_run.deployment_id)
+        if storage and storage.pull_interval:
+            # perform an adhoc pull of code before running the flow if an
+            # adhoc pull hasn't been performed in the last pull_interval
+            # TODO: Explore integrating this behavior with global concurrency.
+            last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
+            if (
+                last_adhoc_pull is None
+                or last_adhoc_pull
+                < datetime.datetime.now()
+                - datetime.timedelta(seconds=storage.pull_interval)
+            ):
+                self._logger.debug(
+                    "Performing adhoc pull of code for flow run %s with storage %r",
+                    flow_run.id,
+                    storage,
+                )
+                await storage.pull_code()
+                setattr(storage, "last_adhoc_pull", datetime.datetime.now())
+
         process = await run_process(
             shlex.split(command),
             stream_output=True,
             task_status=task_status,
             env=env,
             **kwargs,
-            cwd=self._deployment_working_dir_map.get(flow_run.deployment_id),
+            cwd=storage.destination if storage else None,
         )
 
         # Use the pid for display if no name was given
