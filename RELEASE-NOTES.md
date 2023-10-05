@@ -29,7 +29,7 @@ See the following pull request for details:
 
 ### Experimental Pydantic 2 Compatibility
 
-We're working eagerly toward having `prefect` installable with either `pydantic<2` and `pydantic>2`.  As a first step toward compatibility, we've ensured that Prefect's use of `pydantic` is isolated from _your_ use of `pydantic` in as many ways as possible.  As of this release, `prefect` still has a stated `pydantic` requirement of `<2`, but we are testing against `pydantic>2` in our continuous integration tests.  If you're feeling adventurous, feel free to manually install `pydantic>2` and run some flows with it.  If you do, please let us know how it's going with a note in Slack or with a Github issue.
+We're working eagerly toward having `prefect` installable with either `pydantic<2` or `pydantic>2`.  As a first step toward compatibility, we've ensured that Prefect's use of `pydantic` is isolated from _your_ use of `pydantic` in as many ways as possible.  As of this release, `prefect` still has a stated `pydantic` requirement of `<2`, but we are testing against `pydantic>2` in our continuous integration tests.  If you're feeling adventurous, feel free to manually install `pydantic>2` and run some flows with it.  If you do, please let us know how it's going with a note in Slack or with a Github issue.
 
 ### Enhancements
 - Use flow run context for default values in task run logger — https://github.com/PrefectHQ/prefect/pull/10334
