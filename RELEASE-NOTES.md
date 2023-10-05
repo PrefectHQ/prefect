@@ -8,16 +8,17 @@
 - Runner webserver — https://github.com/PrefectHQ/prefect/pull/10850
 - deployment wizard: select blob storage — https://github.com/PrefectHQ/prefect/pull/10656
 - Add the ability to serve remotely stored flows — https://github.com/PrefectHQ/prefect/pull/10884
-- Vendoring FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
-- Isolating the server-side schemas from the client-side schemas — https://github.com/PrefectHQ/prefect/pull/10867
-- Pydanticv2 compat — https://github.com/PrefectHQ/prefect/pull/10868
-- PydanticV2 Settings — https://github.com/PrefectHQ/prefect/pull/10870
-- Conditional imports for `pydantic` — https://github.com/PrefectHQ/prefect/pull/10873
+- Vendor FastAPI as a first step toward `pydantic>2` support — https://github.com/PrefectHQ/prefect/pull/10860
+- Isolate the server-side schemas from the client-side schemas in preparation for `pydantic` v2-native constructs — https://github.com/PrefectHQ/prefect/pull/10867
+- Introduce a `pydantic` v2 compatability flag — https://github.com/PrefectHQ/prefect/pull/10868
+- Conditional imports for `pydantic` Settings — https://github.com/PrefectHQ/prefect/pull/10870
+- Conditional imports for `pydantic` throughout — https://github.com/PrefectHQ/prefect/pull/10873
+- Handle validation on `pydantic` v2 models used as parameters in tasks and flows - https://github.com/PrefectHQ/prefect/pull/10891
 - Retry on responses with a 408 status code — https://github.com/PrefectHQ/prefect/pull/10883
 
 ### Fixes
-- By default, agents only query WorkQueues in `prefect-agent` typed WorkPools — https://github.com/PrefectHQ/prefect/pull/10804
-- Preserve set attribute information in tasks during execution — https://github.com/PrefectHQ/prefect/pull/10876
+- Enforce that agents only query WorkQueues in `prefect-agent` typed WorkPools if no pool is specified — https://github.com/PrefectHQ/prefect/pull/10804
+- Preserve set attribute information on `pydantic` models used in tasks — https://github.com/PrefectHQ/prefect/pull/10876
 - Fix spaces in Python executable path — https://github.com/PrefectHQ/prefect/pull/10878
 - Update `PREFECT__FLOW_RUN_ID` environment variable to dash-delimited UUID format — https://github.com/PrefectHQ/prefect/pull/10881
 - lazily initialize semaphore for flow entrypoint discovery — https://github.com/PrefectHQ/prefect/pull/10871
