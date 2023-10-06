@@ -260,11 +260,12 @@ to force column width */
 /* dark mode code overrides */
 [data-md-color-scheme="slate"] {
     --md-hue: 220;
-    --md-default-bg-color: #0C1b1f;
+    --md-default-bg-color: #040913;
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #3b3d54;
     --md-code-hl-name-color: #eee;
+    --md-default-fg-color--light: #eee;
 }
 
 /* dark mode link overrides */
