@@ -227,7 +227,7 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
               value: http://host.docker.internal:4200/api
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-```
+    ```
 
     !!!tip "Linux users"
         If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.
