@@ -1,6 +1,5 @@
 ---
 description: Observe and orchestrate your workflows with the hosted Prefect Cloud platform.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard
