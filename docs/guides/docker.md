@@ -284,9 +284,9 @@ For example, when release `2.11.5` is published:
 6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
 
 !!! tip "Choose image versions carefully"
-  It's a good practice to use Docker images with specific Prefect versions in production.
+    It's a good practice to use Docker images with specific Prefect versions in production.
 
-  Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.9` or `prefecthq/prefect:2-latest`).
+    Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.11` or `prefecthq/prefect:2-latest`).
 
 ### Standard Python
 
