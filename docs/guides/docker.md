@@ -130,11 +130,9 @@ We can check that our build worked by running a container from our new image.
 
     We'll provide both these values to our container by passing them as environment variables with the `-e` flag.
 
-    <div class="terminal">
     ```bash
     docker run -e PREFECT_API_URL=YOUR_PREFECT_API_URL -e PREFECT_API_KEY=YOUR_API_KEY prefect-docker-guide-image
     ```
-    </div>
 
     After running the above command, the container should start up and serve the flow within the container!
 
@@ -171,6 +169,7 @@ touch deployment-manifest.yaml
 And we'll add the following content to our `deployment-manifest.yaml` file:
 
 === "Cloud"
+
     ```yaml title="deployment-manifest.yaml"
     apiVersion: apps/v1
     kind: Deployment
@@ -196,13 +195,13 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
               value: YOUR_API_KEY
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-
-```
+    ```
 
     !!!tip "Keep your API key secret"
           In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
 
 === "Self-hosted"
+
     ```yaml title="deployment-manifest.yaml"
     apiVersion: apps/v1
     kind: Deployment
@@ -226,8 +225,7 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
               value: <http://host.docker.internal:4200/api>
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-
-```
+    ```
 
     !!!tip "Linux users"
         If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.
