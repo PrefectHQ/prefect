@@ -1,5 +1,4 @@
 ---
-icon: material/brain
 description: Learn about Prefect concepts.
 tags:
     - concepts
