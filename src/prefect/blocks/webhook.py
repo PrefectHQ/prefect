@@ -17,6 +17,7 @@ from prefect.blocks.fields import SecretDict
 # Use a global HTTP transport to maintain a process-wide connection pool for
 # interservice requests
 _http_transport = AsyncHTTPTransport()
+_insecure_http_transport = AsyncHTTPTransport(verify=False)
 
 
 class Webhook(Block):
@@ -46,7 +47,10 @@ class Webhook(Block):
     )
 
     def block_initialization(self):
-        self._client = AsyncClient(transport=_http_transport)
+        if not getattr(self, "verify", True):
+            self._client = AsyncClient(transport=_insecure_http_transport)
+        else:
+            self._client = AsyncClient(transport=_http_transport)
 
     async def call(self, payload: Optional[dict] = None) -> Response:
         """
