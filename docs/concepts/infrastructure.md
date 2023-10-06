@@ -358,4 +358,4 @@ RUN pip install s3fs prefect-aws
 
 ## Docker images
 
-Learn about options for Prefect-maintained Docker images in the [Docker guide](/guides/deployment/docker/).
+Learn about options for Prefect-maintained Docker images in the [Docker guide](/guides/docker/).

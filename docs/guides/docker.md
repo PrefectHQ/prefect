@@ -146,7 +146,6 @@ We can check that our build worked by running a container from our new image.
     
     To ensure that our flow container can communicate with the Prefect API, we'll set our `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, you'll need to set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
 
-    <div class="terminal">
     ```bash
     docker run --network="host" -e PREFECT_API_URL=http://host.docker.internal:4200/api prefect-docker-guide-image
     ```
@@ -224,10 +223,11 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
             image: prefect-docker-guide-image:latest
             env:
             - name: PREFECT_API_URL
-              value: http://host.docker.internal:4200/api
+              value: <http://host.docker.internal:4200/api>
             # Never pull the image because we're using a local image
             imagePullPolicy: Never
-    ```
+
+```
 
     !!!tip "Linux users"
         If you're running Linux, you'll need to set your `PREFECT_API_URL` to use the IP address of your machine instead of `host.docker.internal`.
