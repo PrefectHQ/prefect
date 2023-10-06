@@ -10,6 +10,12 @@ from prefect.settings import PREFECT_SERVER_API_KEEPALIVE_TIMEOUT, temporary_set
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 
+# All tests that invoke invoke_and_assert() can end up running our CLI command
+# coroutines off the main thread. If the CLI command calls
+# forward_signal_handler(), which prefect.cli.server.start does, the test run
+# will fail because only the main thread can attach signal handlers.
+pytestmark = pytest.mark.flaky(max_runs=2)
+
 
 @pytest.fixture
 def mock_run_process(monkeypatch: pytest.MonkeyPatch):
