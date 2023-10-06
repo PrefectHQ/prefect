@@ -166,6 +166,10 @@ nav:
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
+          - Profiles & Configuration: guides/settings.md
+          - Logging: guides/logs.md
+          - Automation: guides/automations.md
+          - Testing: guides/testing.md
           - Troubleshooting: guides/troubleshooting.md
           - Recipes: recipes/recipes.md
     - Concepts:
