@@ -2,8 +2,8 @@ from unittest import mock
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
-    acquire_concurrency_slots,
-    release_concurrency_slots,
+    _acquire_concurrency_slots,
+    _release_concurrency_slots,
 )
 from prefect.concurrency.sync import concurrency, rate_limit
 from prefect.events.clients import AssertingEventsClient
@@ -22,12 +22,12 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync.acquire_concurrency_slots",
-        wraps=acquire_concurrency_slots,
+        "prefect.concurrency.sync._acquire_concurrency_slots",
+        wraps=_acquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync.release_concurrency_slots",
-            wraps=release_concurrency_slots,
+            "prefect.concurrency.sync._release_concurrency_slots",
+            wraps=_release_concurrency_slots,
         ) as release_spy:
             resource_heavy()
 
@@ -174,12 +174,12 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync.acquire_concurrency_slots",
-        wraps=acquire_concurrency_slots,
+        "prefect.concurrency.sync._acquire_concurrency_slots",
+        wraps=_acquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync.release_concurrency_slots",
-            wraps=release_concurrency_slots,
+            "prefect.concurrency.sync._release_concurrency_slots",
+            wraps=_release_concurrency_slots,
         ) as release_spy:
             resource_heavy()
 

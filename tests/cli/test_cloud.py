@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from fastapi import status
+from starlette import status
 from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
@@ -99,14 +99,14 @@ def mock_webbrowser(monkeypatch):
             "pnu_foo",
             (
                 "Unable to authenticate with Prefect Cloud. Please ensure your"
-                " credentials are correct."
+                " credentials are correct and unexpired."
             ),
         ),
         (
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format."
+                " expected format: 'pnu_' or 'pnb_'."
             ),
         ),
     ],
@@ -120,6 +120,80 @@ def test_login_with_invalid_key(key, expected_output, respx_mock):
         expected_code=1,
         expected_output=expected_output,
     )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "pnu_foo",
+        "foo",
+    ],
+)
+def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(key):
+    with temporary_settings({PREFECT_API_KEY: "pnu_baz"}):
+        invoke_and_assert(
+            ["cloud", "login", "--key", key, "--workspace", "foo"],
+            expected_code=1,
+            expected_output=(
+                "Cannot log in with a key when a different PREFECT_API_KEY is present"
+                " as an environment variable that will override it."
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "env_var_api_key,key,expected_output",
+    [
+        (
+            "pnu_foo",
+            "pnu_foo",
+            (
+                "Unable to authenticate with Prefect Cloud. Please ensure your"
+                " credentials are correct and unexpired."
+            ),
+        ),
+        (
+            "foo",
+            "foo",
+            (
+                "Unable to authenticate with Prefect Cloud. Your key is not in our"
+                " expected format."
+            ),
+        ),
+    ],
+)
+def test_login_with_prefect_api_key_env_var_equal_to_invalid_key_exits_with_error(
+    key, expected_output, env_var_api_key, respx_mock
+):
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
+    )
+    with temporary_settings({PREFECT_API_KEY: env_var_api_key}):
+        invoke_and_assert(
+            ["cloud", "login", "--key", key, "--workspace", "test/foo"],
+            expected_code=1,
+            expected_output=(expected_output),
+        )
+
+
+def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[foo_workspace.dict(json_compatible=True)],
+        )
+    )
+
+    with temporary_settings({PREFECT_API_KEY: "pnu_foo"}):
+        invoke_and_assert(
+            ["cloud", "login", "--key", "pnu_foo", "--workspace", "test/foo"],
+            expected_code=0,
+            expected_output=(
+                "Authenticated with Prefect Cloud! Using workspace 'test/foo'."
+            ),
+        )
 
 
 def test_login_with_key_and_missing_workspace(respx_mock):
@@ -1275,7 +1349,7 @@ def test_update_webhook(respx_mock):
     new_webhook_name = "wowza-webhooks"
     existing_webhook = {
         "name": "this will change",
-        "description": "this wont change",
+        "description": "this won't change",
         "template": "neither will this",
     }
     respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(

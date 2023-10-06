@@ -14,22 +14,22 @@ search:
 
 # Flows
 
-Flows are the most basic Prefect object. Flows are the only Prefect abstraction that can be interacted with, displayed, and run without needing to reference any other aspect of the Prefect engine. A flow is a container for workflow logic and allows users to interact with and reason about the state of their workflows. It is represented in Python as a single function.
+Flows are the most central Prefect object. A flow is a container for workflow logic as-code and allows users to configure how their workflows behave. Flows are defined as Python functions, and any Python function is eligible to be a flow.
 
 ## Flows overview
 
-Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
+Flows can be thought of as special types of functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- State transitions are reported to the API, allowing observation of flow execution.
-- Input arguments types can be validated.
+- Every invocation of this function is tracked and all state transitions are reported to the API, allowing observation of flow execution.
+- Input arguments are automatically type checked and coerced to the appropriate types.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 
-Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time, task tags, and final state.
+Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time and final state.
 
-All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#composing-flows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions.
+Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which Prefect calls ["subflows"](#composing-flows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions.
 
-Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint for a flow run.
+[Deployments](/concepts/deployments/) elevate individual workflows from functions that you call manually to API-managed entities.
 
 !!! warning "Tasks must be called from flows"
     All tasks must be called from within a flow. Tasks may not be called from other tasks.
@@ -38,10 +38,11 @@ Flows are required for [deployments](/concepts/deployments/) &mdash; every deplo
 
 A _flow run_ represents a single execution of the flow.
 
-You can create a flow run by calling the flow. For example, by running a Python script or importing the flow into an interactive session.
+You can create a flow run by calling the flow manually. For example, by running a Python script or importing the flow into an interactive session and calling it.
 
 You can also create a flow run by:
 
+- Using external schedulers such as `cron` to invoke a flow function
 - Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect server.
 - Creating a flow run for the deployment via a schedule, the Prefect UI, or the Prefect API.
 
@@ -49,11 +50,11 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/img/ui/prefect-dashboard.png)
+![Prefect UI](/img/ui/timeline-flows.png)
 
 ## Writing flows
 
-For most use cases, we recommend using the [`@flow`][prefect.flows.flow] decorator to designate a flow:
+The [`@flow`][prefect.flows.flow] decorator is used to designate a flow:
 
 ```python hl_lines="3"
 from prefect import flow
@@ -63,6 +64,8 @@ def my_flow():
     return
 ```
 
+There are no rigid rules for what code you include within a flow definition - all valid Python is acceptable.
+
 Flows are uniquely identified by name. You can provide a `name` parameter value for the flow. If you don't provide a name, Prefect uses the flow function name.
 
 ```python hl_lines="1"
@@ -71,7 +74,7 @@ def my_flow():
     return
 ```
 
-Flows can call tasks to do specific work:
+Flows can call tasks to allow Prefect to orchestrate and track more granular units of work:
 
 ```python
 from prefect import flow, task
@@ -92,7 +95,7 @@ def hello_world(name="world"):
 
     In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow will fail and must be retried from the beginning. This can be avoided by breaking up the code into multiple tasks.
 
-    Each Prefect workflow must contain one primary, entrypoint `@flow` function. From that flow function, you may call any number of other tasks, subflows, and even regular Python functions. You can pass parameters to your entrypoint flow function that will be used elsewhere in the workflow, and the [final state](#final-state-determination) of that entrypoint flow function determines the final state of your workflow.
+    You may call any number of other tasks, subflows, and even regular Python functions within your flow. You can pass parameters to your flow function that will be used elsewhere in the workflow, and Prefect will report on the progress and [final state](#final-state-determination) of any invocation.
 
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
@@ -251,7 +254,7 @@ Hello Marvin!
 ```
 </div>
 
-## Visualizing Flow Structure <span class="badge experimental"></span>
+## Visualizing flow structure
 
 You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
 
@@ -320,13 +323,12 @@ Subflows differ from normal flows in that they will resolve any passed task futu
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
-A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field.  A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
+A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
 
 !!! warning "Cancelling subflow runs"
     In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
-
 
 ```python
 from prefect import flow, task
@@ -410,7 +412,6 @@ Subflow says: Hello Marvin!
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
 
-
 ## Parameters
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect orchestration engine on the flow run object.
@@ -418,7 +419,7 @@ Flows can be called with both positional and keyword arguments. These arguments 
 !!! warning "Prefect API requires keyword arguments"
     When creating flow runs from the Prefect API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
-Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
+Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/). This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
 
 ```python
 from prefect import flow
@@ -461,7 +462,7 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 !!! note "Prerequisite"
     Read the documentation about [states](/concepts/states) before proceeding with this section.
 
-The final state of the flow is determined by its return value.  The following rules apply:
+The final state of the flow is determined by its return value. The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
@@ -498,7 +499,7 @@ ValueError: This flow immediately fails
 ```
 </div>
 
-### Return None
+### Return none
 
 A flow with no return statement is determined by the state of all of its task runs.
 
@@ -731,9 +732,138 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
+## Serving a flow
+
+The simplest way to create a [deployment](/concepts/deployments/) for your flow is by calling its [`serve` method](/api-ref/prefect/flows/#prefect.flows.Flow.serve). This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server. When work is found, it is executed within its own isolated subprocess.
+
+```python title="hello_world.py"
+from prefect import flow
+
+
+@flow(log_prints=True)
+def hello_world(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+
+    if goodbye:
+        print(f"Goodbye {name}!")
+
+
+if __name__ == "__main__":
+    # creates a deployment and stays running to monitor for work instructions generated on the server
+
+    hello_world.serve(name="my-first-deployment",
+                      tags=["onboarding"],
+                      parameters={"goodbye": True},
+                      interval=60)
+```
+
+This interface provides all of the configuration needed for a deployment with no strong infrastructure requirements:
+
+- schedules
+- event triggers
+- metadata such as tags and description
+- default parameter values
+
+!!! tip "Schedules are auto-paused on shutdown"
+    By default, stopping the process running `flow.serve` will pause the schedule for the deployment (if it has one). When running this in environments where restarts are expected use the `pause_on_shutdown=False` flag to prevent this behavior:
+
+    ```python hl_lines="5"
+    if __name__ == "__main__":
+        hello_world.serve(name="my-first-deployment",
+                          tags=["onboarding"],
+                          parameters={"goodbye": True},
+                          pause_on_shutdown=False,
+                          interval=60)
+    ```
+
+### Serving multiple flows at once
+
+You can take this further and serve multiple flows with the same process using the [`serve`](/api-ref/prefect/runner/#prefect.runner.serve) utility along with the `to_deployment` method of flows:
+
+```python
+import time
+from prefect import flow, serve
+
+
+@flow
+def slow_flow(sleep: int = 60):
+    "Sleepy flow - sleeps the provided amount of time (in seconds)."
+    time.sleep(sleep)
+
+
+@flow
+def fast_flow():
+    "Fastest flow this side of the Mississippi."
+    return
+
+
+if __name__ == "__main__":
+    slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+    fast_deploy = fast_flow.to_deployment(name="fast")
+    serve(slow_deploy, fast_deploy)
+```
+
+The behavior and interfaces are identical to the single flow case.
+
+## Retrieve a flow from remote storage
+
+Flows can be retrieved from remote storage using the [`flow.from_source`](/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
+
+`flow.from_source` accepts a git repository URL  and an entrypoint pointing to the flow to load from the repository:
+
+```python title="load_from_url.py"
+from prefect import flow
+
+my_flow = flow.from_source(
+    source="https://github.com/org/repo.git",
+    entrypoint="flows.py:my_flow"
+)
+
+my_flow()
+```
+
+A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
+
+If you need additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) instead of URL:
+
+```python title="load_from_storage.py"
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect.blocks.system import Secret
+
+my_flow = flow.from_source(
+    source=GitRepository(
+        url="https://github.com/org/private-repo.git",
+        branch="dev",
+        credentials={
+            "access_token": Secret.load("github-access-token").get()
+        }
+    ),
+    entrypoint="flows.py:my_flow"
+)
+
+my_flow()
+```
+
+!!! tip "You can serve loaded flows"
+    Flows loaded from remote storage can be served using the same [`serve`](#serving-a-flow) method as local flows:
+
+    ```python title="serve_loaded_flow.py"
+    from prefect import flow
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="https://github.com/org/repo.git",
+            entrypoint="flows.py:my_flow"
+        ).serve(name="my-deployment")
+    ```
+
+    When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
+
+
 ## Pause a flow run
 
-Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect server or Prefect Cloud UI.
+Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
 
@@ -830,8 +960,8 @@ You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, o
 
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
-!!! warning "A worker or agent is required"
-    Flow run cancellation requires the flow run to be submitted by a worker or agent. The worker or agent must be running to enforce the cancellation. In line subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
+!!! warning "A deployment is required"
+    Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow). A monitoring process must be running to enforce the cancellation. Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run. If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/api-ref/prefect/deployments/deployments/#prefect.deployments.run_deployment) method.
 
 Support for cancellation is included for all core library infrastructure types:
 
@@ -876,61 +1006,3 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
 ![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
-
-
-<!--
-# content from old Flows UI page
-# Flows
-
-A [flow](/concepts/flows/) contains the instructions for workflow logic, including the `@flow` and `@task` functions that define the work of your workflow.
-
-The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect server, or the Prefect ephemeral API in your local development environment.
-
-![View a list of flows observed by Prefect in the Prefect UI.](/img/ui/flows.png)
-
-For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
-
-You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](/ui/flow-runs/#inspect-a-flow-run).
-
-## Inspect a flow
-
-If you select the name of a flow on the **Flows** page, the UI displays details about the flow.
-
-![Details for a flow in the Prefect UI](/img/ui/flow-details.png)
-
-If deployments have been created for the flow, you'll see them here. Select the deployment name to see further details about the deployment.
-
-On this page you can also:
-
-- Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
-- Pause a schedule for a deployment by using the toggle control.
-- Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
-
-
-
-Additional info from the old ui/flow-runs page
-## Troubleshooting flows
-
-If you're having issues with a flow run, Prefect provides multiple tools to help you identify issues, re-run flows, and even delete a flow or flow run.
-
-Flows may end up in states other than Completed. This is where Prefect really helps you out. If a flow ends up in a state such as Pending, Failed, or Cancelled, you can:
-
-- Check the logs for the flow run for errors.
-- Check the task runs to see where the error occurred.
-- Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
-- Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
-
-If you need to delete a flow or flow run:
-
-In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
-
-From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run.
-
-<div class="terminal">
-```bash
-$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
-```
-</div>
-
-To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
--->

@@ -90,13 +90,13 @@ async def critical_service_loop(
         # distribution of errors. We are trying to determine which of those two worlds
         # we are currently experiencing.  We compare the likelihood that we'd draw N
         # consecutive errors from each.  In the everything-is-fine distribution, that
-        # would be a very low-probability occurrance, but in the everything-is-on-fire
-        # distribution, that is a high-probability occurrance.
+        # would be a very low-probability occurrence, but in the everything-is-on-fire
+        # distribution, that is a high-probability occurrence.
         #
         # Remarkably, we only need to look back for a small number of consecutive
         # errors to have reasonable confidence that this is indeed an anomaly.
         # @anticorrelator and @chrisguidry estimated that we should only need to look
-        # back for 3 consectutive errors.
+        # back for 3 consecutive errors.
         if not any(track_record):
             # We've failed enough times to be sure something is wrong, the writing is
             # on the wall.  Let's explain what we've seen and exit.

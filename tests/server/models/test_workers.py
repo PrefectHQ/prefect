@@ -1,7 +1,14 @@
 from uuid import uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
 import sqlalchemy as sa
 
@@ -182,6 +189,25 @@ class TestReadWorkPool:
         assert result.name == work_pool.name
         assert result.is_paused is work_pool.is_paused
         assert result.concurrency_limit == work_pool.concurrency_limit
+
+
+class TestCountWorkPools:
+    async def test_count_work_pool(self, session, work_pool):
+        result = await models.workers.count_work_pools(
+            session=session,
+        )
+        assert result == 1
+
+        random_name = "not-my-work-pool"
+        assert random_name != work_pool.name
+
+        filtered_result = await models.workers.count_work_pools(
+            session=session,
+            work_pool_filter=schemas.filters.WorkPoolFilter(
+                name={"any_": [random_name]}
+            ),
+        )
+        assert filtered_result == 0
 
 
 class TestDeleteWorkPool:

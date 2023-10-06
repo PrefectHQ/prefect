@@ -1,5 +1,6 @@
 import json
 import re
+from unittest import mock
 from uuid import uuid4
 
 import httpx
@@ -8,7 +9,13 @@ import pytest
 import respx
 import yaml
 from httpx import Response
-from pydantic.error_wrappers import ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1.error_wrappers import ValidationError
+else:
+    from pydantic.error_wrappers import ValidationError
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -16,6 +23,7 @@ from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
+from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import BlockMissingCapabilities
@@ -117,6 +125,14 @@ class TestDeploymentBasicInterface:
 
         assert deployment.triggers[0].name == "TEST__automation_1"
         assert deployment.triggers[1].name == "run-it"
+
+    def test_enforce_parameter_schema_defaults_to_none(self):
+        """
+        enforce_parameter_schema defaults to None to allow for backwards compatibility
+        with older servers
+        """
+        d = Deployment(name="foo")
+        assert d.enforce_parameter_schema is None
 
 
 class TestDeploymentLoad:
@@ -338,7 +354,7 @@ class TestDeploymentBuild:
         )
         assert d.path == "/opt/prefect/flows"
 
-        # can be overriden
+        # can be overridden
         d = await Deployment.build_from_flow(
             flow=flow_function,
             name="foo",
@@ -603,6 +619,21 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
+@pytest.fixture
+async def test_deployment_with_parameter_schema(patch_import, tmp_path):
+    d = Deployment(
+        name="TEST",
+        flow_name="fn",
+        enforce_parameter_schema=True,
+        parameter_openapi_schema={
+            "type": "object",
+            "properties": {"1": {"type": "string"}, "2": {"type": "string"}},
+        },
+    )
+    deployment_id = await d.apply()
+    return d, deployment_id
+
+
 class TestDeploymentApply:
     async def test_deployment_apply_updates_concurrency_limit(
         self,
@@ -705,6 +736,25 @@ class TestDeploymentApply:
         dep = await prefect_client.read_deployment(dep_id)
 
         assert dep is not None
+
+    async def test_deployment_apply_with_enforce_parameter_schema(
+        self, flow_function_dict_parameter, prefect_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function_dict_parameter,
+            name="foo",
+            enforce_parameter_schema=True,
+            parameters=dict(dict_param={1: "a", 2: "b"}),
+        )
+
+        assert d.flow_name == flow_function_dict_parameter.name
+        assert d.name == "foo"
+        assert d.enforce_parameter_schema is True
+
+        dep_id = await d.apply()
+        dep = await prefect_client.read_deployment(dep_id)
+
+        assert dep.enforce_parameter_schema is True
 
 
 class TestRunDeployment:
@@ -1038,6 +1088,38 @@ class TestRunDeployment:
                 timeout=0,
                 poll_interval=0,
             )
+
+        parent_state = await foo(return_state=True)
+        child_flow_run = await parent_state.result()
+        assert child_flow_run.parent_task_run_id is not None
+        task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
+        assert task_run.flow_run_id == parent_state.state_details.flow_run_id
+        assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_links_to_parent_flow_run_when_used_in_task_without_flow_context(
+        self, test_deployment, prefect_client
+    ):
+        """
+        Regression test for deployments in a task on Dask and Ray task runners
+        which do not have access to the flow run context - https://github.com/PrefectHQ/prefect/issues/9135
+        """
+        d, deployment_id = test_deployment
+
+        @task
+        async def yeet_deployment():
+            with mock.patch.object(FlowRunContext, "get", return_value=None):
+                assert FlowRunContext.get() is None
+                result = await run_deployment(
+                    f"{d.flow_name}/{d.name}",
+                    timeout=0,
+                    poll_interval=0,
+                )
+                return result
+
+        @flow
+        async def foo():
+            return await yeet_deployment()
 
         parent_state = await foo(return_state=True)
         child_flow_run = await parent_state.result()

@@ -118,7 +118,7 @@ def test_async_waiter_done_callbacks():
 
 def test_sync_waiter_timeout_in_worker_thread():
     """
-    In this test, a timeout is raised due to a slow call that is occuring on the worker
+    In this test, a timeout is raised due to a slow call that is occurring on the worker
     thread.
     """
     done_callback = Call.new(identity, 1)

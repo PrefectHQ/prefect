@@ -1,0 +1,13 @@
+#!/bin/bash
+VERSION=$1
+OUR_COPY=src/prefect/_vendor/fastapi/
+
+rm -Rf /tmp/fastapi
+git clone https://github.com/tiangolo/fastapi -b $VERSION /tmp/fastapi
+rsync -ravP --delete /tmp/fastapi/fastapi/ $OUR_COPY
+
+for file in `find ${OUR_COPY} -name '*.py'`; do
+    # change all of the fastapi imports to prefect._vendor.fastapi
+    sed -i -e 's/from fastapi/from prefect._vendor.fastapi/g' $file
+    sed -i -e 's/import fastapi/import prefect._vendor.fastapi/g' $file
+done
