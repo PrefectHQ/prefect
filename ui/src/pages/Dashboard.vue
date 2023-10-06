@@ -22,12 +22,12 @@
         </div>
       </template>
     </template>
-    <MarketingBanner 
-      title="Ready to scale?" 
-      subtitle="Automations, Serverless Work Pools, RBAC, and dedicated support on Prefect Cloud"
+    <MarketingBanner
+      title="Ready to scale?"
+      subtitle="Automations, role and object-level security, and serverless work pools on Prefect Cloud"
     >
       <template #actions>
-        <p-button to="https://www.prefect.io/cloud" target="_blank" primary>
+        <p-button to="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank" primary>
           Upgrade to Cloud
         </p-button>
       </template>
