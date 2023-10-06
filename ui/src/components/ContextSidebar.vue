@@ -19,7 +19,7 @@
 
     <template #footer>
       <a href="https://www.prefect.io/cloud" target="_blank" >
-        <p-context-nav-item >
+        <p-context-nav-item>
           <div>
             Ready to scale?
           </div>
