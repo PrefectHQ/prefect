@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import enum
 import glob
+import json
 import os
 import subprocess
 import sys
@@ -8,7 +10,7 @@ import time
 from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
-from typing import Generator, List
+from typing import Generator, List, Optional
 
 import typer
 import yaml
@@ -82,8 +84,13 @@ def initialize_python_environment(python_version: str, root: Path = DEFAULT_ROOT
         _in_env(repo, "pre-commit install")
 
 
-def _git(repo: Path, *args: str) -> str:
-    return subprocess.check_output(["git", *args], cwd=str(repo), text=True)
+def _git(repo: Path, *args: str, quiet: bool = False) -> str:
+    return subprocess.check_output(
+        ["git", *args],
+        cwd=str(repo),
+        text=True,
+        stderr=subprocess.DEVNULL if quiet else None,
+    )
 
 
 @contextmanager
@@ -152,7 +159,7 @@ def commit(message: str, root: Path = DEFAULT_ROOT):
 
 
 @app.command()
-def pull_request(root: Path = DEFAULT_ROOT):
+def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False):
     """Creates a pull request on all repositories"""
     with tempfile.NamedTemporaryFile("w+t") as pr_body_file:
         pr_body_file.write("The title\n\nThe body\n")
@@ -181,8 +188,11 @@ def pull_request(root: Path = DEFAULT_ROOT):
 
         DELAY = 10
         print(
-            "Note: there is an intentional delay between each repo to avoid exceeding "
-            "Github's rate limit for creating pull requests"
+            (
+                "Note: there is an intentional delay between each repo to avoid"
+                " exceeding Github's rate limit for creating pull requests"
+            ),
+            file=sys.stderr,
         )
 
         for repo in repositories(root):
@@ -196,24 +206,25 @@ def pull_request(root: Path = DEFAULT_ROOT):
             branch_name = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").strip()
             _git(repo, "push", "origin", branch_name)
 
+            arguments = [
+                "gh",
+                "pr",
+                "create",
+                "--repo",
+                f"PrefectHQ/{repo.name}",
+                "--base",
+                "main",
+                "--title",
+                title,
+                "--body-file",
+                pr_body_file.name,
+            ]
+            if dry_run:
+                print(" ".join(arguments))
+                continue
+
             try:
-                subprocess.check_output(
-                    [
-                        "gh",
-                        "pr",
-                        "create",
-                        "--repo",
-                        f"PrefectHQ/{repo.name}",
-                        "--base",
-                        "main",
-                        "--title",
-                        title,
-                        "--body-file",
-                        pr_body_file.name,
-                    ],
-                    cwd=str(repo),
-                    text=True,
-                )
+                subprocess.check_output(arguments, cwd=str(repo), text=True)
             except subprocess.CalledProcessError as exc:
                 if "already exists" in exc.stdout:
                     continue
@@ -229,6 +240,87 @@ def test(root: Path = DEFAULT_ROOT, forge_ahead: bool = True):
             except subprocess.CalledProcessError:
                 if not forge_ahead:
                     raise
+
+
+class BumpLevel(enum.Enum):
+    MAJOR = "major"
+    MINOR = "minor"
+    PATCH = "patch"
+
+
+@app.command()
+def bump_versions(level: BumpLevel, root: Path = DEFAULT_ROOT, dry_run: bool = False):
+    """Bumps the version of all collections to the latest version of Prefect"""
+    DELAY = 10
+    print(
+        (
+            "Note: there is an intentional delay between each repo to avoid exceeding "
+            "Github's rate limit for creating releases"
+        ),
+        file=sys.stderr,
+    )
+
+    for repo in repositories(root):
+        time.sleep(DELAY)
+
+        _git(repo, "checkout", "main", quiet=True)
+        _git(repo, "pull")
+
+        try:
+            previous_release: Optional[str] = subprocess.check_output(
+                ["gh", "release", "view", "--json", "tagName"],
+                cwd=str(repo),
+                text=True,
+            )
+            assert previous_release
+            previous_release = json.loads(previous_release)["tagName"]
+            assert isinstance(previous_release, str)
+        except subprocess.CalledProcessError as exc:
+            if "release not found" in exc.stderr:
+                previous_release = None
+            else:
+                raise
+
+        if previous_release:
+            since_previous_release = _git(
+                repo, "log", f"{previous_release}...origin/main", "--pretty=oneline"
+            )
+            if not since_previous_release:
+                print(f"{repo.name} has no commits since {previous_release}")
+                continue
+
+        if not previous_release:
+            current_major, current_minor, current_patch = 0, 0, 0
+        else:
+            assert previous_release.startswith("v")
+            parts = [part for part in previous_release[1:].split(".", maxsplit=4)]
+            current_major, current_minor, current_patch = [int(p) for p in parts[:3]]
+
+        if level == BumpLevel.MAJOR:
+            current_major += 1
+            current_minor, current_patch = 0, 0
+        elif level == BumpLevel.MINOR:
+            current_minor += 1
+            current_patch = 0
+        elif level == BumpLevel.PATCH:
+            current_patch += 1
+
+        next_release = f"v{current_major}.{current_minor}.{current_patch}"
+
+        print(f"{repo.name} {previous_release} -> {next_release}")
+
+        arguments = [
+            "gh",
+            "release",
+            "create",
+            next_release,
+            "--generate-notes",
+        ]
+        if dry_run:
+            print(" ".join(arguments))
+            continue
+
+        subprocess.check_call(arguments, cwd=str(repo), text=True)
 
 
 @app.command()
