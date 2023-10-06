@@ -22,7 +22,14 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+else:
+    from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect

@@ -6,14 +6,26 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, HttpUrl, conint, root_validator, validator
+else:
+    from pydantic import BaseModel, Field, HttpUrl, conint, root_validator, validator
+
 from typing_extensions import Literal
 
 import prefect.server.database
-from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.server.schemas import schedules, states
-from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import (
+    ORMBaseModel,
+    PrefectBaseModel,
+)
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.validators import (
+    raise_on_name_with_banned_characters,
+)
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
@@ -131,6 +143,30 @@ class FlowRunPolicy(PrefectBaseModel):
         ):
             values["retry_delay"] = values["retry_delay_seconds"]
         return values
+
+
+class CreatedBy(BaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the creator of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the creator of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the creator."
+    )
+
+
+class UpdatedBy(BaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the updater of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the updater of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the updater."
+    )
 
 
 class FlowRun(ORMBaseModel):
@@ -373,8 +409,8 @@ class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -859,8 +895,8 @@ class Log(ORMBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
