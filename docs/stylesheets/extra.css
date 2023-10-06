@@ -165,11 +165,11 @@ to force column width */
 
 /* apply extra styling to badges inside h1 and h2 elements */
 :where(h1, h2)>.badge::before {
-    position: relative;
+    position: static;
     top: -0.42rem;
     font-weight: 600;
     margin-left: 0.25rem;
-    vertical-align: super;
+    vertical-align: middle;
     font-size: 0.63rem;
     border-radius: 15px;
 }
