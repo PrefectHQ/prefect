@@ -24,7 +24,7 @@
     </template>
     <MarketingBanner title="Ready to upgrade?" subtitle="Auth, Automations, and dedicated support on Prefect Cloud ">
         <template #actions>
-          <p-button>
+          <p-button to='https://www.prefect.io/cloud'>
             Upgrade to Cloud
           </p-button>
         </template>
