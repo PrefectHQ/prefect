@@ -55,7 +55,6 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -177,10 +176,10 @@ class Runner:
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
     @property
-    def _in_single_execution_mode(self):
+    def _in_execution_mode(self):
         """
-        Used to avoid updating deployments when runner is being used to execute a
-        single flow run
+        Used to avoid updating deployments when a built runner is being used to execute
+        flow runs.
         """
         return os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None
 
@@ -196,7 +195,7 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        if self._in_single_execution_mode:
+        if self._in_execution_mode:
             api_deployment = await self._client.read_deployment_by_name(
                 name=f"{deployment.flow_name}/{deployment.name}"
             )
@@ -434,8 +433,8 @@ class Runner:
         """
         runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
         if runner_entrypoint is not None:
-            runner: Runner = await from_async.wait_for_call_in_new_thread(
-                create_call(import_object, runner_entrypoint)
+            runner: Runner = await anyio.run_sync_in_worker_thread(
+                import_object, runner_entrypoint
             )
         else:
             runner = self

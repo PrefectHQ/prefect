@@ -28,12 +28,11 @@ Example:
     ```
 
 """
-
-import inspect
+import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -357,14 +356,32 @@ class RunnerDeployment(BaseModel):
                 " quickstart guide for help getting started:"
                 " https://docs.prefect.io/latest/getting-started/quickstart"
             )
-            result = _get_obj_entrypoint(flow)
-            if result is None:
-                raise ValueError(no_file_location_error)
-            entry_path, func_name = result
-            deployment.entrypoint = f"{entry_path}:{func_name}"
+            ## first see if an entrypoint can be determined
+            flow_file = getattr(flow, "__globals__", {}).get("__file__")
+            mod_name = getattr(flow, "__module__", None)
+            if not flow_file:
+                if not mod_name:
+                    raise ValueError(no_file_location_error)
+                try:
+                    module = importlib.import_module(mod_name)
+                    flow_file = getattr(module, "__file__", None)
+                except ModuleNotFoundError as exc:
+                    if "__prefect_loader__" in str(exc):
+                        raise ValueError(
+                            "Cannot create a RunnerDeployment from a flow that has been"
+                            " loaded from an entrypoint. To deploy a flow via"
+                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
+                        )
+                    raise ValueError(no_file_location_error)
+                if not flow_file:
+                    raise ValueError(no_file_location_error)
+
+            # set entrypoint
+            entry_path = Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
         if not deployment._path:
-            deployment._path = str(Path.cwd())
+            deployment._path = "."
 
         cls._set_defaults_from_flow(deployment, flow)
 
@@ -514,16 +531,3 @@ class RunnerDeployment(BaseModel):
         cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
-
-
-def _get_obj_entrypoint(obj) -> Optional[Tuple[Path, str]]:
-    # Get the frame that called get_obj_entrypoint
-    frame = inspect.currentframe().f_back
-    while frame:
-        # Check the global variables of the calling frame to see if runner is among them
-        var_names = [name for name, var in frame.f_globals.items() if var is obj]
-        if var_names:
-            entrypoint_path = Path(frame.f_globals["__file__"]).relative_to(Path.cwd())
-            return entrypoint_path, var_names[0]
-        frame = frame.f_back
-    return None

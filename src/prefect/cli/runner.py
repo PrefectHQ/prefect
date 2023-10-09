@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from anyio import run_sync_in_worker_thread
 from rich.console import Group
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -206,9 +207,7 @@ async def deploy(
         ),
     ],
 ):
-    runner: Runner = await from_async.wait_for_call_in_new_thread(
-        create_call(import_object, entrypoint)
-    )
+    runner: Runner = await run_sync_in_worker_thread(import_object, entrypoint)
 
     for deployment in runner.registered_deployments:
         await deployment.apply(work_pool_name=work_pool_name, image=image)
