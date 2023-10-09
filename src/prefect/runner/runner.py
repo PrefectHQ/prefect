@@ -55,6 +55,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -84,6 +85,7 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.importtools import import_object
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
@@ -174,6 +176,14 @@ class Runner:
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
+    @property
+    def _in_single_execution_mode(self):
+        """
+        Used to avoid updating deployments when runner is being used to execute a
+        single flow run
+        """
+        return os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None
+
     @sync_compatible
     async def add_deployment(
         self,
@@ -186,7 +196,13 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        deployment_id = await deployment.apply()
+        if self._in_single_execution_mode:
+            api_deployment = await self._client.read_deployment_by_name(
+                name=f"{deployment.flow_name}/{deployment.name}"
+            )
+            deployment_id = api_deployment.id
+        else:
+            deployment_id = await deployment.apply()
         storage = deployment.storage
         if storage is not None:
             storage = await self._add_storage(storage)
@@ -416,34 +432,45 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
-        self.pause_on_shutdown = False
-        async with self:
-            if not self._acquire_limit_slot(flow_run_id):
+        runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
+        if runner_entrypoint is not None:
+            runner: Runner = await from_async.wait_for_call_in_new_thread(
+                create_call(import_object, runner_entrypoint)
+            )
+        else:
+            runner = self
+
+        runner.pause_on_shutdown = False
+
+        async with runner:
+            if not runner._acquire_limit_slot(flow_run_id):
                 return
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
-                    self._submitting_flow_run_ids.add(flow_run_id)
-                    flow_run = await self._client.read_flow_run(flow_run_id)
+                    runner._submitting_flow_run_ids.add(flow_run_id)
+                    flow_run = await runner._client.read_flow_run(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
-                        self._submit_run_and_capture_errors, flow_run
+                    pid = await runner._runs_task_group.start(
+                        runner._submit_run_and_capture_errors, flow_run
                     )
 
-                    self._flow_run_process_map[flow_run.id] = dict(
+                    runner._flow_run_process_map[flow_run.id] = dict(
                         pid=pid, flow_run=flow_run
                     )
 
                     workload = partial(
-                        self._check_for_cancelled_flow_runs,
-                        on_nothing_to_watch=tg.cancel_scope.cancel,
+                        runner._check_for_cancelled_flow_runs,
+                        should_stop_watching=lambda: flow_run.id
+                        not in runner._flow_run_process_map,
+                        on_stop_watching=tg.cancel_scope.cancel,
                     )
 
                     tg.start_soon(
                         partial(
                             critical_service_loop,
                             workload=workload,
-                            interval=self.query_seconds,
+                            interval=runner.query_seconds,
                             jitter_range=0.3,
                         )
                     )
@@ -637,7 +664,9 @@ class Runner:
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
-        self, on_nothing_to_watch: Callable = lambda: None
+        self,
+        on_stop_watching: Callable = lambda: None,
+        should_stop_watching: Callable = lambda: False,
     ):
         if self.stopping:
             return
@@ -650,12 +679,12 @@ class Runner:
         # To stop loop service checking for cancelled runs.
         # Need to find a better way to stop runner spawned by
         # a worker.
-        if not self._flow_run_process_map and not self._deployment_ids:
+        if should_stop_watching():
             self._logger.debug(
                 "Runner has no active flow runs or deployments. Sending message to loop"
                 " service that no further cancellation checks are needed."
             )
-            on_nothing_to_watch()
+            on_stop_watching()
 
         self._logger.debug("Checking for cancelled flow runs...")
 
@@ -1125,18 +1154,3 @@ async def serve(
         console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()
-
-
-def get_runner_entrypoint(runner):
-    # Get the frame that called get_runner_entrypoint
-    frame = inspect.currentframe().f_back
-    while frame:
-        # Check the global variables of the calling frame to see if runner is among them
-        var_names = [name for name, var in frame.f_globals.items() if var is runner]
-        if var_names:
-            entrypoint_path = (
-                Path(frame.f_globals["__file__"]).relative_to(Path.cwd()).as_posix()
-            )
-            return f"{entrypoint_path}:{var_names[0]}"
-        frame = frame.f_back
-    return None

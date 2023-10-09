@@ -29,11 +29,11 @@ Example:
 
 """
 
-import importlib
+import inspect
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -128,6 +128,28 @@ class RunnerDeployment(BaseModel):
             "The storage object used to retrieve flow code for this deployment."
         ),
     )
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of the work pool to use for this deployment. Only used when"
+            " the deployment is registered with a built runner."
+        ),
+    )
+    work_queue_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of the work queue to use for this deployment. Only used when"
+            " the deployment is registered with a built runner."
+        ),
+    )
+    job_variables: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Job variables used to override the default values of a work pool"
+            " base job template. Only used when the deployment is registered with"
+            " a built runner."
+        ),
+    )
 
     _path: Optional[str] = PrivateAttr(
         default=None,
@@ -146,18 +168,52 @@ class RunnerDeployment(BaseModel):
         return field_value
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(
+        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+    ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
         """
+
+        work_pool_name = work_pool_name or self.work_pool_name
+
+        if image and not work_pool_name:
+            raise ValueError(
+                "An image can only be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if not image and work_pool_name:
+            raise ValueError(
+                "An image must be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if self.work_queue_name and not work_pool_name:
+            raise ValueError(
+                "A work queue can only be provided when registering a deployment with"
+                " a work pool."
+            )
+
+        if self.job_variables and not work_pool_name:
+            raise ValueError(
+                "Job variables can only be provided when registering a deployment"
+                " with a work pool."
+            )
+
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=self.name,
-                work_queue_name=None,
-                work_pool_name=None,
+                work_queue_name=self.work_queue_name,
+                work_pool_name=work_pool_name,
+                infra_overrides={
+                    **self.job_variables,
+                    "image": image,
+                    "command": "prefect flow-run execute",
+                },
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,
@@ -301,29 +357,11 @@ class RunnerDeployment(BaseModel):
                 " quickstart guide for help getting started:"
                 " https://docs.prefect.io/latest/getting-started/quickstart"
             )
-            ## first see if an entrypoint can be determined
-            flow_file = getattr(flow, "__globals__", {}).get("__file__")
-            mod_name = getattr(flow, "__module__", None)
-            if not flow_file:
-                if not mod_name:
-                    raise ValueError(no_file_location_error)
-                try:
-                    module = importlib.import_module(mod_name)
-                    flow_file = getattr(module, "__file__", None)
-                except ModuleNotFoundError as exc:
-                    if "__prefect_loader__" in str(exc):
-                        raise ValueError(
-                            "Cannot create a RunnerDeployment from a flow that has been"
-                            " loaded from an entrypoint. To deploy a flow via"
-                            " entrypoint, use RunnerDeployment.from_entrypoint instead."
-                        )
-                    raise ValueError(no_file_location_error)
-                if not flow_file:
-                    raise ValueError(no_file_location_error)
-
-            # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
-            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+            result = _get_obj_entrypoint(flow)
+            if result is None:
+                raise ValueError(no_file_location_error)
+            entry_path, func_name = result
+            deployment.entrypoint = f"{entry_path}:{func_name}"
 
         if not deployment._path:
             deployment._path = str(Path.cwd())
@@ -476,3 +514,16 @@ class RunnerDeployment(BaseModel):
         cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
+
+
+def _get_obj_entrypoint(obj) -> Optional[Tuple[Path, str]]:
+    # Get the frame that called get_obj_entrypoint
+    frame = inspect.currentframe().f_back
+    while frame:
+        # Check the global variables of the calling frame to see if runner is among them
+        var_names = [name for name, var in frame.f_globals.items() if var is obj]
+        if var_names:
+            entrypoint_path = Path(frame.f_globals["__file__"]).relative_to(Path.cwd())
+            return entrypoint_path, var_names[0]
+        frame = frame.f_back
+    return None
