@@ -96,6 +96,10 @@ class BaseJobConfiguration(BaseModel):
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
+    @property
+    def is_using_a_runner(self):
+        return self.command is not None and "prefect flow-run execute" in self.command
+
     @validator("command")
     def _coerce_command(cls, v):
         """Make sure that empty strings are treated as None"""
@@ -606,6 +610,21 @@ class BaseWorker(abc.ABC):
     async def cancel_run(self, flow_run: "FlowRun"):
         run_logger = self.get_flow_run_logger(flow_run)
 
+        try:
+            configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+            return
+
+        if configuration.is_using_a_runner:
+            self._logger.debug(
+                f"Skipping cancellation because flow run {str(flow_run.id)!r} is using"
+                " a runner. Runner will handle cancellation."
+            )
+
         if not flow_run.infrastructure_pid:
             run_logger.error(
                 f"Flow run '{flow_run.id}' does not have an infrastructure pid"
@@ -621,14 +640,6 @@ class BaseWorker(abc.ABC):
                 },
             )
             return
-
-        try:
-            configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         try:
             await self.kill_infrastructure(
