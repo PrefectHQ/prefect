@@ -15,7 +15,13 @@ from uuid import UUID
 import anyio
 import pendulum
 import yaml
-from pydantic import BaseModel, Field, parse_obj_as, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+else:
+    from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
@@ -198,6 +204,8 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
+    runner_storage_base_path = os.environ.get("PREFECT__STORAGE_BASE_PATH")
+
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
@@ -207,10 +215,19 @@ async def load_flow_from_flow_run(
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
+            if runner_storage_base_path:
+                basepath = str(basepath).replace(
+                    "$STORAGE_BASE_PATH", runner_storage_base_path
+                )
             storage_block = LocalFileSystem(basepath=basepath)
 
-        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        from_path = (
+            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
+            if runner_storage_base_path and deployment.path
+            else deployment.path
+        )
+        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
         logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
@@ -294,6 +311,8 @@ class Deployment(BaseModel):
         entrypoint: The path to the entrypoint for the workflow, always relative to the
             `path`
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
+        enforce_parameter_schema: Whether or not the Prefect API should enforce the
+            parameter schema for this deployment.
 
     Examples:
 
@@ -489,6 +508,14 @@ class Deployment(BaseModel):
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
+    # defaults to None to allow for backwards compatibility
+    enforce_parameter_schema: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Whether or not the Prefect API should enforce the parameter schema for"
+            " this deployment."
+        ),
+    )
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -590,7 +617,13 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage", "timestamp", "triggers"}
+                    {
+                        "infrastructure",
+                        "storage",
+                        "timestamp",
+                        "triggers",
+                        "enforce_parameter_schema",
+                    }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -743,6 +776,7 @@ class Deployment(BaseModel):
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
             if client.server_type == ServerType.CLOUD:

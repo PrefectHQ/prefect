@@ -2,7 +2,12 @@ import copy
 from dataclasses import dataclass
 from typing import Any, Optional, Type, TypeVar
 
-from pydantic import BaseModel
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 B = TypeVar("B", bound=BaseModel)
 
@@ -36,7 +41,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
     Examples:
 
         >>> from pydantic import BaseModel
-        >>> from prefect.server.utilities.schemas import copy_model_fields, FieldFrom
+        >>> from prefect._internal.schemas.transformation import copy_model_fields, FieldFrom
         >>>
         >>> class Parent(BaseModel):
         ...     name: str

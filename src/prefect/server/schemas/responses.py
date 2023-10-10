@@ -6,17 +6,22 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
+
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
-from prefect.server.utilities.schemas import (
-    DateTimeTZ,
+from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.transformations import (
     FieldFrom,
-    ORMBaseModel,
-    PrefectBaseModel,
     copy_model_fields,
 )
 from prefect.utilities.collections import AutoEnum
@@ -256,6 +261,7 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The name of the deployment's work pool.",
     )
+    enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
     @classmethod
     def from_orm(
@@ -270,7 +276,7 @@ class DeploymentResponse(ORMBaseModel):
         return response
 
 
-class WorkQueueResponse(schemas.core.WorkQueue.subclass()):
+class WorkQueueResponse(schemas.core.WorkQueue):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the work pool the work pool resides within.",

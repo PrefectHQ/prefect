@@ -42,7 +42,7 @@ You can pause a work pool from this page by using the toggle.
 
 Select the **+** button to create a new work pool. You'll be able to specify the details for work served by this work pool.
 
-To configure a work pool via the Prefect CLI, use the `prefect work-pool create` command:
+To create a work pool via the Prefect CLI, use the `prefect work-pool create` command:
 
 <div class="terminal">
 ```bash
@@ -54,10 +54,11 @@ prefect work-pool create [OPTIONS] NAME
 
 Optional configuration parameters you can specify to filter work on the pool include:
 
-| Option     | Description                                                                                    |
-| ---------- | ---------------------------------------------------------------------------------------------- |
-| `--paused` | If provided, the work pool will be created in a paused state.                                  |
-| `--type`   | The type of infrastructure that can execute runs from this work pool. [default: prefect-agent] |
+| Option                                             | Description                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--paused`                                         | If provided, the work pool will be created in a paused state.                                                                                              |
+| `--type`                                           | The type of infrastructure that can execute runs from this work pool. [default: prefect-agent]                                                             |
+| <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. |
 
 For example, to create a work pool called `test-pool`, you would run this command: 
 
@@ -81,6 +82,33 @@ Inspect the work pool:
 
 On success, the command returns the details of the newly created work pool.
 
+To update a work pool via the Prefect CLI, use the `prefect work-pool update` command:
+
+<div class="terminal">
+```bash
+prefect work-pool update [OPTIONS] NAME
+```
+</div>
+
+`NAME` is the name of the work pool to update.
+
+Optional configuration parameters you can specify to update the work pool include:
+
+| Option                                             | Description                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. |
+| `--description`                                    | A description of the work pool.                                                                                                                            |
+| `--concurrency-limit`                              | The maximum number of flow runs to run simultaneously in the work pool.                                                                                    |
+
+!!! tip "Managing work pools in CI/CD"
+    You can version control your base job template by committing it as a JSON file to your repository and control updates to your work pools' base job templates by using the `prefect work-pool update` command in your CI/CD pipeline. For example, you could use the following command to update a work pool's base job template to the contents of a file named `base-job-template.json`:
+
+    <div class="terminal">
+    ```bash
+    $ prefect work-pool update --base-job-template base-job-template.json my-work-pool
+    ```
+    </div>
+
 #### Base job template
 
 Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool.
@@ -99,15 +127,76 @@ Each worker type is configured with a default base job template, making it easy 
 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
+<div class="terminal">
 ```bash
 $ prefect work-pool create --type process above-ground
 ```
+</div>
 
 We see these configuration options available in the Prefect UI:
 ![process work pool configuration options](/img/ui/process-work-pool-config.png)
 
 
 For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
+
+You can examine the default base job template for a given worker type by running:
+
+```bash
+$ prefect work-pool get-default-base-job-template --type process
+{
+  "job_configuration": {
+    "command": "{{ command }}",
+    "env": "{{ env }}",
+    "labels": "{{ labels }}",
+    "name": "{{ name }}",
+    "stream_output": "{{ stream_output }}",
+    "working_dir": "{{ working_dir }}"
+  },
+  "variables": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "description": "Name given to infrastructure created by a worker.",
+        "type": "string"
+      },
+      "env": {
+        "title": "Environment Variables",
+        "description": "Environment variables to set when starting a flow run.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "labels": {
+        "title": "Labels",
+        "description": "Labels applied to infrastructure created by a worker.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "command": {
+        "title": "Command",
+        "description": "The command to use when starting a flow run. In most cases, this should be left blank and the command will be automatically generated by the worker.",
+        "type": "string"
+      },
+      "stream_output": {
+        "title": "Stream Output",
+        "description": "If enabled, workers will stream output from flow run processes to local standard output.",
+        "default": true,
+        "type": "boolean"
+      },
+      "working_dir": {
+        "title": "Working Directory",
+        "description": "If provided, workers will open flow run processes within the specified path as the working directory. Otherwise, a temporary directory will be created.",
+        "type": "string",
+        "format": "path"
+      }
+    }
+  }
+}
+```
 
 You can override each of these attributes on a per-deployment basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
@@ -121,10 +210,10 @@ work_pool:
 ```
 
 !!! tip "Advanced Customization of the Base Job Template"
-    For advanced use cases, users can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
+    For advanced use cases, you can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
     
-    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
-    
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution.
+
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
 ### Viewing work pools
@@ -269,7 +358,8 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
 | [`ecs`](https://prefecthq.github.io/prefect-aws/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
-| [`cloud-run`](https://prefecthq.github.io/prefect-gcp/worker/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`cloud-run`](https://prefecthq.github.io/prefect-gcp/cloud_run_worker/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`vertex-ai`](https://prefecthq.github.io/prefect-gcp/vertex_worker/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
 | [`azure-container-instance`](https://prefecthq.github.io/prefect-azure/container_instance_worker/) | Execute flow runs in ACI containers | `prefect-azure` |
 
 If you don’t see a worker type that meets your needs, consider [developing a new worker type](/guides/deployment/developing-a-new-worker-type/)!

@@ -2,6 +2,7 @@ import os
 import signal
 import sys
 import tempfile
+from pathlib import Path
 from unittest.mock import ANY
 
 import anyio
@@ -25,6 +26,12 @@ from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
+
+# All tests that invoke invoke_and_assert() can end up running our CLI command
+# coroutines off the main thread. If the CLI command calls
+# forward_signal_handler(), which prefect.cli.worker.start does, the test run
+# will fail because only the main thread can attach signal handlers.
+pytestmark = pytest.mark.flaky(max_runs=2)
 
 
 class MockKubernetesWorker(BaseWorker):
@@ -137,6 +144,51 @@ async def test_start_worker_creates_work_pool(prefect_client: PrefectClient):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+async def test_start_worker_creates_work_pool_with_base_config(
+    prefect_client: PrefectClient,
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "--pool",
+            "my-cool-pool",
+            "--type",
+            "process",
+            "--base-job-template",
+            Path(__file__).parent / "base-job-templates" / "process-worker.json",
+        ],
+        expected_code=0,
+        expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
+    )
+
+    work_pool = await prefect_client.read_work_pool("my-cool-pool")
+    assert work_pool is not None
+    assert work_pool.name == "my-cool-pool"
+    assert work_pool.default_queue_id is not None
+    assert work_pool.base_job_template == {
+        "job_configuration": {"command": "{{ command }}", "name": "{{ name }}"},
+        "variables": {
+            "properties": {
+                "command": {
+                    "description": "Command to run.",
+                    "title": "Command",
+                    "type": "string",
+                },
+                "name": {
+                    "description": "Description.",
+                    "title": "Name",
+                    "type": "string",
+                },
+            },
+            "type": "object",
+        },
+    }
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -161,6 +213,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         prefetch_seconds=ANY,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -189,6 +242,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         prefetch_seconds=30,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -216,6 +270,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         prefetch_seconds=100,
         limit=None,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -244,6 +299,7 @@ def test_start_worker_with_limit(monkeypatch):
         prefetch_seconds=10,
         limit=5,
         heartbeat_interval_seconds=30,
+        base_job_template=None,
     )
 
 
@@ -682,6 +738,7 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
+    @pytest.mark.flaky(max_runs=2)
     async def test_sigint_sends_sigterm(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
@@ -701,6 +758,7 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
+    @pytest.mark.flaky(max_runs=2)
     async def test_sigterm_sends_sigterm_directly(self, worker_process):
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)

@@ -13,9 +13,16 @@ import httpx
 import readchar
 import typer
 import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from prefect._vendor.fastapi import FastAPI
+from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
+
 from rich.live import Live
 from rich.table import Table
 from typing_extensions import Literal

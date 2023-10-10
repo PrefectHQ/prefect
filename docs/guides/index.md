@@ -1,5 +1,4 @@
 ---
-icon: material/magnify
 description: Learn how to do common workflows with Prefect.
 title: Guides
 tags:
@@ -38,6 +37,7 @@ This section of the documentation contains guides for common workflows and use c
 
 | Title                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) | Learn how to easily manage your code and deployments. |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
 | [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |

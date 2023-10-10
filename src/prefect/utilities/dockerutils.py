@@ -502,7 +502,7 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
 def format_outlier_version_name(version: str):
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
-    - Current cases are simple, but creats stub for more complicated formatting if eventually needed.
+    - Current cases are simple, but creates stub for more complicated formatting if eventually needed.
     - Example outlier versions that throw a parsing exception:
       - "20.10.0-ce" (variant of community edition label)
       - "20.10.0-ee" (variant of enterprise edition label)

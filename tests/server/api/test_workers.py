@@ -1,9 +1,16 @@
 from typing import List
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
@@ -512,6 +519,25 @@ class TestReadWorkPools:
         response = await client.post("/work_pools/filter")
         assert response.status_code == 200
         assert len(response.json()) == 4
+
+
+class TestCountWorkPools:
+    @pytest.fixture(autouse=True)
+    async def create_work_pools(self, client):
+        for name in ["C", "B", "A"]:
+            await client.post("/work_pools/", json=dict(name=name, type="test"))
+
+    async def test_count_work_pools(self, client):
+        response = await client.post("/work_pools/count")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 3
+
+    async def test_count_work_pools_applies_filter(self, client):
+        response = await client.post(
+            "/work_pools/count", json={"work_pools": {"name": {"any_": ["A"]}}}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == 1
 
 
 class TestCreateWorkQueue:

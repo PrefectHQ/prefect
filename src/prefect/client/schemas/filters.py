@@ -5,7 +5,12 @@ Schemas that define Prefect REST API filtering operations.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -232,6 +237,14 @@ class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
             "Only include flow runs with a next_scheduled_start_time at or after this"
             " time"
         ),
+    )
+
+
+class FlowRunFilterParentFlowRunId(PrefectBaseModel, OperatorMixin):
+    """Filter for subflows of the given flow runs"""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run parents to include"
     )
 
 

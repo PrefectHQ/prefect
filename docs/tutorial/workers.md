@@ -19,10 +19,15 @@ search:
 
 Workers and work pools bridge the Prefect orchestration layer with the infrastructure the flows are actually executed on. 
 
+!!! tip "[Choosing Between workers and `flow.serve()`](/concepts/deployments/#two-approaches-to-deployments)"
+    The earlier section discussed the `serve` approach. For many use cases, `serve` is sufficient to meet scheduling and orchestration needs. Workers and work pools are **optional**. Just remember, if infrastructure needs escalate, workers and work pools can become a handy tool. The best part? You're not locked into one method. You can seamlessly combine approaches as needed. 
+    
+!!! note "Deployment definition methods differ slightly for workers"
+    If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured through the Prefect CLI with `prefect deploy`.  A deployment created with `serve` cannot be submitted to a worker.
+
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
-For example, you might have a workflow that has expensive infrastructure requirements and is only run infrequently. 
-In this case, you don't want an idle process running within that infrastructure.  
-Instead, you can use a lightweight _worker_ to dynamically provision the infrastructure only when a run of that workflow is ready to be executed.  
+For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently. 
+In this case, you don't want an idle process running within that infrastructure. Instead, use a lightweight _worker_ to dynamically provision the infrastructure only when the workflow is scheduled to run.  
 
 Other advantages to using workers and work pools include:
 
@@ -34,13 +39,14 @@ The architecture of a worker/work pool deployment can be summarized with the fol
 
 ```mermaid
 graph TD
-
     subgraph your_infra["Your Execution Environment"]
         worker["Worker"]
 				subgraph flow_run_infra[Flow Run Infra]
-					flow_run(("Flow Run"))
+					flow_run_a(("Flow Run A"))
 				end
-        
+                subgraph flow_run_infra_2[Flow Run Infra]
+					flow_run_b(("Flow Run B"))
+				end      
     end
 
     subgraph api["Prefect API"]
@@ -50,12 +56,10 @@ graph TD
 
     worker --> |polls| work_pool
     worker --> |creates| flow_run_infra
+    worker --> |creates| flow_run_infra_2
 ```
 
-!!! note "Security Note"
-    Prefect provides execution through its hybrid model, which allows you to deploy workflows that run in the environments best suited to their execution while allowing you to keep your code and data completely private. 
-    There is no ingress required. 
-    For more information [read more about our hybrid model].(https://www.prefect.io/security/overview/#overview)
+<sup>Notice above that the worker is in charge of provisioning the _flow run infrastructure_. In context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run. Different [worker types](/concepts/work-pools/#worker-types)  create different types of flow run infrastructure.</sup>
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
@@ -66,7 +70,7 @@ For this tutorial you will create a **Docker** type work pool via the CLI.
 Using the **Docker** work pool type means that all work sent to this work pool will run within a dedicated Docker container using a Docker client available to the worker.
 
 !!! tip "Other work pool types"
-    There are work pool types for all major managed code execution platforms, such as Kubernetes services or serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run.
+    There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, and GCP Cloud Run. Kubernetes is also a popular type of work pool.
     
     These are expanded upon in the [Guides](/guides) section.
 
@@ -150,32 +154,85 @@ Select the flow you want to deploy, and the deployment wizard will walk you thro
 6. **Image name (my-first-deployment):** Hit `Enter` to use the default image name.
 7. **Image tag (latest):** Hit `Enter` to use the default image tag `latest`.
 8. **Would you like to push this image to a remote registry? (y/n):** Select `n` for now; we can keep this image local.
+9. **Would you like to save configuration for this deployment for faster deployments in the future? (y/n):** Select `y` to initiate a `prefect.yaml` file.
 
 !!! tip "Disable interactive mode"
     You can disable the `prefect deploy` command's interactive prompts by passing in the `--no-prompt` flag, e.g. `prefect --no-prompt deploy -n my-deployment-name`. Alternatively, you can enable it by passing in the `--prompt` flag. This can be used for all `prefect` commands. To disable interactive mode for all `prefect` commands, set the `PREFECT_CLI_PROMPT` setting to 0.
 
 Prefect will now build a custom Docker image containing your workflow code that the worker can use to dynamically spawn Docker containers whenever this workflow needs to run. 
-Try it out:
 
-<div class="terminal">
-```bash
-prefect deployment run 'get_repo_info/my-first-deployment'
+### Modify the deployment
+
+If you selected `y` on the last prompt to save configuration, you should see a new `prefect.yaml` file appear. This file will allow you to easily modify and define multiple deployments for this repo.
+
+The [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments) file not only holds settings for various deployments but can also contain instructions that help set up the execution environment for your flow runs. In the context of this tutorial, we employ a [build action](/guides/prefect-deploy/#the-build-action) to create a Docker image that the worker will use when running your flow.
+
+Upon examining the auto-generated `prefect.yaml`, you'll notice that the parameters for your deployment mirror the values you provided to the deployment creation wizard:
+
+```yaml title="prefect.yaml" hl_lines="2 10 20"
+build:
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker>=0.3.1
+    id: build-image
+    dockerfile: auto
+    image_name: docker-user/deployment-image
+    tag: latest
+
+deployments:
+- name: my-deployment
+  version: null
+  tags: []
+  description: null
+  entrypoint: my_flow.py:get_repo_info
+  parameters: {}
+  work_pool:
+    name: my-docker-pool
+    work_queue_name: null
+    job_variables:
+      image: '{{ build-image.image }}' ## Resultant image from the build action
+  schedule: null
 ```
-</div>
+
+It's worth noting that the `prefect.yaml` supports [referencing dynamic values](/guides/prefect-deploy/#templating-options). You can see that our deployment references the Docker image produced from the build action above.
+
+The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template).
+
+When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), it's recommended to include an `image_pull_policy` job_variable set to `Never`. However, for production workflows, always consider pushing images to a remote registry for more reliability and accessibility.
+
+Here's how you can easily set the `image_pull_policy` to be `Never` for this tutorial deployment without affecting the default value set on your work pool:
+
+```yaml title="prefect.yaml" hl_lines="6"
+  work_pool:
+    name: local-docker
+    work_queue_name: null
+    job_variables:
+      image: '{{ build-image.image }}'
+      image_pull_policy: 'Never'
+  schedule: null
+```
+
+To register this update to your deployment's parameters with Prefect's API, run:
+
+```bash
+prefect deploy --name my-deployment
+```
+
+Now everything is set up for us to submit a flow-run to the work pool:
+
+```bash
+prefect deployment run 'get_repo_info/my-deployment'
+```
 
 !!! danger "Common Pitfalls"
     - When running `prefect deploy`, double check that you are at the **root of your repo**, otherwise the worker may attempt to use an incorrect flow entrypoint during remote execution!
     - Ensure that you have pushed any changes to your flow script to your GitHub repo - at any given time, your worker will pull the code that exists there!
-
-As you continue to use Prefect, you'll likely author many different flows and deployments of them. 
-Check out the next section to learn about defining deployments in a `prefect.yaml` file.
 
 !!! tip "Did you know?"
     A Prefect flow can have more than one deployment. This can be useful if you want your flow to run in different execution environments or have multiple schedules.
 
 ## Next steps
 
-- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file).
+- Learn about deploying multiple flows and CI/CD with our [`prefect.yaml`](/guides/prefect-deploy/#managing-deployments).
 - Check out some of our other [work pools](/concepts/work-pools/).
 - [Concepts](/concepts/) contain deep dives into Prefect components.
 - [Guides](/guides/) provide step-by-step recipes for common Prefect operations including:

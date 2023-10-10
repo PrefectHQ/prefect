@@ -4,7 +4,7 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, Query, status
+from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Query, status
 
 from prefect.server import models, schemas
 from prefect.server.api import dependencies

@@ -169,7 +169,7 @@ async def run_shell_script(
         if expand_env_vars:
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
-        split_command = shlex.split(command)
+        split_command = shlex.split(command, posix=sys.platform != "win32")
         if not split_command:
             continue
         async with open_process(
@@ -244,6 +244,12 @@ async def pip_install_requirements(
             stream_output=stream_output,
         )
         await process.wait()
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"pip_install_requirements failed with error code {process.returncode}:"
+                f" {stderr_sink.getvalue()}"
+            )
 
     return {
         "stdout": stdout_sink.getvalue().strip(),

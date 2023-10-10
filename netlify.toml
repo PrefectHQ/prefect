@@ -10,7 +10,7 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@5919087eaf7694d98cc9d86d5736095cb1d2beeb \
+&& pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@bcad61c278491d58e74c39e164b821cec795c161 \
 && prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 """
@@ -81,7 +81,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 # redirects added 2023-03-21
@@ -193,7 +193,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/" 
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -342,7 +342,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-quickstart/"
-to = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[redirects]]
@@ -433,6 +433,11 @@ status = 301
 [[redirects]]
 from = "/guides/deployment/docker/"
 to = "/guides/docker/"
+status = 301
+
+[[redirects]]
+from = "/cloud/cloud-quickstart/"
+to = "/getting-started/quickstart/"
 status = 301
 
 [[headers]]

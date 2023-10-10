@@ -29,8 +29,18 @@ Example:
     ```
 
 """
+import asyncio
 import datetime
 import inspect
+import os
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import threading
+from copy import deepcopy
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
@@ -39,17 +49,15 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+import sniffio
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
-    DeploymentFilter,
-    DeploymentFilterId,
     FlowRunFilter,
     FlowRunFilterId,
-    FlowRunFilterNextScheduledStartTime,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterStateType,
@@ -64,30 +72,22 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.runner.server import start_webserver
+from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
-
-import asyncio
-import os
-import signal
-import subprocess
-import sys
-
-import anyio
-import anyio.abc
-import sniffio
-
-from prefect.utilities.processutils import run_process
 
 __all__ = ["Runner", "serve"]
 
@@ -96,10 +96,11 @@ class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
-        query_seconds: float = 10,
+        query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
+        webserver: bool = False,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -108,11 +109,12 @@ class Runner:
             name: The name of the runner. If not provided, a random one
                 will be generated. If provided, it cannot contain '/' or '%'.
             query_seconds: The number of seconds to wait between querying for
-                scheduled flow runs.
+                scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             limit: The maximum number of flow runs this runner should be running at
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
+            webserver: a boolean flag for whether to start a webserver for this runner
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
@@ -145,9 +147,12 @@ class Runner:
         self._logger = get_logger("runner")
 
         self.started = False
+        self.stopping = False
         self.pause_on_shutdown = pause_on_shutdown
         self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
-        self._query_seconds = query_seconds
+        self.webserver = webserver
+
+        self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -163,6 +168,12 @@ class Runner:
         self._deployment_ids: Set[UUID] = set()
         self._flow_run_process_map = dict()
 
+        self._tmp_dir: Path = (
+            Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
+        )
+        self._storage_objs: List[RunnerStorage] = []
+        self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+
     @sync_compatible
     async def add_deployment(
         self,
@@ -176,6 +187,10 @@ class Runner:
             deployment: A deployment for the runner to register.
         """
         deployment_id = await deployment.apply()
+        storage = deployment.storage
+        if storage is not None:
+            storage = await self._add_storage(storage)
+            self._deployment_storage_map[deployment_id] = storage
         self._deployment_ids.add(deployment_id)
 
         return deployment_id
@@ -194,6 +209,7 @@ class Runner:
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
     ) -> UUID:
         """
         Provides a flow to the runner to be run based on the provided configuration.
@@ -219,8 +235,6 @@ class Runner:
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
         """
-        # TODO: expose a filesystem interface with hot reloading
-        # will need to create a separate method for deployment creation
         api = PREFECT_API_URL.value()
         if any([interval, cron, rrule]) and not api:
             self._logger.warning(
@@ -229,7 +243,7 @@ class Runner:
             )
         name = self.name if name is None else name
 
-        deployment = flow.to_deployment(
+        deployment = await flow.to_deployment(
             name=name,
             interval=interval,
             cron=cron,
@@ -240,11 +254,39 @@ class Runner:
             description=description,
             tags=tags,
             version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
         )
         return await self.add_deployment(deployment)
 
     @sync_compatible
-    async def start(self, run_once: bool = False):
+    async def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
+        """
+        Adds a storage object to the runner. The storage object will be used to pull
+        code to the runner's working directory before the runner starts.
+
+        Args:
+            storage: The storage object to add to the runner.
+        Returns:
+            The updated storage object that was added to the runner.
+        """
+        if storage not in self._storage_objs:
+            storage_copy = deepcopy(storage)
+            storage_copy.set_base_path(self._tmp_dir)
+
+            self._logger.debug(
+                f"Adding storage {storage_copy!r} to runner at"
+                f" {str(storage_copy.destination)!r}"
+            )
+            self._storage_objs.append(storage_copy)
+
+            return storage_copy
+        else:
+            return next(s for s in self._storage_objs if s == storage)
+
+    @sync_compatible
+    async def start(
+        self, run_once: bool = False, webserver: Optional[bool] = None
+    ) -> None:
         """
         Starts a runner.
 
@@ -252,6 +294,8 @@ class Runner:
 
         Args:
             run_once: If True, the runner will through one query loop and then exit.
+            webserver: a boolean for whether to start a webserver for this runner. If provided,
+                overrides the default on the runner
 
         Examples:
             Initialize a Runner, add two flows, and serve them by starting the Runner:
@@ -279,13 +323,41 @@ class Runner:
                 runner.start()
             ```
         """
+        webserver = webserver if webserver is not None else self.webserver
+
+        if webserver:
+            # we'll start the ASGI server in a separate thread so that
+            # uvicorn does not block the main thread
+            server_thread = threading.Thread(
+                name="runner-server-thread",
+                target=partial(
+                    start_webserver,
+                    runner=self,
+                ),
+                daemon=True,
+            )
+            server_thread.start()
+
         async with self as runner:
             async with self._loops_task_group as tg:
+                for storage in self._storage_objs:
+                    if storage.pull_interval:
+                        tg.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=storage.pull_code,
+                                interval=storage.pull_interval,
+                                run_once=run_once,
+                                jitter_range=0.3,
+                            )
+                        )
+                    else:
+                        tg.start_soon(storage.pull_code)
                 tg.start_soon(
                     partial(
                         critical_service_loop,
                         workload=runner._get_and_submit_flow_runs,
-                        interval=self._query_seconds,
+                        interval=self.query_seconds,
                         run_once=run_once,
                         jitter_range=0.3,
                     )
@@ -294,20 +366,45 @@ class Runner:
                     partial(
                         critical_service_loop,
                         workload=runner._check_for_cancelled_flow_runs,
-                        interval=self._query_seconds * 2,
+                        interval=self.query_seconds * 2,
                         run_once=run_once,
                         jitter_range=0.3,
                     )
                 )
 
-    def stop(self):
+    async def cancel_all(self):
+        runs_to_cancel = []
+
+        # done to avoid dictionary size changing during iteration
+        for flow_run_id, info in self._flow_run_process_map.items():
+            runs_to_cancel.append(info["flow_run"])
+        if runs_to_cancel:
+            for run in runs_to_cancel:
+                try:
+                    await self._cancel_run(run, state_msg="Runner is shutting down.")
+                except Exception:
+                    self._logger.exception(
+                        f"Exception encountered while cancelling {run.id}",
+                        exc_info=True,
+                    )
+
+    @sync_compatible
+    async def stop(self):
         """Stops the runner's polling cycle."""
         if not self.started:
             raise RuntimeError(
                 "Runner has not yet started. Please start the runner by calling"
                 " .start()"
             )
-        self._loops_task_group.cancel_scope.cancel()
+
+        self.stopping = True
+        await self.cancel_all()
+        try:
+            self._loops_task_group.cancel_scope.cancel()
+        except Exception:
+            self._logger.exception(
+                "Exception encountered while shutting down", exc_info=True
+            )
 
     async def execute_flow_run(self, flow_run_id: UUID):
         """
@@ -329,7 +426,9 @@ class Runner:
                         self._submit_run_and_capture_errors, flow_run
                     )
 
-                    self._flow_run_process_map[flow_run.id] = pid
+                    self._flow_run_process_map[flow_run.id] = dict(
+                        pid=pid, flow_run=flow_run
+                    )
 
                     workload = partial(
                         self._check_for_cancelled_flow_runs,
@@ -340,7 +439,7 @@ class Runner:
                         partial(
                             critical_service_loop,
                             workload=workload,
-                            interval=self._query_seconds,
+                            interval=self.query_seconds,
                             jitter_range=0.3,
                         )
                     )
@@ -369,7 +468,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{sys.executable} -m prefect.engine"
+        command = f"{shlex.quote(sys.executable)} -m prefect.engine"
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -384,15 +483,37 @@ class Runner:
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
-        env.update({"PREFECT__FLOW_RUN_ID": flow_run.id.hex})
+        env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
+        env.update({"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)})
         env.update(**os.environ)  # is this really necessary??
 
+        storage = self._deployment_storage_map.get(flow_run.deployment_id)
+        if storage and storage.pull_interval:
+            # perform an adhoc pull of code before running the flow if an
+            # adhoc pull hasn't been performed in the last pull_interval
+            # TODO: Explore integrating this behavior with global concurrency.
+            last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
+            if (
+                last_adhoc_pull is None
+                or last_adhoc_pull
+                < datetime.datetime.now()
+                - datetime.timedelta(seconds=storage.pull_interval)
+            ):
+                self._logger.debug(
+                    "Performing adhoc pull of code for flow run %s with storage %r",
+                    flow_run.id,
+                    storage,
+                )
+                await storage.pull_code()
+                setattr(storage, "last_adhoc_pull", datetime.datetime.now())
+
         process = await run_process(
-            command.split(" "),
+            shlex.split(command),
             stream_output=True,
             task_status=task_status,
             env=env,
             **kwargs,
+            cwd=storage.destination if storage else None,
         )
 
         # Use the pid for display if no name was given
@@ -498,13 +619,17 @@ class Runner:
         self._logger.info("All deployment schedules have been paused!")
 
     async def _get_and_submit_flow_runs(self):
+        if self.stopping:
+            return
         runs_response = await self._get_scheduled_flow_runs()
-
+        self.last_polled = pendulum.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
         self, on_nothing_to_watch: Callable = lambda: None
     ):
+        if self.stopping:
+            return
         if not self.started:
             raise RuntimeError(
                 "Runner is not set up. Please make sure you are running this runner "
@@ -567,10 +692,10 @@ class Runner:
 
         return cancelling_flow_runs
 
-    async def _cancel_run(self, flow_run: "FlowRun"):
+    async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
         run_logger = self._get_flow_run_logger(flow_run)
 
-        pid = self._flow_run_process_map.get(flow_run.id)
+        pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
         if not pid:
             await self._mark_flow_run_as_cancelled(
                 flow_run,
@@ -597,7 +722,12 @@ class Runner:
             self._cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            await self._mark_flow_run_as_cancelled(flow_run)
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": state_msg or "Flow run was cancelled successfully."
+                },
+            )
             run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def _get_scheduled_flow_runs(
@@ -611,20 +741,11 @@ class Runner:
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
 
-        scheduled_flow_runs = await self._client.read_flow_runs(
-            deployment_filter=DeploymentFilter(
-                id=DeploymentFilterId(any_=list(self._deployment_ids))
-            ),
-            flow_run_filter=FlowRunFilter(
-                next_scheduled_start_time=FlowRunFilterNextScheduledStartTime(
-                    before_=scheduled_before
-                ),
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.SCHEDULED]),
-                ),
-                # possible unnecessary
-                id=FlowRunFilterId(not_any_=list(self._submitting_flow_run_ids)),
-            ),
+        scheduled_flow_runs = (
+            await self._client.get_scheduled_flow_runs_for_deployments(
+                deployment_ids=list(self._deployment_ids),
+                scheduled_before=scheduled_before,
+            )
         )
         self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
         return scheduled_flow_runs
@@ -702,7 +823,9 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                self._flow_run_process_map[flow_run.id] = readiness_result
+                self._flow_run_process_map[flow_run.id] = dict(
+                    pid=readiness_result, flow_run=flow_run
+                )
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
@@ -868,6 +991,7 @@ class Runner:
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
         self._client = get_client()
+        self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
 
@@ -885,6 +1009,7 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
+        shutil.rmtree(str(self._tmp_dir))
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

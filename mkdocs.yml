@@ -55,22 +55,18 @@ theme:
     icon:
         repo: fontawesome/brands/github
         edit: material/pencil
-    logo: img/logos/prefect-logo-gradient-white.svg
+    logo: img/logos/prefect-logo-white.svg
     palette:
-        - media: "(prefers-color-scheme)"
-          toggle:
-              icon: material/brightness-auto
-              name: Switch to light mode
         - media: "(prefers-color-scheme: light)"
-          accent: blue
-          primary: blue
+          accent: "#0225AC"
+          primary: "#0225AC"
           scheme: default
           toggle:
               icon: material/weather-sunny
               name: Switch to dark mode
         - media: "(prefers-color-scheme: dark)"
-          accent: blue
-          primary: blue
+          accent: "#0225AC"
+          primary: "#0225AC"
           scheme: slate
           toggle:
               icon: material/weather-night
@@ -109,6 +105,7 @@ watch:
     - src/prefect/
 
 extra:
+    generator: false
     version:
         provider: mike
     analytics:
@@ -192,7 +189,6 @@ nav:
                 - Agents: concepts/agents.md
     - Cloud:
           - cloud/index.md
-          - Quickstart: cloud/cloud-quickstart.md
           - Workspaces: cloud/workspaces.md
           - Organizations: cloud/organizations.md
           - Users:
@@ -202,6 +198,7 @@ nav:
                 - Service Accounts: cloud/users/service-accounts.md
                 - Single Sign-on (SSO): cloud/users/sso.md
                 - Audit Log: cloud/users/audit-log.md
+                - Object-Level Access Control Lists: cloud/users/object-access-control-lists.md
           - API Rate Limits: cloud/rate-limits.md
           - Connecting & Troubleshooting: cloud/connecting.md
     - Integrations:

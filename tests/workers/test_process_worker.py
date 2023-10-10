@@ -10,7 +10,13 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
-from pydantic import BaseModel
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel
+else:
+    from pydantic import BaseModel
 
 import prefect
 from prefect import flow
@@ -155,7 +161,7 @@ async def test_worker_process_run_flow_run(
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
 
 
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
@@ -185,7 +191,7 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert (
             mock.call_args.kwargs["env"]["CONFIG_ENV_VAR"] == "from_job_configuration"
@@ -219,7 +225,7 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
         assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
         assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
 

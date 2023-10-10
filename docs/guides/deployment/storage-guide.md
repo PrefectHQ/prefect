@@ -179,8 +179,8 @@ Alternatively, you can create a Credentials block ahead of time and reference it
     ```
 
 !!! warning "Push your code"
-    When you make a change to your code, Prefect does push your code to your git-based version control platform. 
-    You need to do push your code manually or as part of your CI/CD pipeline. 
+    When you make a change to your code, Prefect does not push your code to your git-based version control platform. 
+    You need to push your code manually or as part of your CI/CD pipeline. 
     This design decision is an intentional one to avoid confusion about the git history and push process.
 
 ## Option 3: Docker-based storage
@@ -198,7 +198,7 @@ Another popular way to store your flow code is to include it in a Docker image. 
     - Azure Container Instances - Push
     - Google Cloud Run - Push
 
-1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See the [Docker guide](/guides/deployment/docker/) for more info.
+1. Run `prefect init` in the root of your repository and choose `docker` for the project name and answer the prompts to create a `prefect.yaml` file with a build step that will create a Docker image with the flow code built in. See the [Workers and Work Pools page of the tutorial](/tutorial/workers/) for more info.
 1. Run `prefect deploy` to create a deployment. 
 1. Upon deployment run the worker will pull the Docker image and spin up a container. 
 1. The flow code baked into the image will run inside the container. 
