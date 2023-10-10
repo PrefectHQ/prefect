@@ -305,8 +305,8 @@ class Task(Generic[P, R]):
             raise ValueError("`retry_jitter_factor` must be >= 0.")
 
         self.result_storage = (
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-            if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
+            storage
+            if (storage := PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()) is not None
             else result_storage
         )
 

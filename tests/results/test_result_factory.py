@@ -7,7 +7,12 @@ import prefect.results
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.filesystems import LocalFileSystem
-from prefect.results import LiteralResult, PersistedResult, ResultFactory
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    PersistedResultBlob,
+    ResultFactory,
+)
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
@@ -103,9 +108,41 @@ async def test_root_flow_default_remote_storage():
         storage_block = await foo()
 
     assert_blocks_equal(storage_block, block)
+    assert storage_block._is_anonymous is False
 
 
-def test_roto_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
+async def test_root_flow_default_remote_storage_saves_correct_result():
+    import base64
+    import pickle
+
+    await LocalFileSystem(basepath="~/.prefect/results").save("my-result-storage")
+
+    @task(result_storage_key="my-result.pkl")
+    async def bar():
+        return {"foo": "bar"}
+
+    @flow
+    async def foo():
+        return await bar()
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+        }
+    ):
+        result = await foo()
+
+    assert result == {"foo": "bar"}
+    local_storage = await LocalFileSystem.load("my-result-storage")
+    result_bytes = await local_storage.read_path("~/.prefect/results/my-result.pkl")
+    saved_python_result = pickle.loads(
+        base64.b64decode(PersistedResultBlob.parse_raw(result_bytes).data)
+    )
+    assert saved_python_result == {"foo": "bar"}
+
+
+def test_root_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
     @flow(persist_result=False)
     def foo():
         return get_run_context().result_factory
