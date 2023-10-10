@@ -142,6 +142,24 @@ async def test_root_flow_default_remote_storage_saves_correct_result():
     assert saved_python_result == {"foo": "bar"}
 
 
+async def test_root_flow_nonexistent_default_storage_block_fails():
+    @flow
+    async def foo():
+        result_fac = get_run_context().result_factory
+        return result_fac.storage_block
+
+    with temporary_settings(
+        {
+            PREFECT_RESULTS_PERSIST_BY_DEFAULT: True,
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+        }
+    ):
+        with pytest.raises(
+            ValueError, match="Unable to find block document named my-result-storage"
+        ):
+            await foo()
+
+
 def test_root_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
     @flow(persist_result=False)
     def foo():
