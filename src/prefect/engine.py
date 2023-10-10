@@ -1124,6 +1124,7 @@ def enter_task_run_engine(
             "task in a flow?"
         )
 
+    # using flow run context to determine if the flow run has been cancelled
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
