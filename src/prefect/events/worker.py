@@ -34,10 +34,12 @@ class EventsWorker(QueueService[Event]):
         return (event, copy_context())
 
     async def _handle(self, event_and_context: Tuple[Event, Context]):
+        import logging
+
         event, context = event_and_context
+        logging.debug(f"Handling event {event} in context {context.get()}")
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
-
         await self._client.emit(event)
 
     async def attach_related_resources_from_context(self, event: Event):

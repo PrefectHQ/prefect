@@ -227,14 +227,14 @@ class FlowRunContext(RunContext):
         timeout_scope: The cancellation scope for flow level timeouts
     """
 
-    flow: "Flow"
-    flow_run: FlowRun
+    flow: Optional["Flow"] = None
+    flow_run: Optional[FlowRun] = None
     task_runner: BaseTaskRunner
     log_prints: bool = False
     parameters: Dict[str, Any]
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: Optional[ResultFactory] = None
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)

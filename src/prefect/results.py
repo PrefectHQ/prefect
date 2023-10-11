@@ -13,13 +13,7 @@ from typing import (
     Union,
 )
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 from typing_extensions import Self
 
 import prefect
@@ -92,7 +86,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow.retries:
+    if flow and flow.retries:
         return True
     return False
 
@@ -124,7 +118,7 @@ class ResultFactory(pydantic.BaseModel):
     persist_result: bool
     cache_result_in_memory: bool
     serializer: Serializer
-    storage_block_id: Optional[uuid.UUID]
+    storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
     storage_key_fn: Callable[[], str]
 
@@ -271,7 +265,7 @@ class ResultFactory(pydantic.BaseModel):
         client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
-            result_storage, client=client, persist_result=persist_result
+            result_storage, client=client
         )
         serializer = cls.resolve_serializer(result_serializer)
 
@@ -286,31 +280,23 @@ class ResultFactory(pydantic.BaseModel):
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage,
-        client: "PrefectClient",
-        persist_result: bool = True,
-    ) -> Tuple[Optional[uuid.UUID], WritableFileSystem]:
+        result_storage: ResultStorage, client: "PrefectClient"
+    ) -> Tuple[uuid.UUID, WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
         document id and an instance of the block.
         """
         if isinstance(result_storage, Block):
             storage_block = result_storage
-
-            if storage_block._block_document_id is not None:
+            storage_block_id = (
                 # Avoid saving the block if it already has an identifier assigned
-                storage_block_id = storage_block._block_document_id
-            else:
-                if persist_result:
-                    # TODO: Overwrite is true to avoid issues where the save collides with
-                    # a previously saved document with a matching hash
-                    storage_block_id = await storage_block._save(
-                        is_anonymous=True, overwrite=True, client=client
-                    )
-                else:
-                    # a None-type UUID on unpersisted storage should not matter
-                    # since the ID is generated on the server
-                    storage_block_id = None
+                storage_block._block_document_id
+                # TODO: Overwrite is true to avoid issues where the save collides with
+                #       a previously saved document with a matching hash
+                or await storage_block._save(
+                    is_anonymous=True, overwrite=True, client=client
+                )
+            )
         elif isinstance(result_storage, str):
             storage_block = await Block.load(result_storage, client=client)
             storage_block_id = storage_block._block_document_id
@@ -507,9 +493,6 @@ class PersistedResult(BaseResult):
 
     @inject_client
     async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
-        assert (
-            self.storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
@@ -545,10 +528,6 @@ class PersistedResult(BaseResult):
         The object will be serialized and written to the storage block under a unique
         key. It will then be cached on the returned result.
         """
-        assert (
-            storage_block_id is not None
-        ), "Unexpected storage block ID. Was it persisted?"
-
         data = serializer.dumps(obj)
         blob = PersistedResultBlob(serializer=serializer, data=data)
 
