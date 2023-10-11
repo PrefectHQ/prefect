@@ -9,7 +9,7 @@ tags:
 
 # Using the Prefect orchestration client
 ## Overview
-In [`src/prefect/client/orchestration.py`](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration.py), you can find a bunch of useful client methods that make it simpler to do things like:
+In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find a bunch of useful client methods that make it simpler to do things like:
 
 - [**reschedule late flow runs**](#rescheduling-late-flow-runs)
 - [**get the last `N` completed flow runs from my workspace**](#getting-the-last-n-completed-flow-runs-from-my-workspace)
@@ -155,4 +155,4 @@ if __name__ == "__main__":
 Instead of the last 3 from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last 3 completed flow runs of a specific deployment.
 
 !!! tip "There are other ways to filter objects like flow runs"
-    See [`prefect.client.schemas.filters.FlowRunFilter`](https://docs.prefect.io/latest/api-ref/client/schemas/filters/#prefect.server.schemas.filters.FlowRunFilter) for more ways to filter flow runs, and [the rest of the module](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py) for other filters you can use similarly with other Prefect resources.
+    See [`the filters API reference`](/api-ref/prefect/client/schemas/#prefect.client.schemas.filters) for more ways to filter flow runs and other objects in your Prefect ecosystem.
