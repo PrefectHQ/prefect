@@ -29,7 +29,10 @@ async with get_client() as client:
 ### Rescheduling late flow runs
 Sometimes, you may need to bulk reschedule flow runs that are late - for example, if you've accidentally scheduled many flow runs of a deployment to an inactive work pool.
 
-To do this, we can delete late flow runs and create new ones in a `Scheduled` state with a delay:
+To do this, we can delete late flow runs and create new ones in a `Scheduled` state with a delay.
+
+This example reschedules the last 3 late flow runs of a deployment named `healthcheck-storage-test` to run 6 hours later than their original expected start time. It also deletes any remaining late flow runs of that deployment.
+
 ```python
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -106,10 +109,10 @@ if __name__ == "__main__":
     )
 ```
 
-This example reschedules the last 3 late flow runs of a deployment named `healthcheck-storage-test` to run 6 hours later than their original expected start time. It also deletes any remaining late flow runs of that deployment.
-
 ### Get the last `N` completed flow runs from my workspace
-To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and our `prefect.client.schemas`:
+To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and `prefect.client.schemas`.
+
+This example gets the last 3 completed flow runs from our workspace:
 ```python
 import asyncio
 from typing import Optional
@@ -149,7 +152,7 @@ if __name__ == "__main__":
     ) == sorted(end_times, reverse=True)
 ```
 
-This example gets the last 3 completed flow runs from our workspace. You could also use the `DeploymentFilter` like the previous example to get the last 3 completed flow runs of a specific deployment.
+Instead of the last 3 from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last 3 completed flow runs of a specific deployment.
 
 !!! tip "There are other ways to filter objects like flow runs"
     See [`prefect.client.schemas.filters.FlowRunFilter`](https://docs.prefect.io/latest/api-ref/client/schemas/filters/#prefect.server.schemas.filters.FlowRunFilter) for more ways to filter flow runs, and [the rest of the module](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py) for other filters you can use similarly with other Prefect resources.
