@@ -1112,11 +1112,11 @@ def enter_task_run_engine(
     """
 
     flow_run_context = FlowRunContext.get()
-    if not flow_run_context:
-        raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task"
-            " function outside of a flow use `task.fn()`."
-        )
+    # if not flow_run_context:
+    #     raise RuntimeError(
+    #         "Tasks cannot be run outside of a flow. To call the underlying task"
+    #         " function outside of a flow use `task.fn()`."
+    #     )
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1125,7 +1125,11 @@ def enter_task_run_engine(
         )
 
     # using flow run context to determine if the flow run has been cancelled
-    if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
+    if (
+        flow_run_context
+        and flow_run_context.timeout_scope
+        and flow_run_context.timeout_scope.cancel_called
+    ):
         raise TimeoutError("Flow run timed out")
 
     begin_run = create_call(
@@ -1338,24 +1342,35 @@ async def create_task_run_future(
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
-    # Create and submit the task run in the background
-    flow_run_context.background_tasks.start_soon(
-        partial(
-            create_task_run_then_submit,
-            task=task,
-            task_run_name=task_run_name,
-            task_run_dynamic_key=dynamic_key,
-            future=future,
-            flow_run_context=flow_run_context,
-            parameters=parameters,
-            wait_for=wait_for,
-            task_runner=task_runner,
-            extra_task_inputs=extra_task_inputs,
-        )
+    background_tasks = (
+        flow_run_context.background_tasks
+        if flow_run_context
+        else anyio.create_task_group()
     )
 
-    # Track the task run future in the flow run context
-    flow_run_context.task_run_futures.append(future)
+    # Create and submit the task run in the background
+    create_and_submit_task_run = partial(
+        create_task_run_then_submit,
+        task=task,
+        task_run_name=task_run_name,
+        task_run_dynamic_key=dynamic_key,
+        future=future,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        wait_for=wait_for,
+        task_runner=task_runner,
+        extra_task_inputs=extra_task_inputs,
+    )
+
+    if flow_run_context:
+        flow_run_context.background_tasks.start_soon(create_and_submit_task_run)
+        flow_run_context.task_run_futures.append(future)
+
+    else:
+        background_tasks = anyio.create_task_group()
+
+        async with background_tasks:
+            background_tasks.start_soon(create_and_submit_task_run)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         await future._wait()
@@ -1418,12 +1433,19 @@ async def create_task_run(
     for k, extras in extra_task_inputs.items():
         task_inputs[k] = task_inputs[k].union(extras)
 
-    logger = get_run_logger(flow_run_context)
+    if flow_run_context:
+        client = flow_run_context.client
+        logger = get_run_logger(flow_run_context)
+        flow_run_id = flow_run_context.flow_run.id
+    else:
+        client = get_client()
+        logger = get_logger("prefect.engine")
+        flow_run_id = None
 
-    task_run = await flow_run_context.client.create_task_run(
+    task_run = await client.create_task_run(
         task=task,
         name=name,
-        flow_run_id=flow_run_context.flow_run.id,
+        flow_run_id=flow_run_id,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
@@ -1444,7 +1466,12 @@ async def submit_task_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
 ) -> PrefectFuture:
-    logger = get_run_logger(flow_run_context)
+    if flow_run_context:
+        logger = get_run_logger(flow_run_context)
+        client = flow_run_context.client
+    else:
+        logger = get_logger("prefect.engine")
+        client = get_client()
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Executing {task_run.name!r} immediately...")
@@ -1457,9 +1484,7 @@ async def submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-            result_factory=await ResultFactory.from_task(
-                task, client=flow_run_context.client
-            ),
+            result_factory=await ResultFactory.from_task(task, client=client),
             log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
         ),
@@ -1620,8 +1645,10 @@ async def orchestrate_task_run(
     flow_run_context = prefect.context.FlowRunContext.get()
     if flow_run_context:
         flow_run = flow_run_context.flow_run
-    else:
+    if task_run.flow_run_id:
         flow_run = await client.read_flow_run(task_run.flow_run_id)
+    else:
+        flow_run = None
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
@@ -2191,6 +2218,8 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
+    if context is None:
+        return 0
     if task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:

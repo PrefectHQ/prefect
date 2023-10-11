@@ -25,7 +25,7 @@ from typing_extensions import Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingContextError, MissingResult
+from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
@@ -218,26 +218,33 @@ class ResultFactory(pydantic.BaseModel):
         from prefect.context import FlowRunContext
 
         ctx = FlowRunContext.get()
-        if not ctx:
-            raise MissingContextError(
-                "A flow run context is required to create a result factory for a task."
-            )
 
-        result_storage = task.result_storage or ctx.result_factory.storage_block
-        result_serializer = task.result_serializer or ctx.result_factory.serializer
+        result_storage = (
+            ctx.result_factory.storage_block
+            if ctx
+            else task.result_storage or get_default_result_storage()
+        )
+        result_serializer = (
+            ctx.result_factory.serializer
+            if ctx
+            else task.result_serializer or get_default_result_serializer()
+        )
         persist_result = (
-            task.persist_result
-            if task.persist_result is not None
-            else
-            # !! Tasks persist their result by default if their parent flow uses a
-            #    feature that requires it or the task uses a feature that requires it
-            (
-                flow_features_require_child_result_persistence(ctx.flow)
-                or task_features_require_result_persistence(task)
-                or get_default_persist_setting()
+            # Use flow context if available
+            ctx.result_factory.persist_result
+            if ctx
+            else (
+                # Otherwise use task settings
+                task.persist_result
+                if task.persist_result is not None
+                else get_default_persist_setting()
             )
         )
-        cache_result_in_memory = task.cache_result_in_memory
+        cache_result_in_memory = (
+            ctx.result_factory.cache_result_in_memory
+            if ctx
+            else task.cache_result_in_memory
+        )
 
         return await cls.from_settings(
             result_storage=result_storage,
