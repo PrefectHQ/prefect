@@ -14,9 +14,6 @@ from typing_extensions import Annotated, Literal
 from typing_extensions import deprecated as typing_deprecated
 
 try:
-    import email_validator  # type: ignore
-
-    assert email_validator  # make autoflake ignore the unused import
 
     if HAS_PYDANTIC_V2:
         from pydantic.v1 import EmailStr

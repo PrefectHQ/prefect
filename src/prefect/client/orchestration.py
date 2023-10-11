@@ -154,10 +154,12 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
 
         api = create_app(ctx.settings, ephemeral=True)
 
+    SERVER_API_VERSION = "0.8.4"
     return PrefectClient(
         api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
+        api_version=SERVER_API_VERSION
     )
 
 
