@@ -1,5 +1,6 @@
 import abc
 import inspect
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -15,7 +16,11 @@ else:
     from pydantic import BaseModel, Field, PrivateAttr, validator
 
 import prefect
-from prefect._internal.compatibility.experimental import experimental
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -44,6 +49,8 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -221,6 +228,21 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a command for a flow run job.
         """
+        if experiment_enabled("enhanced_cancellation"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Enhanced flow run cancellation",
+                        group="enhanced_cancellation",
+                        help="",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+            return "prefect flow-run execute"
         return "python -m prefect.engine"
 
     @staticmethod
@@ -325,7 +347,6 @@ class BaseWorker(abc.ABC):
     _logo_url = ""
     _description = ""
 
-    @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
         work_pool_name: str,
@@ -620,10 +641,11 @@ class BaseWorker(abc.ABC):
             return
 
         if configuration.is_using_a_runner:
-            self._logger.debug(
+            self._logger.info(
                 f"Skipping cancellation because flow run {str(flow_run.id)!r} is using"
-                " a runner. Runner will handle cancellation."
+                " enhanced cancellation. Runner will handle cancellation."
             )
+            return
 
         if not flow_run.infrastructure_pid:
             run_logger.error(

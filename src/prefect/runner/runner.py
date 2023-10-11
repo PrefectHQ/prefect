@@ -413,6 +413,7 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
+        self.pause_on_shutdown = False
         async with self:
             if not self._acquire_limit_slot(flow_run_id):
                 return
