@@ -638,7 +638,6 @@ class BaseWorker(abc.ABC):
                 f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
                 f" associated deployment {flow_run.deployment_id!r} does not exist."
             )
-            return
 
         if configuration.is_using_a_runner:
             self._logger.info(
