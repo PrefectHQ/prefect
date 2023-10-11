@@ -32,6 +32,7 @@ Example:
 import asyncio
 import datetime
 import inspect
+import logging
 import os
 import shlex
 import shutil
@@ -518,11 +519,12 @@ class Runner:
         )
 
         # Use the pid for display if no name was given
-        display_name = f" {process.pid}"
 
         if process.returncode:
             help_message = None
+            level = logging.ERROR
             if process.returncode == -9:
+                level = logging.INFO
                 help_message = (
                     "This indicates that the process exited due to a SIGKILL signal. "
                     "Typically, this is either caused by manual cancellation or "
@@ -530,6 +532,7 @@ class Runner:
                     "terminate the process."
                 )
             if process.returncode == -15:
+                level = logging.INFO
                 help_message = (
                     "This indicates that the process exited due to a SIGTERM signal. "
                     "Typically, this is caused by manual cancellation."
@@ -542,17 +545,22 @@ class Runner:
             elif (
                 sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
             ):
+                level = logging.INFO
                 help_message = (
                     "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
                     "Typically, this is caused by manual cancellation."
                 )
 
-            flow_run_logger.error(
-                f"Process{display_name} exited with status code: {process.returncode}"
-                + (f"; {help_message}" if help_message else "")
+            flow_run_logger.log(
+                level,
+                f"Process for flow run {flow_run.name!r} exited with status code:"
+                f" {process.returncode}"
+                + (f"; {help_message}" if help_message else ""),
             )
         else:
-            flow_run_logger.info(f"Process{display_name} exited cleanly.")
+            flow_run_logger.info(
+                f"Process for flow run {flow_run.name!r} exited cleanly."
+            )
 
         return process.returncode
 
@@ -729,7 +737,7 @@ class Runner:
                     "message": state_msg or "Flow run was cancelled successfully."
                 },
             )
-            run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
+            run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
 
     async def _get_scheduled_flow_runs(
         self,
