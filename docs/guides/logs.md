@@ -360,7 +360,7 @@ def my_flow():
     logger = get_run_logger()
     logger.info("This is [bold red]fancy[/]")
 
-log_email_flow()
+my_flow()
 ```
 
 !!! warning "Inaccurate logs could result"
