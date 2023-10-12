@@ -992,7 +992,8 @@ While the cancellation process is robust, there are a few issues than can occur:
 - If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
 
 !!! tip "Enhanced cancellation"
-    We are working on improving cases where cancellation can fail. You can try the improved cancellation experience by enabling the'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION' setting on your worker or agents:
+    We are working on improving cases where cancellation can fail. You can try the improved cancellation experience by enabling the 
+ 'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION' setting on your worker or agents:
 
     ```bash
     prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
