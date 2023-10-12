@@ -4935,7 +4935,7 @@ class TestSaveUserInputs:
 
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_resolves_block_references_in_deployments_section(
-        self, prefect_client, session, work_pool
+        self, prefect_client, work_pool
     ):
         """
         Ensure block references are resolved in deployments section of prefect.yaml
@@ -4978,9 +4978,11 @@ class TestSaveUserInputs:
                 # reject schedule
                 "n"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept saving configuration
-                "y"
+                + "y"
                 + readchar.key.ENTER
                 # accept overwrite config
                 + "y"
