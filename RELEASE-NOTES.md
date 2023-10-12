@@ -2,8 +2,8 @@
 
 ## Release 2.13.6
 
-### New default option for results storage
-
+### Specify a default result storage block as a setting
+Previously, specifying result storage blocks necessitated changes in the @flow / @task decorator. Now, with [#10925](https://github.com/PrefectHQ/prefect/pull/10925), a `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting has been introduced, allowing users to set a default storage block on a work pool or via infra overrides for a deployment. This enhancement enables easier swapping of result storages by just updating the environment in the UI or in your prefect.yaml, eliminating the need to alter your flow source code.
 
 
 See the following pull request for details:
@@ -18,6 +18,9 @@ See the following pull request for details:
 
 ### Enhancements
 - Add link to Prefect Cloud information in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10909
+
+### Fixes
+- Avoid prompting for remote storage if a global pull step is already defined - https://github.com/PrefectHQ/prefect/pull/10941
 
 ### Documentation
 - Add a guide for using the Prefect client — https://github.com/PrefectHQ/prefect/pull/10924
