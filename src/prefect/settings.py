@@ -1287,6 +1287,16 @@ PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect visualize is used.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+"""
+Whether or not to enable experimental enhanced flow run cancellation.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental enhanced flow run cancellation is used.
+"""
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.

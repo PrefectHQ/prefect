@@ -15,7 +15,23 @@ from prefect.infrastructure import (
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
 from prefect.server.schemas.core import Deployment
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
+    temporary_settings,
+)
 from prefect.utilities.dockerutils import get_prefect_image_name
+
+
+@pytest.fixture
+def enable_enhanced_cancellation():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: False,
+        }
+    ):
+        yield
 
 
 @pytest.fixture
@@ -280,3 +296,11 @@ async def test_execution_is_compatible_with_old_prefect_container_version(
     assert result.status_code == 0
     flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert flow_run.state.is_completed()
+
+
+async def test_enabling_enhanced_cancellation_changes_default_command(
+    deployment, prefect_client, enable_enhanced_cancellation
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
+    infrastructure = MockInfrastructure(name="test").prepare_for_flow_run(flow_run)
+    assert infrastructure.command == ["prefect", "flow-run", "execute"]

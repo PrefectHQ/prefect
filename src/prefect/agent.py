@@ -342,6 +342,13 @@ class PrefectAgent:
 
         try:
             infrastructure = await self.get_infrastructure(flow_run)
+            if infrastructure.is_using_a_runner:
+                self.logger.info(
+                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
+                    " using enhanced cancellation. A dedicated runner will handle"
+                    " cancellation."
+                )
+                return
         except Exception:
             self.logger.exception(
                 f"Failed to get infrastructure for flow run '{flow_run.id}'. "

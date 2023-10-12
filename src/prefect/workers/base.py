@@ -1,5 +1,6 @@
 import abc
 import inspect
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -15,7 +16,11 @@ else:
     from pydantic import BaseModel, Field, PrivateAttr, validator
 
 import prefect
-from prefect._internal.compatibility.experimental import experimental
+from prefect._internal.compatibility.experimental import (
+    EXPERIMENTAL_WARNING,
+    ExperimentalFeature,
+    experiment_enabled,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -44,6 +49,8 @@ from prefect.exceptions import (
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -95,6 +102,10 @@ class BaseJobConfiguration(BaseModel):
     )
 
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
+
+    @property
+    def is_using_a_runner(self):
+        return self.command is not None and "prefect flow-run execute" in self.command
 
     @validator("command")
     def _coerce_command(cls, v):
@@ -217,6 +228,21 @@ class BaseJobConfiguration(BaseModel):
         """
         Generate a command for a flow run job.
         """
+        if experiment_enabled("enhanced_cancellation"):
+            if (
+                PREFECT_EXPERIMENTAL_WARN
+                and PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION
+            ):
+                warnings.warn(
+                    EXPERIMENTAL_WARNING.format(
+                        feature="Enhanced flow run cancellation",
+                        group="enhanced_cancellation",
+                        help="",
+                    ),
+                    ExperimentalFeature,
+                    stacklevel=3,
+                )
+            return "prefect flow-run execute"
         return "python -m prefect.engine"
 
     @staticmethod
@@ -321,7 +347,6 @@ class BaseWorker(abc.ABC):
     _logo_url = ""
     _description = ""
 
-    @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
         work_pool_name: str,
@@ -606,6 +631,21 @@ class BaseWorker(abc.ABC):
     async def cancel_run(self, flow_run: "FlowRun"):
         run_logger = self.get_flow_run_logger(flow_run)
 
+        try:
+            configuration = await self._get_configuration(flow_run)
+            if configuration.is_using_a_runner:
+                self._logger.info(
+                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
+                    " using enhanced cancellation. A dedicated runner will handle"
+                    " cancellation."
+                )
+                return
+        except ObjectNotFound:
+            self._logger.warning(
+                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
+                f" associated deployment {flow_run.deployment_id!r} does not exist."
+            )
+
         if not flow_run.infrastructure_pid:
             run_logger.error(
                 f"Flow run '{flow_run.id}' does not have an infrastructure pid"
@@ -621,14 +661,6 @@ class BaseWorker(abc.ABC):
                 },
             )
             return
-
-        try:
-            configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
 
         try:
             await self.kill_infrastructure(
