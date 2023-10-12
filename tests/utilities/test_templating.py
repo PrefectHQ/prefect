@@ -414,18 +414,18 @@ class TestResolveBlockDocumentReferences:
             value={"key": ["value1", {"nested": ["value2", "value3"]}, "value4"]}
         ).save(name="nested-json-list-block")
         template = {
-            "json-list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
+            "json_list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
             "list": "{{ prefect.blocks.json.list-block.value[1] }}",
-            "nested-json-list": (
+            "nested_json_list": (
                 "{{ prefect.blocks.json.nested-json-list-block.value.key[1].nested[1] }}"
             ),
         }
 
         result = await resolve_block_document_references(template)
         assert result == {
-            "json-list": "value1",
+            "json_list": "value1",
             "list": "value2",
-            "nested-json-list": "value3",
+            "nested_json_list": "value3",
         }
 
     async def test_resolve_block_document_raises_on_invalid_keypath(self):
@@ -438,7 +438,7 @@ class TestResolveBlockDocumentReferences:
 
         await JSON(value=["value1", "value2"]).save(name="index-error-block")
         index_error_template = {
-            "index-error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
+            "index_error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
         }
         with pytest.raises(ValueError, match="could not resolve the keypath"):
             await resolve_block_document_references(index_error_template)
