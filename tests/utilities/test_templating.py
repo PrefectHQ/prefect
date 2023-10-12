@@ -4,6 +4,7 @@ import pytest
 
 from prefect.blocks.core import Block
 from prefect.blocks.system import JSON, DateTime, Secret, String
+from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
@@ -374,10 +375,10 @@ class TestResolveBlockDocumentReferences:
         await String(value="hello").save(name="string-block")
 
         template = {
-            "json": "{{ prefect.blocks.json.json-block }}",
-            "secret": "{{ prefect.blocks.secret.secret-block }}",
-            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
-            "string": "{{ prefect.blocks.string.string-block }}",
+            "json": "{{ prefect.blocks.json.json-block.value }}",
+            "secret": "{{ prefect.blocks.secret.secret-block.value }}",
+            "datetime": "{{ prefect.blocks.date-time.datetime-block.value }}",
+            "string": "{{ prefect.blocks.string.string-block.value }}",
         }
 
         result = await resolve_block_document_references(template)
@@ -433,24 +434,27 @@ class TestResolveBlockDocumentReferences:
         json_template = {
             "json": "{{ prefect.blocks.json.json-block.value.key.does_not_exist }}",
         }
-        with pytest.raises(ValueError, match="could not resolve the keypath"):
+        with pytest.raises(ValueError, match="Could not resolve the keypath"):
             await resolve_block_document_references(json_template)
 
         await JSON(value=["value1", "value2"]).save(name="index-error-block")
         index_error_template = {
             "index_error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
         }
-        with pytest.raises(ValueError, match="could not resolve the keypath"):
+        with pytest.raises(ValueError, match="Could not resolve the keypath"):
             await resolve_block_document_references(index_error_template)
 
-    async def test_resolve_block_document_raises_on_non_dict_content(self):
-        await String(value="clearly a string").save(name="string-block")
-        template = {
-            "string": "{{ prefect.blocks.string.string-block.value.not_valid }}",
-        }
+    async def test_resolve_block_document_resolves_block_attribute(self):
+        await Webhook(url="https://example.com").save(name="webhook-block")
 
-        with pytest.raises(ValueError, match="not parsed as a dict or list"):
-            await resolve_block_document_references(template)
+        template = {
+            "block_attribute": "{{ prefect.blocks.webhook.webhook-block.url }}",
+        }
+        result = await resolve_block_document_references(template)
+
+        assert result == {
+            "block_attribute": "https://example.com",
+        }
 
 
 class TestResolveVariables:
