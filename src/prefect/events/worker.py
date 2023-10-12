@@ -37,7 +37,7 @@ class EventsWorker(QueueService[Event]):
         import logging
 
         event, context = event_and_context
-        logging.debug(f"Handling event {event} in context {context.get()}")
+        logging.debug(f"Handling event {event} in context {context}")
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
         await self._client.emit(event)
