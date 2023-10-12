@@ -11,7 +11,17 @@ See the following pull request for details:
 
 ### Experimental support for enhanced cancellation
 
+We're introducing a new experimental feature that will enable more consistent and reliable cancellation of flow runs. 
 
+To enable enhanced cancellation, set the 'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION' setting on your worker or agents to `True`:
+
+```bash
+prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
+```
+
+When enabled, you can cancel flow runs where cancellation commonly fails, like if your worker is offline. We will continue to develop enhanced cancellation to improve its reliability and performance. If you encounter any issues, please let us know in Slack or with a Github issue.
+
+Note: if you are using the Kubernetes worker, you will need to update your `prefect-kubernetes` installation to `0.3.1`, and if you are using the Cloud Run or Vertex AI workers, you will need to update your `prefect-gcp` installation to `0.5.1`.
 
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10920
