@@ -37,36 +37,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  isinternal:
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ steps.isinternal.outputs.status }}
-    steps:
-      - name: Is internal team?
-        id: isinternal
-        run: |
-          # Treat dependabot as an internal user
-          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
-            echo "status=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "actor: ${{ github.actor }}"
-          curl -iL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.ORG_MEMBER_RO }}"\
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/orgs/prefecthq/members/${{ github.actor }}
-
-          if [[ $? -eq 0 ]]; then
-            echo "status=true" >> $GITHUB_OUTPUT
-          else
-            echo "status=false" >> $GITHUB_OUTPUT
-          fi
-
   run-tests:
     name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
-    needs: isinternal
     strategy:
       matrix:
         database:
@@ -74,7 +46,7 @@ jobs:
           - "postgres:14"
           - "sqlite"
         os:
-          - ${{ needs.isinternal.outputs.status == 'true' && github.event_name == 'pull_request' && 'oss-test-runner' || 'ubuntu-latest' }}
+          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.9"
@@ -254,14 +226,13 @@ jobs:
   # Python versions we support, and only on sqlite + postgres 14
   run-tests-pydantic-v2:
     name: pydantic v2, python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
-    needs: isinternal
     strategy:
       matrix:
         database:
           - "postgres:14"
           - "sqlite"
         os:
-          - ${{ needs.isinternal.outputs.status == 'true' && github.event_name == 'pull_request' && 'oss-test-runner' || 'ubuntu-latest' }}
+          - "oss-test-runner"
         python-version:
           - "3.8"
           - "3.11"
@@ -444,7 +415,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && failure()
     runs-on: ubuntu-latest
     env:
-      FAILURE_THRESHOLD: 4
+      FAILURE_THRESHOLD: 1
     steps:
       - name: Download all failure flags
         uses: actions/download-artifact@v3
@@ -468,10 +439,10 @@ jobs:
         if: ${{ steps.check_failure.outputs.too_many_tests_failed == 'true' }}
         uses: 8398a7/action-slack@v3
         with:
-          author_name: Prefect OSS Unit Tests
-          channel: C032SBRHBSN # This is #engineering-review
+          author_name: Prefect OSS Tests Failing on Main
+          channel: CBH18KG8G # This is #engineering
           fields: message,commit,author,workflowRun
           status: failure
-          text: "Too many unit test jobs failing: ${{ steps.check_failure.outputs.failure_count }} exceeds threshold of ${{ env.FAILURE_THRESHOLD }} jobs :oh-noo:"
+          text: ":warning: Unit tests are failing in Prefect's main branch. Commit author: please mark the failing tests as flaky. If they are already marked, delete them, open a GH issue, and assign it to Andrew Brookins."
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ENGINEERING_REVIEW_SLACK_WEBHOOK_URL }}

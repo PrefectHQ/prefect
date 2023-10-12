@@ -1,5 +1,4 @@
 ---
-icon: material/magnify
 description: Learn how to do common workflows with Prefect.
 title: Guides
 tags:

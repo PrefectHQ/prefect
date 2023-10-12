@@ -30,10 +30,16 @@ from prefect.deployments.base import (
     initialize_project,
 )
 from prefect.events.schemas import Posture
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.container import DockerRegistry
-from prefect.server.schemas.actions import WorkPoolCreate
+from prefect.server.schemas.actions import (
+    BlockDocumentCreate,
+    BlockSchemaCreate,
+    BlockTypeCreate,
+    WorkPoolCreate,
+)
 from prefect.server.schemas.schedules import CronSchedule
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -144,9 +150,12 @@ def uninitialized_project_dir_with_git_with_remote(
 
 @pytest.fixture
 async def default_agent_pool(prefect_client):
-    return await prefect_client.create_work_pool(
-        WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
-    )
+    try:
+        return await prefect_client.create_work_pool(
+            WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
+        )
+    except ObjectAlreadyExists:
+        return await prefect_client.read_work_pool("default-agent-pool")
 
 
 @pytest.fixture
@@ -185,6 +194,18 @@ async def mock_prompt(monkeypatch):
 
 
 @pytest.fixture
+def mock_provide_password(monkeypatch):
+    def new_prompt(message, password=False, **kwargs):
+        if password:
+            return "my-token"
+        else:
+            return original_prompt(message, password=password, **kwargs)
+
+    original_prompt = prefect.cli._prompts.prompt
+    monkeypatch.setattr("prefect.cli.deploy.prompt", new_prompt)
+
+
+@pytest.fixture
 def mock_build_docker_image(monkeypatch):
     mock_build = mock.MagicMock()
     mock_build.return_value = {"build-image": {"image": "{{ build-image.image }}"}}
@@ -195,6 +216,38 @@ def mock_build_docker_image(monkeypatch):
     )
 
     return mock_build
+
+
+@pytest.fixture
+async def aws_credentials(prefect_client):
+    aws_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="AWS Credentials",
+            slug="aws-credentials",
+        )
+    )
+
+    aws_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=aws_credentials_type.id,
+            fields={"properties": {"aws_access_key_id": {"type": "string"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="bezos-creds",
+            block_type_id=aws_credentials_type.id,
+            block_schema_id=aws_credentials_schema.id,
+            data={"aws_access_key_id": "AKIA1234"},
+        )
+    )
+
+
+@pytest.fixture
+def set_ui_url():
+    with temporary_settings({PREFECT_UI_URL: "http://gimmedata.com"}):
+        yield
 
 
 class TestProjectDeploySingleDeploymentYAML:
@@ -565,11 +618,16 @@ class TestProjectDeploySingleDeploymentYAML:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy",
-            user_input="y"
-            + readchar.key.ENTER
-            + readchar.key.ENTER
-            + "n"
-            + readchar.key.ENTER,
+            user_input=(
+                "y"
+                + readchar.key.ENTER
+                + readchar.key.ENTER
+                + "n"
+                + readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_code=0,
         )
 
@@ -584,6 +642,27 @@ class TestProjectDeploySingleDeploymentYAML:
 
 
 class TestProjectDeploy:
+    @pytest.fixture
+    def uninitialized_project_dir(self, project_dir):
+        Path(project_dir, "prefect.yaml").unlink()
+        return project_dir
+
+    @pytest.fixture
+    def uninitialized_project_dir_with_git_no_remote(self, uninitialized_project_dir):
+        subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
+        assert Path(uninitialized_project_dir, ".git").exists()
+        return uninitialized_project_dir
+
+    @pytest.fixture
+    def uninitialized_project_dir_with_git_with_remote(
+        self, uninitialized_project_dir_with_git_no_remote
+    ):
+        subprocess.run(
+            ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
+            cwd=uninitialized_project_dir_with_git_no_remote,
+        )
+        return uninitialized_project_dir_with_git_no_remote
+
     async def test_project_deploy(self, project_dir, prefect_client):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -751,7 +830,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Accept discovered URL
@@ -768,8 +850,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -810,7 +892,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Reject discovered URL
@@ -837,8 +922,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -855,10 +940,14 @@ class TestProjectDeploy:
             ]
 
         @pytest.mark.usefixtures(
-            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+            "interactive_console",
+            "uninitialized_project_dir_with_git_with_remote",
+            "mock_provide_password",
         )
         async def test_project_deploy_with_no_prefect_yaml_git_repo_with_token(
-            self, work_pool, prefect_client
+            self,
+            work_pool,
+            prefect_client,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -869,7 +958,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
                     readchar.key.ENTER
                     +
                     # Accept discovered URL
@@ -889,8 +981,8 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "Would you like your workers to pull your flow code from its remote"
-                    " repository when running this flow?"
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
                 ],
             )
 
@@ -913,6 +1005,135 @@ class TestProjectDeploy:
                 "deployment-test-name-an-important-name-repo-token"
             )
             assert token_block.get() == "my-token"
+
+        @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+        async def test_deploy_with_blob_storage_select_existing_credentials(
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            monkeypatch,
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    # Select S3 bucket as storage (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Select existing credentials (first option)
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+
+            assert deployment.pull_steps == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
+
+        @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+        async def test_deploy_with_blob_storage_create_credentials(
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            set_ui_url,
+            monkeypatch,
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    # Select S3 bucket as storage (first option)
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Create new credentials (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Enter access key id (only field in this hypothetical)
+                    + "my-access-key-id"
+                    + readchar.key.ENTER
+                    # Accept default name for new credentials block (s3-storage-credentials)
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    (
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
+                    ),
+                    "View/Edit your new credentials block in the UI:",
+                    PREFECT_UI_URL.value(),
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+
+            assert deployment.pull_steps == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.s3-storage-credentials }}"
+                        ),
+                    }
+                }
+            ]
 
         @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
         async def test_build_docker_image_step_auto_build_dockerfile(
@@ -951,6 +1172,10 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
+                    # Decline pulling from remote storage
+                    "n"
+                    + readchar.key.ENTER
+                    +
                     # Accept saving the deployment configuration
                     "y"
                     + readchar.key.ENTER
@@ -1027,9 +1252,11 @@ class TestProjectDeploy:
                 ),
                 expected_code=0,
                 user_input=(
-                    # Accept pulling from remote git origin
-                    "y"
-                    + readchar.key.ENTER
+                    # Accept pulling from remote storage
+                    readchar.key.ENTER
+                    +
+                    # Select remote Git repo as storage (first option)
+                    readchar.key.ENTER
                     +
                     # Accept discovered URL
                     readchar.key.ENTER
@@ -1046,8 +1273,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     "Is this a private repository?",
                     "prefect deployment run 'An important name/test-name'",
@@ -1138,8 +1365,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     (
                         "Does your Dockerfile have a line that copies the current"
@@ -1225,8 +1452,8 @@ class TestProjectDeploy:
                 ),
                 expected_output_contains=[
                     (
-                        "Would you like to pull your flow code from its remote"
-                        " repository when running"
+                        "Would you like your workers to pull your flow code from a"
+                        " remote storage location when running this flow?"
                     ),
                     (
                         "Does your Dockerfile have a line that copies the current"
@@ -1242,6 +1469,89 @@ class TestProjectDeploy:
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
                 import prefect_docker  # noqa
+
+    class TestGeneratedPushAction:
+        @pytest.mark.usefixtures(
+            "interactive_console", "uninitialized_project_dir_with_git_with_remote"
+        )
+        async def test_deploy_select_blob_storage_configures_push_step(
+            self,
+            work_pool,
+            prefect_client,
+            aws_credentials,
+            monkeypatch,
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name"
+                    f" -p {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+                user_input=(
+                    # Accept pulling from remote storage
+                    "y"
+                    + readchar.key.ENTER
+                    # Select S3 bucket as storage (second option)
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Provide bucket name
+                    + "my-bucket"
+                    + readchar.key.ENTER
+                    # Accept default folder (root of bucket)
+                    + readchar.key.ENTER
+                    # Select existing credentials (first option)
+                    + readchar.key.ENTER
+                    # Accept saving the deployment configuration
+                    + "y"
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
+                ],
+            )
+
+            mock_step.assert_called_once_with(
+                bucket="my-bucket",
+                folder="",
+                credentials={"aws_access_key_id": "AKIA1234"},
+            )
+
+            prefect_file = Path("prefect.yaml")
+            assert prefect_file.exists()
+
+            with open(prefect_file, "r") as f:
+                config = yaml.safe_load(f)
+
+            assert config["push"] == [
+                {
+                    "prefect_aws.deployments.steps.push_to_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
+
+            assert config["pull"] == [
+                {
+                    "prefect_aws.deployments.steps.pull_from_s3": {
+                        "bucket": "my-bucket",
+                        "folder": "",
+                        "credentials": (
+                            "{{ prefect.blocks.aws-credentials.bezos-creds }}"
+                        ),
+                    }
+                }
+            ]
 
     async def test_project_deploy_with_empty_dep_file(
         self, project_dir, prefect_client, work_pool
@@ -1598,10 +1908,17 @@ class TestProjectDeploy:
                 f"deploy ./flows/hello.py:my_flow -p {work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input="test-prompt-name"
-            + readchar.key.ENTER
-            + "n"
-            + readchar.key.ENTER,
+            user_input=(
+                # Provide a deployment name
+                "test-prompt-name"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Deployment name",
             ],
@@ -1634,7 +1951,16 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Select only existing work pool
+                readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Which work pool would you like to deploy this flow to?",
             ],
@@ -1676,7 +2002,16 @@ class TestProjectDeploy:
                 f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Accept only existing work pool
+                readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 (
                     "You've chosen a work pool with type 'prefect-agent' which cannot"
@@ -1702,7 +2037,14 @@ class TestProjectDeploy:
                 f" {push_work_pool.name} --interval 3600"
             ),
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Decline saving the deployment configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_does_not_contain=[
                 f"$ prefect worker start --pool {push_work_pool.name!r}",
             ],
@@ -1717,14 +2059,15 @@ class TestProjectDeploy:
             user_input=(
                 # Accept creating a new work pool
                 readchar.key.ENTER
-                +
                 # Select the first work pool type
-                readchar.key.ENTER
-                +
-                # Enter a name for the new work pool
-                "test-created-via-deploy"
                 + readchar.key.ENTER
-                # Decline save
+                # Enter a name for the new work pool
+                + "test-created-via-deploy"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Decline save the deployment configuration
                 + "n"
                 + readchar.key.ENTER
             ),
@@ -1830,8 +2173,11 @@ class TestProjectDeploy:
                 +
                 # choose existing deployment configuration
                 readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 +
-                # accept save
+                # decline save
                 "n"
                 + readchar.key.ENTER
             ),
@@ -1894,8 +2240,11 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy -n test-name",
             user_input=(
-                # reject saving configuration
+                # Decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -1934,8 +2283,11 @@ class TestProjectDeploy:
             invoke_and_assert,
             command="deploy -n test-name",
             user_input=(
-                # reject saving configuration
+                # Decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -1945,6 +2297,88 @@ class TestProjectDeploy:
         assert await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+
+    @pytest.mark.usefixtures("interactive_console")
+    class TestRemoteStoragePicklist:
+        @pytest.mark.usefixtures("uninitialized_project_dir_with_git_no_remote")
+        async def test_no_git_option_when_no_remote_url(
+            self, docker_work_pool, aws_credentials, monkeypatch
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    " test-docker-work-pool"
+                ),
+                expected_code=0,
+                expected_output_contains="s3",
+                expected_output_does_not_contain="Git Repo",
+                user_input=(
+                    # no custom image
+                    "n"
+                    + readchar.key.ENTER
+                    # Accept remote storage
+                    + "y"
+                    + readchar.key.ENTER
+                    # Select S3
+                    + readchar.key.ENTER
+                    # Enter bucket name
+                    + "test-bucket"
+                    + readchar.key.ENTER
+                    # Enter bucket prefix
+                    + readchar.key.ENTER
+                    # Select existing credentials
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+            )
+
+        @pytest.mark.usefixtures("uninitialized_project_dir_with_git_with_remote")
+        async def test_git_option_present_when_remote_url(
+            self, docker_work_pool, monkeypatch
+        ):
+            mock_step = mock.MagicMock()
+            monkeypatch.setattr(
+                "prefect.deployments.steps.core.import_object", lambda x: mock_step
+            )
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    " test-docker-work-pool"
+                ),
+                expected_code=0,
+                expected_output_contains="Git Repo",
+                expected_output_does_not_contain="s3",
+                user_input=(
+                    # no custom image
+                    "n"
+                    + readchar.key.ENTER
+                    # Accept remote storage
+                    + "y"
+                    + readchar.key.ENTER
+                    # Select Git (first option)
+                    + readchar.key.ENTER
+                    # Confirm git url
+                    + readchar.key.ENTER
+                    # Confirm git branch
+                    + readchar.key.ENTER
+                    # Not a private repo
+                    + "n"
+                    + readchar.key.ENTER
+                    # Decline saving the deployment configuration
+                    + "n"
+                    + readchar.key.ENTER
+                ),
+            )
 
 
 class TestSchedules:
@@ -2184,6 +2618,9 @@ class TestSchedules:
                 # Enter valid interval
                 "42"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Decline save
                 + "n"
                 + readchar.key.ENTER
@@ -2231,8 +2668,11 @@ class TestSchedules:
                 # Select default timezone
                 readchar.key.ENTER
                 +
-                # Decline save
+                # Decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -2279,6 +2719,10 @@ class TestSchedules:
                 # Select default timezone
                 readchar.key.ENTER
                 +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # Decline save
                 "n"
                 + readchar.key.ENTER
@@ -2304,6 +2748,9 @@ class TestSchedules:
             user_input=(
                 # Decline schedule creation
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Decline save
                 + "n"
@@ -2694,14 +3141,20 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # reject saving configuration
+                # decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
                 # accept naming deployment
                 + "y"
                 + readchar.key.ENTER
                 # enter deployment name
                 + "test-name-2"
+                + readchar.key.ENTER
+                # decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # reject saving configuration
                 + "n"
@@ -2751,8 +3204,11 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             user_input=(
-                # reject saving configuration
+                # decline remote storage
                 "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
                 + readchar.key.ENTER
                 # reject naming deployment
                 + "n"
@@ -3488,6 +3944,9 @@ class TestDeployPattern:
                 # reject saving configuration
                 + "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_contains=[
@@ -3619,7 +4078,15 @@ class TestDeployPattern:
             invoke_and_assert,
             command="deploy",
             expected_code=0,
-            user_input=readchar.key.ENTER + "n" + readchar.key.ENTER,
+            user_input=(
+                readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # reject saving configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
             expected_output_contains=[
                 "Would you like to use an existing deployment configuration?",
                 "test-name-1",
@@ -3675,6 +4142,9 @@ class TestDeployPattern:
                 # accept migration
                 "y"
                 + readchar.key.ENTER
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # reject saving configuration
                 + "n"
                 + readchar.key.ENTER
@@ -3728,9 +4198,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3776,9 +4248,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3826,9 +4300,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3882,9 +4358,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3937,9 +4415,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -3970,14 +4450,15 @@ class TestSaveUserInputs:
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
             user_input=(
+                # decline remote storage
+                "n"
+                + readchar.key.ENTER
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter work pool name
-                "inflatable"
+                + "inflatable"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4025,9 +4506,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4054,18 +4537,19 @@ class TestSaveUserInputs:
         invoke_and_assert(
             command="deploy -n existing-deployment --cron '* * * * *'",
             user_input=(
+                # decline remote storage
+                "n"
+                + readchar.key.ENTER
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
+                + readchar.key.ENTER
                 +
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
                 # accept found existing deployment
                 + "y"
@@ -4122,9 +4606,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4267,23 +4753,21 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
-                +
                 # decline schedule
-                "n"
+                + "n"
                 + readchar.key.ENTER
-                +
                 # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
                 + readchar.key.ENTER
-                +
+                # choose process work pool
+                + readchar.key.ENTER
+                # enter work pool name
+                + "inflatable"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4324,6 +4808,9 @@ class TestSaveUserInputs:
                 +
                 # accept create work pool
                 readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 +
                 # choose process work pool
                 readchar.key.ENTER
@@ -4331,13 +4818,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
-                +
                 # accept overwriting existing deployment that is found
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4376,9 +4861,11 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                +
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4406,33 +4893,28 @@ class TestSaveUserInputs:
                 # configure new deployment
                 "n"
                 + readchar.key.ENTER
-                +
                 # accept schedule
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # select interval schedule
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter interval schedule
-                "3600"
+                + "3600"
                 + readchar.key.ENTER
-                +
                 # accept create work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # choose process work pool
-                readchar.key.ENTER
-                +
+                + readchar.key.ENTER
                 # enter work pool name
-                "inflatable"
+                + "inflatable"
                 + readchar.key.ENTER
-                +
                 # accept save user inputs
-                "y"
+                + "y"
                 + readchar.key.ENTER
-                +
                 # reject overwriting existing deployment that is found
-                "n"
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -4574,9 +5056,11 @@ class TestSaveUserInputs:
                 # reject schedule
                 "n"
                 + readchar.key.ENTER
-                +
+                # decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # accept saving configuration
-                "y"
+                + "y"
                 + readchar.key.ENTER
                 # accept overwrite config
                 + "y"
@@ -4629,6 +5113,10 @@ class TestDeployWithoutEntrypoint:
                 # accept first work pool
                 readchar.key.ENTER
                 +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # decline save user inputs
                 "n"
                 + readchar.key.ENTER
@@ -4672,6 +5160,10 @@ class TestDeployWithoutEntrypoint:
                 +
                 # accept first work pool
                 readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
                 +
                 # decline save user inputs
                 "n"
@@ -4726,6 +5218,10 @@ class TestDeployWithoutEntrypoint:
                 # accept first work pool
                 readchar.key.ENTER
                 +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # decline save user inputs
                 "n"
                 + readchar.key.ENTER
@@ -4767,6 +5263,10 @@ class TestDeployWithoutEntrypoint:
                 +
                 # accept first work pool
                 readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
                 +
                 # decline save user inputs
                 "n"
@@ -5365,6 +5865,9 @@ class TestDeploymentTrigger:
                         # Decline docker build
                         + "n"
                         + readchar.key.ENTER
+                        # Decline remote storage
+                        + "n"
+                        + readchar.key.ENTER
                         # Accept save configuration
                         + "y"
                         + readchar.key.ENTER
@@ -5419,6 +5922,10 @@ class TestDeployDockerBuildSteps:
                 f" {docker_work_pool.name}"
             ),
             user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                +
                 # Accept save configuration
                 "y"
                 + readchar.key.ENTER
@@ -5465,6 +5972,9 @@ class TestDeployDockerBuildSteps:
                 # Reject build custom docker image
                 "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -5498,6 +6008,9 @@ class TestDeployDockerBuildSteps:
             user_input=(
                 # Reject build custom docker image
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5551,6 +6064,9 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5623,6 +6139,9 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
@@ -5719,6 +6238,9 @@ class TestDeployDockerBuildSteps:
                 # Reject push to registry
                 + "n"
                 + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
                 # Accept save configuration
                 + "y"
                 + readchar.key.ENTER
@@ -5777,6 +6299,9 @@ class TestDeployDockerBuildSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -5848,6 +6373,9 @@ class TestDeployDockerBuildSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration
@@ -5979,6 +6507,9 @@ class TestDeployDockerPushSteps:
                 # Default tag
                 + readchar.key.ENTER
                 # Reject push to registry
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
                 # Accept save configuration

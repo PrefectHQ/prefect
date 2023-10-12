@@ -323,7 +323,7 @@ Subflows differ from normal flows in that they will resolve any passed task futu
 
 The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
-A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field.  A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
+A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field. A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file. Whether running locally or via a [deployment](/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
 
@@ -419,7 +419,7 @@ Flows can be called with both positional and keyword arguments. These arguments 
 !!! warning "Prefect API requires keyword arguments"
     When creating flow runs from the Prefect API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
-Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
+Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/). This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
 
 ```python
 from prefect import flow
@@ -462,7 +462,7 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 !!! note "Prerequisite"
     Read the documentation about [states](/concepts/states) before proceeding with this section.
 
-The final state of the flow is determined by its return value.  The following rules apply:
+The final state of the flow is determined by its return value. The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
@@ -804,6 +804,62 @@ if __name__ == "__main__":
 ```
 
 The behavior and interfaces are identical to the single flow case.
+
+## Retrieve a flow from remote storage
+
+Flows can be retrieved from remote storage using the [`flow.from_source`](/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
+
+`flow.from_source` accepts a git repository URL  and an entrypoint pointing to the flow to load from the repository:
+
+```python title="load_from_url.py"
+from prefect import flow
+
+my_flow = flow.from_source(
+    source="https://github.com/org/repo.git",
+    entrypoint="flows.py:my_flow"
+)
+
+my_flow()
+```
+
+A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
+
+If you need additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) instead of URL:
+
+```python title="load_from_storage.py"
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect.blocks.system import Secret
+
+my_flow = flow.from_source(
+    source=GitRepository(
+        url="https://github.com/org/private-repo.git",
+        branch="dev",
+        credentials={
+            "access_token": Secret.load("github-access-token").get()
+        }
+    ),
+    entrypoint="flows.py:my_flow"
+)
+
+my_flow()
+```
+
+!!! tip "You can serve loaded flows"
+    Flows loaded from remote storage can be served using the same [`serve`](#serving-a-flow) method as local flows:
+
+    ```python title="serve_loaded_flow.py"
+    from prefect import flow
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="https://github.com/org/repo.git",
+            entrypoint="flows.py:my_flow"
+        ).serve(name="my-deployment")
+    ```
+
+    When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
+
 
 ## Pause a flow run
 
