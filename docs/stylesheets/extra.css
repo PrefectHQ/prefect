@@ -165,11 +165,11 @@ to force column width */
 
 /* apply extra styling to badges inside h1 and h2 elements */
 :where(h1, h2)>.badge::before {
-    position: relative;
+    position: static;
     top: -0.42rem;
     font-weight: 600;
     margin-left: 0.25rem;
-    vertical-align: super;
+    vertical-align: middle;
     font-size: 0.63rem;
     border-radius: 15px;
 }
@@ -260,11 +260,12 @@ to force column width */
 /* dark mode code overrides */
 [data-md-color-scheme="slate"] {
     --md-hue: 220;
-    --md-default-bg-color: #0C1b1f;
+    --md-default-bg-color: #040913;
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #3b3d54;
     --md-code-hl-name-color: #eee;
+    --md-default-fg-color--light: #eee;
 }
 
 /* dark mode link overrides */
@@ -385,8 +386,7 @@ to force column width */
 }
 
 .md-header {
-    background-color: #070E10;
-    ;
+    background-color: #0b1b1e;
 }
 
 .main-page-subheader {
