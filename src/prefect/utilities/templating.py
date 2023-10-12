@@ -189,6 +189,30 @@ async def resolve_block_document_references(
     Once the block document is retrieved from the API, the data of the block document
     is used to replace the reference.
 
+    For block documents whose content is parseable as a dictionary, a keypath can be
+    specified using the 'value' keyword to point to a specific
+    value within the block document data.
+
+    For example, if the block document data is:
+    ```
+    {
+        "key": {
+            "nested-key": "nested-value"
+        },
+        "list": [
+            {"list-key": "list-value"},
+            1,
+            2
+        ]
+    }
+    ```
+    Different values will be resolved using the following keypaths:
+    ```
+    <block_doc_prefix>.<block_doc_slug>.<block_doc_name>.value.key -> {"nested-key": "nested-value"}
+    <block_doc_prefix>.<block_doc_slug>.<block_doc_name>.value.nested-key -> "nested-value"
+    <block_doc_prefix>.<block_doc_slug>.<block_doc_name>.value.list[0].list-key -> "list-value"
+    ```
+
     Args:
         template: The template to resolve block documents in
 
@@ -225,10 +249,10 @@ async def resolve_block_document_references(
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
         ):
-            block_type_slug, block_document_name = (
+            block_type_slug, block_document_name, *value_keypath = (
                 list(placeholders)[0]
                 .name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "")
-                .split(".")
+                .split(".", 2)
             )
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
@@ -237,6 +261,27 @@ async def resolve_block_document_references(
             # These blocks will be replaced by variables in the future and this
             # logic can be removed at that time.
             value = block_document.data.get("value", block_document.data)
+
+            # resolving keypath variables
+            if len(value_keypath) > 0 and value_keypath[0][:5] == "value":
+                value_keypath: str = value_keypath[0]
+                if value_keypath == "value":
+                    return value
+
+                if not isinstance(value, dict) and not isinstance(value, list):
+                    raise ValueError(
+                        f"Invalid template: {template!r}. Found 'value' keyword with"
+                        " additional keys in reference, but the content of the block"
+                        " was not parsed as a dict or list."
+                    )
+                value = get_from_dict(value, value_keypath[6:], default=NotSet)
+                if value is NotSet:
+                    raise ValueError(
+                        f"Invalid template: {template!r}. Found 'value' keyword with"
+                        " additional keys in template, but could not resolve the"
+                        " keypath in the block document data."
+                    )
+
             return value
         else:
             raise ValueError(
