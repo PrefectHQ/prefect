@@ -27,7 +27,7 @@ See the following pull request for details:
 
 We're introducing a new experimental feature that will enable more consistent and reliable cancellation of flow runs. 
 
-To enable enhanced cancellation, set the 'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION' setting on your worker or agents to `True`:
+To enable enhanced cancellation, set the `PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION` setting on your worker or agents to `True`:
 
 ```bash
 prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
