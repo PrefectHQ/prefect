@@ -3,7 +3,20 @@
 ## Release 2.13.6
 
 ### Specify a default result storage block as a setting
-Previously, specifying result storage blocks necessitated changes in the @flow / @task decorator. Now, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting allows users to set a default storage block on a work pool or via infra overrides for a deployment. This enhancement enables easier swapping of result storages by just updating the environment in the UI or in your prefect.yaml, eliminating the need to alter your flow source code.
+Previously, specifying result storage blocks necessitated changes in the @flow / @task decorator. Now, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting allows users to set a default storage block on a work pool or via infra overrides for a deployment. For example, to set a default storage block for a deployment via `prefect.yaml`:
+```yaml
+- name: my-super-cool-deployment
+  entrypoint: some_directory/some_file.py:my_flow
+  work_pool:
+    name: ecs-pool
+    schedule:
+      cron: "0 20 * * 1-5"
+    job_variables:
+      env:
+        PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: s3/my-s3-bucket-block-name
+```
+
+This enhancement enables easier swapping of result storages by just updating the environment in the UI or in your prefect.yaml, eliminating the need to alter your flow source code.
 
 See the following pull request for details:
 - https://github.com/PrefectHQ/prefect/pull/10925
