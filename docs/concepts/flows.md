@@ -991,6 +991,14 @@ While the cancellation process is robust, there are a few issues than can occur:
 - If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
 - If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
 
+!!! tip "Enhanced cancellation"
+    We are working on improving cases where cancellation does not work. You can try out an improved cancellation experience by enabling the'PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION' setting on your worker or agents:
+
+    ```bash
+    prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
+    ```
+
+    If you encounter any issues, please let us know in Slack or with a Github issue.
 ### Cancel via the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.
