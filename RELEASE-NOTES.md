@@ -48,7 +48,7 @@ See the following pull request for details:
 
 ### Documentation
 - Add a guide for using the Prefect client — https://github.com/PrefectHQ/prefect/pull/10924
-- Remove icons from side nav for improved readability — https://github.com/PrefectHQ/prefect/pull/10908
+- Remove icons from side navigation for improved readability — https://github.com/PrefectHQ/prefect/pull/10908
 - Update deployments tutorial for consistent styling — https://github.com/PrefectHQ/prefect/pull/10911
 - Fix typo in CLI command in deployments tutorial — https://github.com/PrefectHQ/prefect/pull/10937
 - Fix typo in logging guide — https://github.com/PrefectHQ/prefect/pull/10936
