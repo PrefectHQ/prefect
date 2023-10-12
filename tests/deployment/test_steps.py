@@ -63,7 +63,7 @@ class TestRunStep:
         output = await run_step(
             {
                 "prefect.deployments.steps.run_shell_script": {
-                    "script": "{{ prefect.blocks.secret.test-secret }}",
+                    "script": "{{ prefect.blocks.secret.test-secret.value }}",
                 }
             }
         )
@@ -410,7 +410,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
+                        "{{ prefect.blocks.github-credentials.my-github-creds-block.value }}"
                     ),
                 }
             }
@@ -454,7 +454,7 @@ class TestGitCloneStep:
                     "prefect.deployments.steps.git_clone": {
                         "repository": "https://github.com/org/repo.git",
                         "credentials": (
-                            "{{ prefect.blocks.github-credentials.invalid-block }}"
+                            "{{ prefect.blocks.github-credentials.invalid-block.value }}"
                         ),
                     }
                 }
@@ -486,7 +486,7 @@ class TestGitCloneStep:
                         "repository": "https://github.com/org/repo.git",
                         "access_token": "my-token",
                         "credentials": (
-                            "{{ prefect.blocks.github-credentials.my-github-creds-block }}"
+                            "{{ prefect.blocks.github-credentials.my-github-creds-block.value }}"
                         ),
                     }
                 }
@@ -556,7 +556,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://bitbucket.org/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block }}"
+                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block.value }}"
                     ),
                 }
             }
@@ -605,7 +605,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://bitbucket.org/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block }}"
+                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block.value }}"
                     ),
                 }
             }
@@ -752,7 +752,7 @@ class TestGitCloneStep:
                         "https://bitbucketserver.com/scm/projectname/teamsinspace.git"
                     ),
                     "credentials": (
-                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block }}"
+                        "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-creds-block.value }}"
                     ),
                 }
             }
@@ -862,7 +862,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://gitlab.com/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.gitlab-credentials.my-gitlab-creds-block }}"
+                        "{{ prefect.blocks.gitlab-credentials.my-gitlab-creds-block.value }}"
                     ),
                 }
             }
@@ -911,7 +911,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://gitlab.com/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.gitlab-credentials.my-gitlab-creds-block }}"
+                        "{{ prefect.blocks.gitlab-credentials.my-gitlab-creds-block.value }}"
                     ),
                 }
             }
