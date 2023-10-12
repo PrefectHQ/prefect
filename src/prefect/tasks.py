@@ -304,7 +304,6 @@ class Task(Generic[P, R]):
             raise ValueError("`retry_jitter_factor` must be >= 0.")
 
         self.retry_jitter_factor = retry_jitter_factor
-
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
