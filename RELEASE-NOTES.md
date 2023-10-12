@@ -1,5 +1,66 @@
 # Prefect Release Notes
 
+## Release 2.13.6
+
+### Specify a default result storage block as a setting
+
+Previously, specifying result storage blocks necessitated changes in the `@flow` or `@task` decorator. Now, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting allows users to set a default storage block on a work pool or via job variables for a deployment. For example, to set a default storage block for a deployment via `prefect.yaml`:
+
+```yaml
+deployments:
+- name: my-super-cool-deployment
+  entrypoint: some_directory/some_file.py:my_flow
+  schedule:
+    cron: "0 20 * * 1-5"
+  work_pool:
+    name: ecs-pool
+    job_variables:
+      env:
+        PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: s3/my-s3-bucket-block-name
+```
+This enhancement enables easier swapping of result storages by just updating the environment in the UI or in your `prefect.yaml`, eliminating the need to alter your flow source code.
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10925
+
+### Experimental support for enhanced cancellation
+
+We're introducing a new experimental feature that will enable more consistent and reliable cancellation of flow runs. 
+
+To enable enhanced cancellation, set the `PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION` setting on your worker or agents to `True`:
+
+```bash
+prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
+```
+
+When enabled, you can cancel flow runs where cancellation can fail, such as when your worker is offline. We will continue to develop enhanced cancellation to improve its reliability and performance. If you encounter any issues, please let us know in Slack or with a Github issue.
+
+Note: If you are using the Kubernetes worker, you will need to update your `prefect-kubernetes` installation to `0.3.1`. If you are using the Cloud Run or Vertex AI workers, you will need to update your `prefect-gcp` installation to `0.5.1`.
+
+See the following pull requests for details:
+- https://github.com/PrefectHQ/prefect/pull/10920
+- https://github.com/PrefectHQ/prefect/pull/10944
+
+### Enhancements
+- Add link to Prefect Cloud information in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10909
+
+### Fixes
+- Avoid `prefect deploy` prompt for remote storage if a global pull step is already defined - https://github.com/PrefectHQ/prefect/pull/10941
+
+### Documentation
+- Add a guide for using the Prefect client — https://github.com/PrefectHQ/prefect/pull/10924
+- Remove icons from side navigation for improved readability — https://github.com/PrefectHQ/prefect/pull/10908
+- Update deployments tutorial for consistent styling — https://github.com/PrefectHQ/prefect/pull/10911
+- Fix typo in CLI command in deployments tutorial — https://github.com/PrefectHQ/prefect/pull/10937
+- Fix typo in logging guide — https://github.com/PrefectHQ/prefect/pull/10936
+- Update documentation styling  — https://github.com/PrefectHQ/prefect/pull/10913
+
+### Contributors
+* @Sun-of-a-beach made their first contribution in https://github.com/PrefectHQ/prefect/pull/10937
+- @manaw
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.5...3.13.6
+
 ## Release 2.13.5
 
 ### Load and serve remotely stored flows
