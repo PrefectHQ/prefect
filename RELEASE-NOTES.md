@@ -1,5 +1,37 @@
 # Prefect Release Notes
 
+## Release 2.13.6
+
+### New default option for results storage
+
+
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10925
+
+### Experimental support for enhanced cancellation
+
+
+
+See the following pull request for details:
+- https://github.com/PrefectHQ/prefect/pull/10920
+
+### Enhancements
+- Add link to Prefect Cloud information in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10909
+
+### Documentation
+- Add a guide for using the Prefect client — https://github.com/PrefectHQ/prefect/pull/10924
+- Remove icons from side nav for improved readability — https://github.com/PrefectHQ/prefect/pull/10908
+- Update deployments tutorial for consistent styling — https://github.com/PrefectHQ/prefect/pull/10911
+- Fix typo in CLI command in deployments tutorial — https://github.com/PrefectHQ/prefect/pull/10937
+- Fix typo in logging guide — https://github.com/PrefectHQ/prefect/pull/10936
+- Update documentation styling  — https://github.com/PrefectHQ/prefect/pull/10913
+
+## Contributors
+* @Sun-of-a-beach made their first contribution in https://github.com/PrefectHQ/prefect/pull/10937
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.5...3.13.6
+
 ## Release 2.13.5
 
 ### Load and serve remotely stored flows
