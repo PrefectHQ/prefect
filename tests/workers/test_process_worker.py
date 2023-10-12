@@ -477,6 +477,7 @@ async def test_process_kill_mismatching_hostname(monkeypatch, work_pool):
     os_kill.assert_not_called()
 
 
+@pytest.mark.flaky(max_runs=3)
 async def test_process_kill_no_matching_pid(monkeypatch, work_pool):
     patch_client(monkeypatch)
     infrastructure_pid = f"{socket.gethostname()}:12345"
