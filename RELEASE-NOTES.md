@@ -37,8 +37,9 @@ When enabled, you can cancel flow runs where cancellation can fail, such as when
 
 Note: If you are using the Kubernetes worker, you will need to update your `prefect-kubernetes` installation to `0.3.1`. If you are using the Cloud Run or Vertex AI workers, you will need to update your `prefect-gcp` installation to `0.5.1`.
 
-See the following pull request for details:
+See the following pull requests for details:
 - https://github.com/PrefectHQ/prefect/pull/10920
+- https://github.com/PrefectHQ/prefect/pull/10944
 
 ### Enhancements
 - Add link to Prefect Cloud information in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10909
