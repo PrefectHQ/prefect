@@ -388,6 +388,70 @@ class TestResolveBlockDocumentReferences:
             "string": "hello",
         }
 
+    async def test_resolve_block_document_resolves_dict_keypath(self):
+        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
+            name="json-block"
+        )
+        template = {
+            "value": "{{ prefect.blocks.json.json-block.value }}",
+            "keypath": "{{ prefect.blocks.json.json-block.value.key }}",
+            "nested_keypath": (
+                "{{ prefect.blocks.json.json-block.value.key.nested-key }}"
+            ),
+        }
+
+        result = await resolve_block_document_references(template)
+        assert result == {
+            "value": {"key": {"nested-key": "nested_value"}},
+            "keypath": {"nested-key": "nested_value"},
+            "nested_keypath": "nested_value",
+        }
+
+    async def test_resolve_block_document_resolves_list_keypath(self):
+        await JSON(value={"key": ["value1", "value2"]}).save(name="json-list-block")
+        await JSON(value=["value1", "value2"]).save(name="list-block")
+        await JSON(
+            value={"key": ["value1", {"nested": ["value2", "value3"]}, "value4"]}
+        ).save(name="nested-json-list-block")
+        template = {
+            "json-list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
+            "list": "{{ prefect.blocks.json.list-block.value[1] }}",
+            "nested-json-list": (
+                "{{ prefect.blocks.json.nested-json-list-block.value.key[1].nested[1] }}"
+            ),
+        }
+
+        result = await resolve_block_document_references(template)
+        assert result == {
+            "json-list": "value1",
+            "list": "value2",
+            "nested-json-list": "value3",
+        }
+
+    async def test_resolve_block_document_raises_on_invalid_keypath(self):
+        await JSON(value={"key": {"nested_key": "value"}}).save(name="json-block")
+        json_template = {
+            "json": "{{ prefect.blocks.json.json-block.value.key.does_not_exist }}",
+        }
+        with pytest.raises(ValueError, match="could not resolve the keypath"):
+            await resolve_block_document_references(json_template)
+
+        await JSON(value=["value1", "value2"]).save(name="index-error-block")
+        index_error_template = {
+            "index-error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
+        }
+        with pytest.raises(ValueError, match="could not resolve the keypath"):
+            await resolve_block_document_references(index_error_template)
+
+    async def test_resolve_block_document_raises_on_non_dict_content(self):
+        await String(value="clearly a string").save(name="string-block")
+        template = {
+            "string": "{{ prefect.blocks.string.string-block.value.not_valid }}",
+        }
+
+        with pytest.raises(ValueError, match="not parsed as a dict or list"):
+            await resolve_block_document_references(template)
+
 
 class TestResolveVariables:
     @pytest.fixture
