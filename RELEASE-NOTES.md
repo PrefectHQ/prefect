@@ -45,7 +45,7 @@ See the following pull requests for details:
 - Add link to Prefect Cloud information in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/10909
 
 ### Fixes
-- Avoid prompting for remote storage if a global pull step is already defined - https://github.com/PrefectHQ/prefect/pull/10941
+- Avoid `prefect deploy` prompt for remote storage if a global pull step is already defined - https://github.com/PrefectHQ/prefect/pull/10941
 
 ### Documentation
 - Add a guide for using the Prefect client — https://github.com/PrefectHQ/prefect/pull/10924
