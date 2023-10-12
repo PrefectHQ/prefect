@@ -734,7 +734,7 @@ class TestProjectDeploy:
         )
 
     async def test_deploy_does_not_prompt_storage_when_pull_step_exists(
-        self, project_dir, work_pool
+        self, project_dir, work_pool, interactive_console
     ):
         # write a pull step to the prefect.yaml
         with open("prefect.yaml", "r") as f:
@@ -753,6 +753,11 @@ class TestProjectDeploy:
                 "deploy ./flows/hello.py:my_flow -n test-name -p"
                 f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
                 " --interval 60"
+            ),
+            user_input=(
+                # don't save the deployment configuration
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_does_not_contain=[
