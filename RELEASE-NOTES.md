@@ -54,7 +54,7 @@ See the following pull request for details:
 - Fix typo in logging guide — https://github.com/PrefectHQ/prefect/pull/10936
 - Update documentation styling  — https://github.com/PrefectHQ/prefect/pull/10913
 
-## Contributors
+### Contributors
 * @Sun-of-a-beach made their first contribution in https://github.com/PrefectHQ/prefect/pull/10937
 - @manaw
 
