@@ -34,6 +34,7 @@ from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
@@ -90,7 +91,10 @@ async def variables(prefect_client: PrefectClient):
 @pytest.fixture
 def enable_enhanced_cancellation():
     with temporary_settings(
-        updates={PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True}
+        updates={
+            PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION: True,
+            PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: False,
+        }
     ):
         yield
 
@@ -1882,15 +1886,14 @@ class TestCancellation:
 
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             await worker.sync_with_backend()
-            worker.cancel_run = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
 
         post_flow_run = await prefect_client.read_flow_run(flow_run.id)
         # shouldn't change state
-        assert post_flow_run.state.type == cancelling_constructor()
+        assert post_flow_run.state.type == cancelling_constructor().type
 
         assert "Skipping cancellation because flow run" in caplog.text
-        assert "is using  enhanced cancellation" in caplog.text
+        assert "is using enhanced cancellation" in caplog.text
 
 
 async def test_get_flow_run_logger(

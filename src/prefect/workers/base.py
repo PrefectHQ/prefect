@@ -633,18 +633,18 @@ class BaseWorker(abc.ABC):
 
         try:
             configuration = await self._get_configuration(flow_run)
+            if configuration.is_using_a_runner:
+                self._logger.info(
+                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
+                    " using enhanced cancellation. A dedicated runner will handle"
+                    " cancellation."
+                )
+                return
         except ObjectNotFound:
             self._logger.warning(
                 f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
                 f" associated deployment {flow_run.deployment_id!r} does not exist."
             )
-
-        if configuration.is_using_a_runner:
-            self._logger.info(
-                f"Skipping cancellation because flow run {str(flow_run.id)!r} is using"
-                " enhanced cancellation. Runner will handle cancellation."
-            )
-            return
 
         if not flow_run.infrastructure_pid:
             run_logger.error(
