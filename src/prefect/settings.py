@@ -765,7 +765,13 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
     default=Path("${PREFECT_HOME}") / "storage",
     value_callback=template_with_settings(PREFECT_HOME),
 )
-"""The path to a directory to store things in."""
+"""The path to a block storage directory to store things in."""
+
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
