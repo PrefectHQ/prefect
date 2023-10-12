@@ -61,6 +61,7 @@ logger = get_logger("results")
 R = TypeVar("R")
 
 
+@sync_compatible
 async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.

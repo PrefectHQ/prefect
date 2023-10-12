@@ -34,7 +34,6 @@ from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -304,14 +303,9 @@ class Task(Generic[P, R]):
         if retry_jitter_factor is not None and retry_jitter_factor < 0:
             raise ValueError("`retry_jitter_factor` must be >= 0.")
 
-        self.result_storage = (
-            storage
-            if (storage := PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()) is not None
-            else result_storage
-        )
-
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
+        self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
