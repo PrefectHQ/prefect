@@ -9,14 +9,13 @@ Previously, specifying result storage blocks necessitated changes in the `@flow`
 ```yaml
 - name: my-super-cool-deployment
   entrypoint: some_directory/some_file.py:my_flow
+  schedule:
+    cron: "0 20 * * 1-5"
   work_pool:
     name: ecs-pool
-    schedule:
-      cron: "0 20 * * 1-5"
     job_variables:
       env:
         PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: s3/my-s3-bucket-block-name
-```
 
 This enhancement enables easier swapping of result storages by just updating the environment in the UI or in your `prefect.yaml`, eliminating the need to alter your flow source code.
 
