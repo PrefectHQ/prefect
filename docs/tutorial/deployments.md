@@ -76,7 +76,7 @@ Because this deployment has no schedule or triggering automation, you will need 
 Let's use the CLI (in a separate terminal window) to see what happens:
 <div class="terminal">
 ```bash
-prefect deployment run 'get_repo_info/my-first-deployment'
+prefect deployment run 'get-repo-info/my-first-deployment'
 ```
 </div>
 
