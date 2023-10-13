@@ -284,7 +284,10 @@ class DeploymentResponse(ORMBaseModel):
         if response.last_polled and response.last_polled > offline_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
         elif orm_deployment.work_queue:
-            if orm_deployment.work_queue.last_polled > offline_horizon:
+            if (
+                orm_deployment.work_queue.last_polled
+                and orm_deployment.work_queue.last_polled > offline_horizon
+            ):
                 response.status = schemas.statuses.DeploymentStatus.READY
         else:
             response.status = schemas.statuses.DeploymentStatus.NOT_READY
