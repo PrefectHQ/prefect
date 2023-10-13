@@ -566,9 +566,6 @@ class Deployment(ORMBaseModel):
             " be scheduled."
         ),
     )
-    last_polled: Optional[DateTimeTZ] = Field(
-        default=None, description="The last time the deployment was polled."
-    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
