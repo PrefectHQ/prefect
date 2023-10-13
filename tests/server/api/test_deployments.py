@@ -91,6 +91,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         deployment_id = response.json()["id"]
+        assert response.json()["status"] == "NOT_READY"
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id

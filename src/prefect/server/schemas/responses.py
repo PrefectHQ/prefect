@@ -250,8 +250,8 @@ class DeploymentResponse(ORMBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     last_polled: Optional[datetime.datetime] = FieldFrom(schemas.core.Deployment)
-    status: schemas.statuses.DeploymentStatus = Field(
-        schemas.statuses.DeploymentStatus.NOT_READY,
+    status: Optional[schemas.statuses.DeploymentStatus] = Field(
+        default=None,
         description="Current status of the deployment.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
