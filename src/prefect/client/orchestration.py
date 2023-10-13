@@ -203,7 +203,11 @@ class PrefectClient:
 
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
-            from prefect.server.api.server import SERVER_API_VERSION
+            try:
+                from prefect.server.api.server import SERVER_API_VERSION
+            except ImportError:
+                # support the case where server components are not available
+                SERVER_API_VERSION = "0.8.4"
 
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
