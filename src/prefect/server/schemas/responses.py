@@ -281,7 +281,7 @@ class DeploymentResponse(ORMBaseModel):
             tz=datetime.timezone.utc
         ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_EXPIRATION)
 
-        if orm_deployment.last_polled and orm_deployment.last_polled > offline_horizon:
+        if response.last_polled and response.last_polled > offline_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
         else:
             response.status = schemas.statuses.DeploymentStatus.NOT_READY
