@@ -59,7 +59,7 @@ See the following pull requests for details:
 * @Sun-of-a-beach made their first contribution in https://github.com/PrefectHQ/prefect/pull/10937
 - @manaw
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.5...3.13.6
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.5...2.13.6
 
 ## Release 2.13.5
 
