@@ -579,7 +579,7 @@ class Flow(Generic[P, R]):
         from prefect.deployments.runner import RunnerDeployment
 
         if self._storage and self._entrypoint:
-            return await RunnerDeployment.from_storage(
+            deployment = await RunnerDeployment.from_storage(
                 storage=self._storage,
                 entrypoint=self._entrypoint,
                 name=name,
@@ -597,6 +597,8 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
             )
+            deployment._remote_flow_entrypoint = get_entrypoint(self, relative=True)
+            return deployment
         else:
             return RunnerDeployment.from_flow(
                 self,

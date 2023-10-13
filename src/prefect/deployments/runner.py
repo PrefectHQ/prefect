@@ -156,6 +156,7 @@ class RunnerDeployment(BaseModel):
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+    _remote_flow_entrypoint: Optional[str] = PrivateAttr(default=None)
 
     @validator("triggers", allow_reuse=True)
     def validate_automation_names(cls, field_value, values, field, config):

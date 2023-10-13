@@ -470,16 +470,17 @@ class Runner:
                 )
                 deployment = await self._client.read_deployment(flow_run.deployment_id)
                 flow = await self._client.read_flow(flow_run.flow_id)
-                deployment_entrypoint = deployment_entrypoint_map.get(
+                entrypoint = deployment_entrypoint_map.get(
                     f"{flow.name}/{deployment.name}"
                 )
-                if deployment_entrypoint is not None:
-                    loaded_deployment: RunnerDeployment = (
-                        await anyio.run_sync_in_worker_thread(
-                            import_object, deployment_entrypoint
-                        )
+                if entrypoint is not None:
+                    loaded_item: Union[RunnerDeployment, Flow] = (
+                        await anyio.run_sync_in_worker_thread(import_object, entrypoint)
                     )
-                    await self.add_deployment(loaded_deployment)
+                    if isinstance(loaded_item, RunnerDeployment):
+                        await self.add_deployment(loaded_item)
+                    elif isinstance(loaded_item, Flow):
+                        await self.add_flow(loaded_item, name=deployment.name)
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
@@ -1227,8 +1228,9 @@ async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
             )
     """
     deployment_entrypoint_map = {
-        f"{deployment.flow_name}/{deployment.name}": get_entrypoint(
-            deployment, relative=True
+        f"{deployment.flow_name}/{deployment.name}": (
+            deployment._remote_flow_entrypoint
+            or get_entrypoint(deployment, relative=True)
         )
         for deployment in args
     }
@@ -1295,10 +1297,16 @@ async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
         repository, tag = image.split(":")
 
         with docker_client() as client:
-            client.api.push(
+            events = client.api.push(
                 repository=repository,
                 tag=tag,
+                stream=True,
+                decode=True,
             )
+            for event in events:
+                if "error" in event:
+                    console.print(event["error"], style="red")
+                    sys.exit(1)
 
         progress.update(docker_push_task, completed=1)
 
