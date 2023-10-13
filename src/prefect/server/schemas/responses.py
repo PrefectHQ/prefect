@@ -232,6 +232,9 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+DEPLOYMENT_LAST_POLLED_EXPIRATION = 30
+
+
 @copy_model_fields
 class DeploymentResponse(ORMBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
@@ -246,6 +249,11 @@ class DeploymentResponse(ORMBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    last_polled: Optional[datetime.datetime] = FieldFrom(schemas.core.Deployment)
+    status: schemas.statuses.DeploymentStatus = Field(
+        schemas.statuses.DeploymentStatus.NOT_READY,
+        description="Current status of the deployment.",
+    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
     )
@@ -268,6 +276,16 @@ class DeploymentResponse(ORMBaseModel):
         cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"
     ):
         response = super().from_orm(orm_deployment)
+
+        offline_horizon = datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_EXPIRATION)
+
+        if orm_deployment.last_polled and orm_deployment.last_polled > offline_horizon:
+            response.status = schemas.statuses.DeploymentStatus.READY
+        else:
+            response.status = schemas.statuses.DeploymentStatus.NOT_READY
+
         if orm_deployment.work_queue:
             response.work_queue_name = orm_deployment.work_queue.name
             if orm_deployment.work_queue.work_pool:
