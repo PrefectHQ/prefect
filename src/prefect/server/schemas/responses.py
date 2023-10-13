@@ -249,7 +249,7 @@ class DeploymentResponse(ORMBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    last_polled: Optional[datetime.datetime] = FieldFrom(schemas.core.Deployment)
+    last_polled: Optional[datetime.timedelta] = FieldFrom(schemas.core.Deployment)
     status: Optional[schemas.statuses.DeploymentStatus] = Field(
         default=None,
         description="Current status of the deployment.",
