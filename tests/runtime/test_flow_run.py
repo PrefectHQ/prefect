@@ -61,6 +61,24 @@ class TestAttributeAccessPatterns:
         assert flow_run_attr == expected_value
 
     @pytest.mark.parametrize(
+        "value",
+        [
+            "1996-12-19T16:39:57-08:00",  # RFC 3339
+            "2012-05-03",  # Date
+            "12:04:23.45",  # Time
+            "00:00",  # Time
+        ],
+    )
+    async def test_dateparser_and_pendulum_parse_equivalency(self, value):
+        """
+        Note that this is a temporary test to verify that pendulum's and dateparser's
+        parse results are the same. Once we remove dateparser, this test will be removed.
+        """
+        from prefect.runtime.flow_run import _dateparser_parse, _pendulum_parse
+
+        assert _pendulum_parse(value) == _dateparser_parse(value)
+
+    @pytest.mark.parametrize(
         "attribute_name, attribute_value",
         [
             # complex types (list and dict) not allowed to be mocked using environment variables
