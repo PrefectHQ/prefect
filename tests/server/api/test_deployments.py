@@ -993,10 +993,12 @@ class TestReadDeployments:
         )
         await session.commit()
 
-    async def test_read_deployments(self, deployments, client):
+    async def test_read_deployments_x(self, deployments, client):
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
+
+        assert response.json()[0]["status"] == "NOT_READY"
 
     async def test_read_deployments_applies_filter(
         self, deployments, deployment_id_1, deployment_id_2, flow, client
