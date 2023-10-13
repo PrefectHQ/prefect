@@ -32,6 +32,7 @@ Example:
 import asyncio
 import datetime
 import inspect
+import json
 import logging
 import os
 import shlex
@@ -53,6 +54,7 @@ import pendulum
 import sniffio
 from rich.console import Console, Group
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 
 from prefect.client.orchestration import get_client
@@ -84,7 +86,12 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.importtools import import_object
+from prefect.utilities.dockerutils import (
+    build_image,
+    docker_client,
+    get_prefect_image_name,
+)
+from prefect.utilities.importtools import get_entrypoint, import_object
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
@@ -182,7 +189,7 @@ class Runner:
         flow runs.
         """
         return (
-            os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None
+            os.environ.get("PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH") is not None
             or os.environ.get("PREFECT__FLOW_ENTRYPOINT") is not None
         )
 
@@ -209,7 +216,6 @@ class Runner:
         if storage is not None:
             storage = await self._add_storage(storage)
             self._deployment_storage_map[deployment_id] = storage
-        self._logger.info(self._deployment_storage_map)
         self._deployment_ids.add(deployment_id)
         self.registered_deployments.append(deployment)
 
@@ -435,50 +441,60 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
-        runner_entrypoint = os.environ.get("PREFECT__RUNNER_ENTRYPOINT")
-        if runner_entrypoint is not None:
-            runner: Runner = await anyio.run_sync_in_worker_thread(
-                import_object, runner_entrypoint
-            )
-        else:
-            runner = self
+        self.pause_on_shutdown = False
 
-        runner.pause_on_shutdown = False
-
-        async with runner:
-            if not runner._acquire_limit_slot(flow_run_id):
+        async with self:
+            if not self._acquire_limit_slot(flow_run_id):
                 return
 
-            runner._submitting_flow_run_ids.add(flow_run_id)
+            self._submitting_flow_run_ids.add(flow_run_id)
 
-            flow_run = await runner._client.read_flow_run(flow_run_id)
+            flow_run = await self._client.read_flow_run(flow_run_id)
 
             flow_entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+            deployment_entrypoint_map_path = os.environ.get(
+                "PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH"
+            )
             if flow_entrypoint is not None:
-                deployment = await runner._client.read_deployment(
-                    flow_run.deployment_id
-                )
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
 
                 flow: Flow = await anyio.run_sync_in_worker_thread(
                     import_object, flow_entrypoint
                 )
 
-                await runner.add_flow(flow, name=deployment.name)
+                await self.add_flow(flow, name=deployment.name)
+
+            if deployment_entrypoint_map_path is not None:
+                deployment_entrypoint_map = json.loads(
+                    Path(deployment_entrypoint_map_path).read_text()
+                )
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
+                flow = await self._client.read_flow(flow_run.flow_id)
+                deployment_entrypoint = deployment_entrypoint_map.get(
+                    f"{flow.name}/{deployment.name}"
+                )
+                if deployment_entrypoint is not None:
+                    loaded_deployment: RunnerDeployment = (
+                        await anyio.run_sync_in_worker_thread(
+                            import_object, deployment_entrypoint
+                        )
+                    )
+                    await self.add_deployment(loaded_deployment)
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
-                    pid = await runner._runs_task_group.start(
-                        runner._submit_run_and_capture_errors, flow_run
+                    pid = await self._runs_task_group.start(
+                        self._submit_run_and_capture_errors, flow_run
                     )
 
-                    runner._flow_run_process_map[flow_run.id] = dict(
+                    self._flow_run_process_map[flow_run.id] = dict(
                         pid=pid, flow_run=flow_run
                     )
 
                     workload = partial(
-                        runner._check_for_cancelled_flow_runs,
+                        self._check_for_cancelled_flow_runs,
                         should_stop_watching=lambda: flow_run.id
-                        not in runner._flow_run_process_map,
+                        not in self._flow_run_process_map,
                         on_stop_watching=tg.cancel_scope.cancel,
                     )
 
@@ -486,7 +502,7 @@ class Runner:
                         partial(
                             critical_service_loop,
                             workload=workload,
-                            interval=runner.query_seconds,
+                            interval=self.query_seconds,
                             jitter_range=0.3,
                         )
                     )
@@ -1170,3 +1186,127 @@ async def serve(
         console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()
+
+
+@sync_compatible
+async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
+    """
+    Deploy the provided list of deployments.
+
+    Args:
+        *args: A list of deployments to deploy.
+        image: The image to deploy to.
+        work_pool_name: The work pool to deploy to.
+
+    Examples:
+        Prepare two deployments and deploy them:
+
+        ```python
+        import datetime
+
+        from prefect import flow, deploy
+
+        @flow
+        def my_flow(name):
+            print(f"hello {name}")
+
+        @flow
+        def my_other_flow(name):
+            print(f"goodbye {name}")
+
+        if __name__ == "__main__":
+            deploy(
+                my_flow.to_deployment(
+                    "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+                ),
+                my_other_flow.to_deployment(
+                    "goodbye", tags=["dev"], cron="0 4 * * sun"
+                ),
+                image="my-image",
+                work_pool_name="my-work-pool",
+            )
+    """
+    deployment_entrypoint_map = {
+        f"{deployment.flow_name}/{deployment.name}": get_entrypoint(
+            deployment, relative=True
+        )
+        for deployment in args
+    }
+    Path("deployment_entrypoint_map.json").write_text(
+        json.dumps(deployment_entrypoint_map)
+    )
+
+    console = Console()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("Building image..."),
+        transient=True,
+        console=console,
+    ) as progress:
+        docker_build_task = progress.add_task("docker_build", total=1)
+        temp_dockerfile = Path("Dockerfile")
+        if Path(temp_dockerfile).exists():
+            raise ValueError(
+                "Cannot generate a Dockerfile. A Dockerfile already exists in the"
+                " current directory."
+            )
+
+        lines = []
+        base_image = get_prefect_image_name()
+        lines.append(f"FROM {base_image}")
+        dir_name = Path.cwd().name
+
+        if Path("requirements.txt").exists():
+            lines.append(
+                f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
+            )
+            lines.append(
+                f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+            )
+
+        lines.append(f"COPY . /opt/prefect/{dir_name}/")
+        lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+        lines.append(
+            " ENV PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH=deployment_entrypoint_map.json"
+        )
+
+        with Path(temp_dockerfile).open("w") as f:
+            f.writelines(line + "\n" for line in lines)
+
+        build_dockerfile = str(temp_dockerfile)
+
+        try:
+            build_image(context=Path.cwd(), dockerfile=build_dockerfile, tag=image)
+        finally:
+            progress.update(docker_build_task, completed=1)
+            Path("Dockerfile").unlink()
+            Path("deployment_entrypoint_map.json").unlink()
+
+    console.print(f"Successfully built image {image!r}\n", style="green")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("Pushing image..."),
+        transient=True,
+        console=console,
+    ) as progress:
+        docker_push_task = progress.add_task("docker_push", total=1)
+
+        repository, tag = image.split(":")
+
+        with docker_client() as client:
+            client.api.push(
+                repository=repository,
+                tag=tag,
+            )
+
+        progress.update(docker_push_task, completed=1)
+
+    console.print(f"Successfully pushed image {image!r}\n", style="green")
+
+    for deployment in track(
+        args, description="Creating/updating deployments...", console=console
+    ):
+        await deployment.apply(image=image, work_pool_name=work_pool_name)
+
+    console.print("Successfully created all deployments\n", style="green")
