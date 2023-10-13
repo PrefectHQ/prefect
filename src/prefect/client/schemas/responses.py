@@ -218,6 +218,8 @@ class DeploymentResponse(ObjectBaseModel):
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)
     work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    last_polled: Optional[datetime.datetime] = FieldFrom(objects.Deployment)
+    status: Optional[objects.DeploymentStatus] = FieldFrom(objects.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     path: Optional[str] = FieldFrom(objects.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)

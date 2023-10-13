@@ -86,6 +86,13 @@ class WorkerStatus(AutoEnum):
     OFFLINE = AutoEnum.auto()
 
 
+class DeploymentStatus(AutoEnum):
+    """Enumeration of deployment statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -955,6 +962,13 @@ class Deployment(ObjectBaseModel):
             "The work queue for the deployment. If no work queue is set, work will not"
             " be scheduled."
         ),
+    )
+    status: Optional[DeploymentStatus] = Field(
+        default=None, description="The current status of the deployment."
+    )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The last time the deployment was polled for status updates.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
