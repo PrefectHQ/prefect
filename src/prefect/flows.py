@@ -36,6 +36,11 @@ from prefect._vendor.fastapi.encoders import jsonable_encoder
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
+from prefect.utilities.dockerutils import (
+    build_image,
+    docker_client,
+    get_prefect_image_name,
+)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -54,6 +59,7 @@ else:
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
@@ -88,7 +94,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import get_entrypoint, import_object
 from prefect.utilities.visualization import (
     FlowVisualizationError,
     GraphvizExecutableNotFoundError,
@@ -525,6 +531,9 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ):
         """
         Creates a runner deployment object for this flow.
@@ -584,6 +593,9 @@ class Flow(Generic[P, R]):
                 description=description,
                 version=version,
                 enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
             )
         else:
             return RunnerDeployment.from_flow(
@@ -599,6 +611,9 @@ class Flow(Generic[P, R]):
                 description=description,
                 version=version,
                 enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
             )
 
     @sync_compatible
@@ -777,6 +792,160 @@ class Flow(Generic[P, R]):
             flow._entrypoint = entrypoint
 
         return flow
+
+    @sync_compatible
+    async def deploy(
+        self,
+        name: str,
+        work_pool_name: str,
+        image: str,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[dict] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Deploys a flow to run on dynamic infrastructure via a work pool.
+
+        Args:
+            name: The name to give the created deployment.
+            work_pool: The name of the work pool to use for this deployment.
+            interval: An interval on which to execute the new deployment. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+            image: The name of a custom image to build for this deployment.
+
+        Examples:
+            Deploy a flow:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.deploy("example-deployment", work_pool="my-work-pool")
+            ```
+        """
+        console = Console()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Building image..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_build_task = progress.add_task("docker_build", total=1)
+            temp_dockerfile = Path("Dockerfile")
+            if Path(temp_dockerfile).exists():
+                raise ValueError(
+                    "Cannot generate a Dockerfile. A Dockerfile already exists in the"
+                    " current directory."
+                )
+
+            lines = []
+            base_image = get_prefect_image_name()
+            lines.append(f"FROM {base_image}")
+            dir_name = Path.cwd().name
+
+            if Path("requirements.txt").exists():
+                lines.append(
+                    f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
+                )
+                lines.append(
+                    "RUN python -m pip install -r"
+                    f" /opt/prefect/{dir_name}/requirements.txt"
+                )
+
+            lines.append(f"COPY . /opt/prefect/{dir_name}/")
+            lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+            lines.append(
+                f"ENV PREFECT__FLOW_ENTRYPOINT={get_entrypoint(self, relative=True)}"
+            )
+
+            with Path(temp_dockerfile).open("w") as f:
+                f.writelines(line + "\n" for line in lines)
+
+            build_dockerfile = str(temp_dockerfile)
+
+            try:
+                build_image(context=Path.cwd(), dockerfile=build_dockerfile, tag=image)
+            finally:
+                progress.update(docker_build_task, completed=1)
+                Path("Dockerfile").unlink()
+
+        console.print(f"Successfully built image {image!r} for flow\n", style="green")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Pushing image..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_push_task = progress.add_task("docker_push", total=1)
+
+            repository, tag = image.split(":")
+
+            with docker_client() as client:
+                client.api.push(
+                    repository=repository,
+                    tag=tag,
+                )
+
+            progress.update(docker_push_task, completed=1)
+
+        console.print(f"Successfully pushed image {image!r} for flow\n", style="green")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Creating deployment..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            create_deployment_task = progress.add_task("create_deployment", total=1)
+
+            deployment = await self.to_deployment(
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                triggers=triggers,
+                parameters=parameters,
+                description=description,
+                tags=tags,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
+            )
+            await deployment.apply(image=image)
+
+            progress.update(create_deployment_task, completed=1)
+
+        console.print(f"Successfully deployed flow {self.name!r}\n", style="green")
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:

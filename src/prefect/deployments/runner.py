@@ -311,6 +311,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -338,6 +341,8 @@ class RunnerDeployment(BaseModel):
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
 
+        job_variables = job_variables or {}
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
@@ -348,6 +353,9 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
 
         if not deployment.entrypoint:
@@ -402,6 +410,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -436,6 +447,8 @@ class RunnerDeployment(BaseModel):
             schedule=schedule,
         )
 
+        job_variables = job_variables or {}
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
@@ -447,6 +460,9 @@ class RunnerDeployment(BaseModel):
             version=version,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
         deployment._path = str(Path.cwd())
 
@@ -471,6 +487,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -511,6 +530,8 @@ class RunnerDeployment(BaseModel):
                 create_call(load_flow_from_entrypoint, full_entrypoint)
             )
 
+        job_variables = job_variables or {}
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow.name,
@@ -523,6 +544,9 @@ class RunnerDeployment(BaseModel):
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"

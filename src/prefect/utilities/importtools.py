@@ -360,3 +360,28 @@ class AliasedModuleLoader(Loader):
         if self.callback is not None:
             self.callback(self.alias)
         sys.modules[self.alias] = root_module
+
+
+def get_entrypoint(obj: Any, relative: bool = False) -> Optional[str]:
+    """
+    Get the entrypoint for the given object.
+
+    Args:
+        obj: The object to get the entrypoint for
+        relative: If True, return with path relative to the current working directory
+
+    Returns:
+        The entrypoint as a string, or None if the entrypoint could not be found
+    """
+    # Get the frame that called get_entrypoint
+    frame = inspect.currentframe().f_back
+    while frame:
+        # Check the global variables of the calling frame to see if obj is among them
+        var_names = [name for name, var in frame.f_globals.items() if var is obj]
+        if var_names:
+            entry_path = Path(frame.f_globals["__file__"])
+            if relative:
+                entry_path = entry_path.relative_to(Path.cwd())
+            return f"{entry_path}:{var_names[0]}"
+        frame = frame.f_back
+    return None

@@ -181,7 +181,10 @@ class Runner:
         Used to avoid updating deployments when a built runner is being used to execute
         flow runs.
         """
-        return os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None
+        return (
+            os.environ.get("PREFECT__RUNNER_ENTRYPOINT") is not None
+            or os.environ.get("PREFECT__FLOW_ENTRYPOINT") is not None
+        )
 
     @sync_compatible
     async def add_deployment(
@@ -206,6 +209,7 @@ class Runner:
         if storage is not None:
             storage = await self._add_storage(storage)
             self._deployment_storage_map[deployment_id] = storage
+        self._logger.info(self._deployment_storage_map)
         self._deployment_ids.add(deployment_id)
         self.registered_deployments.append(deployment)
 
@@ -445,11 +449,24 @@ class Runner:
             if not runner._acquire_limit_slot(flow_run_id):
                 return
 
+            runner._submitting_flow_run_ids.add(flow_run_id)
+
+            flow_run = await runner._client.read_flow_run(flow_run_id)
+
+            flow_entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+            if flow_entrypoint is not None:
+                deployment = await runner._client.read_deployment(
+                    flow_run.deployment_id
+                )
+
+                flow: Flow = await anyio.run_sync_in_worker_thread(
+                    import_object, flow_entrypoint
+                )
+
+                await runner.add_flow(flow, name=deployment.name)
+
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
-                    runner._submitting_flow_run_ids.add(flow_run_id)
-                    flow_run = await runner._client.read_flow_run(flow_run_id)
-
                     pid = await runner._runs_task_group.start(
                         runner._submit_run_and_capture_errors, flow_run
                     )
