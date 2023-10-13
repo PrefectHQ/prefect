@@ -249,7 +249,7 @@ class DeploymentResponse(ORMBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    last_polled: Optional[datetime.timedelta] = FieldFrom(schemas.core.Deployment)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.Deployment)
     status: Optional[schemas.statuses.DeploymentStatus] = Field(
         default=None,
         description="Current status of the deployment.",
@@ -283,12 +283,9 @@ class DeploymentResponse(ORMBaseModel):
 
         if response.last_polled and response.last_polled > offline_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
-        elif (
-            orm_deployment.work_queue
-            and orm_deployment.work_queue.last_polled
-            and orm_deployment.work_queue.last_polled > offline_horizon
-        ):
-            response.status = schemas.statuses.DeploymentStatus.NOT_READY
+        elif orm_deployment.work_queue:
+            if orm_deployment.work_queue.last_polled > offline_horizon:
+                response.status = schemas.statuses.DeploymentStatus.READY
         else:
             response.status = schemas.statuses.DeploymentStatus.NOT_READY
 
