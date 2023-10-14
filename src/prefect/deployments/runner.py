@@ -204,16 +204,11 @@ class RunnerDeployment(BaseModel):
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
-            deployment_id = await client.create_deployment(
+            create_payload = dict(
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
                 work_pool_name=work_pool_name,
-                infra_overrides={
-                    **self.job_variables,
-                    "image": image,
-                    "command": "prefect flow-run execute",
-                },
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,
@@ -227,6 +222,19 @@ class RunnerDeployment(BaseModel):
                 parameter_openapi_schema=self._parameter_openapi_schema.dict(),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
+
+            if work_pool_name:
+                create_payload["infra_overrides"] = {
+                    **self.job_variables,
+                    "image": image,
+                    "command": "prefect flow-run execute",
+                }
+                create_payload["path"] = None if self.storage else self._path
+                create_payload["pull_steps"] = (
+                    [self.storage.to_pull_step()] if self.storage else []
+                )
+
+            deployment_id = await client.create_deployment(**create_payload)
 
             if client.server_type == ServerType.CLOUD:
                 # The triggers defined in the deployment spec are, essentially,

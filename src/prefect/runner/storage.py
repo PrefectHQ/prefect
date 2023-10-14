@@ -1,10 +1,12 @@
 import subprocess
 from pathlib import Path
-from typing import Optional, Protocol, TypedDict, runtime_checkable
+from typing import Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
 from urllib.parse import urlparse, urlunparse
 
 from anyio import run_process
 
+from prefect.blocks.core import Block
+from prefect.blocks.system import Secret
 from prefect.logging.loggers import get_logger
 
 
@@ -43,6 +45,13 @@ class RunnerStorage(Protocol):
         """
         ...
 
+    def to_pull_step(self) -> Dict:
+        """
+        Returns a dictionary representing a pull step equivalent to the current
+        storage object.
+        """
+        ...
+
     def __eq__(self, __value) -> bool:
         """
         Equality check for runner storage objects.
@@ -52,7 +61,7 @@ class RunnerStorage(Protocol):
 
 class GitCredentials(TypedDict, total=False):
     username: str
-    access_token: str
+    access_token: Union[str, Secret]
 
 
 class GitRepository:
@@ -76,10 +85,11 @@ class GitRepository:
 
         ```python
         from prefect.runner.storage import GitRepository
+        from prefect.blocks.system import Secret
 
         storage = GitRepository(
             url="https://github.com/org/repo.git",
-            credentials={"username": "oauth2", "access_token": "my-access-token"},
+            credentials={"username": "oauth2", "access_token": Secret.load("my-access-token")},
         )
 
         await storage.pull_code()
@@ -89,7 +99,7 @@ class GitRepository:
     def __init__(
         self,
         url: str,
-        credentials: Optional[GitCredentials] = None,
+        credentials: Optional[Union[GitCredentials, Block]] = None,
         name: Optional[str] = None,
         branch: str = "main",
         pull_interval: Optional[int] = 60,
@@ -103,8 +113,11 @@ class GitRepository:
             )
         self._url = url
         self._branch = branch
-        self._username = credentials.get("username")
-        self._access_token = credentials.get("access_token")
+        if isinstance(credentials, Block):
+            self._credentials = credentials
+        else:
+            self._username = credentials.get("username")
+            self._access_token = credentials.get("access_token")
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         self._name = name or f"{repo_name}-{branch}"
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
@@ -127,7 +140,7 @@ class GitRepository:
         Pulls the contents of the configured repository to the local filesystem.
         """
         self._logger.debug(
-            "Pull contents from repository '%s' to '%s'...",
+            "Pulling contents from repository '%s' to '%s'...",
             self._name,
             self.destination,
         )
@@ -208,6 +221,40 @@ class GitRepository:
                     f"Failed to clone repository {self._url!r} with exit code"
                     f" {exc.returncode}."
                 ) from exc_chain
+
+    def to_pull_step(self) -> Dict:
+        pull_step = {
+            "prefect.deployments.steps.git_clone": {
+                "repository": self._url,
+                "branch": self._branch,
+            }
+        }
+        if hasattr(self, "_credentials"):
+            credentials_placeholder = self._credentials.get_block_placeholder()
+            if credentials_placeholder is None:
+                raise ValueError(
+                    "Please ensure your credentials block is saved before creating a"
+                    " storage object."
+                )
+            pull_step["prefect.deployments.steps.git_clone"][
+                "credentials"
+            ] = credentials_placeholder
+
+        elif hasattr(self, "_access_token") and self._access_token is not None:
+            if (
+                isinstance(self._access_token, str)
+                or self._access_token.get_block_placeholder() is None
+            ):
+                raise ValueError(
+                    "Please ensure your access token is saved as a Secret block before"
+                    " creating a storage object."
+                )
+            assert isinstance(self._access_token, Secret)
+            pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
+                "username": self._username,
+                "access_token": self._access_token.get_block_placeholder(),
+            }
+        return pull_step
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):

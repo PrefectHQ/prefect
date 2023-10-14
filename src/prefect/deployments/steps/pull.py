@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import urllib.parse
+from pathlib import Path
 from typing import Optional
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
@@ -212,14 +213,45 @@ def git_clone(
     else:
         repository_url = repository
 
-    cmd = ["git", "clone", repository_url]
-    if branch:
-        cmd += ["-b", branch]
-    if include_submodules:
-        cmd += ["--recurse-submodules"]
+    directory = (
+        urllib.parse.urlparse(repository).path.split("/")[-1].replace(".git", "")
+    )
 
-    # Limit git history
-    cmd += ["--depth", "1"]
+    git_dir = Path(directory) / ".git"
+    if git_dir.exists():
+        # Check if the existing repository matches the configured repository
+        result = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"]
+        )
+        existing_repo_url = None
+        existing_repo_url = result.decode().strip()
+        existing_repo_url_parts = urllib.parse.urlparse(existing_repo_url)
+        if access_token:
+            existing_repo_url_parts = existing_repo_url_parts._replace(
+                netloc=existing_repo_url_parts.netloc.replace(f"{access_token}@", "")
+            )
+        existing_repo_url = urllib.parse.urlunparse(existing_repo_url_parts)
+
+        if existing_repo_url != repository:
+            raise ValueError(
+                f"The existing repository at {directory!r} "
+                f"does not match the configured repository {repository!r}"
+            )
+
+        cmd = ["git", "pull", "origin"]
+        if branch:
+            cmd += [branch]
+        if include_submodules:
+            cmd += ["--recurse-submodules"]
+    else:
+        cmd = ["git", "clone", repository_url]
+        if branch:
+            cmd += ["-b", branch]
+        if include_submodules:
+            cmd += ["--recurse-submodules"]
+
+        # Limit git history
+        cmd += ["--depth", "1"]
 
     try:
         subprocess.check_call(
@@ -233,7 +265,6 @@ def git_clone(
             f" {exc.returncode}."
         ) from exc_chain
 
-    directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
     deployment_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
 

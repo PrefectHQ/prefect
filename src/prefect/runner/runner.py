@@ -32,7 +32,6 @@ Example:
 import asyncio
 import datetime
 import inspect
-import json
 import logging
 import os
 import shlex
@@ -91,7 +90,6 @@ from prefect.utilities.dockerutils import (
     docker_client,
     get_prefect_image_name,
 )
-from prefect.utilities.importtools import get_entrypoint, import_object
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
 
@@ -182,17 +180,6 @@ class Runner:
         self._storage_objs: List[RunnerStorage] = []
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
-    @property
-    def _in_execution_mode(self):
-        """
-        Used to avoid updating deployments when a built runner is being used to execute
-        flow runs.
-        """
-        return (
-            os.environ.get("PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH") is not None
-            or os.environ.get("PREFECT__FLOW_ENTRYPOINT") is not None
-        )
-
     @sync_compatible
     async def add_deployment(
         self,
@@ -205,13 +192,7 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        if self._in_execution_mode:
-            api_deployment = await self._client.read_deployment_by_name(
-                name=f"{deployment.flow_name}/{deployment.name}"
-            )
-            deployment_id = api_deployment.id
-        else:
-            deployment_id = await deployment.apply()
+        deployment_id = await deployment.apply()
         storage = deployment.storage
         if storage is not None:
             storage = await self._add_storage(storage)
@@ -450,37 +431,6 @@ class Runner:
             self._submitting_flow_run_ids.add(flow_run_id)
 
             flow_run = await self._client.read_flow_run(flow_run_id)
-
-            flow_entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
-            deployment_entrypoint_map_path = os.environ.get(
-                "PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH"
-            )
-            if flow_entrypoint is not None:
-                deployment = await self._client.read_deployment(flow_run.deployment_id)
-
-                flow: Flow = await anyio.run_sync_in_worker_thread(
-                    import_object, flow_entrypoint
-                )
-
-                await self.add_flow(flow, name=deployment.name)
-
-            if deployment_entrypoint_map_path is not None:
-                deployment_entrypoint_map = json.loads(
-                    Path(deployment_entrypoint_map_path).read_text()
-                )
-                deployment = await self._client.read_deployment(flow_run.deployment_id)
-                flow = await self._client.read_flow(flow_run.flow_id)
-                entrypoint = deployment_entrypoint_map.get(
-                    f"{flow.name}/{deployment.name}"
-                )
-                if entrypoint is not None:
-                    loaded_item: Union[RunnerDeployment, Flow] = (
-                        await anyio.run_sync_in_worker_thread(import_object, entrypoint)
-                    )
-                    if isinstance(loaded_item, RunnerDeployment):
-                        await self.add_deployment(loaded_item)
-                    elif isinstance(loaded_item, Flow):
-                        await self.add_flow(loaded_item, name=deployment.name)
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
@@ -1227,17 +1177,6 @@ async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
                 work_pool_name="my-work-pool",
             )
     """
-    deployment_entrypoint_map = {
-        f"{deployment.flow_name}/{deployment.name}": (
-            deployment._remote_flow_entrypoint
-            or get_entrypoint(deployment, relative=True)
-        )
-        for deployment in args
-    }
-    Path("deployment_entrypoint_map.json").write_text(
-        json.dumps(deployment_entrypoint_map)
-    )
-
     console = Console()
     with Progress(
         SpinnerColumn(),
@@ -1268,9 +1207,6 @@ async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
 
         lines.append(f"COPY . /opt/prefect/{dir_name}/")
         lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
-        lines.append(
-            " ENV PREFECT__DEPLOYMENTS_ENTRYPOINT_MAP_PATH=deployment_entrypoint_map.json"
-        )
 
         with Path(temp_dockerfile).open("w") as f:
             f.writelines(line + "\n" for line in lines)
@@ -1282,7 +1218,6 @@ async def deploy(*args: RunnerDeployment, image: str, work_pool_name: str):
         finally:
             progress.update(docker_build_task, completed=1)
             Path("Dockerfile").unlink()
-            Path("deployment_entrypoint_map.json").unlink()
 
     console.print(f"Successfully built image {image!r}\n", style="green")
 
