@@ -353,11 +353,11 @@ class TestGitCloneStep:
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
     async def test_git_clone_with_credentials(self, git_repository_mock):
-        class MockCredentials(Block):
+        class MockGitCredentials(Block):
             username: str
             password: str
 
-        await MockCredentials(username="marvin42", password="hunter2").save(
+        await MockGitCredentials(username="marvin42", password="hunter2").save(
             name="my-credentials"
         )
         await run_step(
