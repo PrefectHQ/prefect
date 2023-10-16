@@ -365,7 +365,7 @@ class TestGitCloneStep:
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
                     "credentials": (
-                        "{{ prefect.blocks.mockcredentials.my-credentials }}"
+                        "{{ prefect.blocks.mockgitcredentials.my-credentials }}"
                     ),
                 }
             }
