@@ -318,6 +318,10 @@ async def get_scheduled_flow_runs_for_deployments(
             sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
         )
 
+        await models.deployments._update_deployment_last_polled(
+            session=session, deployment_ids=deployment_ids
+        )
+
         return [
             schemas.responses.FlowRunResponse.from_orm(orm_flow_run=orm_flow_run)
             for orm_flow_run in orm_flow_runs
