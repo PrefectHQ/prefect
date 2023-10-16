@@ -1486,6 +1486,7 @@ class PrefectClient:
         description: str = None,
         work_queue_name: str = None,
         work_pool_name: str = None,
+        last_polled: datetime.datetime = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
