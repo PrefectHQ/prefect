@@ -59,7 +59,6 @@ async def _create_test_deployment_from_orm(
                     "updated_by",
                     "work_queue_id",
                     "last_polled",
-                    "status",
                 }
             )
         )

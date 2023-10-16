@@ -568,11 +568,7 @@ class Deployment(ORMBaseModel):
     )
     last_polled: Optional[DateTimeTZ] = Field(
         default=None,
-        description="The last time the deployment was polled.",
-    )
-    status: Optional[str] = Field(
-        default=None,
-        description="The status of the deployment.",
+        description="The last time the deployment was polled for status updates.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,

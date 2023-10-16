@@ -963,9 +963,6 @@ class Deployment(ObjectBaseModel):
             " be scheduled."
         ),
     )
-    status: Optional[DeploymentStatus] = Field(
-        default=None, description="The current status of the deployment."
-    )
     last_polled: Optional[DateTimeTZ] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",

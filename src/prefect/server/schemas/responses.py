@@ -250,10 +250,6 @@ class DeploymentResponse(ORMBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.Deployment)
-    status: Optional[schemas.statuses.DeploymentStatus] = Field(
-        default=None,
-        description="Current status of the deployment.",
-    )
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
         schemas.core.Deployment
     )
@@ -268,6 +264,10 @@ class DeploymentResponse(ORMBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
+    )
+    status: Optional[schemas.statuses.DeploymentStatus] = Field(
+        default=None,
+        description="Current status of the deployment.",
     )
     enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
