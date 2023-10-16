@@ -298,7 +298,7 @@ async def get_scheduled_flow_runs_for_deployments(
     """
     Get scheduled runs for a set of deployments. Used by a runner to poll for work.
     """
-    async with db.session_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         orm_flow_runs = await models.flow_runs.read_flow_runs(
             session=session,
             limit=limit,

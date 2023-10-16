@@ -1455,13 +1455,18 @@ class TestGetScheduledFlowRuns:
 
         updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
         assert updated_response_1.status_code == 200
-        # last_polled ends up being a string here
-        one_minute_ago_as_string = pendulum.now("UTC").subtract(minutes=1).isoformat()
-        assert updated_response_1.json()["last_polled"] > one_minute_ago_as_string
+
+        assert (
+            updated_response_1.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
 
         updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
         assert updated_response_2.status_code == 200
-        assert updated_response_2.json()["last_polled"] > one_minute_ago_as_string
+        assert (
+            updated_response_2.json()["last_polled"]
+            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+        )
 
 
 class TestDeleteDeployment:
