@@ -938,9 +938,7 @@ class Flow(Generic[P, R]):
                 progress.update(docker_build_task, completed=1)
                 Path("Dockerfile").unlink()
 
-        console.print(
-            f"Successfully built image {full_image_name!r} for flow\n", style="green"
-        )
+        console.print(f"Successfully built image {full_image_name!r}", style="green")
 
         with Progress(
             SpinnerColumn(),
@@ -958,9 +956,7 @@ class Flow(Generic[P, R]):
 
             progress.update(docker_push_task, completed=1)
 
-        console.print(
-            f"Successfully pushed image {full_image_name!r} for flow\n", style="green"
-        )
+        console.print(f"Successfully pushed image {full_image_name!r}", style="green")
 
         with Progress(
             SpinnerColumn(),
@@ -990,7 +986,7 @@ class Flow(Generic[P, R]):
 
             progress.update(create_deployment_task, completed=1)
 
-        console.print(f"Successfully deployed flow {self.name!r}\n", style="green")
+        console.print(f"Successfully deployed flow {self.name!r}!", style="green")
 
         if not work_pool.is_push_pool:
             console.print(
