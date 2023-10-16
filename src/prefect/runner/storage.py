@@ -107,7 +107,11 @@ class GitRepository:
         if credentials is None:
             credentials = {}
 
-        if credentials.get("username") and not credentials.get("access_token"):
+        if (
+            isinstance(credentials, dict)
+            and credentials.get("username")
+            and not credentials.get("access_token")
+        ):
             raise ValueError(
                 "If a username is provided, an access token must also be provided."
             )
@@ -116,7 +120,8 @@ class GitRepository:
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
-        self._name = name or f"{repo_name}-{branch}"
+        default_name = f"{repo_name}-{branch}" if branch else repo_name
+        self._name = name or default_name
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
@@ -214,7 +219,7 @@ class GitRepository:
                 cmd += ["--recurse-submodules"]
 
             # Limit git history and set path to clone to
-            cmd += ["--depth", "1", self.destination]
+            cmd += ["--depth", "1", str(self.destination)]
 
             try:
                 await run_process(cmd)
@@ -273,14 +278,18 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
     username = credentials.get("username") if credentials else None
     password = credentials.get("password") if credentials else None
     token = credentials.get("token") if credentials else None
+    access_token = credentials.get("access_token") if credentials else None
 
-    user_provided_token = token or password
+    user_provided_token = access_token or token or password
 
     if not user_provided_token:
         raise ValueError(
             "Please provide a `token` or `password` in your Credentials block to clone"
             " a repo."
         )
+
+    if username:
+        return f"{username}:{user_provided_token}"
 
     if "bitbucketserver" in netloc:
         # If they pass a BitBucketCredentials block and we don't have both a username and at
