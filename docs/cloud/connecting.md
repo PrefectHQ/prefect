@@ -138,11 +138,11 @@ Use the `prefect config view` CLI command to make sure your execution environmen
 $ prefect config view
 PREFECT_PROFILE='cloud'
 PREFECT_API_KEY='pnu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' (from profile)
-PREFECT_API_URL='https://api-beta.prefect.io/api/accounts/...' (from profile)
+PREFECT_API_URL='https://api.prefect.cloud/api/accounts/...' (from profile)
 ```
 </div>
 
-Make sure `PREFECT_API_URL` is configured to use `https://api-beta.prefect.io/api/...`.
+Make sure `PREFECT_API_URL` is configured to use `https://api.prefect.cloud/api/...`.
 
 Make sure `PREFECT_API_KEY` is configured to use a valid API key.
 
