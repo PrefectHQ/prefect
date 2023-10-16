@@ -11,7 +11,7 @@ tags:
     - Cloud Run
     - Container Instances
 search:
-  boost: 2
+  boost: .5
 ---
 
 # Infrastructure
