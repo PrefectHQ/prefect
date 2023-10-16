@@ -7,7 +7,11 @@ import prefect.results
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.filesystems import LocalFileSystem
-from prefect.results import LiteralResult, PersistedResult, ResultFactory
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    ResultFactory,
+)
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
@@ -84,7 +88,7 @@ def test_root_flow_default_persist_result_can_be_overriden_by_setting():
     assert result_factory.persist_result is True
 
 
-def test_roto_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
+def test_root_flow_can_opt_out_when_persist_result_default_is_overriden_by_setting():
     @flow(persist_result=False)
     def foo():
         return get_run_context().result_factory
