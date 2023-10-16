@@ -266,7 +266,7 @@ class GitRepository:
                         f" {self._credentials['access_token'].get_block_placeholder()} }}}}"
                     ),
                 }
-            else:
+            elif self._credentials.get("access_token") is not None:
                 raise ValueError(
                     "Please save your access token as a Secret block before converting"
                     " this storage object to a pull step."
