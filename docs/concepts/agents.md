@@ -4,7 +4,7 @@ tags:
     - agents
     - deployments
 search:
-  boost: 2
+  boost: .5
 ---
 
 # Agents
