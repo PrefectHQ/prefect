@@ -340,6 +340,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
                 "Parameters", __config__=ModelConfig, **model_fields
             )
             schema = model.schema(by_alias=True)
+            schema["definitions"] = schema["$defs"]
         else:
             raise
     return ParameterSchema(**schema)
