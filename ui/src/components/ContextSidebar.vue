@@ -18,6 +18,16 @@
     <p-context-nav-item v-if="canSeeArtifacts" title="Artifacts" :to="routes.artifacts()" />
 
     <template #footer>
+      <a href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank">
+        <p-context-nav-item>
+          <div>
+            Ready to scale?
+          </div>
+          <p-button primary small class="context-sidebar__upgade-button">
+            Upgrade
+          </p-button>
+        </p-context-nav-item>
+      </a>
       <p-context-nav-item title="Settings" :to="routes.settings()" />
     </template>
   </p-context-sidebar>
@@ -50,5 +60,9 @@
 .context-sidebar__logo-icon { @apply
   !w-[42px]
   !h-[42px]
+}
+
+.context-sidebar__upgade-button { @apply
+  ml-auto
 }
 </style>

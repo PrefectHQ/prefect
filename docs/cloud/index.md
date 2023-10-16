@@ -1,6 +1,5 @@
 ---
 description: Observe and orchestrate your workflows with the hosted Prefect Cloud platform.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -19,7 +18,7 @@ search:
 
 Prefect Cloud is a workflow orchestration platform that provides all the capabilities of Prefect server plus additional features, such as:
 
-- automations, events, and webhooks so you can create for event-driven workfows
+- automations, events, and webhooks so you can create for event-driven workflows
 - workspaces, RBAC, SSO, audit logs and related user management tools for collaboration
 - push work pools for running flows on serverless infrastructure without a worker
 - error summaries powered by Marvin AI to help you resolve errors faster

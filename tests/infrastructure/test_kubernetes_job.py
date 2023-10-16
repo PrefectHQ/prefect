@@ -16,7 +16,13 @@ import yaml
 from jsonpatch import JsonPatch
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config import ConfigException
-from pydantic import ValidationError
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.kubernetes import (
@@ -1054,7 +1060,7 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         assert f"test {i}" not in stdout
 
 
-@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client,
     mock_watch,
@@ -1313,7 +1319,7 @@ class TestCustomizingBaseJob:
             {
                 "loc": ("job",),
                 "msg": (
-                    "Job has incompatble values for the following attributes: "
+                    "Job has incompatible values for the following attributes: "
                     "/apiVersion must have value 'batch/v1', "
                     "/kind must have value 'Job'"
                 ),

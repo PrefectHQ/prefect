@@ -4,7 +4,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
 import jsonschema
-from pydantic import Field, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, root_validator, validator
+else:
+    from pydantic import Field, root_validator, validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.experimental import experimental_field
@@ -281,7 +287,7 @@ class TaskRunCreate(ActionBaseModel):
     )
 
     name: str = FieldFrom(objects.TaskRun)
-    flow_run_id: UUID = FieldFrom(objects.TaskRun)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.TaskRun)
     task_key: str = FieldFrom(objects.TaskRun)
     dynamic_key: str = FieldFrom(objects.TaskRun)
     cache_key: Optional[str] = FieldFrom(objects.TaskRun)
@@ -461,7 +467,7 @@ class LogCreate(ActionBaseModel):
     level: int = FieldFrom(objects.Log)
     message: str = FieldFrom(objects.Log)
     timestamp: objects.DateTimeTZ = FieldFrom(objects.Log)
-    flow_run_id: UUID = FieldFrom(objects.Log)
+    flow_run_id: Optional[UUID] = FieldFrom(objects.Log)
     task_run_id: Optional[UUID] = FieldFrom(objects.Log)
 
 

@@ -5,7 +5,7 @@ Each setting is defined as a `Setting` type. The name of each setting is stylize
 caps, matching the environment variable that can be used to change the setting.
 
 All settings defined in this file are used to generate a dynamic Pydantic settings class
-called `Settings`. When insantiated, this class will load settings from environment
+called `Settings`. When instantiated, this class will load settings from environment
 variables and pull default values from the setting definitions.
 
 The current instance of `Settings` being used by the application is stored in a
@@ -63,12 +63,35 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+else:
+    from pydantic import (
+        BaseModel,
+        BaseSettings,
+        Field,
+        create_model,
+        fields,
+        root_validator,
+        validator,
+    )
+
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -94,12 +117,12 @@ class Setting(Generic[T]):
         deprecated_help: str = "",
         deprecated_when_message: str = "",
         deprecated_when: Optional[Callable[[Any], bool]] = None,
-        deprecated_renamed_to: Optional["Setting"] = None,
-        value_callback: Callable[["Settings", T], T] = None,
+        deprecated_renamed_to: Optional["Setting[T]"] = None,
+        value_callback: Optional[Callable[["Settings", T], T]] = None,
         is_secret: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
-        self.field: pydantic.fields.FieldInfo = Field(**kwargs)
+        self.field: fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self._name = None
@@ -264,14 +287,11 @@ def only_return_value_in_test_mode(settings, value):
 def default_ui_api_url(settings, value):
     """
     `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
-    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    relative path '/api', otherwise it constructs an API URL from the API settings.
     """
     if value is None:
         # Set a default value
-        if PREFECT_API_URL.value_from(settings):
-            value = "${PREFECT_API_URL}"
-        else:
-            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
+        value = "/api"
 
     return template_with_settings(
         PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
@@ -481,7 +501,6 @@ def default_cloud_ui_url(settings, value):
 
 # Setting definitions
 
-
 PREFECT_HOME = Setting(
     Path,
     default=Path("~") / ".prefect",
@@ -680,7 +699,7 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 
 PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
 """
-If enabled, warn on usage of expirimental features.
+If enabled, warn on usage of experimental features.
 """
 
 PREFECT_PROFILES_PATH = Setting(
@@ -730,7 +749,7 @@ This value does not overwrite individually set retries values on a flow
 PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
 """
 This value sets the retry delay seconds for all flows.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
@@ -738,7 +757,7 @@ PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
 )
 """
 This value sets the default retry delay seconds for all tasks.
-This value does not overwrite invidually set retry delay seconds
+This value does not overwrite individually set retry delay seconds
 """
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
@@ -746,7 +765,13 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
     default=Path("${PREFECT_HOME}") / "storage",
     value_callback=template_with_settings(PREFECT_HOME),
 )
-"""The path to a directory to store things in."""
+"""The path to a block storage directory to store things in."""
+
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
@@ -821,7 +846,7 @@ PREFECT_LOGGING_LOG_PRINTS = Setting(
 )
 """
 If set, `print` statements in flows and tasks will be redirected to the Prefect logger
-for the given run. This setting can be overriden by individual tasks and flows.
+for the given run. This setting can be overridden by individual tasks and flows.
 """
 
 PREFECT_LOGGING_TO_API_ENABLED = Setting(
@@ -1268,9 +1293,44 @@ PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect visualize is used.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+"""
+Whether or not to enable experimental enhanced flow run cancellation.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental enhanced flow run cancellation is used.
+"""
+
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
+"""
+
+PREFECT_RUNNER_POLL_FREQUENCY = Setting(int, default=10)
+"""
+Number of seconds a runner should wait between queries for scheduled work.
+"""
+
+PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE = Setting(int, default=2)
+"""
+Number of missed polls before a runner is considered unhealthy by its webserver.
+"""
+
+PREFECT_RUNNER_SERVER_HOST = Setting(str, default="0.0.0.0")
+"""
+The host address the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_PORT = Setting(int, default=8080)
+"""
+The port the runner's webserver should bind to.
+"""
+
+PREFECT_RUNNER_SERVER_LOG_LEVEL = Setting(str, default="error")
+"""
+The log level of the runner's webserver.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
@@ -1594,7 +1654,7 @@ def temporary_settings(
         yield new_settings
 
 
-class Profile(pydantic.BaseModel):
+class Profile(BaseModel):
     """
     A user profile containing settings.
     """
@@ -1603,7 +1663,7 @@ class Profile(pydantic.BaseModel):
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path]
 
-    @pydantic.validator("settings", pre=True)
+    @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
         if value is None:
             return value

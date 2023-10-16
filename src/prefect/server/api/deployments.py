@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import pendulum
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -284,6 +284,46 @@ async def read_deployments(
         ]
 
 
+@router.post("/get_scheduled_flow_runs")
+async def get_scheduled_flow_runs_for_deployments(
+    deployment_ids: List[UUID] = Body(
+        default=..., description="The deployment IDs to get scheduled runs for"
+    ),
+    scheduled_before: DateTimeTZ = Body(
+        None, description="The maximum time to look for scheduled flow runs"
+    ),
+    limit: int = dependencies.LimitBody(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.responses.FlowRunResponse]:
+    """
+    Get scheduled runs for a set of deployments. Used by a runner to poll for work.
+    """
+    async with db.session_context() as session:
+        orm_flow_runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            limit=limit,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=deployment_ids),
+            ),
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+                state=schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[schemas.states.StateType.SCHEDULED]
+                    )
+                ),
+            ),
+            sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
+        )
+
+        return [
+            schemas.responses.FlowRunResponse.from_orm(orm_flow_run=orm_flow_run)
+            for orm_flow_run in orm_flow_runs
+        ]
+
+
 @router.post("/count")
 async def count_deployments(
     flows: schemas.filters.FlowFilter = None,
@@ -471,7 +511,7 @@ async def create_flow_run_from_deployment(
         work_queue_id = deployment.work_queue_id
 
         if flow_run.work_queue_name:
-            # cant mutate the ORM model or else it will commit the changes back
+            # can't mutate the ORM model or else it will commit the changes back
             work_queue_id = await worker_lookups._get_work_queue_id_from_name(
                 session=session,
                 work_pool_name=deployment.work_queue.work_pool.name,

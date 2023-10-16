@@ -2,10 +2,17 @@ import string
 from typing import List
 from uuid import uuid4
 
-import pydantic
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    from pydantic.v1 import SecretBytes, SecretStr
+else:
+    import pydantic
+    from pydantic import SecretBytes, SecretStr
+
 import pytest
-from fastapi import status
-from pydantic import SecretBytes, SecretStr
+from starlette import status
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict

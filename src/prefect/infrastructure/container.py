@@ -8,7 +8,14 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
-from pydantic import Field, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, validator
+else:
+    from pydantic import Field, validator
+
 from typing_extensions import Literal
 
 import prefect
@@ -618,8 +625,8 @@ class DockerContainer(Infrastructure):
                     )
                 else:
                     self.logger.exception(
-                        "An unexpected Docker API error occured while streaming output "
-                        f"from container {container.name}."
+                        "An unexpected Docker API error occurred while streaming"
+                        f" output from container {container.name}."
                     )
 
             container.reload()

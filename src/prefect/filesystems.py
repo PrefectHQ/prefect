@@ -9,7 +9,13 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, SecretStr, validator
+else:
+    from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
@@ -318,7 +324,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -345,7 +351,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         overwrite: bool = True,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -716,7 +722,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """

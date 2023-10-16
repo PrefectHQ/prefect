@@ -7,10 +7,16 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field
+else:
+    from pydantic import Field
 
 import prefect.server.schemas as schemas
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
@@ -21,7 +27,7 @@ if TYPE_CHECKING:
 
 sa = lazy_import("sqlalchemy")
 
-# TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
+# TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
 
@@ -349,8 +355,12 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
 class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.state_type` and `FlowRun.state_name`."""
 
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_type`"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun.state_name`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []

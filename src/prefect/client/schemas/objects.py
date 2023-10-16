@@ -13,7 +13,14 @@ from typing import (
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, conint, root_validator, validator
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+else:
+    from pydantic import Field, HttpUrl, conint, root_validator, validator
+
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
@@ -620,8 +627,8 @@ class Constant(TaskRunInput):
 
 class TaskRun(ObjectBaseModel):
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run id of the task run."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run id of the task run."
     )
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
@@ -1132,8 +1139,8 @@ class Log(ObjectBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
-    flow_run_id: UUID = Field(
-        default=..., description="The flow run ID associated with the log."
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
@@ -1212,7 +1219,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
     ) -> bool:
         """
-        Given empirical information about the state of the work queue, evaulate its health status.
+        Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
             late_runs: the count of late runs for the work queue.

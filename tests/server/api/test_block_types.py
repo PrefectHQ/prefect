@@ -3,9 +3,16 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 import pytest
-from fastapi import status
+from starlette import status
 
 import prefect
 from prefect.blocks.core import Block

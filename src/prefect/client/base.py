@@ -4,13 +4,25 @@ import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import partial
-from typing import Callable, ContextManager, Dict, Set, Tuple, Type
+from typing import (
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Dict,
+    MutableMapping,
+    Protocol,
+    Set,
+    Tuple,
+    Type,
+    runtime_checkable,
+)
 
 import anyio
 import httpx
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI, status
 from httpx import HTTPStatusError, Response
+from starlette import status
 from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
@@ -34,8 +46,22 @@ APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 logger = get_logger("client")
 
 
+# Define ASGI application types for type checking
+Scope = MutableMapping[str, Any]
+Message = MutableMapping[str, Any]
+
+Receive = Callable[[], Awaitable[Message]]
+Send = Callable[[Message], Awaitable[None]]
+
+
+@runtime_checkable
+class ASGIApp(Protocol):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        ...
+
+
 @asynccontextmanager
-async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
+async def app_lifespan_context(app: ASGIApp) -> AsyncGenerator[None, None]:
     """
     A context manager that calls startup/shutdown hooks for the given application.
 
@@ -259,6 +285,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_408_REQUEST_TIMEOUT,
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=(

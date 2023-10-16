@@ -2,15 +2,30 @@ import asyncio
 import datetime
 import warnings
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import httpcore
 import httpx
 import pendulum
-import pydantic
+
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI, status
+from starlette import status
 
 import prefect
 import prefect.exceptions
@@ -78,6 +93,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.responses import (
     DeploymentResponse,
+    FlowRunResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -109,7 +125,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
 
 class ServerType(AutoEnum):
@@ -173,7 +189,7 @@ class PrefectClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI],
+        api: Union[str, ASGIApp],
         *,
         api_key: str = None,
         api_version: str = None,
@@ -196,7 +212,7 @@ class PrefectClient:
 
         # Context management
         self._exit_stack = AsyncExitStack()
-        self._ephemeral_app: Optional[FastAPI] = None
+        self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
         self.server_type: ServerType
 
@@ -244,7 +260,7 @@ class PrefectClient:
             )
 
         # Connect to an in-process application
-        elif isinstance(api, FastAPI):
+        elif isinstance(api, ASGIApp):
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
 
@@ -267,7 +283,7 @@ class PrefectClient:
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'FastAPI'"
+                " 'str' or 'ASGIApp/FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -1024,12 +1040,14 @@ class PrefectClient:
     async def match_work_queues(
         self,
         prefixes: List[str],
+        work_pool_name: Optional[str] = None,
     ) -> List[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
         Args:
             prefixes: a list of strings used to match work queue name prefixes
+            work_pool_name: an optional work pool name to scope the query to
 
         Returns:
             a list of WorkQueue model representations
@@ -1041,6 +1059,7 @@ class PrefectClient:
 
         while True:
             new_queues = await self.read_work_queues(
+                work_pool_name=work_pool_name,
                 offset=current_page * page_length,
                 limit=page_length,
                 work_queue_filter=WorkQueueFilter(
@@ -1289,6 +1308,34 @@ class PrefectClient:
         response = await self._client.post("/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[BlockSchema], response.json())
 
+    async def get_most_recent_block_schema_for_block_type(
+        self,
+        block_type_id: UUID,
+    ) -> Optional[BlockSchema]:
+        """
+        Fetches the most recent block schema for a specified block type ID.
+
+        Args:
+            block_type_id: The ID of the block type.
+
+        Raises:
+            httpx.RequestError: If the request fails for any reason.
+
+        Returns:
+            The most recent block schema or None.
+        """
+        try:
+            response = await self._client.post(
+                "/block_schemas/filter",
+                json={
+                    "block_schemas": {"block_type_id": {"any_": [str(block_type_id)]}},
+                    "limit": 1,
+                },
+            )
+        except httpx.HTTPStatusError:
+            raise
+        return BlockSchema.parse_obj(response.json()[0]) if response.json() else None
+
     async def read_block_document(
         self,
         block_document_id: UUID,
@@ -1398,6 +1445,35 @@ class PrefectClient:
                 include_secrets=include_secrets,
             ),
         )
+        return pydantic.parse_obj_as(List[BlockDocument], response.json())
+
+    async def read_block_documents_by_type(
+        self,
+        block_type_slug: str,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        include_secrets: bool = True,
+    ) -> List[BlockDocument]:
+        """Retrieve block documents by block type slug.
+
+        Args:
+            block_type_slug: The block type slug.
+            offset: an offset
+            limit: the number of blocks to return
+            include_secrets: whether to include secret values
+
+        Returns:
+            A list of block documents
+        """
+        response = await self._client.get(
+            f"/block_types/slug/{block_type_slug}/block_documents",
+            params=dict(
+                offset=offset,
+                limit=limit,
+                include_secrets=include_secrets,
+            ),
+        )
+
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
     async def create_deployment(
@@ -2366,6 +2442,25 @@ class PrefectClient:
             response = await self._client.post("/work_queues/filter", json=json)
 
         return pydantic.parse_obj_as(List[WorkQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_deployments(
+        self,
+        deployment_ids: List[UUID],
+        scheduled_before: Optional[datetime.datetime] = None,
+        limit: Optional[int] = None,
+    ):
+        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
+        if limit:
+            body["limit"] = limit
+
+        response = await self._client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[FlowRunResponse], response.json())
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
