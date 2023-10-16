@@ -266,8 +266,8 @@ class DeploymentResponse(ORMBaseModel):
         description="The name of the deployment's work pool.",
     )
     status: Optional[schemas.statuses.DeploymentStatus] = Field(
-        default=None,
-        description="Current status of the deployment.",
+        default=schemas.statuses.DeploymentStatus.NOT_READY,
+        description="Whether the deployment is ready to run flows.",
     )
     enforce_parameter_schema: bool = FieldFrom(schemas.core.Deployment)
 
@@ -277,25 +277,23 @@ class DeploymentResponse(ORMBaseModel):
     ):
         response = super().from_orm(orm_deployment)
 
+        if orm_deployment.work_queue:
+            response.work_queue_name = orm_deployment.work_queue.name
+            if orm_deployment.work_queue.work_pool:
+                response.work_pool_name = orm_deployment.work_queue.work_pool.name
+
         offline_horizon = datetime.datetime.now(
             tz=datetime.timezone.utc
         ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
 
         if response.last_polled and response.last_polled > offline_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
-        elif orm_deployment.work_queue:
-            if (
-                orm_deployment.work_queue.last_polled
-                and orm_deployment.work_queue.last_polled > offline_horizon
-            ):
-                response.status = schemas.statuses.DeploymentStatus.READY
-        else:
-            response.status = schemas.statuses.DeploymentStatus.NOT_READY
-
-        if orm_deployment.work_queue:
-            response.work_queue_name = orm_deployment.work_queue.name
-            if orm_deployment.work_queue.work_pool:
-                response.work_pool_name = orm_deployment.work_queue.work_pool.name
+        elif (
+            orm_deployment.work_queue
+            and orm_deployment.work_queue.last_polled
+            and orm_deployment.work_queue.last_polled > offline_horizon
+        ):
+            response.status = schemas.statuses.DeploymentStatus.READY
 
         return response
 
