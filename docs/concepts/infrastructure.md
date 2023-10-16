@@ -16,7 +16,7 @@ search:
 
 # Infrastructure
 
-!!! note "Workers are recommended"
+!!! warning "Workers are recommended"
     Infrastructure blocks are part of the agent based deployment model. [Work Pools and Workers](/concepts/work-pools/) simplify the specification of each flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
 
 Users may specify an [infrastructure](/api-ref/prefect/infrastructure/) block when creating a deployment. This block will be used to specify infrastructure for flow runs created by the deployment at runtime.
