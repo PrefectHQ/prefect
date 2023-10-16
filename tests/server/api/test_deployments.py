@@ -1390,6 +1390,95 @@ class TestGetScheduledFlowRuns:
             str(flow_run.id) for flow_run in flow_runs[:3]
         ]
 
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response1.status_code == 200
+        assert response1.json()["last_polled"] is None
+        assert response1.json()["status"] == "NOT_READY"
+
+        response2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response2.status_code == 200
+        assert response2.json()["last_polled"] is None
+        assert response2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_deployment_1 = await client.get(
+            f"/deployments/{deployment_1.id}"
+        )
+        assert updated_response_deployment_1.status_code == 200
+
+        one_minute_ago_as_string = pendulum.now("UTC").subtract(minutes=1).isoformat()
+        assert (
+            updated_response_deployment_1.json()["last_polled"]
+            > one_minute_ago_as_string
+        )
+
+        same_response_deployment_1 = await client.get(f"/deployments/{deployment_2.id}")
+        assert same_response_deployment_1.status_code == 200
+        assert same_response_deployment_1.json()["last_polled"] is None
+        assert same_response_deployment_1.json()["status"] == "NOT_READY"
+
+    async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status_multiple_deployments(
+        self,
+        client,
+        flow_runs,
+        deployments,
+    ):
+        deployment_1, deployment_2 = deployments
+
+        response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert response_1.status_code == 200
+        assert response_1.json()["last_polled"] is None
+        assert response_1.json()["status"] == "NOT_READY"
+
+        response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert response_2.status_code == 200
+        assert response_2.json()["last_polled"] is None
+        assert response_2.json()["status"] == "NOT_READY"
+
+        updated_response = await client.post(
+            "/deployments/get_scheduled_flow_runs",
+            json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
+        )
+        assert updated_response.status_code == 200
+
+        updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
+        assert updated_response_1.status_code == 200
+        # last_polled ends up being a string here
+        one_minute_ago_as_string = pendulum.now("UTC").subtract(minutes=1).isoformat()
+        assert updated_response_1.json()["last_polled"] > one_minute_ago_as_string
+
+        updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert updated_response_2.status_code == 200
+        assert updated_response_2.json()["last_polled"] > one_minute_ago_as_string
+
+    # async def test_get_scheduled_flow_runs_returns_ready_status(
+    #     self,
+    #     client,
+    #     flow_runs,
+    #     deployments,
+    # ):
+    #     deployment_1, _deployment_2 = deployments
+    #     response = await client.post(
+    #         "/deployments/get_scheduled_flow_runs",
+    #         json=dict(deployment_ids=[str(deployment_1.id)]),
+    #     )
+    #     assert response.status_code == 200
+
+    #     assert response.json()[0]["status"] == "READY"
+
 
 class TestDeleteDeployment:
     async def test_delete_deployment(self, session, client, deployment):
