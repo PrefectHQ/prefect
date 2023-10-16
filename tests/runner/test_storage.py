@@ -4,6 +4,7 @@ from typing import Optional
 import pytest
 
 from prefect.blocks.core import Block
+from prefect.blocks.system import Secret
 from prefect.runner.storage import GitRepository, RunnerStorage, create_storage_from_url
 from prefect.testing.utilities import AsyncMock, MagicMock
 
@@ -358,3 +359,95 @@ class TestGitRepository:
                     str(Path.cwd() / "repo"),
                 ],
             )
+
+    class TestToPullStep:
+        def test_to_pull_step_with_block_credentials(self):
+            credentials = MockCredentials(username="testuser", access_token="testtoken")
+            credentials.save("test-credentials")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", credentials=credentials
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "credentials": (
+                        "{{ prefect.blocks.mockcredentials.test-credentials }}"
+                    ),
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_unsaved_block_credentials(self):
+            credentials = MockCredentials(username="testuser", access_token="testtoken")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", credentials=credentials
+            )
+
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Your provided credentials block must be saved before converting"
+                    " this storage object to a pull step."
+                ),
+            ):
+                repo.to_pull_step()
+
+        def test_to_pull_step_with_secret_access_token(self):
+            access_token = Secret(value="testtoken")
+            access_token.save("test-access-token")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": access_token},
+            )
+
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "credentials": {
+                        "username": "testuser",
+                        "access_token": "{{ prefect.blocks.secret.test-access-token }}",
+                    },
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_unsaved_secret_access_token(self):
+            access_token = Secret(value="testtoken")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": access_token},
+            )
+
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Your provided secret block must be saved before converting this"
+                    " storage object to a pull step."
+                ),
+            ):
+                repo.to_pull_step()
+
+        def test_to_pull_step_with_plaintext(self):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": "testpassword"},
+            )
+
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Please save your access token as a Secret block before converting"
+                    " this storage object to a pull step."
+                ),
+            ):
+                repo.to_pull_step()

@@ -1,6 +1,6 @@
 import subprocess
 from pathlib import Path
-from typing import Optional, Protocol, TypedDict, Union, runtime_checkable
+from typing import Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
 from urllib.parse import urlparse, urlunparse
 
 from anyio import run_process
@@ -170,7 +170,7 @@ class GitRepository:
         Pulls the contents of the configured repository to the local filesystem.
         """
         self._logger.debug(
-            "Pull contents from repository '%s' to '%s'...",
+            "Pulling contents from repository '%s' to '%s'...",
             self._name,
             self.destination,
         )
@@ -245,6 +245,45 @@ class GitRepository:
             f"GitRepository(name={self._name!r} repository={self._url!r},"
             f" branch={self._branch!r})"
         )
+
+    def to_pull_step(self) -> Dict:
+        pull_step = {
+            "prefect.deployments.steps.git_clone": {
+                "repository": self._url,
+                "branch": self._branch,
+            }
+        }
+        if isinstance(self._credentials, Block):
+            credentials_placeholder = self._credentials.get_block_placeholder()
+            if credentials_placeholder is None:
+                raise ValueError(
+                    "Your provided credentials block must be saved before converting"
+                    " this storage object to a pull step."
+                )
+            pull_step["prefect.deployments.steps.git_clone"][
+                "credentials"
+            ] = f"{{{{ {credentials_placeholder} }}}}"
+        elif isinstance(self._credentials, dict):
+            if isinstance(self._credentials.get("access_token"), Secret):
+                access_token_placeholder = self._credentials[
+                    "access_token"
+                ].get_block_placeholder()
+                if access_token_placeholder is None:
+                    raise ValueError(
+                        "Your provided secret block must be saved before converting"
+                        " this storage object to a pull step."
+                    )
+                pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
+                    **self._credentials,
+                    "access_token": f"{{{{ {access_token_placeholder} }}}}",
+                }
+            else:
+                raise ValueError(
+                    "Please save your access token as a Secret block before converting"
+                    " this storage object to a pull step."
+                )
+
+        return pull_step
 
 
 def create_storage_from_url(
