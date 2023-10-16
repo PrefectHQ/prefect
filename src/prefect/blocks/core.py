@@ -182,6 +182,15 @@ def _should_update_block_type(
     return server_block_fields != local_block_fields
 
 
+class BlockNotSavedError(RuntimeError):
+    """
+    Raised when a given block is not saved and an operation that requires
+    the block to be saved is attempted.
+    """
+
+    pass
+
+
 @register_base_type
 @instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
@@ -1051,14 +1060,24 @@ class Block(BaseModel, ABC):
             object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
             return m
 
-    def get_block_placeholder(self) -> Optional[str]:
+    def get_block_placeholder(self) -> str:
         """
         Returns the block placeholder for the current block which can be used for
         templating.
 
+        Returns:
+            str: The block placeholder for the current block in the format
+                `prefect.blocks.{block_type_name}.{block_document_name}`
+
+        Raises:
+            BlockNotSavedError: Raised if the block has not been saved.
+
         If a block has not been saved, the return value will be `None`.
         """
         block_document_name = self._block_document_name
-        if block_document_name:
-            return f"prefect.blocks.{self.get_block_type_slug()}.{block_document_name}"
-        return None
+        if not block_document_name:
+            raise BlockNotSavedError(
+                "Could not generate block placeholder for unsaved block."
+            )
+
+        return f"prefect.blocks.{self.get_block_type_slug()}.{block_document_name}"

@@ -254,28 +254,17 @@ class GitRepository:
             }
         }
         if isinstance(self._credentials, Block):
-            credentials_placeholder = self._credentials.get_block_placeholder()
-            if credentials_placeholder is None:
-                raise ValueError(
-                    "Your provided credentials block must be saved before converting"
-                    " this storage object to a pull step."
-                )
             pull_step["prefect.deployments.steps.git_clone"][
                 "credentials"
-            ] = f"{{{{ {credentials_placeholder} }}}}"
+            ] = f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
         elif isinstance(self._credentials, dict):
             if isinstance(self._credentials.get("access_token"), Secret):
-                access_token_placeholder = self._credentials[
-                    "access_token"
-                ].get_block_placeholder()
-                if access_token_placeholder is None:
-                    raise ValueError(
-                        "Your provided secret block must be saved before converting"
-                        " this storage object to a pull step."
-                    )
                 pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
                     **self._credentials,
-                    "access_token": f"{{{{ {access_token_placeholder} }}}}",
+                    "access_token": (
+                        "{{"
+                        f" {self._credentials['access_token'].get_block_placeholder()} }}}}"
+                    ),
                 }
             else:
                 raise ValueError(

@@ -3,7 +3,7 @@ from typing import Optional
 
 import pytest
 
-from prefect.blocks.core import Block
+from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.runner.storage import GitRepository, RunnerStorage, create_storage_from_url
 from prefect.testing.utilities import AsyncMock, MagicMock
@@ -389,11 +389,8 @@ class TestGitRepository:
             )
 
             with pytest.raises(
-                ValueError,
-                match=(
-                    "Your provided credentials block must be saved before converting"
-                    " this storage object to a pull step."
-                ),
+                BlockNotSavedError,
+                match="Could not generate block placeholder for unsaved block.",
             ):
                 repo.to_pull_step()
 
@@ -429,11 +426,8 @@ class TestGitRepository:
             )
 
             with pytest.raises(
-                ValueError,
-                match=(
-                    "Your provided secret block must be saved before converting this"
-                    " storage object to a pull step."
-                ),
+                BlockNotSavedError,
+                match="Could not generate block placeholder for unsaved block.",
             ):
                 repo.to_pull_step()
 
