@@ -127,15 +127,18 @@ IMAGE_LABELS = {
 def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
+    tag: Optional[str] = None,
     pull: bool = False,
     platform: str = None,
     stream_progress_to: Optional[TextIO] = None,
+    **kwargs,
 ) -> str:
     """Builds a Docker image, returning the image ID
 
     Args:
         context: the root directory for the Docker build context
         dockerfile: the path to the Dockerfile, relative to the context
+        tag: the tag to give this image
         pull: True to pull the base image during the build
         stream_progress_to: an optional stream (like sys.stdout, or an io.TextIO) that
             will collect the build output as it is reported by Docker
@@ -150,15 +153,19 @@ def build_image(
     if not Path(context).exists():
         raise ValueError(f"Context path {context} does not exist")
 
+    kwargs = {key: kwargs[key] for key in kwargs if key not in ["decode", "labels"]}
+
     image_id = None
     with docker_client() as client:
         events = client.api.build(
             path=str(context),
+            tag=tag,
             dockerfile=dockerfile,
             pull=pull,
             decode=True,
             labels=IMAGE_LABELS,
             platform=platform,
+            **kwargs,
         )
 
         try:

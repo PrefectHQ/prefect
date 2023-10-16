@@ -62,7 +62,7 @@ class RunnerDeployment(BaseModel):
     """
     A Prefect RunnerDeployment definition, used for specifying and building deployments.
 
-    Args:
+    Attributes:
         name: A name for the deployment (required).
         version: An optional version for the deployment; defaults to the flow's version
         description: An optional description of the deployment; defaults to the flow's
@@ -81,6 +81,12 @@ class RunnerDeployment(BaseModel):
         parameter_openapi_schema: The parameter schema of the flow, including defaults.
         enforce_parameter_schema: Whether or not the Prefect API should enforce the
             parameter schema for this deployment.
+        work_pool_name: The name of the work pool to use for this deployment.
+        work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+            If not provided the default work queue for the work pool will be used.
+        job_variables: Settings used to override the values specified default base job template
+            of the chosen work pool. Refer to the base job template of the chosen work pool for
+            available settings.
     """
 
     class Config:
@@ -128,7 +134,28 @@ class RunnerDeployment(BaseModel):
             "The storage object used to retrieve flow code for this deployment."
         ),
     )
-
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of the work pool to use for this deployment. Only used when"
+            " the deployment is registered with a built runner."
+        ),
+    )
+    work_queue_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of the work queue to use for this deployment. Only used when"
+            " the deployment is registered with a built runner."
+        ),
+    )
+    job_variables: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Job variables used to override the default values of a work pool"
+            " base job template. Only used when the deployment is registered with"
+            " a built runner."
+        ),
+    )
     _path: Optional[str] = PrivateAttr(
         default=None,
     )
@@ -146,18 +173,46 @@ class RunnerDeployment(BaseModel):
         return field_value
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(
+        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+    ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
         """
+        work_pool_name = work_pool_name or self.work_pool_name
+
+        if image and not work_pool_name:
+            raise ValueError(
+                "An image can only be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if not image and work_pool_name:
+            raise ValueError(
+                "An image must be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if self.work_queue_name and not work_pool_name:
+            raise ValueError(
+                "A work queue can only be provided when registering a deployment with"
+                " a work pool."
+            )
+
+        if self.job_variables and not work_pool_name:
+            raise ValueError(
+                "Job variables can only be provided when registering a deployment"
+                " with a work pool."
+            )
+
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
-            deployment_id = await client.create_deployment(
+            create_payload = dict(
                 flow_id=flow_id,
                 name=self.name,
-                work_queue_name=None,
-                work_pool_name=None,
+                work_queue_name=self.work_queue_name,
+                work_pool_name=self.work_pool_name,
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,
@@ -171,6 +226,19 @@ class RunnerDeployment(BaseModel):
                 parameter_openapi_schema=self._parameter_openapi_schema.dict(),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
+
+            if work_pool_name:
+                create_payload["infra_overrides"] = {
+                    **self.job_variables,
+                    "image": image,
+                    "command": "prefect flow-run execute",
+                }
+                create_payload["path"] = None if self.storage else self._path
+                create_payload["pull_steps"] = (
+                    [self.storage.to_pull_step()] if self.storage else []
+                )
+
+            deployment_id = await client.create_deployment(**create_payload)
 
             if client.server_type == ServerType.CLOUD:
                 # The triggers defined in the deployment spec are, essentially,
@@ -256,6 +324,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -278,10 +349,18 @@ class RunnerDeployment(BaseModel):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
+            work_pool_name: The name of the work pool to use for this deployment.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+                available settings.
         """
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
+
+        job_variables = job_variables or {}
 
         deployment = cls(
             name=Path(name).stem,
@@ -293,6 +372,9 @@ class RunnerDeployment(BaseModel):
             description=description,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
 
         if not deployment.entrypoint:
@@ -322,11 +404,11 @@ class RunnerDeployment(BaseModel):
                     raise ValueError(no_file_location_error)
 
             # set entrypoint
-            entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+            entry_path = Path(flow_file).absolute().relative_to(Path.cwd().absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
         if not deployment._path:
-            deployment._path = str(Path.cwd())
+            deployment._path = "."
 
         cls._set_defaults_from_flow(deployment, flow)
 
@@ -347,6 +429,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -370,8 +455,14 @@ class RunnerDeployment(BaseModel):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
-
+            work_pool_name: The name of the work pool to use for this deployment.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+                available settings.
         """
+        job_variables = job_variables or {}
         flow = load_flow_from_entrypoint(entrypoint)
 
         schedule = cls._construct_schedule(
@@ -392,6 +483,9 @@ class RunnerDeployment(BaseModel):
             version=version,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
         deployment._path = str(Path.cwd())
 
@@ -416,6 +510,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name=work_pool_name,
+        work_queue_name=work_queue_name,
+        job_variables=job_variables,
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -442,10 +539,17 @@ class RunnerDeployment(BaseModel):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
+            work_pool_name: The name of the work pool to use for this deployment.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+                available settings.
         """
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
+        job_variables = job_variables or {}
 
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
@@ -468,6 +572,9 @@ class RunnerDeployment(BaseModel):
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
         )
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"

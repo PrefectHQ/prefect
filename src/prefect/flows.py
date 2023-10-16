@@ -31,11 +31,20 @@ from typing import (
     overload,
 )
 
+import pendulum
 from prefect._vendor.fastapi.encoders import jsonable_encoder
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.orchestration import get_client
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
+from prefect.utilities.dockerutils import (
+    build_image,
+    docker_client,
+    get_prefect_image_name,
+)
+from prefect.utilities.slugify import slugify
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -64,6 +73,7 @@ from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     MissingFlowError,
+    ObjectNotFound,
     ParameterTypeError,
     UnspecifiedFlowError,
 )
@@ -525,6 +535,9 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ):
         """
         Creates a runner deployment object for this flow.
@@ -546,6 +559,11 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
+            work_pool_name: The name of the work pool to use for this deployment.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
 
         Examples:
             Prepare two deployments and serve them:
@@ -584,6 +602,9 @@ class Flow(Generic[P, R]):
                 description=description,
                 version=version,
                 enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
             )
         else:
             return RunnerDeployment.from_flow(
@@ -599,6 +620,9 @@ class Flow(Generic[P, R]):
                 description=description,
                 version=version,
                 enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
             )
 
     @sync_compatible
@@ -777,6 +801,214 @@ class Flow(Generic[P, R]):
             flow._entrypoint = entrypoint
 
         return flow
+
+    @sync_compatible
+    async def deploy(
+        self,
+        name: str,
+        work_pool_name: str,
+        image_name: str,
+        tag: Optional[str] = None,
+        dockerfile: str = "auto",
+        build_kwargs: Optional[dict] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[dict] = None,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        triggers: Optional[List[DeploymentTrigger]] = None,
+        parameters: Optional[dict] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = False,
+    ):
+        """
+        Deploys a flow to run on dynamic infrastructure via a work pool.
+
+        Calling this function will build a Docker image for the flow, push it to a registry,
+        and create a deployment via the Prefect API that will run the flow on the given schedule.
+
+        Args:
+            name: The name to give the created deployment.
+            work_pool_name: The name of the work pool to use for this deployment.
+            image: The name of the Docker image to build, including the registry and
+                repository.
+            tag: The tag to use for the built Docker image.
+            dockerfile: The name of the Dockerfile to use for building the image. If not set
+                a Dockerfile will be generated automatically.
+            build_kwargs: Additional keyword arguments to pass to the Docker build command.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+                available settings.
+            interval: An interval on which to execute the new deployment. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            timezone: A timezone to use for the schedule. Defaults to UTC.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+
+        Examples:
+            Deploy a flow:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.deploy("example-deployment", work_pool="my-work-pool")
+            ```
+        """
+        if not tag:
+            tag = slugify(pendulum.now("utc").isoformat())
+        full_image_name = f"{image_name}:{tag}"
+        build_kwargs = build_kwargs or {}
+
+        try:
+            async with get_client() as client:
+                work_pool = await client.read_work_pool(work_pool_name)
+        except ObjectNotFound:
+            raise RuntimeError(
+                f"Work pool {work_pool_name!r} does not exist. Please create it before"
+                " deploying this flow."
+            )
+
+        console = Console()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(f"Building image {full_image_name}..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_build_task = progress.add_task("docker_build", total=1)
+        auto_build = dockerfile == "auto"
+        if auto_build:
+            lines = []
+            base_image = get_prefect_image_name()
+            lines.append(f"FROM {base_image}")
+            dir_name = os.path.basename(os.getcwd())
+
+            if Path("requirements.txt").exists():
+                lines.append(
+                    f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
+                )
+                lines.append(
+                    "RUN python -m pip install -r"
+                    f" /opt/prefect/{dir_name}/requirements.txt"
+                )
+
+            lines.append(f"COPY . /opt/prefect/{dir_name}/")
+            lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+
+            temp_dockerfile = Path("Dockerfile")
+            if Path(temp_dockerfile).exists():
+                raise RuntimeError(
+                    "Failed to generate Dockerfile. Dockerfile already exists in the"
+                    " current directory."
+                )
+
+            with Path(temp_dockerfile).open("w") as f:
+                f.writelines(line + "\n" for line in lines)
+
+            dockerfile = str(temp_dockerfile)
+
+            try:
+                build_kwargs["context"] = Path.cwd()
+                build_kwargs["dockerfile"] = dockerfile
+                build_kwargs["tag"] = full_image_name
+                build_kwargs["pull"] = build_kwargs.get("pull", True)
+
+                build_image(**build_kwargs)
+            finally:
+                progress.update(docker_build_task, completed=1)
+                Path("Dockerfile").unlink()
+
+        console.print(
+            f"Successfully built image {full_image_name!r} for flow\n", style="green"
+        )
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Pushing image..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_push_task = progress.add_task("docker_push", total=1)
+
+            with docker_client() as client:
+                client.api.push(
+                    repository=image_name,
+                    tag=tag,
+                )
+
+            progress.update(docker_push_task, completed=1)
+
+        console.print(
+            f"Successfully pushed image {full_image_name!r} for flow\n", style="green"
+        )
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Creating deployment..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            create_deployment_task = progress.add_task("create_deployment", total=1)
+
+            deployment = await self.to_deployment(
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                schedule=schedule,
+                triggers=triggers,
+                parameters=parameters,
+                description=description,
+                tags=tags,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
+            )
+            await deployment.apply(image=full_image_name)
+
+            progress.update(create_deployment_task, completed=1)
+
+        console.print(f"Successfully deployed flow {self.name!r}\n", style="green")
+
+        if not work_pool.is_push_pool:
+            console.print(
+                "\nTo execute flow runs from this deployment, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {work_pool_name!r} work pool:"
+            )
+            console.print(
+                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                style="blue",
+            )
+        console.print(
+            "\nTo schedule a run for this deployment, use the following command:"
+        )
+        console.print(
+            f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
+            style="blue",
+        )
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
