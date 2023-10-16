@@ -232,7 +232,7 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-DEPLOYMENT_LAST_POLLED_EXPIRATION = 30
+DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 30
 
 
 @copy_model_fields
@@ -279,7 +279,7 @@ class DeploymentResponse(ORMBaseModel):
 
         offline_horizon = datetime.datetime.now(
             tz=datetime.timezone.utc
-        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_EXPIRATION)
+        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
 
         if response.last_polled and response.last_polled > offline_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
