@@ -297,6 +297,22 @@ class TestFunctionToSchema:
             "type": "object",
         }
 
+    def test_function_with_pydantic_model_default(self):
+        """
+        The serialization results for a v1 and v2 schema are different so
+        this test does not attempt to compare the results. Instead it just verifies
+        that the schema is generated without error.
+        """
+        import pydantic
+
+        class Foo(pydantic.BaseModel):
+            bar: str
+
+        def f(foo: Foo = Foo(bar="baz")):
+            ...
+
+        callables.parameter_schema(f)
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):

@@ -10,6 +10,8 @@ import cloudpickle
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
+    from pydantic import create_model as v2_create_model  # noqa: I001
+
     import pydantic.v1 as pydantic
 else:
     import pydantic
@@ -306,7 +308,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             pydantic.create_model(
                 "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
             ).schema(by_alias=True)
-        except ValueError:
+        except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
 
@@ -314,7 +316,18 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
 
     # Generate the final model and schema
     model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
-    schema = model.schema(by_alias=True)
+    try:
+        schema = model.schema(by_alias=True)
+    except TypeError:
+        if HAS_PYDANTIC_V2:
+            # In the case where we're handling a pydantic v2 basemodel, we'll need to use v2's
+            # create_model
+            model = v2_create_model(
+                "Parameters", __config__=ModelConfig, **model_fields
+            )
+            schema = model.schema(by_alias=True)
+        else:
+            raise
     return ParameterSchema(**schema)
 
 
