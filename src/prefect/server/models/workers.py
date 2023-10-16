@@ -390,6 +390,24 @@ async def bulk_update_work_queue_priorities(
 
 
 @inject_db
+async def _update_deployment_last_polled(
+    session: AsyncSession,
+    work_queue_ids: List[UUID],
+    db: PrefectDBInterface,
+) -> None:
+    """
+    Update the last_polled timestamp for a list of deployments, given their
+    work_queue_ids.
+    """
+    update_stmt = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.work_queue_id.in_(work_queue_ids))
+        .values(last_polled=pendulum.now("UTC"))
+    )
+    await session.execute(update_stmt)
+
+
+@inject_db
 async def read_work_queues(
     session: AsyncSession,
     work_pool_id: UUID,
