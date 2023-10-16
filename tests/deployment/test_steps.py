@@ -6,6 +6,7 @@ from unittest.mock import ANY
 import pytest
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments.steps import run_step
@@ -266,13 +267,21 @@ class MockCredentials:
         return MockCredentials(token="mock-token")
 
 
+@pytest.fixture
+def git_repository_mock(monkeypatch):
+    git_repository_mock = MagicMock()
+    pull_code_mock = AsyncMock()
+    git_repository_mock.return_value.pull_code = pull_code_mock
+    git_repository_mock.return_value.destination = Path.cwd() / "repo"
+    monkeypatch.setattr(
+        "prefect.deployments.steps.pull.GitRepository",
+        git_repository_mock,
+    )
+    return git_repository_mock
+
+
 class TestGitCloneStep:
-    async def test_git_clone(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_git_clone(self, git_repository_mock):
         output = await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
@@ -281,25 +290,15 @@ class TestGitCloneStep:
             }
         )
         assert output["directory"] == "repo"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/repo.git",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_deprecated_git_clone_project(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_deprecated_git_clone_project(self, git_repository_mock):
         with pytest.warns(DeprecationWarning):
             output = await run_step(
                 {
@@ -309,25 +308,15 @@ class TestGitCloneStep:
                 }
             )
         assert output["directory"] == "repo"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/repo.git",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
-    async def test_git_clone_include_submodules(self, monkeypatch):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
+    async def test_git_clone_include_submodules(self, git_repository_mock):
         output = await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
@@ -336,20 +325,58 @@ class TestGitCloneStep:
                 }
             }
         )
-        assert output["directory"] == "has-submodules"
-        subprocess_mock.check_call.assert_called_once_with(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/has-submodules.git",
-                "--recurse-submodules",
-                "--depth",
-                "1",
-            ],
-            shell=False,
-            stderr=ANY,
-            stdout=ANY,
+        assert output["directory"] == "repo"
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/has-submodules.git",
+            credentials=None,
+            branch=None,
+            include_submodules=True,
         )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_git_clone_with_access_token(self, git_repository_mock):
+        await Secret(value="my-access-token").save(name="my-access-token")
+        await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "access_token": "{{ prefect.blocks.secret.my-access-token }}",
+                }
+            }
+        )
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials={"access_token": "my-access-token"},
+            branch=None,
+            include_submodules=False,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_git_clone_with_credentials(self, git_repository_mock):
+        class MockCredentials(Block):
+            username: str
+            password: str
+
+        await MockCredentials(username="marvin42", password="hunter2").save(
+            name="my-credentials"
+        )
+        await run_step(
+            {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "credentials": (
+                        "{{ prefect.blocks.mockcredentials.my-credentials }}"
+                    ),
+                }
+            }
+        )
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "marvin42", "password": "hunter2"},
+            branch=None,
+            include_submodules=False,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
 
 class TestRunShellScript:
@@ -549,12 +576,6 @@ class TestPipInstallRequirements:
     async def test_pip_install_reqs_with_directory_step_output_succeeds(
         self, monkeypatch
     ):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
-
         open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",

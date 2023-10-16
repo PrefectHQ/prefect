@@ -111,7 +111,7 @@ async def git_clone(
             "Please provide either an access token or credentials but not both."
         )
 
-    credentials = credentials or {"access_token": access_token}
+    credentials = {"access_token": access_token} if access_token else credentials
 
     storage = GitRepository(
         url=repository,
@@ -122,7 +122,7 @@ async def git_clone(
 
     await storage.pull_code()
 
-    directory = storage.destination.relative_to(Path.cwd())
+    directory = str(storage.destination.relative_to(Path.cwd()))
     deployment_logger.info(f"Cloned repository {repository!r} into {directory!r}")
     return {"directory": directory}
 
