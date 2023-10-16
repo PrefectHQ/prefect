@@ -11,8 +11,8 @@ tags:
 ## Overview
 In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find a bunch of useful client methods that make it simpler to do things like:
 
-- [**reschedule late flow runs**](#rescheduling-late-flow-runs)
-- [**get the last `N` completed flow runs from my workspace**](#get-the-last-n-completed-flow-runs-from-my-workspace)
+- [reschedule late flow runs](#rescheduling-late-flow-runs)
+- [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
 
 The `PrefectClient` is an async context manager, so you can use it like this:
 ```python hl_lines="3"
