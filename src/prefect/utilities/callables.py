@@ -308,9 +308,23 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             pydantic.create_model(
                 "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
             ).schema(by_alias=True)
-        except (ValueError, TypeError):
+        except ValueError:
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
+        except TypeError:
+            if HAS_PYDANTIC_V2:
+                # In the case where we're handling a pydantic v2 basemodel, we'll need
+                # to use v2's create_model
+                try:
+                    v2_create_model(
+                        "CheckParameter",
+                        __config__=ModelConfig,
+                        **{name: (type_, field)},
+                    ).schema(by_alias=True)
+                except ValueError:
+                    type_ = Any
+            else:
+                raise
 
         model_fields[name] = (type_, field)
 
