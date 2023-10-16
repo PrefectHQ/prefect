@@ -7,12 +7,12 @@ tags:
     - orchestration
 ---
 
-# Using the Prefect orchestration client
+# Using the Prefect Orchestration Client
 ## Overview
 In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find a bunch of useful client methods that make it simpler to do things like:
 
-- [**reschedule late flow runs**](#rescheduling-late-flow-runs)
-- [**get the last `N` completed flow runs from my workspace**](#getting-the-last-n-completed-flow-runs-from-my-workspace)
+- [reschedule late flow runs](#rescheduling-late-flow-runs)
+- [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
 
 The `PrefectClient` is an async context manager, so you can use it like this:
 ```python hl_lines="3"
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 ### Get the last `N` completed flow runs from my workspace
 To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and `prefect.client.schemas`.
 
-This example gets the last 3 completed flow runs from our workspace:
+This example gets the last three completed flow runs from our workspace:
 ```python
 import asyncio
 from typing import Optional
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     ) == sorted(end_times, reverse=True)
 ```
 
-Instead of the last 3 from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last 3 completed flow runs of a specific deployment.
+Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
 
 !!! tip "There are other ways to filter objects like flow runs"
     See [`the filters API reference`](/api-ref/prefect/client/schemas/#prefect.client.schemas.filters) for more ways to filter flow runs and other objects in your Prefect ecosystem.
