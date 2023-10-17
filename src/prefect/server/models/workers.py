@@ -651,7 +651,11 @@ async def _update_deployment_last_polled_from_work_pool_name(
     db: PrefectDBInterface,
 ):
     """
-    Update the last polled time for a deployment by work pool name.
+    Update the `last_polled` time for deployments from a given work pool name.
+
+    Args:
+        session (AsyncSession): a database session
+        work_pool_name (str): a work pool name
     """
     wq_ids_from_wp_name = (
         sa.select(db.WorkQueue.id)
