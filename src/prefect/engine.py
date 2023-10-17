@@ -169,6 +169,7 @@ from prefect.states import (
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
     BaseTaskRunner,
+    ConcurrentTaskRunner,
     SequentialTaskRunner,
     TaskConcurrencyType,
 )
@@ -192,6 +193,7 @@ from prefect.utilities.text import truncated_to
 R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
 
+NUM_CHARS_DYNAMIC_KEY = 8
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -1113,11 +1115,6 @@ def enter_task_run_engine(
     """
 
     flow_run_context = FlowRunContext.get()
-    # if not flow_run_context:
-    #     raise RuntimeError(
-    #         "Tasks cannot be run outside of a flow. To call the underlying task"
-    #         " function outside of a flow use `task.fn()`."
-    #     )
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -1238,7 +1235,13 @@ async def begin_task_map(
         )
 
     # Maintain the order of the task runs when using the sequential task runner
-    runner = task_runner if task_runner else flow_run_context.task_runner
+    runner = (
+        task_runner
+        if task_runner
+        else flow_run_context.task_runner
+        if flow_run_context and flow_run_context.task_runner
+        else ConcurrentTaskRunner()
+    )
     if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         return [await task_run() for task_run in task_runs]
 
@@ -1299,13 +1302,13 @@ async def get_task_call_return_value(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
-):
+): 
     extra_task_inputs = extra_task_inputs or {}
 
     if flow_run_context is None:
         # Autonomous task run, just fake the flow run context
         flow_run_context = PartialModel(
-            FlowRunContext, parameters={}, log_prints=should_log_prints(task)
+            FlowRunContext, parameters=parameters, log_prints=should_log_prints(task)
         )
 
         async with AsyncExitStack() as stack:
@@ -1321,7 +1324,7 @@ async def get_task_call_return_value(
             # If the flow is async, we need to provide a portal so sync tasks can run
             flow_run_context.sync_portal = None
 
-            task_runner = SequentialTaskRunner()
+            task_runner = task_runner or SequentialTaskRunner()
             flow_run_context.task_runner = await stack.enter_async_context(
                 task_runner.start()
             )
@@ -1383,7 +1386,12 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{dynamic_key}"
+        
+    task_run_name = (
+        f"{task.name}-{dynamic_key}"
+        if flow_run_context.flow_run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}" # autonomous task run
+    )
 
     # Generate a future
     future = PrefectFuture(
@@ -1674,7 +1682,7 @@ async def orchestrate_task_run(
         flow_run = await client.read_flow_run(task_run.flow_run_id)
     else:
         flow_run = None
-    logger = task_run_logger(task_run, task=task, flow_run=flow_run)
+    logger = task_run_logger(task_run, task=task, flow_run=flow_run)    
 
     partial_task_run_context = PartialModel(
         TaskRunContext,
@@ -2243,7 +2251,10 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if task.task_key not in context.task_run_dynamic_keys:
+    if context.flow_run is None: # this is an autonomous task run
+        context.task_run_dynamic_keys[task.task_key] = task.dynamic_key or str(uuid4())
+        
+    elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
         context.task_run_dynamic_keys[task.task_key] += 1

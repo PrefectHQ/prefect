@@ -174,6 +174,8 @@ class Task(Generic[P, R]):
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        dynamic_key: An optional string to use as a dynamic key for the task. If not
+            provided, a random uuid will be used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -211,6 +213,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         viz_return_value: Optional[Any] = None,
+        dynamic_key: Optional[str] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -339,6 +342,7 @@ class Task(Generic[P, R]):
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.viz_return_value = viz_return_value
+        self.dynamic_key = dynamic_key
 
     def with_options(
         self,
@@ -370,6 +374,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         viz_return_value: Optional[Any] = None,
+        dynamic_key: Optional[str] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -405,6 +410,8 @@ class Task(Generic[P, R]):
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
             viz_return_value: An optional value to return when the task dependency tree is visualized.
+            dynamic_key: An optional string to use as a dynamic key for the task. If not
+                provided, a random uuid will be used.
 
         Returns:
             A new `Task` instance.
@@ -493,6 +500,7 @@ class Task(Generic[P, R]):
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
             viz_return_value=viz_return_value or self.viz_return_value,
+            dynamic_key=dynamic_key or self.dynamic_key,
         )
 
     @overload
@@ -755,7 +763,7 @@ class Task(Generic[P, R]):
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
-            task_runner=None,  # Use the flow's task runner
+            task_runner=None,
             mapped=False,
         )
 
@@ -971,6 +979,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     viz_return_value: Any = None,
+    dynamic_key: Optional[str] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -1004,6 +1013,7 @@ def task(
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     viz_return_value: Any = None,
+    dynamic_key: Optional[str] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1060,6 +1070,8 @@ def task(
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        dynamic_key: An optional string to use as a dynamic key for the task. If not
+            provided, a random uuid will be used.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1136,6 +1148,7 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 viz_return_value=viz_return_value,
+                dynamic_key=dynamic_key,
             ),
         )
     else:
@@ -1164,5 +1177,6 @@ def task(
                 on_completion=on_completion,
                 on_failure=on_failure,
                 viz_return_value=viz_return_value,
+                dynamic_key=dynamic_key,
             ),
         )
