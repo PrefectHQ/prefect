@@ -33,12 +33,18 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
+
+import pendulum
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, track
+from rich.table import Table
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
+from prefect.settings import PREFECT_UI_URL
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -51,9 +57,21 @@ from prefect.client.schemas.schedules import (
     construct_schedule,
 )
 from prefect.events.schemas import DeploymentTrigger
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.exceptions import (
+    ObjectNotFound,
+)
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect.utilities.dockerutils import (
+    PushError,
+    build_image,
+    docker_client,
+    generate_default_dockerfile,
+)
+from prefect.utilities.slugify import slugify
+
+if TYPE_CHECKING:
+    from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
 
@@ -301,7 +319,7 @@ class RunnerDeployment(BaseModel):
         else:
             return None
 
-    def _set_defaults_from_flow(self, flow: Flow):
+    def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)
 
         if not self.version:
@@ -312,7 +330,7 @@ class RunnerDeployment(BaseModel):
     @classmethod
     def from_flow(
         cls,
-        flow: Flow,
+        flow: "Flow",
         name: str,
         interval: Optional[Union[int, float, timedelta]] = None,
         cron: Optional[str] = None,
@@ -462,6 +480,8 @@ class RunnerDeployment(BaseModel):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
         """
+        from prefect.flows import load_flow_from_entrypoint
+
         job_variables = job_variables or {}
         flow = load_flow_from_entrypoint(entrypoint)
 
@@ -546,6 +566,8 @@ class RunnerDeployment(BaseModel):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
         """
+        from prefect.flows import load_flow_from_entrypoint
+
         schedule = cls._construct_schedule(
             interval=interval, cron=cron, rrule=rrule, schedule=schedule
         )
@@ -583,3 +605,135 @@ class RunnerDeployment(BaseModel):
         cls._set_defaults_from_flow(deployment, flow)
 
         return deployment
+
+
+@sync_compatible
+async def deploy(
+    *args: RunnerDeployment,
+    work_pool_name: str,
+    image_name: str,
+    tag: Optional[str] = None,
+    dockerfile: str = "auto",
+    build_kwargs: Optional[dict] = None,
+    print_next_steps_message: bool = True,
+) -> List[UUID]:
+    """
+    Deploy the provided list of deployments to dynamic infrastructure via a
+    work pool.
+
+    Calling this function will build a Docker image for the deployments, push it to a
+    registry, and create each deployment via the Prefect API that will run the corresponding
+    flow on the given schedule.
+
+    Args:
+        *args: A list of deployments to deploy.
+        work_pool_name: The name of the work pool to use for these deployments.
+        image: The name of the Docker image to build, including the registry and
+            repository.
+        tag: The tag to use for the built Docker image.
+        dockerfile: The name of the Dockerfile to use for building the image. If not set
+            a Dockerfile will be generated automatically.
+        build_kwargs: Additional keyword arguments to pass to the Docker build command.
+    """
+    if not tag:
+        tag = slugify(pendulum.now("utc").isoformat())
+    full_image_name = f"{image_name}:{tag}"
+    build_kwargs = build_kwargs or {}
+
+    try:
+        async with get_client() as client:
+            work_pool = await client.read_work_pool(work_pool_name)
+    except ObjectNotFound as exc:
+        raise RuntimeError(
+            f"Work pool {work_pool_name!r} does not exist. Please create it before"
+            " deploying this flow."
+        ) from exc
+
+    console = Console()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn(f"Building image {full_image_name}..."),
+        transient=True,
+        console=console,
+    ) as progress:
+        docker_build_task = progress.add_task("docker_build", total=1)
+    auto_build = dockerfile == "auto"
+    build_kwargs["context"] = Path.cwd()
+    build_kwargs["tag"] = full_image_name
+    build_kwargs["pull"] = build_kwargs.get("pull", True)
+
+    if auto_build:
+        with generate_default_dockerfile():
+            build_image(**build_kwargs)
+    else:
+        build_kwargs["dockerfile"] = dockerfile
+        build_image(**build_kwargs)
+
+    progress.update(docker_build_task, completed=1)
+    console.print(f"Successfully built image {full_image_name!r}", style="green")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("Pushing image..."),
+        transient=True,
+        console=console,
+    ) as progress:
+        docker_push_task = progress.add_task("docker_push", total=1)
+
+        with docker_client() as client:
+            events = client.api.push(
+                repository=image_name, tag=tag, stream=True, decode=True
+            )
+            for event in events:
+                if "error" in event:
+                    raise PushError(event["error"])
+
+        progress.update(docker_push_task, completed=1)
+
+    console.print(f"Successfully pushed image {full_image_name!r}", style="green")
+
+    deployment_ids = []
+    for deployment in track(
+        args,
+        description="Creating/updating deployments...",
+        console=console,
+    ):
+        deployment_ids.append(
+            await deployment.apply(image=full_image_name, work_pool_name=work_pool_name)
+        )
+
+    console.print("Successfully created/updated all deployments!\n", style="green")
+
+    if print_next_steps_message:
+        table = Table(title="Deployments", show_header=False)
+
+        table.add_column(style="blue", no_wrap=True)
+
+        for deployment in args:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}")
+
+        console.print(table)
+
+        if not work_pool.is_push_pool:
+            console.print(
+                "\nTo execute flow runs from these deployments, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {work_pool_name!r} work pool:"
+            )
+            console.print(
+                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                style="blue",
+            )
+        console.print(
+            "\nTo trigger any of these deployments, use the"
+            " following command:\n[blue]\n\t$ prefect deployment run"
+            " [DEPLOYMENT_NAME]\n[/]"
+        )
+
+        if PREFECT_UI_URL:
+            console.print(
+                "\nYou can also trigger your deployments via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+            )
+
+    return deployment_ids

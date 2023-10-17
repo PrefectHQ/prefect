@@ -30,22 +30,15 @@ from typing import (
     cast,
     overload,
 )
+from uuid import UUID
 
-import pendulum
 from prefect._vendor.fastapi.encoders import jsonable_encoder
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
+from prefect.deployments.runner import deploy
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
-from prefect.utilities.dockerutils import (
-    PushError,
-    build_image,
-    docker_client,
-    generate_default_dockerfile,
-)
-from prefect.utilities.slugify import slugify
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -824,7 +817,8 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
-    ):
+        print_next_steps: bool = True,
+    ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
 
@@ -875,115 +869,67 @@ class Flow(Generic[P, R]):
                 my_flow.deploy("example-deployment", work_pool="my-work-pool")
             ```
         """
-        if not tag:
-            tag = slugify(pendulum.now("utc").isoformat())
-        full_image_name = f"{image_name}:{tag}"
-        build_kwargs = build_kwargs or {}
-
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
-        except ObjectNotFound:
+        except ObjectNotFound as exc:
             raise RuntimeError(
                 f"Work pool {work_pool_name!r} does not exist. Please create it before"
                 " deploying this flow."
-            )
+            ) from exc
 
-        console = Console()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(f"Building image {full_image_name}..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_build_task = progress.add_task("docker_build", total=1)
-        auto_build = dockerfile == "auto"
-        build_kwargs["context"] = Path.cwd()
-        build_kwargs["tag"] = full_image_name
-        build_kwargs["pull"] = build_kwargs.get("pull", True)
+        deployment = await self.to_deployment(
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            triggers=triggers,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
+        )
 
-        if auto_build:
-            with generate_default_dockerfile():
-                build_image(**build_kwargs)
-        else:
-            build_kwargs["dockerfile"] = dockerfile
-            build_image(**build_kwargs)
+        deployment_ids = await deploy(
+            deployment,
+            work_pool_name=work_pool_name,
+            image_name=image_name,
+            tag=tag,
+            dockerfile=dockerfile,
+            build_kwargs=build_kwargs,
+        )
 
-        progress.update(docker_build_task, completed=1)
-        console.print(f"Successfully built image {full_image_name!r}", style="green")
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("Pushing image..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_push_task = progress.add_task("docker_push", total=1)
-
-            with docker_client() as client:
-                events = client.api.push(
-                    repository=image_name, tag=tag, stream=True, decode=True
+        if print_next_steps:
+            console = Console()
+            if not work_pool.is_push_pool:
+                console.print(
+                    "\nTo execute flow runs from this deployment, start a worker in a"
+                    " separate terminal that pulls work from the"
+                    f" {work_pool_name!r} work pool:"
                 )
-                for event in events:
-                    if "error" in event:
-                        raise PushError(event["error"])
-
-            progress.update(docker_push_task, completed=1)
-
-        console.print(f"Successfully pushed image {full_image_name!r}", style="green")
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("Creating deployment..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            create_deployment_task = progress.add_task("create_deployment", total=1)
-
-            deployment = await self.to_deployment(
-                name=name,
-                interval=interval,
-                cron=cron,
-                rrule=rrule,
-                schedule=schedule,
-                triggers=triggers,
-                parameters=parameters,
-                description=description,
-                tags=tags,
-                version=version,
-                enforce_parameter_schema=enforce_parameter_schema,
-                work_pool_name=work_pool_name,
-                work_queue_name=work_queue_name,
-                job_variables=job_variables,
-            )
-            deployment_id = await deployment.apply(image=full_image_name)
-
-            progress.update(create_deployment_task, completed=1)
-
-        console.print(f"Successfully deployed flow {self.name!r}!", style="green")
-
-        if not work_pool.is_push_pool:
+                console.print(
+                    f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                    style="blue",
+                )
             console.print(
-                "\nTo execute flow runs from this deployment, start a worker in a"
-                " separate terminal that pulls work from the"
-                f" {work_pool_name!r} work pool:"
+                "\nTo schedule a run for this deployment, use the following command:"
             )
             console.print(
-                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
                 style="blue",
             )
-        console.print(
-            "\nTo schedule a run for this deployment, use the following command:"
-        )
-        console.print(
-            f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
-            style="blue",
-        )
-        if PREFECT_UI_URL:
-            console.print(
-                "\nYou can also run your flow via the Prefect UI:"
-                f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
-            )
+            if PREFECT_UI_URL:
+                console.print(
+                    "\nYou can also run your flow via the Prefect UI:"
+                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_ids[0]}[/]\n"
+                )
+
+        return deployment_ids[0]
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
