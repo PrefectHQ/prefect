@@ -1456,7 +1456,6 @@ class TestGetScheduledFlowRuns:
 
         updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
         assert updated_response_1.status_code == 200
-
         assert (
             updated_response_1.json()["last_polled"]
             > pendulum.now("UTC").subtract(minutes=1).isoformat()
