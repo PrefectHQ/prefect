@@ -1182,6 +1182,9 @@ class TestGetScheduledRuns:
         self, client, work_pools, deployment
     ):
         assert deployment.last_polled is None
+        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert deployment_response.status_code == status.HTTP_200_OK
+        assert deployment_response.json()["status"] == "NOT_READY"
 
         # trigger a `deployment.last_polled` update to now
         deployment_work_pool_name = work_pools["wp_a"].name
@@ -1191,6 +1194,6 @@ class TestGetScheduledRuns:
         assert queue_response.status_code == status.HTTP_200_OK
 
         # get the updated deployment
-        deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert deployment_response.status_code == status.HTTP_200_OK
-        assert deployment_response.json()["status"] == "READY"
+        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert updated_deployment_response.status_code == status.HTTP_200_OK
+        assert updated_deployment_response.json()["status"] == "READY"
