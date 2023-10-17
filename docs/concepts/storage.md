@@ -17,7 +17,7 @@ search:
 # Storage
 
 !!! warning "Storage blocks are not recommended"
-    Storage blocks are part of the block-based deployment model. Using `serve` or `runner`-based Python creation methods or the `prefect deploy` via the CLI are the recommended options for creating a deployment. 
+    Storage blocks are part of the legacy block-based deployment model. Instead, using `serve` or `runner`-based Python creation methods or the `prefect deploy` via the CLI are the recommended options for creating a deployment. 
     Flow code storage is specified in the Python file with `serve` or `runner`-based Python creation methods or specified in the interactive `prefect deploy` CLI experience or in the resulting `prefect.yaml` file. 
 
 Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect workers](/concepts/work-pools) or less ideally [agents](/concepts/agents). Anytime you build a block-based deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
