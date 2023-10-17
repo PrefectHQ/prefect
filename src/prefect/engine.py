@@ -1140,8 +1140,17 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    if task.isasync and flow_run_context and flow_run_context.flow.isasync:
+    is_async_autonomous_task = (
+        task.isasync and not flow_run_context
+    )
+    
+    is_async_task_in_async_flow = (
+        task.isasync and flow_run_context and flow_run_context.flow.isasync
+    )
+
+    if is_async_autonomous_task or is_async_task_in_async_flow:
         # return a coro for the user to await if an async task in an async flow
+        # or an async task outside of a flow
         return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
         return from_sync.wait_for_call_in_loop_thread(begin_run)
@@ -1238,10 +1247,10 @@ async def begin_task_map(
     runner = (
         task_runner
         if task_runner
-        else flow_run_context.task_runner
-        if flow_run_context and flow_run_context.task_runner
+        else flow_run_context.task_runner if flow_run_context
         else ConcurrentTaskRunner()
     )
+    
     if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         return [await task_run() for task_run in task_runs]
 
@@ -1328,9 +1337,6 @@ async def get_task_call_return_value(
             flow_run_context.task_runner = await stack.enter_async_context(
                 task_runner.start()
             )
-            flow_run_context.result_factory = await ResultFactory.from_task(
-                task=task, client=client
-            )
 
             with flow_run_context.finalize(
                 flow=None, flow_run=None
@@ -1389,8 +1395,14 @@ async def create_task_run_future(
         
     task_run_name = (
         f"{task.name}-{dynamic_key}"
-        if flow_run_context.flow_run
+        if flow_run_context and flow_run_context.flow_run
         else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}" # autonomous task run
+    )
+
+    asynchronous = (
+        task.isasync and flow_run_context.flow.isasync
+        if flow_run_context and flow_run_context.flow
+        else task.isasync
     )
 
     # Generate a future
@@ -1398,7 +1410,7 @@ async def create_task_run_future(
         name=task_run_name,
         key=uuid4(),
         task_runner=task_runner,
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
+        asynchronous=asynchronous,
     )
 
     # Create and submit the task run in the background

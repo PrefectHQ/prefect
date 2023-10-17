@@ -215,18 +215,18 @@ class ResultFactory(pydantic.BaseModel):
 
         result_storage = (
             ctx.result_factory.storage_block
-            if ctx
+            if ctx and ctx.result_factory
             else task.result_storage or get_default_result_storage()
         )
         result_serializer = (
             ctx.result_factory.serializer
-            if ctx
+            if ctx and ctx.result_factory
             else task.result_serializer or get_default_result_serializer()
         )
         persist_result = (
             # Use flow context if available
             ctx.result_factory.persist_result
-            if ctx
+            if ctx and ctx.result_factory
             else (
                 # Otherwise use task settings
                 task.persist_result
@@ -236,7 +236,7 @@ class ResultFactory(pydantic.BaseModel):
         )
         cache_result_in_memory = (
             ctx.result_factory.cache_result_in_memory
-            if ctx
+            if ctx and ctx.result_factory
             else task.cache_result_in_memory
         )
 
