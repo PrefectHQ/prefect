@@ -510,9 +510,9 @@ class RunnerDeployment(BaseModel):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
-        work_pool_name=work_pool_name,
-        work_queue_name=work_queue_name,
-        job_variables=job_variables,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
