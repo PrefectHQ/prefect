@@ -1186,7 +1186,7 @@ class TestGetScheduledRuns:
         assert deployment_response.status_code == status.HTTP_200_OK
         assert deployment_response.json()["status"] == "NOT_READY"
 
-        # trigger a `deployment.last_polled` update to now
+        # trigger a poll of the work queue, which should update the deployment status
         deployment_work_pool_name = work_pools["wp_a"].name
         queue_response = await client.post(
             f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
