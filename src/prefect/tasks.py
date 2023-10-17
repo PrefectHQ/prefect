@@ -173,9 +173,10 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
-        is_retriable: A callable run when a task run returns a Failed state. Should return `True` if the
-            task should continue to its retry policy, and `False` if the task should end as failed.
-            Defaults to `None`, indicating the task should always continue to its retry policy.
+        retry_condition_fn: An optional callable run when a task run returns a Failed state. Should
+            return `True` if the task should continue to its retry policy, and `False` if the task
+            should end as failed. Defaults to `None`, indicating the task should always continue
+            to its retry policy.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
     """
 
@@ -213,7 +214,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
@@ -342,7 +343,7 @@ class Task(Generic[P, R]):
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
-        self.is_retriable = is_retriable
+        self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
     def with_options(
@@ -374,7 +375,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = NotSet,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
         """
@@ -410,10 +411,10 @@ class Task(Generic[P, R]):
             refresh_cache: A new option for enabling or disabling cache refresh.
             on_completion: A new list of callables to run when the task enters a completed state.
             on_failure: A new list of callables to run when the task enters a failed state.
-            is_retriable: A callable that, given an unsuccessful terminal state, returns `True` if
-                the task should continue to its retry policy, and `False` if the task should
-                terminate with its unsuccessful state. Defaults to `None`, which indicates that the
-                task should always continue to its retry policy.
+            retry_condition_fn: An optional callable run when a task run returns a Failed state.
+                Should return `True` if the task should continue to its retry policy, and `False`
+                if the task should end as failed. Defaults to `None`, indicating the task should
+                always continue to its retry policy.
             viz_return_value: An optional value to return when the task dependency tree is visualized.
 
         Returns:
@@ -502,7 +503,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion,
             on_failure=on_failure or self.on_failure,
-            is_retriable=is_retriable or self.is_retriable,
+            retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
             viz_return_value=viz_return_value or self.viz_return_value,
         )
 
@@ -981,7 +982,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
@@ -1015,7 +1016,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    is_retriable: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
     """
@@ -1072,10 +1073,10 @@ def task(
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
-        is_retriable: A callable that, given an unsuccessful terminal state, returns `True` if the
-            task should continue to its retry policy, and `False` if the task should terminate with
-            its unsuccessful state. Defaults to `None`, which indicates that the task should always
-            continue to its retry policy.
+        retry_condition_fn: An optional callable run when a task run returns a Failed state. Should
+            return `True` if the task should continue to its retry policy, and `False` if the task
+            should end as failed. Defaults to `None`, indicating the task should always continue
+            to its retry policy.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
@@ -1152,7 +1153,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                is_retriable=is_retriable,
+                retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
             ),
         )
@@ -1181,7 +1182,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
-                is_retriable=is_retriable,
+                retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
             ),
         )

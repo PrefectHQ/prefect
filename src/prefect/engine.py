@@ -2361,29 +2361,32 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
 async def _check_task_failure_retriable(
     task: Task, task_run: TaskRun, state: State
 ) -> bool:
-    """Run the `is_retriable` callable for a task, making sure to catch and log any errors that occur."""
+    """Run the `retry_condition_fn` callable for a task, making sure to catch and log any errors that occur."""
     # By default, a task is retriable if it is in a `Failed` state
-    if task.is_retriable is None:
+    if task.retry_condition_fn is None:
         return True
 
     logger = task_run_logger(task_run)
     try:
         logger.debug(
-            f"Running `is_retriable` check {task.is_retriable!r} for task {task.name!r}"
+            f"Running `retry_condition_fn` check {task.retry_condition_fn!r} for task"
+            f" {task.name!r}"
         )
-        if is_async_fn(task.is_retriable):
-            return await task.is_retriable(task=task, task_run=task_run, state=state)
+        if is_async_fn(task.retry_condition_fn):
+            return await task.retry_condition_fn(
+                task=task, task_run=task_run, state=state
+            )
         else:
             return await from_async.call_in_new_thread(
                 create_call(
-                    task.is_retriable, task=task, task_run=task_run, state=state
+                    task.retry_condition_fn, task=task, task_run=task_run, state=state
                 )
             )
     except Exception:
         logger.error(
             (
-                "An error was encountered while running `is_retriable` check"
-                f" {task.is_retriable.__name__!r} for task {task.name!r}"
+                "An error was encountered while running `retry_condition_fn` check"
+                f" {task.retry_condition_fn.__name__!r} for task {task.name!r}"
             ),
             exc_info=True,
         )

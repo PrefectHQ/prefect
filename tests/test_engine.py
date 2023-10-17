@@ -1141,7 +1141,7 @@ class TestOrchestrateTaskRun:
             return mock.call_count == 1
 
         # Can retry more than once
-        @task(retries=5, is_retriable=is_retriable)
+        @task(retries=5, retry_condition_fn=is_retriable)
         def my_task(x):
             mock(x)
             raise ValueError("try again, but only once")
