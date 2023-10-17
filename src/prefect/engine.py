@@ -1311,7 +1311,7 @@ async def get_task_call_return_value(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
     extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
-): 
+):
     extra_task_inputs = extra_task_inputs or {}
 
     if flow_run_context is None:
