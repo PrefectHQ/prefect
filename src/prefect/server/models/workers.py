@@ -642,31 +642,3 @@ async def worker_heartbeat(
 
     result = await session.execute(insert_stmt)
     return result.rowcount > 0
-
-
-@inject_db
-async def _update_deployment_last_polled_from_work_pool_name(
-    session: AsyncSession,
-    work_pool_name: str,
-    db: PrefectDBInterface,
-):
-    """
-    Update the `last_polled` time for deployments from a given work pool name.
-
-    Args:
-        session (AsyncSession): a database session
-        work_pool_name (str): a work pool name
-    """
-    wq_ids_from_wp_name = (
-        sa.select(db.WorkQueue.id)
-        .join(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
-        .where(db.WorkPool.name == work_pool_name)
-    )
-
-    update_deployment_last_polled = (
-        sa.update(db.Deployment)
-        .where(db.Deployment.work_queue_id.in_(wq_ids_from_wp_name))
-        .values(last_polled=pendulum.now("UTC"))
-    )
-
-    await session.execute(update_deployment_last_polled)

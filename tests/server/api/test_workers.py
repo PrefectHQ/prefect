@@ -1193,7 +1193,4 @@ class TestGetScheduledRuns:
         # get the updated deployment
         deployment_response = await client.get(f"/deployments/{deployment.id}")
         assert deployment_response.status_code == status.HTTP_200_OK
-        assert (
-            deployment_response.json()["last_polled"]
-            > pendulum.now("UTC").subtract(minutes=1).isoformat()
-        )
+        assert deployment_response.json()["status"] == "READY"
