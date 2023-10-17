@@ -644,6 +644,7 @@ async def worker_heartbeat(
     return result.rowcount > 0
 
 
+@inject_db
 async def _update_deployment_last_polled_from_work_pool_name(
     session: AsyncSession,
     work_pool_name: str,
