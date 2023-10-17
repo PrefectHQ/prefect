@@ -91,6 +91,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         deployment_id = response.json()["id"]
+        assert response.json()["status"] == "NOT_READY"
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -996,6 +997,8 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
+
+        assert response.json()[0]["status"] == "NOT_READY"
 
     async def test_read_deployments_applies_filter(
         self, deployments, deployment_id_1, deployment_id_2, flow, client
