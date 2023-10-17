@@ -1116,3 +1116,21 @@ class TestUpdateDeploymentLastPolled:
         )
         assert updated_deployment.last_polled is not None
         assert updated_deployment.last_polled > pendulum.now("UTC").subtract(minutes=1)
+
+    async def test_updated_deployments_from_work_queue_ids_have_last_polled_of_now(
+        self, session, deployment
+    ):
+        current_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert current_deployment.last_polled is None
+
+        await models.deployments._update_deployment_last_polled_from_work_queue_ids(
+            session=session, work_queue_ids=[deployment.work_queue_id]
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.last_polled is not None
+        assert updated_deployment.last_polled > pendulum.now("UTC").subtract(minutes=1)

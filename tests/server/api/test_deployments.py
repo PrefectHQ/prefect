@@ -1423,11 +1423,12 @@ class TestGetScheduledFlowRuns:
             updated_response_deployment_1.json()["last_polled"]
             > pendulum.now("UTC").subtract(minutes=1).isoformat()
         )
+        assert updated_response_deployment_1.json()["status"] == "READY"
 
-        same_response_deployment_1 = await client.get(f"/deployments/{deployment_2.id}")
-        assert same_response_deployment_1.status_code == 200
-        assert same_response_deployment_1.json()["last_polled"] is None
-        assert same_response_deployment_1.json()["status"] == "NOT_READY"
+        same_response_deployment_2 = await client.get(f"/deployments/{deployment_2.id}")
+        assert same_response_deployment_2.status_code == 200
+        assert same_response_deployment_2.json()["last_polled"] is None
+        assert same_response_deployment_2.json()["status"] == "NOT_READY"
 
     async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status_multiple_deployments(
         self,
@@ -1455,11 +1456,11 @@ class TestGetScheduledFlowRuns:
 
         updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
         assert updated_response_1.status_code == 200
-
         assert (
             updated_response_1.json()["last_polled"]
             > pendulum.now("UTC").subtract(minutes=1).isoformat()
         )
+        assert updated_response_1.json()["status"] == "READY"
 
         updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
         assert updated_response_2.status_code == 200
@@ -1467,6 +1468,7 @@ class TestGetScheduledFlowRuns:
             updated_response_2.json()["last_polled"]
             > pendulum.now("UTC").subtract(minutes=1).isoformat()
         )
+        assert updated_response_2.json()["status"] == "READY"
 
 
 class TestDeleteDeployment:
