@@ -161,7 +161,7 @@ Congratulations! You now have your first working deployment.
 
 ### Hosting your served flows
 
-If you want an easy way to host your served flows, check out [Coiled's quickstart guide](https://docs.coiled.io/user_guide/labs/prefect-cli.html) for serving flows on their cloud platform. 
+If you want a quick way to host your served flows, check out [Coiled's quickstart guide](https://docs.coiled.io/user_guide/labs/prefect-cli.html) for serving flows on their cloud platform. 
 
 ### Running flows on dynamic infrastructure
 
