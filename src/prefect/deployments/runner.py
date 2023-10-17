@@ -212,7 +212,7 @@ class RunnerDeployment(BaseModel):
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
-                work_pool_name=self.work_pool_name,
+                work_pool_name=work_pool_name,
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,

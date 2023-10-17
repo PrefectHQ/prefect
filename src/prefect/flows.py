@@ -40,9 +40,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
 from prefect.utilities.dockerutils import (
+    PushError,
     build_image,
     docker_client,
-    get_prefect_image_name,
+    generate_default_dockerfile,
 )
 from prefect.utilities.slugify import slugify
 
@@ -827,7 +828,7 @@ class Flow(Generic[P, R]):
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
 
-        Calling this function will build a Docker image for the flow, push it to a registry,
+        Calling this method will build a Docker image for the flow, push it to a registry,
         and create a deployment via the Prefect API that will run the flow on the given schedule.
 
         Args:
@@ -897,47 +898,18 @@ class Flow(Generic[P, R]):
         ) as progress:
             docker_build_task = progress.add_task("docker_build", total=1)
         auto_build = dockerfile == "auto"
+        build_kwargs["context"] = Path.cwd()
+        build_kwargs["tag"] = full_image_name
+        build_kwargs["pull"] = build_kwargs.get("pull", True)
+
         if auto_build:
-            lines = []
-            base_image = get_prefect_image_name()
-            lines.append(f"FROM {base_image}")
-            dir_name = os.path.basename(os.getcwd())
-
-            if Path("requirements.txt").exists():
-                lines.append(
-                    f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
-                )
-                lines.append(
-                    "RUN python -m pip install -r"
-                    f" /opt/prefect/{dir_name}/requirements.txt"
-                )
-
-            lines.append(f"COPY . /opt/prefect/{dir_name}/")
-            lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
-
-            temp_dockerfile = Path("Dockerfile")
-            if Path(temp_dockerfile).exists():
-                raise RuntimeError(
-                    "Failed to generate Dockerfile. Dockerfile already exists in the"
-                    " current directory."
-                )
-
-            with Path(temp_dockerfile).open("w") as f:
-                f.writelines(line + "\n" for line in lines)
-
-            dockerfile = str(temp_dockerfile)
-
-            try:
-                build_kwargs["context"] = Path.cwd()
-                build_kwargs["dockerfile"] = dockerfile
-                build_kwargs["tag"] = full_image_name
-                build_kwargs["pull"] = build_kwargs.get("pull", True)
-
+            with generate_default_dockerfile():
                 build_image(**build_kwargs)
-            finally:
-                progress.update(docker_build_task, completed=1)
-                Path("Dockerfile").unlink()
+        else:
+            build_kwargs["dockerfile"] = dockerfile
+            build_image(**build_kwargs)
 
+        progress.update(docker_build_task, completed=1)
         console.print(f"Successfully built image {full_image_name!r}", style="green")
 
         with Progress(
@@ -949,10 +921,12 @@ class Flow(Generic[P, R]):
             docker_push_task = progress.add_task("docker_push", total=1)
 
             with docker_client() as client:
-                client.api.push(
-                    repository=image_name,
-                    tag=tag,
+                events = client.api.push(
+                    repository=image_name, tag=tag, stream=True, decode=True
                 )
+                for event in events:
+                    if "error" in event:
+                        raise PushError(event["error"])
 
             progress.update(docker_push_task, completed=1)
 
@@ -982,7 +956,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
             )
-            await deployment.apply(image=full_image_name)
+            deployment_id = await deployment.apply(image=full_image_name)
 
             progress.update(create_deployment_task, completed=1)
 
@@ -1005,6 +979,11 @@ class Flow(Generic[P, R]):
             f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
             style="blue",
         )
+        if PREFECT_UI_URL:
+            console.print(
+                "\nYou can also run your flow via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+            )
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:

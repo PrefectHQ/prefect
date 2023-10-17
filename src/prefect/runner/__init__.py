@@ -1,1 +1,1 @@
-from .runner import Runner, serve
+from .runner import Runner, serve, deploy
