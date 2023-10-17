@@ -109,6 +109,13 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             else self.command
         )
 
+    def _base_flow_run_command(self) -> str:
+        """
+        Override the base flow run command because enhanced cancellation doesn't
+        work with the process worker.
+        """
+        return "python -m prefect.engine"
+
 
 class ProcessVariables(BaseVariables):
     stream_output: bool = Field(

@@ -20,10 +20,15 @@ import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
-from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
+from prefect.filesystems import (
+    LocalFileSystem,
+    ReadableFileSystem,
+    WritableFileSystem,
+)
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
@@ -50,11 +55,17 @@ logger = get_logger("results")
 R = TypeVar("R")
 
 
-def get_default_result_storage() -> ResultStorage:
+@sync_compatible
+async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+
+    return (
+        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+        if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
+        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+    )
 
 
 def get_default_result_serializer() -> ResultSerializer:
@@ -137,7 +148,7 @@ class ResultFactory(pydantic.BaseModel):
                 kwargs.pop(key)
 
         # Apply defaults
-        kwargs.setdefault("result_storage", get_default_result_storage())
+        kwargs.setdefault("result_storage", await get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
