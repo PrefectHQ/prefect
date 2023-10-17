@@ -661,7 +661,7 @@ class TestRunnerDeployment:
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
-        assert deployment.path == str(Path.cwd())
+        assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
 
     async def test_create_runner_deployment_from_storage(self):
