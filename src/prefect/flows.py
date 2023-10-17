@@ -805,6 +805,7 @@ class Flow(Generic[P, R]):
         tag: Optional[str] = None,
         dockerfile: str = "auto",
         build_kwargs: Optional[dict] = None,
+        skip_push: bool = False,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict] = None,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
@@ -834,6 +835,7 @@ class Flow(Generic[P, R]):
             dockerfile: The name of the Dockerfile to use for building the image. If not set
                 a Dockerfile will be generated automatically.
             build_kwargs: Additional keyword arguments to pass to the Docker build command.
+            skip_push: Whether or not to skip pushing the built image to a registry.
             work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
                 If not provided the default work queue for the work pool will be used.
             job_variables: Settings used to override the values specified default base job template
@@ -854,9 +856,14 @@ class Flow(Generic[P, R]):
             version: A version for the created deployment. Defaults to the flow's version.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
+            print_next_steps_message: Whether or not to print a message with next steps
+            after deploying the deployments.
+
+        Returns:
+            The ID of the created/updated deployment.
 
         Examples:
-            Deploy a flow:
+            Deploy a local flow to a work pool:
 
             ```python
             from prefect import flow
@@ -866,7 +873,29 @@ class Flow(Generic[P, R]):
                 print(f"hello {name}")
 
             if __name__ == "__main__":
-                my_flow.deploy("example-deployment", work_pool="my-work-pool")
+                my_flow.deploy(
+                    "example-deployment",
+                    work_pool="my-work-pool",
+                    image_name="my-repository/my-image",
+                    tag="dev"
+                )
+            ```
+
+            Deploy a remotely stored flow to a work pool:
+
+            ```python
+            from prefect import flow
+
+            if __name__ == "__main__":
+                flow.from_source(
+                    source="https://github.com/org/repo.git",
+                    entrypoint="flows.py:my_flow",
+                ).deploy(
+                    "example-deployment",
+                    work_pool="my-work-pool",
+                    image_name="my-repository/my-image",
+                    tag="dev"
+                )
             ```
         """
         try:
@@ -902,6 +931,7 @@ class Flow(Generic[P, R]):
             tag=tag,
             dockerfile=dockerfile,
             build_kwargs=build_kwargs,
+            skip_push=skip_push,
         )
 
         if print_next_steps:
