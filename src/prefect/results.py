@@ -13,10 +13,17 @@ from typing import (
     Union,
 )
 
-import pydantic
 from typing_extensions import Self
 
 import prefect
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+    
+else:
+    import pydantic
+
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
