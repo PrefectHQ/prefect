@@ -45,6 +45,7 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import PREFECT_UI_URL
+from prefect.utilities.collections import get_from_dict
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
@@ -615,6 +616,7 @@ async def deploy(
     tag: Optional[str] = None,
     dockerfile: str = "auto",
     build_kwargs: Optional[dict] = None,
+    skip_push: bool = False,
     print_next_steps_message: bool = True,
 ) -> List[UUID]:
     """
@@ -634,6 +636,37 @@ async def deploy(
         dockerfile: The name of the Dockerfile to use for building the image. If not set
             a Dockerfile will be generated automatically.
         build_kwargs: Additional keyword arguments to pass to the Docker build command.
+        skip_push: Whether or not to skip pushing the built image to a registry.
+        print_next_steps_message: Whether or not to print a message with next steps
+            after deploying the deployments.
+
+    Returns:
+        A list of deployment IDs for the created/updated deployments.
+
+    Examples:
+        Deploy a group of flows to a work pool:
+
+        ```python
+        from prefect import deploy, flow
+
+        @flow(log_prints=True)
+        def local_flow():
+            print("I'm a locally defined flow!")
+
+        if __name__ == "__main__":
+            deploy(
+                local_flow.to_deployment(name="example-deploy-local-flow"),
+                flow.from_source(
+                    source="https://github.com/org/repo.git",
+                    entrypoint="flows.py:my_flow",
+                ).to_deployment(
+                    name="example-deploy-remote-flow",
+                ),
+                work_pool_name="my-work-pool",
+                image_name="my-registry/my-image",
+                tag="dev",
+            )
+        ```
     """
     if not tag:
         tag = slugify(pendulum.now("utc").isoformat())
@@ -648,6 +681,15 @@ async def deploy(
             f"Work pool {work_pool_name!r} does not exist. Please create it before"
             " deploying this flow."
         ) from exc
+
+    is_docker_based_work_pool = get_from_dict(
+        work_pool.base_job_template, "variables.properties.image", False
+    )
+    if not is_docker_based_work_pool:
+        raise RuntimeError(
+            f"Work pool {work_pool_name!r} does not support custom Docker images. "
+            "Please use a work pool with an `image` variable in its base job template."
+        )
 
     console = Console()
     with Progress(
@@ -672,25 +714,26 @@ async def deploy(
     progress.update(docker_build_task, completed=1)
     console.print(f"Successfully built image {full_image_name!r}", style="green")
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("Pushing image..."),
-        transient=True,
-        console=console,
-    ) as progress:
-        docker_push_task = progress.add_task("docker_push", total=1)
+    if not skip_push:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Pushing image..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_push_task = progress.add_task("docker_push", total=1)
 
-        with docker_client() as client:
-            events = client.api.push(
-                repository=image_name, tag=tag, stream=True, decode=True
-            )
-            for event in events:
-                if "error" in event:
-                    raise PushError(event["error"])
+            with docker_client() as client:
+                events = client.api.push(
+                    repository=image_name, tag=tag, stream=True, decode=True
+                )
+                for event in events:
+                    if "error" in event:
+                        raise PushError(event["error"])
 
-        progress.update(docker_push_task, completed=1)
+            progress.update(docker_push_task, completed=1)
 
-    console.print(f"Successfully pushed image {full_image_name!r}", style="green")
+        console.print(f"Successfully pushed image {full_image_name!r}", style="green")
 
     deployment_ids = []
     for deployment in track(
