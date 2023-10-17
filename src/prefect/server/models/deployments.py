@@ -696,3 +696,18 @@ async def check_work_queues_for_deployment(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@inject_db
+async def _update_deployment_last_polled(
+    db: PrefectDBInterface, session: sa.orm.Session, deployment_ids: List[UUID]
+) -> None:
+    """
+    Update the last_polled for a list of deployment ids
+    """
+    query = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.id.in_(deployment_ids))
+        .values(last_polled=pendulum.now("UTC"))
+    )
+    await session.execute(query)
