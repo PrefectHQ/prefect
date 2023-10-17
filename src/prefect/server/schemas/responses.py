@@ -282,16 +282,16 @@ class DeploymentResponse(ORMBaseModel):
             if orm_deployment.work_queue.work_pool:
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
-        offline_horizon = datetime.datetime.now(
+        not_ready_horizon = datetime.datetime.now(
             tz=datetime.timezone.utc
         ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
 
-        if response.last_polled and response.last_polled > offline_horizon:
+        if response.last_polled and response.last_polled > not_ready_horizon:
             response.status = schemas.statuses.DeploymentStatus.READY
         elif (
             orm_deployment.work_queue
             and orm_deployment.work_queue.last_polled
-            and orm_deployment.work_queue.last_polled > offline_horizon
+            and orm_deployment.work_queue.last_polled > not_ready_horizon
         ):
             response.status = schemas.statuses.DeploymentStatus.READY
 
