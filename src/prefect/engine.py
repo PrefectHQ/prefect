@@ -1140,10 +1140,8 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    is_async_autonomous_task = (
-        task.isasync and not flow_run_context
-    )
-    
+    is_async_autonomous_task = task.isasync and not flow_run_context
+
     is_async_task_in_async_flow = (
         task.isasync and flow_run_context and flow_run_context.flow.isasync
     )
@@ -1247,10 +1245,11 @@ async def begin_task_map(
     runner = (
         task_runner
         if task_runner
-        else flow_run_context.task_runner if flow_run_context
-        else ConcurrentTaskRunner()
+        else (
+            flow_run_context.task_runner if flow_run_context else ConcurrentTaskRunner()
+        )
     )
-    
+
     if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         return [await task_run() for task_run in task_runs]
 
@@ -1392,11 +1391,11 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-        
+
     task_run_name = (
         f"{task.name}-{dynamic_key}"
         if flow_run_context and flow_run_context.flow_run
-        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}" # autonomous task run
+        else f"{task.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
     )
 
     asynchronous = (
@@ -1694,7 +1693,7 @@ async def orchestrate_task_run(
         flow_run = await client.read_flow_run(task_run.flow_run_id)
     else:
         flow_run = None
-    logger = task_run_logger(task_run, task=task, flow_run=flow_run)    
+    logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
         TaskRunContext,
@@ -2263,9 +2262,9 @@ async def propose_state(
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
-    if context.flow_run is None: # this is an autonomous task run
+    if context.flow_run is None:  # this is an autonomous task run
         context.task_run_dynamic_keys[task.task_key] = task.dynamic_key or str(uuid4())
-        
+
     elif task.task_key not in context.task_run_dynamic_keys:
         context.task_run_dynamic_keys[task.task_key] = 0
     else:
