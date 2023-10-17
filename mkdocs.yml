@@ -151,7 +151,7 @@ nav:
                 - Runtime Context: guides/runtime-context.md
                 - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
-                - Using the client: guides/using-the-client.md
+                - Using the Client: guides/using-the-client.md
           - Execution:
                 - Docker: guides/docker.md
                 - Webhooks: guides/webhooks.md

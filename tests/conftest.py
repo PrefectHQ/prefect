@@ -507,3 +507,8 @@ def disable_workers():
         {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 0, PREFECT_EXPERIMENTAL_WARN_WORKERS: 1}
     ):
         yield
+
+
+@pytest.fixture
+def start_of_test() -> pendulum.DateTime:
+    return pendulum.now("UTC")
