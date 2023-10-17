@@ -1178,7 +1178,7 @@ class TestGetScheduledRuns:
             assert work_queue.last_polled is not None
             assert work_queue.last_polled > now
 
-    async def test_ensure_deployments_associated_with_work_pool_have_last_polled_of_now(
+    async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
         self, client, work_pools, deployment
     ):
         assert deployment.last_polled is None
