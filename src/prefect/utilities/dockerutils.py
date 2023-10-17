@@ -521,3 +521,35 @@ def format_outlier_version_name(version: str):
         str: value that can pass `packaging.version.parse` validation
     """
     return version.replace("-ce", "").replace("-ee", "")
+
+
+@contextmanager
+def generate_default_dockerfile():
+    lines = []
+    base_image = get_prefect_image_name()
+    lines.append(f"FROM {base_image}")
+    dir_name = os.path.basename(os.getcwd())
+
+    if Path("requirements.txt").exists():
+        lines.append(f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt")
+        lines.append(
+            f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+        )
+
+    lines.append(f"COPY . /opt/prefect/{dir_name}/")
+    lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
+
+    temp_dockerfile = Path("Dockerfile")
+    if Path(temp_dockerfile).exists():
+        raise RuntimeError(
+            "Failed to generate Dockerfile. Dockerfile already exists in the"
+            " current directory."
+        )
+
+    with Path(temp_dockerfile).open("w") as f:
+        f.writelines(line + "\n" for line in lines)
+
+    try:
+        yield temp_dockerfile
+    finally:
+        temp_dockerfile.unlink()
