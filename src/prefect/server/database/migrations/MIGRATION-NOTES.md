@@ -8,6 +8,14 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add last_polled to deployment table
+SQLite: `f3165ae0a213`
+Postgres: `bfe653bbf62e`
+
+# Make flow_run_id nullable on task_run and log tables
+SQLite: `05ea6f882b1d`
+Postgres: `05ea6f882b1d`
+
 # Make slot_decay_per_second not nullable
 SQLite: `8167af8df781`
 Postgres: `4e9a6f93eb6c`
