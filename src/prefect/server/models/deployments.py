@@ -711,3 +711,18 @@ async def _update_deployment_last_polled(
         .values(last_polled=pendulum.now("UTC"))
     )
     await session.execute(query)
+
+
+@inject_db
+async def _update_deployment_last_polled_from_work_queue_ids(
+    db: PrefectDBInterface, session: sa.orm.Session, work_queue_ids: List[UUID]
+) -> None:
+    """
+    Update the last_polled for a list of work queue ids
+    """
+    query = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.work_queue_id.in_(work_queue_ids))
+        .values(last_polled=pendulum.now("UTC"))
+    )
+    await session.execute(query)

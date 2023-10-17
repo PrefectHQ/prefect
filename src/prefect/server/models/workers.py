@@ -390,24 +390,6 @@ async def bulk_update_work_queue_priorities(
 
 
 @inject_db
-async def _update_deployment_last_polled(
-    session: AsyncSession,
-    work_queue_ids: List[UUID],
-    db: PrefectDBInterface,
-) -> None:
-    """
-    Update the last_polled timestamp for a list of deployments, given their
-    work_queue_ids.
-    """
-    update_stmt = (
-        sa.update(db.Deployment)
-        .where(db.Deployment.work_queue_id.in_(work_queue_ids))
-        .values(last_polled=pendulum.now("UTC"))
-    )
-    await session.execute(update_stmt)
-
-
-@inject_db
 async def read_work_queues(
     session: AsyncSession,
     work_pool_id: UUID,
@@ -660,3 +642,26 @@ async def worker_heartbeat(
 
     result = await session.execute(insert_stmt)
     return result.rowcount > 0
+
+
+async def _update_deployment_last_polled_from_work_pool_name(
+    session: AsyncSession,
+    work_pool_name: str,
+    db: PrefectDBInterface,
+):
+    """
+    Update the last polled time for a deployment by work pool name.
+    """
+    wq_ids_from_wp_name = (
+        sa.select(db.WorkQueue.id)
+        .join(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
+        .where(db.WorkPool.name == work_pool_name)
+    )
+
+    update_deployment_last_polled = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.work_queue_id.in_(wq_ids_from_wp_name))
+        .values(last_polled=pendulum.now("UTC"))
+    )
+
+    await session.execute(update_deployment_last_polled)

@@ -335,6 +335,12 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
+        await models.workers._update_deployment_last_polled_from_work_pool_name(
+            session=session,
+            work_pool_name=work_pool_name,
+            db=db,
+        )
+
         background_tasks.add_task(
             _record_work_queue_polls,
             db=db,
