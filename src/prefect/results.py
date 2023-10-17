@@ -234,7 +234,7 @@ class ResultFactory(pydantic.BaseModel):
         result_storage = (
             ctx.result_factory.storage_block
             if ctx and ctx.result_factory
-            else task.result_storage or get_default_result_storage()
+            else task.result_storage or await get_default_result_storage()
         )
         result_serializer = (
             ctx.result_factory.serializer

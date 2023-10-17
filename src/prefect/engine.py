@@ -1337,6 +1337,8 @@ async def get_task_call_return_value(
                 task_runner.start()
             )
 
+            flow_run_context.result_factory = await ResultFactory.from_task(task=task)
+
             with flow_run_context.finalize(
                 flow=None, flow_run=None
             ) as flow_run_context:
