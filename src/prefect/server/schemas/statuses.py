@@ -14,3 +14,10 @@ class WorkerStatus(AutoEnum):
 
     ONLINE = AutoEnum.auto()
     OFFLINE = AutoEnum.auto()
+
+
+class DeploymentStatus(AutoEnum):
+    """Enumeration of deployment statuses."""
+
+    READY = AutoEnum.auto()
+    NOT_READY = AutoEnum.auto()

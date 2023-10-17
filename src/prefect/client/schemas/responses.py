@@ -218,6 +218,7 @@ class DeploymentResponse(ObjectBaseModel):
     parameters: Dict[str, Any] = FieldFrom(objects.Deployment)
     tags: List[str] = FieldFrom(objects.Deployment)
     work_queue_name: Optional[str] = FieldFrom(objects.Deployment)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(objects.Deployment)
     parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(objects.Deployment)
     path: Optional[str] = FieldFrom(objects.Deployment)
     pull_steps: Optional[List[dict]] = FieldFrom(objects.Deployment)
@@ -230,6 +231,10 @@ class DeploymentResponse(ObjectBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
+    )
+    status: Optional[objects.DeploymentStatus] = Field(
+        default=None,
+        description="Current status of the deployment.",
     )
     enforce_parameter_schema: bool = FieldFrom(objects.Deployment)
 
