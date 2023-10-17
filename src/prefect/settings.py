@@ -1258,6 +1258,12 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
+"""
+The maximum size of a flow run graph on the v2 API
+"""
+
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.

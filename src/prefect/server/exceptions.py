@@ -18,3 +18,8 @@ class MissingVariableError(PrefectException):
     """An error raised by the Prefect REST API when attempting to create or update a
     deployment with missing required variables.
     """
+
+
+class FlowRunGraphTooLarge(Exception):
+    """Raised to indicate that a flow run's graph has more nodes that the configured
+    maximum"""
