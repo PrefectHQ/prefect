@@ -297,12 +297,10 @@ class TestFunctionToSchema:
             "type": "object",
         }
 
-    def test_function_with_pydantic_model_default(self):
-        """
-        The serialization results for a v1 and v2 schema are different so
-        this test does not attempt to compare the results. Instead it just verifies
-        that the schema is generated without error.
-        """
+    def test_function_with_pydantic_model_default_across_v1_and_v2(self):
+        # this import ensures this test imports the installed version of
+        # pydantic (not pydantic.v1) and allows us to test that we
+        # generate consistent schemas across v1 and v2
         import pydantic
 
         class Foo(pydantic.BaseModel):
@@ -311,7 +309,83 @@ class TestFunctionToSchema:
         def f(foo: Foo = Foo(bar="baz")):
             ...
 
-        callables.parameter_schema(f)
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "default": {"bar": "baz"},
+                    "position": 0,
+                    "title": "foo",
+                }
+            },
+            "definitions": {
+                "Foo": {
+                    "properties": {"bar": {"title": "Bar", "type": "string"}},
+                    "required": ["bar"],
+                    "title": "Foo",
+                    "type": "object",
+                }
+            },
+        }
+
+    def test_function_with_complex_args_across_v1_and_v2(self):
+        # this import ensures this test imports the installed version of
+        # pydantic (not pydantic.v1) and allows us to test that we
+        # generate consistent schemas across v1 and v2
+        import pydantic
+
+        class Foo(pydantic.BaseModel):
+            bar: str
+
+        def f(
+            a: int,
+            s: List[None],
+            m: Foo,
+            i: int = 0,
+            x: float = 1.0,
+            model: Foo = Foo(bar="bar"),
+        ):
+            ...
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "a": {"position": 0, "title": "a", "type": "integer"},
+                "s": {
+                    "items": {"type": "null"},
+                    "position": 1,
+                    "title": "s",
+                    "type": "array",
+                },
+                "m": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "position": 2,
+                    "title": "m",
+                },
+                "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
+                "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
+                "model": {
+                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    "default": {"bar": "bar"},
+                    "position": 5,
+                    "title": "model",
+                },
+            },
+            "required": ["a", "s", "m"],
+            "definitions": {
+                "Foo": {
+                    "properties": {"bar": {"title": "Bar", "type": "string"}},
+                    "required": ["bar"],
+                    "title": "Foo",
+                    "type": "object",
+                }
+            },
+        }
 
 
 class TestMethodToSchema:
