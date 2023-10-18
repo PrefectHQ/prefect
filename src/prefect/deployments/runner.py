@@ -68,6 +68,7 @@ from prefect.utilities.dockerutils import (
     build_image,
     docker_client,
     generate_default_dockerfile,
+    parse_image_tag,
 )
 from prefect.utilities.slugify import slugify
 
@@ -613,14 +614,46 @@ class RunnerDeployment(BaseModel):
         return deployment
 
 
+class DeploymentImage:
+    def __init__(self, name, tag=None, dockerfile="auto", build_kwargs=None):
+        self._name = name
+        self._tag = tag or slugify(pendulum.now("utc").isoformat())
+        self._dockerfile = dockerfile
+        self._build_kwargs = build_kwargs or {}
+
+    @property
+    def reference(self):
+        return f"{self._name}:{self._tag}"
+
+    def build(self):
+        full_image_name = self.reference
+        build_kwargs = self._build_kwargs.copy()
+        build_kwargs["context"] = Path.cwd()
+        build_kwargs["tag"] = full_image_name
+        build_kwargs["pull"] = build_kwargs.get("pull", True)
+
+        if self._dockerfile == "auto":
+            with generate_default_dockerfile():
+                build_image(**build_kwargs)
+        else:
+            build_kwargs["dockerfile"] = self._dockerfile
+            build_image(**build_kwargs)
+
+    def push(self):
+        with docker_client() as client:
+            events = client.api.push(
+                repository=self._name, tag=self._tag, stream=True, decode=True
+            )
+            for event in events:
+                if "error" in event:
+                    raise PushError(event["error"])
+
+
 @sync_compatible
 async def deploy(
     *args: RunnerDeployment,
     work_pool_name: str,
-    image_name: str,
-    image_tag: Optional[str] = None,
-    dockerfile: str = "auto",
-    build_kwargs: Optional[dict] = None,
+    image: Union[str, DeploymentImage],
     skip_push: bool = False,
     print_next_steps_message: bool = True,
 ) -> List[UUID]:
@@ -635,12 +668,9 @@ async def deploy(
     Args:
         *args: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments.
-        image_name: The name of the Docker image to build, including the registry and
-            repository.
-        image_tag: The tag to use for the built Docker image.
-        dockerfile: The name of the Dockerfile to use for building the image. If not set
-            a Dockerfile will be generated automatically.
-        build_kwargs: Additional keyword arguments to pass to the Docker build command.
+        image: The name of the Docker image to build, including the registry and
+            repository. Pass a DeploymentImage instance to customize the Dockerfile used
+            and build arguments.
         skip_push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
@@ -668,15 +698,13 @@ async def deploy(
                     name="example-deploy-remote-flow",
                 ),
                 work_pool_name="my-work-pool",
-                image_name="my-registry/my-image",
-                tag="dev",
+                image="my-registry/my-image:dev",
             )
         ```
     """
-    if not image_tag:
-        image_tag = slugify(pendulum.now("utc").isoformat())
-    full_image_name = f"{image_name}:{image_tag}"
-    build_kwargs = build_kwargs or {}
+    if isinstance(image, str):
+        image_name, image_tag = parse_image_tag(image)
+        image = DeploymentImage(name=image_name, tag=image_tag)
 
     try:
         async with get_client() as client:
@@ -699,25 +727,15 @@ async def deploy(
     console = Console()
     with Progress(
         SpinnerColumn(),
-        TextColumn(f"Building image {full_image_name}..."),
+        TextColumn(f"Building image {image.reference}..."),
         transient=True,
         console=console,
     ) as progress:
         docker_build_task = progress.add_task("docker_build", total=1)
-    auto_build = dockerfile == "auto"
-    build_kwargs["context"] = Path.cwd()
-    build_kwargs["tag"] = full_image_name
-    build_kwargs["pull"] = build_kwargs.get("pull", True)
+        image.build()
 
-    if auto_build:
-        with generate_default_dockerfile():
-            build_image(**build_kwargs)
-    else:
-        build_kwargs["dockerfile"] = dockerfile
-        build_image(**build_kwargs)
-
-    progress.update(docker_build_task, completed=1)
-    console.print(f"Successfully built image {full_image_name!r}", style="green")
+        progress.update(docker_build_task, completed=1)
+        console.print(f"Successfully built image {image.reference!r}", style="green")
 
     if not skip_push:
         with Progress(
@@ -728,17 +746,11 @@ async def deploy(
         ) as progress:
             docker_push_task = progress.add_task("docker_push", total=1)
 
-            with docker_client() as client:
-                events = client.api.push(
-                    repository=image_name, tag=image_tag, stream=True, decode=True
-                )
-                for event in events:
-                    if "error" in event:
-                        raise PushError(event["error"])
+            image.push()
 
             progress.update(docker_push_task, completed=1)
 
-        console.print(f"Successfully pushed image {full_image_name!r}", style="green")
+        console.print(f"Successfully pushed image {image.reference!r}", style="green")
 
     deployment_ids = []
     for deployment in track(
@@ -747,7 +759,7 @@ async def deploy(
         console=console,
     ):
         deployment_ids.append(
-            await deployment.apply(image=full_image_name, work_pool_name=work_pool_name)
+            await deployment.apply(image=image.reference, work_pool_name=work_pool_name)
         )
 
     console.print("Successfully created/updated all deployments!\n", style="green")

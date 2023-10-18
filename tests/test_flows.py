@@ -34,7 +34,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -3382,6 +3382,9 @@ class TestFlowDeploy:
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
+        image = DeploymentImage(
+            name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
+        )
         await local_flow.deploy(
             name="test",
             tags=["price", "luggage"],
@@ -3391,9 +3394,7 @@ class TestFlowDeploy:
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
-            image_name="my-repo/my-image",
-            image_tag="dev",
-            build_kwargs={"pull": False},
+            image=image,
             skip_push=True,
             enforce_parameter_schema=True,
         )
@@ -3410,10 +3411,7 @@ class TestFlowDeploy:
                 enforce_parameter_schema=True,
             ),
             work_pool_name=work_pool.name,
-            image_name="my-repo/my-image",
-            image_tag="dev",
-            dockerfile="auto",
-            build_kwargs={"pull": False},
+            image=image,
             skip_push=True,
             print_next_steps_message=False,
         )
@@ -3428,6 +3426,9 @@ class TestFlowDeploy:
         remote_flow,
         work_pool,
     ):
+        image = DeploymentImage(
+            name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
+        )
         await remote_flow.deploy(
             name="test",
             tags=["price", "luggage"],
@@ -3437,9 +3438,7 @@ class TestFlowDeploy:
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
-            image_name="my-repo/my-image",
-            image_tag="dev",
-            build_kwargs={"pull": False},
+            image=image,
             skip_push=True,
             enforce_parameter_schema=True,
         )
@@ -3456,10 +3455,7 @@ class TestFlowDeploy:
                 enforce_parameter_schema=True,
             ),
             work_pool_name=work_pool.name,
-            image_name="my-repo/my-image",
-            image_tag="dev",
-            dockerfile="auto",
-            build_kwargs={"pull": False},
+            image=image,
             skip_push=True,
             print_next_steps_message=False,
         )
@@ -3475,7 +3471,7 @@ class TestFlowDeploy:
             await local_flow.deploy(
                 name="test",
                 work_pool_name="non-existent",
-                image_name="my-repo/my-image",
+                image="my-repo/my-image",
             )
 
     async def test_no_worker_command_for_push_pool(
@@ -3484,7 +3480,7 @@ class TestFlowDeploy:
         await local_flow.deploy(
             name="test",
             work_pool_name=push_work_pool.name,
-            image_name="my-repo/my-image",
+            image="my-repo/my-image",
         )
 
         assert "prefect worker start" not in capsys.readouterr().out
@@ -3495,7 +3491,7 @@ class TestFlowDeploy:
         await local_flow.deploy(
             name="test",
             work_pool_name=work_pool.name,
-            image_name="my-repo/my-image",
+            image="my-repo/my-image",
             print_next_steps=False,
         )
 

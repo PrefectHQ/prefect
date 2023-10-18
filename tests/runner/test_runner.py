@@ -14,7 +14,7 @@ from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
-from prefect.deployments.runner import RunnerDeployment, deploy
+from prefect.deployments.runner import DeploymentImage, RunnerDeployment, deploy
 from prefect.flows import load_flow_from_entrypoint
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
@@ -24,6 +24,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dockerutils import parse_image_tag
 
 
 @flow(version="test")
@@ -848,8 +849,10 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image_name="test-registry/test-image",
-            image_tag="test-tag",
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
         )
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
@@ -888,7 +891,7 @@ class TestDeploy:
             await deploy(
                 await dummy_flow_1.to_deployment(__file__),
                 work_pool_name="non-existent",
-                image_name="test-registry/test-image",
+                image="test-registry/test-image",
             )
 
     async def test_deploy_non_image_work_pool(self, process_work_pool):
@@ -902,7 +905,7 @@ class TestDeploy:
             await deploy(
                 await dummy_flow_1.to_deployment(__file__),
                 work_pool_name=process_work_pool.name,
-                image_name="test-registry/test-image",
+                image="test-registry/test-image",
             )
 
     async def test_deploy_custom_dockerfile(
@@ -916,9 +919,11 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image_name="test-registry/test-image",
-            image_tag="test-tag",
-            dockerfile="Dockerfile",
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+                dockerfile="Dockerfile",
+            ),
         )
         assert len(deployment_ids) == 2
         # Shouldn't be called because we're providing a custom Dockerfile
@@ -941,8 +946,10 @@ class TestDeploy:
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image_name="test-registry/test-image",
-            image_tag="test-tag",
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
             skip_push=True,
         )
         assert len(deployment_ids) == 2
@@ -968,8 +975,10 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=work_pool_with_image_variable.name,
-            image_name="test-registry/test-image",
-            image_tag="test-tag",
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
             print_next_steps_message=False,
         )
         assert len(deployment_ids) == 2
@@ -992,8 +1001,10 @@ class TestDeploy:
                 )
             ).to_deployment(__file__),
             work_pool_name=push_work_pool.name,
-            image_name="test-registry/test-image",
-            image_tag="test-tag",
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
             print_next_steps_message=False,
         )
         assert len(deployment_ids) == 2
@@ -1001,3 +1012,53 @@ class TestDeploy:
         console_output = capsys.readouterr().out
         assert "prefect worker start" not in console_output
         assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
+
+    async def test_deploy_with_image_string(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image:test-tag",
+        )
+        assert len(deployment_ids) == 2
+
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+        )
+
+    async def test_deploy_with_image_string_no_tag(
+        self,
+        mock_build_image: MagicMock,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 2
+
+        used_name, used_tag = parse_image_tag(
+            mock_build_image.mock_calls[0].kwargs["tag"]
+        )
+        assert used_name == "test-registry/test-image"
+        assert used_tag is not None
