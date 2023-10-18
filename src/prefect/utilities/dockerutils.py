@@ -525,6 +525,15 @@ def format_outlier_version_name(version: str):
 
 @contextmanager
 def generate_default_dockerfile(context: Optional[Path] = None):
+    """
+    Generates a default Dockerfile used for deploying flows. The Dockerfile is written
+    to a temporary file and yielded. The temporary file is removed after the context
+    manager exits.
+
+    Args:
+        - context: The context to use for the Dockerfile. Defaults to
+            the current working directory.
+    """
     if not context:
         context = Path.cwd()
     lines = []

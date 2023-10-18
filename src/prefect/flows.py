@@ -37,7 +37,7 @@ from prefect._vendor.fastapi.encoders import jsonable_encoder
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.orchestration import get_client
-from prefect.deployments.runner import deploy
+from prefect.deployments.runner import DeploymentImage, deploy
 from prefect.runner.storage import RunnerStorage, create_storage_from_url
 
 if HAS_PYDANTIC_V2:
@@ -801,10 +801,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: str,
-        image_name: str,
-        image_tag: Optional[str] = None,
-        dockerfile: str = "auto",
-        build_kwargs: Optional[dict] = None,
+        image: Union[str, DeploymentImage],
         skip_push: bool = False,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict] = None,
@@ -830,11 +827,8 @@ class Flow(Generic[P, R]):
             name: The name to give the created deployment.
             work_pool_name: The name of the work pool to use for this deployment.
             image: The name of the Docker image to build, including the registry and
-                repository.
-            image_tag: The tag to use for the built Docker image.
-            dockerfile: The name of the Dockerfile to use for building the image. If not set
-                a Dockerfile will be generated automatically.
-            build_kwargs: Additional keyword arguments to pass to the Docker build command.
+                repository. Pass a DeploymentImage instance to customize the Dockerfile used
+                and build arguments.
             skip_push: Whether or not to skip pushing the built image to a registry.
             work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
                 If not provided the default work queue for the work pool will be used.
@@ -876,8 +870,7 @@ class Flow(Generic[P, R]):
                 my_flow.deploy(
                     "example-deployment",
                     work_pool="my-work-pool",
-                    image_name="my-repository/my-image",
-                    tag="dev"
+                    image="my-repository/my-image:dev",
                 )
             ```
 
@@ -893,8 +886,7 @@ class Flow(Generic[P, R]):
                 ).deploy(
                     "example-deployment",
                     work_pool="my-work-pool",
-                    image_name="my-repository/my-image",
-                    tag="dev"
+                    image="my-repository/my-image:dev",
                 )
             ```
         """
@@ -926,10 +918,7 @@ class Flow(Generic[P, R]):
         deployment_ids = await deploy(
             deployment,
             work_pool_name=work_pool_name,
-            image_name=image_name,
-            image_tag=image_tag,
-            dockerfile=dockerfile,
-            build_kwargs=build_kwargs,
+            image=image,
             skip_push=skip_push,
             print_next_steps_message=False,
         )
