@@ -682,8 +682,8 @@ async def deploy(
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name)
     except ObjectNotFound as exc:
-        raise RuntimeError(
-            f"Work pool {work_pool_name!r} does not exist. Please create it before"
+        raise ValueError(
+            f"Could not find work pool {work_pool_name!r}. Please create it before"
             " deploying this flow."
         ) from exc
 
@@ -691,7 +691,7 @@ async def deploy(
         work_pool.base_job_template, "variables.properties.image", False
     )
     if not is_docker_based_work_pool:
-        raise RuntimeError(
+        raise ValueError(
             f"Work pool {work_pool_name!r} does not support custom Docker images. "
             "Please use a work pool with an `image` variable in its base job template."
         )
