@@ -201,7 +201,7 @@ class TestGitRepository:
             cwd=Path.cwd() / "repo",
         )
 
-    async def test_git_clone_errors_obscure_access_token(self, monkeypatch):
+    async def test_git_clone_errors_obscure_access_token(self, monkeypatch, capsys):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
         with pytest.raises(RuntimeError) as exc:
@@ -212,6 +212,9 @@ class TestGitRepository:
                 credentials={"access_token": "super-secret-42".upper()},
             ).pull_code()
         assert "super-secret-42".upper() not in str(exc.getrepr())
+        console_output = capsys.readouterr()
+        assert "super-secret-42".upper() not in console_output.out
+        assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
         async def test_git_clone_with_credentials_block(
