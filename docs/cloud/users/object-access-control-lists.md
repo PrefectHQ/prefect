@@ -23,6 +23,7 @@ Organization Admins and Workspace Owners can configure access control lists by n
 
 ![Viewing ACL for a deployment in the Prefect Cloud UI.](/img/ui/access-control.png)
 
+Note that objects not governed by access control lists such as flow runs, flows, and artifacts will be visible to a user within a workspace even if an associated block or deployment has been restricted for that particular user.
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting object-level access control.
 
