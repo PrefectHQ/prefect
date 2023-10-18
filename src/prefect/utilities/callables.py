@@ -294,16 +294,16 @@ def _process_param(
     return name, type_, field
 
 
-def _generate_schema_for_model(name: str, **model_fields) -> Dict:
+def _generate_schema_for_model(name_: str, **model_fields) -> Dict:
     class ModelConfig:
         arbitrary_types_allowed = True
 
     if HAS_PYDANTIC_V2:
         # if we're processing v2 fields, we need to create a v2 schema
-        return create_v2_schema(name_=name, model_cfg=ModelConfig, **model_fields)
+        return create_v2_schema(name_, model_cfg=ModelConfig, **model_fields)
 
     model: "pydantic.BaseModel" = pydantic.create_model(
-        name, __config__=ModelConfig, **model_fields
+        name_, __config__=ModelConfig, **model_fields
     )
     return model.schema(by_alias=True)
 
@@ -335,14 +335,14 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            _generate_schema_for_model(name="CheckParameter", **{name: (type_, field)})
+            _generate_schema_for_model("CheckParameter", **{name: (type_, field)})
         except ValueError:
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = _generate_schema_for_model(name="Parameters", **model_fields)
+    schema = _generate_schema_for_model("Parameters", **model_fields)
     return ParameterSchema(**schema)
 
 
