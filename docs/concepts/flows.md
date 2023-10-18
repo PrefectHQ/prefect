@@ -947,7 +947,7 @@ async def longrunning():
 !!! tip "Pausing flow runs is blocking by default"
     By default, pausing a flow run blocks the worker &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
 
-    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an worker and you want the worker to be able to pick up other flows while the paused flow is paused.
+    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via a worker and you want the worker to be able to pick up other flows while the paused flow is paused.
 
     Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
 
