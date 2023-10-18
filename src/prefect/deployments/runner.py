@@ -615,34 +615,34 @@ class RunnerDeployment(BaseModel):
 
 
 class DeploymentImage:
-    def __init__(self, name, tag=None, dockerfile="auto", build_kwargs=None):
-        self._name = name
-        self._tag = tag or slugify(pendulum.now("utc").isoformat())
-        self._dockerfile = dockerfile
-        self._build_kwargs = build_kwargs or {}
+    def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
+        self.name = name
+        self.tag = tag or slugify(pendulum.now("utc").isoformat())
+        self.dockerfile = dockerfile
+        self.build_kwargs = build_kwargs
 
     @property
     def reference(self):
-        return f"{self._name}:{self._tag}"
+        return f"{self.name}:{self.tag}"
 
     def build(self):
         full_image_name = self.reference
-        build_kwargs = self._build_kwargs.copy()
+        build_kwargs = self.build_kwargs.copy()
         build_kwargs["context"] = Path.cwd()
         build_kwargs["tag"] = full_image_name
         build_kwargs["pull"] = build_kwargs.get("pull", True)
 
-        if self._dockerfile == "auto":
+        if self.dockerfile == "auto":
             with generate_default_dockerfile():
                 build_image(**build_kwargs)
         else:
-            build_kwargs["dockerfile"] = self._dockerfile
+            build_kwargs["dockerfile"] = self.dockerfile
             build_image(**build_kwargs)
 
     def push(self):
         with docker_client() as client:
             events = client.api.push(
-                repository=self._name, tag=self._tag, stream=True, decode=True
+                repository=self.name, tag=self.tag, stream=True, decode=True
             )
             for event in events:
                 if "error" in event:
