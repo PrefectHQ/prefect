@@ -836,7 +836,7 @@ class TestDeploy:
         mock_build_image,
         mock_docker_client,
         mock_generate_default_dockerfile,
-        work_pool,
+        work_pool_with_image_variable,
         prefect_client: PrefectClient,
         capsys,
     ):
@@ -847,7 +847,7 @@ class TestDeploy:
                     source=MockStorage(), entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
-            work_pool_name=work_pool.name,
+            work_pool_name=work_pool_with_image_variable.name,
             image_name="test-registry/test-image",
             image_tag="test-tag",
         )
@@ -875,7 +875,10 @@ class TestDeploy:
         assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
 
         console_output = capsys.readouterr().out
-        assert f"prefect worker start --pool {work_pool.name!r}" in console_output
+        assert (
+            f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
+            in console_output
+        )
         assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
 
     async def test_deploy_non_existent_work_pool(self):
@@ -907,12 +910,12 @@ class TestDeploy:
         mock_build_image,
         mock_docker_client,
         mock_generate_default_dockerfile,
-        work_pool,
+        work_pool_with_image_variable,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
-            work_pool_name=work_pool.name,
+            work_pool_name=work_pool_with_image_variable.name,
             image_name="test-registry/test-image",
             image_tag="test-tag",
             dockerfile="Dockerfile",
@@ -932,12 +935,12 @@ class TestDeploy:
         mock_build_image,
         mock_docker_client,
         mock_generate_default_dockerfile,
-        work_pool,
+        work_pool_with_image_variable,
     ):
         deployment_ids = await deploy(
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
-            work_pool_name=work_pool.name,
+            work_pool_name=work_pool_with_image_variable.name,
             image_name="test-registry/test-image",
             image_tag="test-tag",
             skip_push=True,
@@ -954,7 +957,7 @@ class TestDeploy:
         mock_build_image,
         mock_docker_client,
         mock_generate_default_dockerfile,
-        work_pool,
+        work_pool_with_image_variable,
         capsys,
     ):
         deployment_ids = await deploy(
@@ -964,7 +967,7 @@ class TestDeploy:
                     source=MockStorage(), entrypoint="flows.py:test_flow"
                 )
             ).to_deployment(__file__),
-            work_pool_name=work_pool.name,
+            work_pool_name=work_pool_with_image_variable.name,
             image_name="test-registry/test-image",
             image_tag="test-tag",
             print_next_steps_message=False,

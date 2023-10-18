@@ -3415,6 +3415,7 @@ class TestFlowDeploy:
             dockerfile="auto",
             build_kwargs={"pull": False},
             skip_push=True,
+            print_next_steps_message=False,
         )
 
         console_output = capsys.readouterr().out
@@ -3460,6 +3461,7 @@ class TestFlowDeploy:
             dockerfile="auto",
             build_kwargs={"pull": False},
             skip_push=True,
+            print_next_steps_message=False,
         )
 
     async def test_deploy_non_existent_work_pool(

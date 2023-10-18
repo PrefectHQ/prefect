@@ -513,6 +513,33 @@ async def work_pool(session):
             base_job_template={
                 "job_configuration": {
                     "command": "{{ command }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_with_image_variable(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
                     "image": "{{ image }}",
                 },
                 "variables": {
