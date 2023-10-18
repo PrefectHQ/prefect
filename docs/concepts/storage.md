@@ -23,7 +23,7 @@ If no storage is explicitly configured, Prefect will use `LocalFileSystem` stora
 Prefect supports creating multiple storage configurations and switching between storage as needed.
 
 !!! tip "Storage uses blocks"
-    [Blocks](/concepts/blocks/) is the Prefect technology underlying storage, and enables you to do so much more.
+    [Blocks](/concepts/blocks/) are the Prefect technology underlying storage, and enables you to do so much more.
 
     In addition to creating storage blocks via the Prefect CLI, you can now create storage blocks and other kinds of block configuration objects via the [Prefect UI and Prefect Cloud](/ui/blocks/).
 
