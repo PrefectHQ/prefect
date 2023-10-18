@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+## Release 2.13.7
+
+### Enabling Pydantic V2
+
+In 2.13.5 we released experimental support for Pydantic V2, which made it co-installable via forced install. In this release, we are enabling co-installation by default which will allow end users to leverage Pydantic V2 in their flows and tasks. Additionally, users can choose to update to Pydantic V2 on their own timeline as we maintain compatability with V1 within flows and tasks.
+
+### Documentation
+
+- Fixes type in release notes - https://github.com/PrefectHQ/prefect/pull/10950
+
+### Contributors
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.6...2.13.7
+
 ## Release 2.13.6
 
 ### Specify a default result storage block as a setting
