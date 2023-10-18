@@ -542,7 +542,7 @@ async def _run_single_deploy(
     if (
         is_interactive()
         and not ci
-        and not deploy_config.get("pull")
+        and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
             (

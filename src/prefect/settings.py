@@ -765,7 +765,13 @@ PREFECT_LOCAL_STORAGE_PATH = Setting(
     default=Path("${PREFECT_HOME}") / "storage",
     value_callback=template_with_settings(PREFECT_HOME),
 )
-"""The path to a directory to store things in."""
+"""The path to a block storage directory to store things in."""
+
+PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
+    str,
+    default=None,
+)
+"""The `block-type/block-document` slug of a block to use as the default result storage."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
@@ -1252,6 +1258,12 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
+PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
+"""
+The maximum size of a flow run graph on the v2 API
+"""
+
+
 PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1285,6 +1297,16 @@ Whether or not to warn when experimental Prefect workers are used.
 PREFECT_EXPERIMENTAL_WARN_VISUALIZE = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect visualize is used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION = Setting(bool, default=False)
+"""
+Whether or not to enable experimental enhanced flow run cancellation.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental enhanced flow run cancellation is used.
 """
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
