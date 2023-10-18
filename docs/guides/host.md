@@ -40,7 +40,7 @@ The self-hosted Prefect server and Prefect Cloud share a common set of features.
 - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
 - [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
 - [Organizations](/cloud/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
-- [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
+- [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
 - [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
 - [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
 - [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
