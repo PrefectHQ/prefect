@@ -524,13 +524,15 @@ def format_outlier_version_name(version: str):
 
 
 @contextmanager
-def generate_default_dockerfile():
+def generate_default_dockerfile(context: Optional[Path] = None):
+    if not context:
+        context = Path.cwd()
     lines = []
     base_image = get_prefect_image_name()
     lines.append(f"FROM {base_image}")
-    dir_name = os.path.basename(os.getcwd())
+    dir_name = context.name
 
-    if Path("requirements.txt").exists():
+    if (context / "requirements.txt").exists():
         lines.append(f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt")
         lines.append(
             f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
@@ -539,7 +541,7 @@ def generate_default_dockerfile():
     lines.append(f"COPY . /opt/prefect/{dir_name}/")
     lines.append(f"WORKDIR /opt/prefect/{dir_name}/")
 
-    temp_dockerfile = Path("Dockerfile")
+    temp_dockerfile = context / "Dockerfile"
     if Path(temp_dockerfile).exists():
         raise RuntimeError(
             "Failed to generate Dockerfile. Dockerfile already exists in the"

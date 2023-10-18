@@ -802,7 +802,7 @@ class Flow(Generic[P, R]):
         name: str,
         work_pool_name: str,
         image_name: str,
-        tag: Optional[str] = None,
+        image_tag: Optional[str] = None,
         dockerfile: str = "auto",
         build_kwargs: Optional[dict] = None,
         skip_push: bool = False,
@@ -831,7 +831,7 @@ class Flow(Generic[P, R]):
             work_pool_name: The name of the work pool to use for this deployment.
             image: The name of the Docker image to build, including the registry and
                 repository.
-            tag: The tag to use for the built Docker image.
+            image_tag: The tag to use for the built Docker image.
             dockerfile: The name of the Dockerfile to use for building the image. If not set
                 a Dockerfile will be generated automatically.
             build_kwargs: Additional keyword arguments to pass to the Docker build command.
@@ -902,8 +902,8 @@ class Flow(Generic[P, R]):
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
         except ObjectNotFound as exc:
-            raise RuntimeError(
-                f"Work pool {work_pool_name!r} does not exist. Please create it before"
+            raise ValueError(
+                f"Could not find work pool {work_pool_name!r}. Please create it before"
                 " deploying this flow."
             ) from exc
 
@@ -919,7 +919,6 @@ class Flow(Generic[P, R]):
             tags=tags,
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
-            work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
@@ -928,7 +927,7 @@ class Flow(Generic[P, R]):
             deployment,
             work_pool_name=work_pool_name,
             image_name=image_name,
-            tag=tag,
+            image_tag=image_tag,
             dockerfile=dockerfile,
             build_kwargs=build_kwargs,
             skip_push=skip_push,

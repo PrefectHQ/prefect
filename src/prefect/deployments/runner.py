@@ -613,7 +613,7 @@ async def deploy(
     *args: RunnerDeployment,
     work_pool_name: str,
     image_name: str,
-    tag: Optional[str] = None,
+    image_tag: Optional[str] = None,
     dockerfile: str = "auto",
     build_kwargs: Optional[dict] = None,
     skip_push: bool = False,
@@ -630,9 +630,9 @@ async def deploy(
     Args:
         *args: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments.
-        image: The name of the Docker image to build, including the registry and
+        image_name: The name of the Docker image to build, including the registry and
             repository.
-        tag: The tag to use for the built Docker image.
+        image_tag: The tag to use for the built Docker image.
         dockerfile: The name of the Dockerfile to use for building the image. If not set
             a Dockerfile will be generated automatically.
         build_kwargs: Additional keyword arguments to pass to the Docker build command.
@@ -668,9 +668,9 @@ async def deploy(
             )
         ```
     """
-    if not tag:
-        tag = slugify(pendulum.now("utc").isoformat())
-    full_image_name = f"{image_name}:{tag}"
+    if not image_tag:
+        image_tag = slugify(pendulum.now("utc").isoformat())
+    full_image_name = f"{image_name}:{image_tag}"
     build_kwargs = build_kwargs or {}
 
     try:
@@ -725,7 +725,7 @@ async def deploy(
 
             with docker_client() as client:
                 events = client.api.push(
-                    repository=image_name, tag=tag, stream=True, decode=True
+                    repository=image_name, tag=image_tag, stream=True, decode=True
                 )
                 for event in events:
                     if "error" in event:
