@@ -317,7 +317,7 @@ async def _get_worker_class(
             elif install_policy == InstallPolicy.PROMPT and is_interactive():
                 message = (
                     "Could not find the Prefect integration library for the"
-                    " {worker_type} worker in the current environment."
+                    f" {worker_type} worker in the current environment."
                     " Install the library now?"
                 )
                 should_install = confirm(message, default=True)
