@@ -4,7 +4,7 @@
 
 ### Enabling Pydantic V2
 
-In 2.13.5 we released experimental support for Pydantic V2, which made it co-installable via forced install. In this release, we are enabling co-installation by default which will allow end users to leverage Pydantic V2 in their flows and tasks. Additionally, users can choose to update to Pydantic V2 on their own timeline as we maintain compatability with V1 within flows and tasks.
+In 2.13.5 we released experimental support for Pydantic V2, which made it co-installable via forced install. In this release, we are enabling co-installation by default which will allow you to leverage Pydantic V2 in your flows and tasks. Additionally, you can choose to update to Pydantic V2 on your own timeline as we maintain compatability with V1 within flows and tasks.
 
 ### Documentation
 
