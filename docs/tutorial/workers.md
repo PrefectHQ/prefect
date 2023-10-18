@@ -23,7 +23,7 @@ Workers and work pools are a bridge between the Prefect orchestration layer and 
     The earlier section discussed the `serve` approach. For many use cases, `serve` is sufficient to meet scheduling and orchestration needs. Workers and work pools are **optional**. Just remember, if infrastructure needs escalate, workers and work pools can become a handy tool. The best part? You're not locked into one method. You can seamlessly combine approaches as needed. 
     
 !!! note "Deployment definition methods differ slightly for workers"
-    If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured with `deploy` which requires some additional configuration. A deployment created with `serve` cannot be submitted to a worker.
+    If you choose to use worker-based execution, the way you define deployments will be different. Deployments for workers are configured with `deploy`, which requires additional configuration. A deployment created with `serve` cannot be submitted to a worker.
 
 The primary reason to use workers and work pools is for __dynamic infrastructure provisioning and configuration__. 
 For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently. 
@@ -63,7 +63,7 @@ graph TD
 
 Now that we’ve reviewed the concepts of a work pool and worker, let’s create them so that you can deploy your tutorial flow, and execute it later using the Prefect API.
 
-## Setting up the worker and work pool
+## Set up a worker and work pool
 
 For this tutorial you will create a **Docker** type work pool via the CLI. 
 
@@ -74,7 +74,7 @@ Using the **Docker** work pool type means that all work sent to this work pool w
     
     These are expanded upon in the [Guides](/guides) section.
 
-### Create the work pool
+### Create a work pool
 
 In your terminal run the following command to set up a **Docker** type work pool. 
 <div class="terminal">
@@ -95,7 +95,7 @@ When you click into `my-docker-pool` you should see a red status icon signifying
 
 To get the work pool ready to submit flow runs, you need to start a worker.
 
-### Starting a worker
+### Start a worker
 
 Workers are a lightweight polling process that kick off scheduled flow runs on a certain type of infrastructure (like Docker). 
 To start a worker on your laptop, open a new terminal and confirm that your virtual environment has `prefect` installed.
