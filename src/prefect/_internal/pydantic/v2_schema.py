@@ -39,11 +39,11 @@ def process_v2_params(
     return name, type_, field
 
 
-def create_v2_schema(name: str, model_cfg: ConfigDict, **model_fields):
+def create_v2_schema(name_: str, model_cfg: ConfigDict, **model_fields):
     """
     Create a pydantic v2 model and craft a v1 compatible schema from it.
     """
-    model = create_model(name, __config__=model_cfg, **model_fields)
+    model = create_model(name_, __config__=model_cfg, **model_fields)
     adapter = TypeAdapter(model)
 
     # root model references under #definitions

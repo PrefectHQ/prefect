@@ -300,7 +300,7 @@ def _generate_schema_for_model(name: str, **model_fields) -> Dict:
 
     if HAS_PYDANTIC_V2:
         # if we're processing v2 fields, we need to create a v2 schema
-        return create_v2_schema(name=name, model_cfg=ModelConfig, **model_fields)
+        return create_v2_schema(name_=name, model_cfg=ModelConfig, **model_fields)
 
     model: "pydantic.BaseModel" = pydantic.create_model(
         name, __config__=ModelConfig, **model_fields
