@@ -80,6 +80,6 @@ Make sure your actor is a member of the workspace you are working in. Within a w
 
 Prefect flows can be executed locally by the user, or remotely by a worker or agent. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/concepts/deployments/), optionally on different infrastructure.
 
-With remote execution, the creation of your flow run happens separately from its execution. Flow runs are assigned to a work pool and a work queue. For flow runs to execute, an worker must be subscribed to the work pool and work queue, otherwise the flow runs will go from `Scheduled` to `Late`. Ensure that your work pool and work queue have a subscribed worker.
+With remote execution, the creation of your flow run happens separately from its execution. Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed to the work pool and work queue, otherwise the flow runs will go from `Scheduled` to `Late`. Ensure that your work pool and work queue have a subscribed worker.
 
 Local and remote execution can also differ in their treatment of relative imports. If switching from local to remote execution results in local import errors, try replicating the behavior by executing the flow locally with the `-m` flag (i.e. `python -m flow` instead of `python flow.py`). Read more about `-m` [here](https://stackoverflow.com/a/62923810).
