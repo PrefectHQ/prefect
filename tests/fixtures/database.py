@@ -515,9 +515,8 @@ async def work_pool(session):
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
                         },
                     },
                     "required": [],

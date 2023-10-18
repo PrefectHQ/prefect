@@ -197,18 +197,22 @@ class RunnerDeployment(BaseModel):
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            work_pool_name: The name of the work pool to use for this
+                deployment.
+            image: The registry, name, and tag of the Docker image to
+                use for this deployment. Only used when the deployment is
+                deployed to a work pool.
+
+        Returns:
+            The ID of the created deployment.
         """
         work_pool_name = work_pool_name or self.work_pool_name
 
         if image and not work_pool_name:
             raise ValueError(
                 "An image can only be provided when registering a deployment with a"
-                " work pool."
-            )
-
-        if not image and work_pool_name:
-            raise ValueError(
-                "An image must be provided when registering a deployment with a"
                 " work pool."
             )
 
@@ -249,9 +253,10 @@ class RunnerDeployment(BaseModel):
             if work_pool_name:
                 create_payload["infra_overrides"] = {
                     **self.job_variables,
-                    "image": image,
                     "command": "prefect flow-run execute",
                 }
+                if image:
+                    create_payload["infra_overrides"]["image"] = image
                 create_payload["path"] = None if self.storage else self._path
                 create_payload["pull_steps"] = (
                     [self.storage.to_pull_step()] if self.storage else []

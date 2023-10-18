@@ -663,6 +663,72 @@ class TestRunnerDeployment:
         assert deployment.work_queue_name is None
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
+        assert deployment.infra_overrides == {}
+
+    async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+        )
+
+        deployment_id = await deployment.apply(
+            work_pool_name=work_pool.name, image="my-repo/my-image:latest"
+        )
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.infra_overrides == {
+            "image": "my-repo/my-image:latest",
+            "command": "prefect flow-run execute",
+        }
+        assert deployment.work_queue_name == "default"
+
+    @pytest.mark.parametrize(
+        "from_flow_kwargs, apply_kwargs, expected_message",
+        [
+            (
+                {"work_queue_name": "my-queue"},
+                {},
+                (
+                    "A work queue can only be provided when registering a deployment"
+                    " with a work pool."
+                ),
+            ),
+            (
+                {"job_variables": {"foo": "bar"}},
+                {},
+                (
+                    "Job variables can only be provided when registering a deployment"
+                    " with a work pool."
+                ),
+            ),
+            (
+                {},
+                {"image": "my-repo/my-image:latest"},
+                (
+                    "An image can only be provided when registering a deployment with a"
+                    " work pool."
+                ),
+            ),
+        ],
+    )
+    async def test_apply_no_work_pool_failures(
+        self, from_flow_kwargs, apply_kwargs, expected_message
+    ):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+            **from_flow_kwargs,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=expected_message,
+        ):
+            await deployment.apply(**apply_kwargs)
 
     async def test_create_runner_deployment_from_storage(self):
         storage = MockStorage()
