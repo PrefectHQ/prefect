@@ -7,7 +7,7 @@ tags:
     - LocalFileSystem
     - RemoteFileSystem
 search:
-  boost: 2
+  boost: .5
 ---
 
 # Filesystems
