@@ -8,7 +8,7 @@ In 2.13.5 we released experimental support for Pydantic V2, which made it co-ins
 
 ### Documentation
 
-- Fixes type in release notes - https://github.com/PrefectHQ/prefect/pull/10950
+- Fix typo in release notes - https://github.com/PrefectHQ/prefect/pull/10950
 
 ### Contributors
 - @taljaards
