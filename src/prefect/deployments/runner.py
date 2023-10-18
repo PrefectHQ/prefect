@@ -615,6 +615,21 @@ class RunnerDeployment(BaseModel):
 
 
 class DeploymentImage:
+    """
+    Configuration used to build and push a Docker image for a deployment.
+
+    Attributes:
+        name: The name of the Docker image to build, including the registry and
+            repository.
+        tag: The tag to apply to the built image.
+        dockerfile: The path to the Dockerfile to use for building the image. If
+            not provided, a default Dockerfile will be generated.
+        **build_kwargs: Additional keyword arguments to pass to the Docker build request.
+            See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
+            for more information.
+
+    """
+
     def __init__(self, name, tag=None, dockerfile="auto", **build_kwargs):
         self.name = name
         self.tag = tag or slugify(pendulum.now("utc").isoformat())
@@ -654,7 +669,7 @@ async def deploy(
     *args: RunnerDeployment,
     work_pool_name: str,
     image: Union[str, DeploymentImage],
-    skip_push: bool = False,
+    push: bool = True,
     print_next_steps_message: bool = True,
 ) -> List[UUID]:
     """
@@ -671,7 +686,7 @@ async def deploy(
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DeploymentImage instance to customize the Dockerfile used
             and build arguments.
-        skip_push: Whether or not to skip pushing the built image to a registry.
+        push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
 
@@ -737,7 +752,7 @@ async def deploy(
         progress.update(docker_build_task, completed=1)
         console.print(f"Successfully built image {image.reference!r}", style="green")
 
-    if not skip_push:
+    if push:
         with Progress(
             SpinnerColumn(),
             TextColumn("Pushing image..."),

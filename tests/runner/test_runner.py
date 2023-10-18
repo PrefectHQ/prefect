@@ -950,7 +950,7 @@ class TestDeploy:
                 name="test-registry/test-image",
                 tag="test-tag",
             ),
-            skip_push=True,
+            push=False,
         )
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()

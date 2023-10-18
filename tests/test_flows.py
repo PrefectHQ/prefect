@@ -3395,7 +3395,7 @@ class TestFlowDeploy:
             work_queue_name="line",
             job_variables={"foo": "bar"},
             image=image,
-            skip_push=True,
+            push=False,
             enforce_parameter_schema=True,
         )
 
@@ -3412,7 +3412,7 @@ class TestFlowDeploy:
             ),
             work_pool_name=work_pool.name,
             image=image,
-            skip_push=True,
+            push=False,
             print_next_steps_message=False,
         )
 
@@ -3439,7 +3439,7 @@ class TestFlowDeploy:
             work_queue_name="line",
             job_variables={"foo": "bar"},
             image=image,
-            skip_push=True,
+            push=False,
             enforce_parameter_schema=True,
         )
 
@@ -3456,7 +3456,7 @@ class TestFlowDeploy:
             ),
             work_pool_name=work_pool.name,
             image=image,
-            skip_push=True,
+            push=False,
             print_next_steps_message=False,
         )
 
