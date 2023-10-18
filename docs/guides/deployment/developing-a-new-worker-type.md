@@ -21,7 +21,7 @@ search:
 
 Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
-A list of available workers can be found [here]](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
+A list of available workers can be found [here](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
 
 ## Worker Configuration
 
