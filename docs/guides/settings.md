@@ -43,7 +43,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. For example: <https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here>.
 
 !!! tip "`PREFECT_API_URL` setting for workers"
-    When using [workers and work pools](/concepts/work-pools/) (or less preferably agents) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker is running.
+    When using [workers and work pools](/concepts/work-pools/) (agent and block-based deployments are legacy) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker is running.
 
     If you want the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
