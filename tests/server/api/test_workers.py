@@ -983,6 +983,20 @@ class TestGetScheduledRuns:
     def work_queues(self, setup):
         return setup["work_queues"]
 
+    @pytest.fixture
+    async def deployment(self, setup, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                tags=["test"],
+                flow_id=flow.id,
+                work_queue_id=setup["work_queues"]["wq_aa"].id,
+            ),
+        )
+        await session.commit()
+        return deployment
+
     async def test_get_all_runs(self, client, work_pools):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
@@ -1163,3 +1177,23 @@ class TestGetScheduledRuns:
         for work_queue in work_queues:
             assert work_queue.last_polled is not None
             assert work_queue.last_polled > now
+
+    async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
+        self, client, work_pools, deployment
+    ):
+        assert deployment.last_polled is None
+        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert deployment_response.status_code == status.HTTP_200_OK
+        assert deployment_response.json()["status"] == "NOT_READY"
+
+        # trigger a poll of the work queue, which should update the deployment status
+        deployment_work_pool_name = work_pools["wp_a"].name
+        queue_response = await client.post(
+            f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
+        )
+        assert queue_response.status_code == status.HTTP_200_OK
+
+        # get the updated deployment
+        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
+        assert updated_deployment_response.status_code == status.HTTP_200_OK
+        assert updated_deployment_response.json()["status"] == "READY"
