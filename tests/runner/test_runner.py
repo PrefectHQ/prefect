@@ -726,6 +726,9 @@ def test_flow():
             with open(self._base_path / "flows.py", "w") as f:
                 f.write(code)
 
+    def to_pull_step(self):
+        return {}
+
 
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):

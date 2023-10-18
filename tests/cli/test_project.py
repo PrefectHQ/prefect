@@ -11,6 +11,7 @@ from typer import Exit
 from prefect.client import schemas
 from prefect.server import models
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import AsyncMock
 
 
 @pytest.fixture
@@ -236,6 +237,28 @@ class TestProjectInit:
             assert any(Path(tempdir).rglob("prefect.yaml"))
 
 
+@pytest.fixture
+def git_repository_mock(monkeypatch):
+    pull_code_mock = AsyncMock()
+
+    def init_git_repo(**kwargs):
+        global name
+        repository = kwargs.get("url")
+        name = repository.split("/")[-1].split(".")[0].replace(".git", "")
+        mock = MagicMock()
+        mock.destination = Path.cwd() / name
+        mock.pull_code = pull_code_mock
+        return mock
+
+    git_repository_mock = MagicMock()
+    git_repository_mock.side_effect = init_git_repo
+    monkeypatch.setattr(
+        "prefect.deployments.steps.pull.GitRepository",
+        git_repository_mock,
+    )
+    return git_repository_mock
+
+
 class TestProjectClone:
     def test_clone_with_no_options(self):
         result = invoke_and_assert(
@@ -273,13 +296,8 @@ class TestProjectClone:
         assert "No pull steps found, exiting early." in result.output
 
     def test_clone_with_name_and_pull_step(
-        self, flow, monkeypatch, deployment_with_pull_step
+        self, flow, git_repository_mock, deployment_with_pull_step
     ):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
         result = invoke_and_assert(
             command=(
                 "project clone --deployment"
@@ -291,13 +309,8 @@ class TestProjectClone:
         assert result.exit_code == 0
 
     def test_clone_with_id_and_pull_steps(
-        self, monkeypatch, deployment_with_pull_steps
+        self, git_repository_mock, deployment_with_pull_steps
     ):
-        subprocess_mock = MagicMock()
-        monkeypatch.setattr(
-            "prefect.deployments.steps.pull.subprocess",
-            subprocess_mock,
-        )
         result = invoke_and_assert(
             f"project clone --id {deployment_with_pull_steps.id}",
             expected_code=0,
