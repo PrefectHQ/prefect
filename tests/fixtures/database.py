@@ -511,12 +511,19 @@ async def work_pool(session):
             name="test-work-pool",
             type="test-type",
             base_job_template={
-                "job_configuration": {"command": "{{ command }}"},
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
                 "variables": {
                     "properties": {
                         "command": {
                             "type": "string",
                             "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
                         },
                     },
                     "required": [],
@@ -549,7 +556,25 @@ async def push_work_pool(session):
         work_pool=schemas.actions.WorkPoolCreate(
             name="push-work-pool",
             type="push-work-pool:push",
-            base_job_template={},
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
         ),
     )
     await session.commit()

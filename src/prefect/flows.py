@@ -931,6 +931,7 @@ class Flow(Generic[P, R]):
             dockerfile=dockerfile,
             build_kwargs=build_kwargs,
             skip_push=skip_push,
+            print_next_steps_message=False,
         )
 
         if print_next_steps:
