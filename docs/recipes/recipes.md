@@ -14,7 +14,7 @@ search:
 
 [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
 
-Recipes are useful when you are looking for tutorials on how to deploy an agent, use event-driven flows, set up unit testing, and more.
+Recipes are useful when you are looking for tutorials on how to deploy a worker, use event-driven flows, set up unit testing, and more.
 
 The following are Prefect recipes specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes at [Prefect Discourse](https://discourse.prefect.io/).
 
@@ -53,7 +53,7 @@ The following are Prefect recipes specific to Prefect 2. You can find a full rep
 
 ## Contributing recipes
 
-We're always looking for new recipe contributions! See the [Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes#contributing--swag-) repository for details on how you can add your Prefect recipe, share best practices with fellow Prefect users, and earn some swag. 
+We're always looking for new recipe contributions! See the [Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes#contributing--swag-) repository for details on how you can add your Prefect recipe, share best practices with fellow Prefect users, and earn some swag.
 
 [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) provide a vital cookbook where users can find helpful code examples and, when appropriate, common steps for specific Prefect use cases.
 
@@ -82,7 +82,9 @@ git clone git@github.com:PrefectHQ/prefect-recipes.git
 cd prefect-recipes
 
 # Create and checkout a new branch
+
 git checkout -b new_recipe_branch_name
+
 ```
 </div>
 

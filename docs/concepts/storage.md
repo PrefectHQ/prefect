@@ -27,7 +27,7 @@ If no storage is explicitly configured, Prefect will use `LocalFileSystem` stora
 Prefect supports creating multiple storage configurations and switching between storage as needed.
 
 !!! tip "Storage uses blocks"
-    [Blocks](/concepts/blocks/) is the Prefect technology underlying storage, and enables you to do so much more. 
+    [Blocks](/concepts/blocks/) are the Prefect technology underlying storage, and enables you to do so much more.
 
     In addition to creating storage blocks via the Prefect CLI, you can now create storage blocks and other kinds of block configuration objects via the [Prefect UI and Prefect Cloud](/ui/blocks/).
 
@@ -38,7 +38,7 @@ When building a deployment for a workflow, you have two options for configuring 
 - Use the default local storage
 - Preconfigure a storage block to use
 
-### Using the default 
+### Using the default
 
 Anytime you call `prefect deployment build` without providing the `--storage-block` flag, a default `LocalFileSystem` block will be used.  Note that this block will always use your present working directory as its basepath (which is usually desirable).  You can see the block's settings by inspecting the `deployment.yaml` file that Prefect creates after calling `prefect deployment build`.
 
@@ -61,15 +61,15 @@ Current options for deployment storage blocks include:
 | [Bitbucket Repository](https://prefecthq.github.io/prefect-bitbucket/)                   | Store code in a Bitbucket repository.                                                                      | [`prefect-bitbucket`](https://github.com/PrefectHQ/prefect-bitbucket) |
 
 !!! note "Accessing files may require storage filesystem libraries"
-    Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block or accessing the storage location from flow scripts. 
-    
+    Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block or accessing the storage location from flow scripts.
+
     For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
 
     See [Filesystem package dependencies](/concepts/filesystems/#filesystem-package-dependencies) for more information about configuring filesystem libraries in your execution environment.
 
 ### Configuring a block
 
-You can create these blocks either via the UI or via Python. 
+You can create these blocks either via the UI or via Python.
 
 You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI and Prefect Cloud. On a Prefect server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
 
