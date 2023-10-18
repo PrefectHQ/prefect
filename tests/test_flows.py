@@ -3310,6 +3310,9 @@ def test_flow():
             with open(self._base_path / "flows.py", "w") as f:
                 f.write(code)
 
+    def to_pull_step(self):
+        return {}
+
 
 class TestFlowFromSource:
     async def test_load_flow_from_source_with_storage(self):

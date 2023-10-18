@@ -1,8 +1,12 @@
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
+from prefect.blocks.core import Block, BlockNotSavedError
+from prefect.blocks.system import Secret
 from prefect.runner.storage import GitRepository, RunnerStorage, create_storage_from_url
+from prefect.testing.utilities import AsyncMock, MagicMock
 
 
 class TestCreateStorageFromUrl:
@@ -48,14 +52,41 @@ class TestCreateStorageFromUrl:
             create_storage_from_url(url)
 
 
+@pytest.fixture
+def mock_run_process(monkeypatch):
+    mock_run_process = AsyncMock()
+    result_mock = MagicMock()
+    result_mock.stdout = "https://github.com/org/repo.git".encode()
+    mock_run_process.return_value = result_mock
+    monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+    return mock_run_process
+
+
+class MockCredentials(Block):
+    token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
 class TestGitRepository:
     def test_adheres_to_runner_storage_interface(self):
         assert isinstance(GitRepository, RunnerStorage)
 
-    def test_init_no_credentials(self):
+    async def test_init_no_credentials(self, mock_run_process: AsyncMock):
         repo = GitRepository(url="https://github.com/org/repo.git")
-        assert repo._username is None
-        assert repo._access_token is None
+
+        await repo.pull_code()
+        # should be no change in url
+        mock_run_process.assert_awaited_once_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/repo.git",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
 
     def test_init_with_username_no_token(self):
         with pytest.raises(
@@ -100,14 +131,7 @@ class TestGitRepository:
         ):
             await repo.pull_code()
 
-    async def test_pull_code_clone_repo(self, monkeypatch):
-        calls = []
-
-        async def mock_run_process(*args, **kwargs):
-            calls.append(args[0])
-            return None
-
-        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+    async def test_pull_code_clone_repo(self, mock_run_process: AsyncMock, monkeypatch):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
         repo = GitRepository(
@@ -116,14 +140,16 @@ class TestGitRepository:
         )
         await repo.pull_code()
 
-        assert [
-            "git",
-            "clone",
-            "--branch",
-            "main",
-            "https://oauth2:token@github.com/org/repo.git",
-            str(Path.cwd() / "repo-main"),
-        ] in calls
+        mock_run_process.assert_awaited_once_with(
+            [
+                "git",
+                "clone",
+                "https://oauth2:token@github.com/org/repo.git",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
 
     def test_eq(self):
         repo1 = GitRepository(url="https://github.com/org/repo.git")
@@ -136,6 +162,289 @@ class TestGitRepository:
         repo = GitRepository(url="https://github.com/org/repo.git")
         assert (
             repr(repo)
-            == "GitRepository(name='repo-main'"
-            " repository='https://github.com/org/repo.git', branch='main')"
+            == "GitRepository(name='repo'"
+            " repository='https://github.com/org/repo.git', branch=None)"
         )
+
+    async def test_include_submodules_property(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", include_submodules=True
+        )
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "clone",
+                "https://github.com/org/repo.git",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
+
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "pull",
+                "origin",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+            ],
+            cwd=Path.cwd() / "repo",
+        )
+
+    async def test_git_clone_errors_obscure_access_token(self, monkeypatch, capsys):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        with pytest.raises(RuntimeError) as exc:
+            # we uppercase the token because this test definition does show up in the exception traceback
+            await GitRepository(
+                url="https://github.com/prefecthq/prefect.git",
+                branch="definitely-does-not-exist-123",
+                credentials={"access_token": "super-secret-42".upper()},
+            ).pull_code()
+        assert "super-secret-42".upper() not in str(exc.getrepr())
+        console_output = capsys.readouterr()
+        assert "super-secret-42".upper() not in console_output.out
+        assert "super-secret-42".upper() not in console_output.err
+
+    class TestCredentialFormatting:
+        async def test_git_clone_with_credentials_block(
+            self, mock_run_process: AsyncMock
+        ):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials=MockCredentials(token="mock-token"),
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://mock-token@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ]
+            )
+
+        @pytest.mark.parametrize(
+            "credentials",
+            [
+                None,
+                {"access_token": "example-token"},
+                {"access_token": "x-token-auth:example-token"},
+                {"username": "x-token-auth", "access_token": "example-token"},
+                MockCredentials(token="example-token"),
+                MockCredentials(token="x-token-auth:example-token"),
+                MockCredentials(username="x-token-auth", token="example-token"),
+            ],
+        )
+        async def test_git_clone_with_bitbucket_access_token(
+            self, credentials, mock_run_process
+        ):
+            repo = GitRepository(
+                url="https://bitbucket.org/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            expected_url = (
+                "https://x-token-auth:example-token@bitbucket.org/org/repo.git"
+                if credentials
+                else "https://bitbucket.org/org/repo.git"
+            )
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    expected_url,
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        @pytest.mark.parametrize(
+            "credentials",
+            [
+                {"access_token": "x-token-auth:example-token"},
+                {"username": "x-token-auth", "access_token": "example-token"},
+                MockCredentials(token="x-token-auth:example-token"),
+                MockCredentials(username="x-token-auth", token="example-token"),
+            ],
+        )
+        async def test_git_clone_with_bitbucket_server_repo_with_access_token(
+            self, credentials, mock_run_process
+        ):
+            repo = GitRepository(
+                url="https://bitbucketserver.com/scm/projectname/teamsinspace.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://x-token-auth:example-token@bitbucketserver.com/scm/projectname/teamsinspace.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "teamsinspace"),
+                ],
+            )
+
+        async def test_git_clone_with_bitbucket_server_repo_with_invalid_access_token_raises(
+            self,
+        ):
+            repo = GitRepository(
+                url="https://bitbucketserver.com/scm/projectname/teamsinspace.git",
+                credentials={"access_token": "example-token"},
+            )
+
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Please provide a `username` and a `password` or `token` in your"
+                    " BitBucketCredentials block to clone a repo from BitBucket Server."
+                ),
+            ):
+                await repo.pull_code()
+
+        @pytest.mark.parametrize(
+            "credentials",
+            [
+                None,
+                {"access_token": "example-token"},
+                {"access_token": "oauth2:example-token"},
+                {"username": "oauth2", "access_token": "example-token"},
+                MockCredentials(token="example-token"),
+                MockCredentials(token="oauth2:example-token"),
+                MockCredentials(username="oauth2", token="example-token"),
+            ],
+        )
+        async def test_git_clone_with_gitlab_access_token(
+            self, credentials, mock_run_process
+        ):
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            expected_url = (
+                "https://oauth2:example-token@gitlab.com/org/repo.git"
+                if credentials
+                else "https://gitlab.com/org/repo.git"
+            )
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    expected_url,
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+    class TestToPullStep:
+        def test_to_pull_step_with_block_credentials(self):
+            credentials = MockCredentials(username="testuser", access_token="testtoken")
+            credentials.save("test-credentials")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", credentials=credentials
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "credentials": (
+                        "{{ prefect.blocks.mockcredentials.test-credentials }}"
+                    ),
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_unsaved_block_credentials(self):
+            credentials = MockCredentials(username="testuser", access_token="testtoken")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", credentials=credentials
+            )
+
+            with pytest.raises(
+                BlockNotSavedError,
+                match="Could not generate block placeholder for unsaved block.",
+            ):
+                repo.to_pull_step()
+
+        def test_to_pull_step_with_secret_access_token(self):
+            access_token = Secret(value="testtoken")
+            access_token.save("test-access-token")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": access_token},
+            )
+
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "credentials": {
+                        "username": "testuser",
+                        "access_token": "{{ prefect.blocks.secret.test-access-token }}",
+                    },
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_unsaved_secret_access_token(self):
+            access_token = Secret(value="testtoken")
+
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": access_token},
+            )
+
+            with pytest.raises(
+                BlockNotSavedError,
+                match="Could not generate block placeholder for unsaved block.",
+            ):
+                repo.to_pull_step()
+
+        def test_to_pull_step_with_plaintext(self):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"username": "testuser", "access_token": "testpassword"},
+            )
+
+            with pytest.raises(
+                ValueError,
+                match=(
+                    "Please save your access token as a Secret block before converting"
+                    " this storage object to a pull step."
+                ),
+            ):
+                repo.to_pull_step()
