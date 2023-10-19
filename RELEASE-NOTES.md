@@ -91,7 +91,7 @@ See implementation details in the following pull requests:
 ### Contributors
 * @lpequignot made their first contribution in https://github.com/PrefectHQ/prefect/pull/10987
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.7...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.7...2.13.8
 
 ## Release 2.13.7
 
