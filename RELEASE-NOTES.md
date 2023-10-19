@@ -1,5 +1,38 @@
 # Prefect Release Notes
 
+## Release 2.13.8
+
+### Flow.deploy and deploy
+- Introduce `flow.deploy` and `deploy` — https://github.com/PrefectHQ/prefect/pull/10975
+
+### Enhancements
+- Add `last_polled` column to deployment table — https://github.com/PrefectHQ/prefect/pull/10949
+- Add `status` and `last_polled` to deployment API responses — https://github.com/PrefectHQ/prefect/pull/10951
+- Add flow run graph v2 endpoint tuned for UI applications — https://github.com/PrefectHQ/prefect/pull/10912
+- Add ability to convert `GitRepository` into `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10957
+- Add deployment status tests for `/work_pools/{name}/get_scheduled_flow_runs` and `/work_queues/{id}/get_runs` endpoints — https://github.com/PrefectHQ/prefect/pull/10973
+- Update `/deployments/get_scheduled_flow_runs` endpoint to update deployment status — https://github.com/PrefectHQ/prefect/pull/10969
+- Update `deploy` to gather and display errors for failed deployments — https://github.com/PrefectHQ/prefect/pull/10993
+
+### Fixes
+- Clarify CLI prompt message for missing integration library for worker — https://github.com/PrefectHQ/prefect/pull/10990
+- Renamed ruamel-yaml to ruamel.yaml in requirements.txt — https://github.com/PrefectHQ/prefect/pull/10987
+- Make work pool banner copy less confusing — https://github.com/PrefectHQ/prefect/pull/10992
+
+### Documentation
+- Clean up `Using the Prefect Orchestration Client` guide — https://github.com/PrefectHQ/prefect/pull/10968
+- Add link to Coiled's documentation for hosting served flows — https://github.com/PrefectHQ/prefect/pull/10977
+- Clarify that access control lists do not affect related objects  — https://github.com/PrefectHQ/prefect/pull/10934
+- Improve block-based deployment concept page metadata and admonitions — https://github.com/PrefectHQ/prefect/pull/10970
+- Update docs to prioritize workers over agents — https://github.com/PrefectHQ/prefect/pull/10904
+- Update work pools and workers tutorial to use `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/10985
+- Move Docker image discussion to Docker guide — https://github.com/PrefectHQ/prefect/pull/10910
+
+### Contributors
+* @lpequignot made their first contribution in https://github.com/PrefectHQ/prefect/pull/10987
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.7...preview
+
 ## Release 2.13.7
 
 ### Enabling Pydantic V2
