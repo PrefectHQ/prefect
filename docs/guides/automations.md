@@ -264,7 +264,7 @@ In this example, we managed to create the automation by registering the .yaml fi
 
 ## Using triggers, an AI function extension
 
-Lets take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of [Marvin](https://www.askmarvin.ai/) that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use [Marvin AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
+Let's take this idea one step further, by creating a deployment that will be triggered from a previous flow taking longer than expected. We can take advantage of [Marvin](https://www.askmarvin.ai/) that will help classify the data we are pulling in. Marvin is great in embedding data science and data analysis applications within your pre-existing data engineering worklows. In this case, we can use [Marvin AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make our dataset more information rich. You can find more on potential usecases with Marvin on their page. 
 
 Based on the automation trigger, similarly we can add a trigger to a deployment, that would be waiting for this specified event. 
 
