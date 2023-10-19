@@ -25,14 +25,18 @@ git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 
 # We recommend using a virtual environment
+
 python -m venv .venv
 source .venv/bin/activate
 
 # Install the package with development dependencies
+
 pip install -e ".[dev]"
 
 # Setup pre-commit hooks for required formatting
+
 pre-commit install
+
 ```
 </div>
 
@@ -42,12 +46,12 @@ If you don't want to install the pre-commit hooks, you can manually install the 
 ```bash
 pip install $(./scripts/precommit-versions.py)
 ```
+
 </div>
 
 You'll need to run `black` and  `ruff` before a contribution can be accepted.
 
 After installation, you can run the test suite with `pytest`:
-
 
 <div class="terminal">
 ```bash
@@ -55,7 +59,9 @@ After installation, you can run the test suite with `pytest`:
 pytest tests
 
 # Run a subset of tests
+
 pytest tests/test_flows.py
+
 ```
 </div>
 
@@ -149,6 +155,7 @@ Start all services with hot-reloading on code changes (requires UI dependencies 
 ```bash
 prefect dev start
 ```
+
 </div>
 
 Start a Prefect API that reloads on code changes:
@@ -159,7 +166,7 @@ prefect dev api
 ```
 </div>
 
-Start a Prefect agent that reloads on code changes:
+Start a Prefect worker that reloads on code changes:
 
 <div class="terminal">
 ```bash
@@ -255,6 +262,7 @@ export PREFECT_API_URL=http://localhost:4200/api
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 
 ### Adding Database Migrations
+
 To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example,
 if you wanted to add a new column to the `flow_run` table, you would add a new column to the `FlowRun` model:
 
@@ -268,7 +276,7 @@ class ORMFlowRun(ORMRun):
     new_column = Column(String, nullable=True) # <-- add this line
 ```
 
-Next, you will need to generate new migration files. You must generate a new migration file for each database type. 
+Next, you will need to generate new migration files. You must generate a new migration file for each database type.
 Migrations will be generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to. See [here](/concepts/database/#configuring-the-database)
 for how to set the database connection URL for each database type.
 
@@ -286,8 +294,8 @@ Try to make your migration name brief but descriptive. For example:
 - `add_flow_run_new_column_idx`
 - `rename_flow_run_old_column_to_new_column`
 
-The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. 
-!!! warning "Always inspect the output of `--autogenerate`" 
+The `--autogenerate` flag will automatically generate a migration file based on the changes to the models.
+!!! warning "Always inspect the output of `--autogenerate`"
     `--autogenerate` will generate a migration file based on the changes to the models. However, it is not perfect.
     Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
     remove extra statements that were included and not related to your change.
