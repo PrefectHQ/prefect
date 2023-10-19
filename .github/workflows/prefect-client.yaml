@@ -64,7 +64,7 @@ jobs:
       - name: Install prefect from source
         run: pip install .
 
-      - name: Verify prefect and prefect-client are installed
+      - name: (DEBUG) Check that prefect and prefect-client are installed
         run: pip list | grep prefect
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
