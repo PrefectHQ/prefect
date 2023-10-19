@@ -4,7 +4,7 @@
 
 ### Introducing `flow.deploy`
 
-When we released `flow.serve`, we introduced a radically simple way to deploy flows. Serving flows is perfect for many use cases, but the need for persistent infrastructure means serving flows may not work well for flows that require expensive or limited infrastructure to execute.
+When we released `flow.serve`, we introduced a radically simple way to deploy flows. Serving flows is perfect for many use cases, but the need for persistent infrastructure means serving flows may not work well for flows that require expensive or limited infrastructure.
 
 We're excited to introduce `flow.deploy` as a simple transition from running your served flows on persistent infrastructure to executing your flows on dynamically provisioned infrastructure via work pools and workers. `flow.deploy` ensures your flows execute consistently across environments by packaging your flow into a Docker image and making that image available to your workers when executing your flow.
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     )
 ```
 
-You can also use `deploy` as a replacement for `serve` if you want to deploy multiple flows all at once.
+You can also use `deploy` as a replacement for `serve` if you want to deploy multiple flows at once.
 
 For more information, check out our tutorial's newly updated [Worker & Work Pools](https://docs.prefect.io/latest/tutorial/workers/) section! 
 
