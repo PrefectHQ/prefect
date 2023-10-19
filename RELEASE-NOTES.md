@@ -2,17 +2,77 @@
 
 ## Release 2.13.8
 
-### Flow.deploy and deploy
-- Introduce `flow.deploy` and `deploy` — https://github.com/PrefectHQ/prefect/pull/10975
+### Introducing `flow.deploy`
+
+When we released `flow.serve`, we introduced a radically simple way to deploy flows. Serving flows is perfect for many use cases, but the need for persistent infrastructure means serving flows may not work well for flows that require expensive or limited infrastructure to execute.
+
+We're excited to introduce `flow.deploy` as a simple transition from running your served flows on persistent infrastructure to executing your flows on dynamically provisioned infrastructure via work pools and workers. `flow.deploy` ensures your flows execute consistently across environments by packaging your flow into a Docker image and making that image available to your workers when executing your flow.
+
+Updating your serve script to a deploy script is as simple as changing `serve` to `deploy`, providing a work pool to deploy to, and providing a name for the built image.
+
+Here's an example of a serve script:
+
+```python
+from prefect import flow
+
+
+@flow(log_prints=True)
+def hello_world(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+
+    if goodbye:
+        print(f"Goodbye {name}!")
+
+
+if __name__ == "__main__":
+    hello_world.serve(
+        name="my-first-deployment",
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        interval=60,
+    )
+```
+
+transitioned to a deploy script:
+
+```python
+from prefect import flow
+
+
+@flow(log_prints=True)
+def hello_world(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+
+    if goodbye:
+        print(f"Goodbye {name}!")
+
+
+if __name__ == "__main__":
+    hello_world.deploy(
+        name="my-first-deployment",
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        interval=60,
+        work_pool_name="above-ground",
+        image='my_registry/hello_world:demo'
+    )
+```
+
+You can also use `deploy` as a replacement for `serve` if you want to deploy multiple flows all at once.
+
+For more information, check out our tutorial's newly updated [Worker & Work Pools](https://docs.prefect.io/latest/tutorial/workers/) section! 
+
+See implementation details in the following pull requests:
+- https://github.com/PrefectHQ/prefect/pull/10957
+- https://github.com/PrefectHQ/prefect/pull/10975
+- https://github.com/PrefectHQ/prefect/pull/10993
 
 ### Enhancements
 - Add `last_polled` column to deployment table — https://github.com/PrefectHQ/prefect/pull/10949
 - Add `status` and `last_polled` to deployment API responses — https://github.com/PrefectHQ/prefect/pull/10951
 - Add flow run graph v2 endpoint tuned for UI applications — https://github.com/PrefectHQ/prefect/pull/10912
-- Add ability to convert `GitRepository` into `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10957
 - Add deployment status tests for `/work_pools/{name}/get_scheduled_flow_runs` and `/work_queues/{id}/get_runs` endpoints — https://github.com/PrefectHQ/prefect/pull/10973
 - Update `/deployments/get_scheduled_flow_runs` endpoint to update deployment status — https://github.com/PrefectHQ/prefect/pull/10969
-- Update `deploy` to gather and display errors for failed deployments — https://github.com/PrefectHQ/prefect/pull/10993
 
 ### Fixes
 - Clarify CLI prompt message for missing integration library for worker — https://github.com/PrefectHQ/prefect/pull/10990
