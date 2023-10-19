@@ -503,10 +503,9 @@ class TestInstallPolicyOption:
             ],
             user_input=readchar.key.ENTER,
             expected_output_contains=[
-                (
-                    "Could not find a kubernetes worker in the current"
-                    " environment. Install it now?"
-                ),
+                "Could not find the Prefect integration library for the",
+                "kubernetes",
+                "Install the library now?",
                 "Installing prefect-kubernetes...",
                 "Worker 'test-worker' started!",
                 "Worker 'test-worker' stopped!",
