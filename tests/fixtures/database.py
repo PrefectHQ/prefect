@@ -541,6 +541,7 @@ async def work_pool_with_image_variable(session):
                 "job_configuration": {
                     "command": "{{ command }}",
                     "image": "{{ image }}",
+                    "image_pull_policy": "{{ image_pull_policy }}",
                 },
                 "variables": {
                     "properties": {
@@ -551,6 +552,12 @@ async def work_pool_with_image_variable(session):
                         "image": {
                             "type": "string",
                             "title": "Image",
+                        },
+                        "image_pull_policy": {
+                            "enum": ["IfNotPresent", "Always", "Never"],
+                            "type": "string",
+                            "title": "Image Pull Policy",
+                            "default": "IfNotPresent",
                         },
                     },
                     "required": [],
