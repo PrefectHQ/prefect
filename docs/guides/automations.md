@@ -268,7 +268,7 @@ Lets take this idea one step further, by creating a deployment that will be trig
 
 Based on the automation trigger, similarly we can add a trigger to a deployment, that would be waiting for this specified event. 
 
-Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the ai function to start analyzing some of the work. 
+Let us look at this example below using Marvin's AI functions. We will be taking in a dataframe and use the AI function to start analyzing some of the work. 
 
 Here is an example of pulling in that data and classifying using Marvin AI. We can help create dummy data based on classifications we have already created.
 
