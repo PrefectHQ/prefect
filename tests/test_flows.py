@@ -2201,9 +2201,10 @@ def test_load_flow_from_entrypoint(tmp_path):
     flow = load_flow_from_entrypoint(f"{fpath}:dog")
     assert flow.fn() == "woof!"
 
+
 def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     # test absolute paths to ensure compatibility for all operating systems
-    
+
     flow_code = """
     from prefect import flow
 
@@ -2213,12 +2214,13 @@ def test_load_flow_from_entrypoint_with_absolute_path(tmp_path):
     """
     fpath = tmp_path / "f.py"
     fpath.write_text(dedent(flow_code))
-    
+
     # convert the fpath into an absolute path
     absolute_fpath = str(fpath.resolve())
 
     flow = load_flow_from_entrypoint(f"{absolute_fpath}:dog")
     assert flow.fn() == "woof!"
+
 
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
