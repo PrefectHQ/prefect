@@ -804,7 +804,7 @@ async def deploy(
 
     if deployment_exceptions:
         console.print(
-            "Encountered errors while creating/updating deployments\n",
+            "Encountered errors while creating/updating deployments:\n",
             style="orange_red1",
         )
     else:
