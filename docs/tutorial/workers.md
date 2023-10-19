@@ -154,14 +154,14 @@ if __name__ == "__main__":
         name="my-first-deployment", 
         work_pool_name="my-docker-pool", 
         image="my-first-deployment-image:tutorial"
-        skip_push=True
+        push=False
     )
 ```
 
-!!! note "Why the `skip_push=True`?"
+!!! note "Why the `push=False`?"
     For this tutorial, your Docker worker is running on your machine, so we don't need to push the image built by `flow.deploy` to a registry. When your worker is running on a remote machine, you will need to push the image to a registry that the worker can access.
 
-    Remove the `skip_push=True` argument and include your registry name to push the image to a registry.
+    Remove the `push=False` argument, include your registry name, and ensure you've [authenticated with the Docker CLI](https://docs.docker.com/engine/reference/commandline/login/) to push the image to a registry.
 
 Now that you've updated your script, you can run it to deploy your flow to the work pool:
 
@@ -204,7 +204,7 @@ Prefect will build a custom Docker image containing your workflow code that the 
                 tag="tutorial",
                 dockerfile="Dockerfile"
             ),
-            skip_push=True
+            push=False
         )
     ```
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         work_pool_name="my-docker-pool", 
         job_variables={"image_pull_policy": "Never"},
         image="my-first-deployment-image:tutorial",
-        skip_push=True
+        push=False
     )
 ```
 
