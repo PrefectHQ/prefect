@@ -1115,6 +1115,8 @@ class TestDeploy:
         assert "failed" in console_output
         # just the start of the error due to wrapping
         assert "'blork' is not one" in console_output
+        assert "prefect worker start" in console_output
+        assert "To execute flow runs from these deployments" in console_output
 
     async def test_deploy_with_complete_failure(
         self,
@@ -1147,6 +1149,7 @@ class TestDeploy:
         assert "'blork' is not one" in console_output
 
         assert "prefect worker start" not in console_output
+        assert "To execute flow runs from these deployments" not in console_output
 
     async def test_deploy_raises_with_only_deployment_failed(
         self,
