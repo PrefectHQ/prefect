@@ -100,7 +100,7 @@ We can create an automation that can kick off a deployment instead of a notifica
 
 Additionally, find more information in our [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) on how to interact with the endpoints further.
 
-Let us have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking to long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
+Let us have local deployment created where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the same flow `build_names` but replace the count value with something less.
 
 By following the deployment steps, we can get started by creating a local prefect.yaml that looks like this for our flow `build_names`
 
