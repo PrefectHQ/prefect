@@ -60,6 +60,7 @@ from prefect.client.schemas.schedules import (
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
@@ -76,6 +77,12 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
+
+
+class DeploymentApplyError(RuntimeError):
+    """
+    Raised when an error occurs while applying a deployment.
+    """
 
 
 class RunnerDeployment(BaseModel):
@@ -263,7 +270,16 @@ class RunnerDeployment(BaseModel):
                     [self.storage.to_pull_step()] if self.storage else []
                 )
 
-            deployment_id = await client.create_deployment(**create_payload)
+            try:
+                deployment_id = await client.create_deployment(**create_payload)
+            except Exception as exc:
+                if isinstance(exc, PrefectHTTPStatusError):
+                    detail = exc.response.json().get("detail")
+                    if detail:
+                        raise DeploymentApplyError(detail) from exc
+                raise DeploymentApplyError(
+                    f"Error while applying deployment: {str(exc)}"
+                ) from exc
 
             if client.server_type == ServerType.CLOUD:
                 # The triggers defined in the deployment spec are, essentially,
@@ -666,7 +682,7 @@ class DeploymentImage:
 
 @sync_compatible
 async def deploy(
-    *args: RunnerDeployment,
+    *deployments: RunnerDeployment,
     work_pool_name: str,
     image: Union[str, DeploymentImage],
     push: bool = True,
@@ -681,7 +697,7 @@ async def deploy(
     flow on the given schedule.
 
     Args:
-        *args: A list of deployments to deploy.
+        *deployments: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DeploymentImage instance to customize the Dockerfile used
@@ -767,28 +783,61 @@ async def deploy(
 
         console.print(f"Successfully pushed image {image.reference!r}", style="green")
 
+    deployment_exceptions = []
     deployment_ids = []
     for deployment in track(
-        args,
+        deployments,
         description="Creating/updating deployments...",
         console=console,
+        transient=True,
     ):
-        deployment_ids.append(
-            await deployment.apply(image=image.reference, work_pool_name=work_pool_name)
+        try:
+            deployment_ids.append(
+                await deployment.apply(
+                    image=image.reference, work_pool_name=work_pool_name
+                )
+            )
+        except Exception as exc:
+            if len(deployments) == 1:
+                raise
+            deployment_exceptions.append({"deployment": deployment, "exc": exc})
+
+    if deployment_exceptions:
+        console.print(
+            "Encountered errors while creating/updating deployments:\n",
+            style="orange_red1",
         )
+    else:
+        console.print("Successfully created/updated all deployments!\n", style="green")
 
-    console.print("Successfully created/updated all deployments!\n", style="green")
+    complete_failure = len(deployment_exceptions) == len(deployments)
 
-    if print_next_steps_message:
-        table = Table(title="Deployments", show_header=False)
+    table = Table(
+        title="Deployments",
+        show_lines=True,
+    )
 
-        table.add_column(style="blue", no_wrap=True)
+    table.add_column(header="Name", style="blue", no_wrap=True)
+    table.add_column(header="Status", style="blue", no_wrap=True)
+    table.add_column(header="Details", style="blue")
 
-        for deployment in args:
-            table.add_row(f"{deployment.flow_name}/{deployment.name}")
+    for deployment in deployments:
+        errored_deployment = next(
+            (d for d in deployment_exceptions if d["deployment"] == deployment),
+            None,
+        )
+        if errored_deployment:
+            table.add_row(
+                f"{deployment.flow_name}/{deployment.name}",
+                "failed",
+                str(errored_deployment["exc"]),
+                style="red",
+            )
+        else:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}", "applied")
+    console.print(table)
 
-        console.print(table)
-
+    if print_next_steps_message and not complete_failure:
         if not work_pool.is_push_pool:
             console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
