@@ -11,6 +11,7 @@ import anyio
 import pytest
 import regex as re
 
+from prefect import __version__ as PREFECT_VERSION
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
@@ -429,6 +430,7 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
+    @pytest.mark.skipif(PREFECT_VERSION < "2.14.0", reason="now allowed")
     def test_task_submitted_outside_flow_raises(self):
         @task
         def foo():
