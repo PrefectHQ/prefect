@@ -71,7 +71,7 @@ See implementation details in the following pull requests:
 - Add `last_polled` column to deployment table — https://github.com/PrefectHQ/prefect/pull/10949
 - Add `status` and `last_polled` to deployment API responses — https://github.com/PrefectHQ/prefect/pull/10951
 - Add flow run graph v2 endpoint tuned for UI applications — https://github.com/PrefectHQ/prefect/pull/10912
-- Add deployment status tests for `/work_pools/{name}/get_scheduled_flow_runs` and `/work_queues/{id}/get_runs` endpoints — https://github.com/PrefectHQ/prefect/pull/10973
+- Add ability to convert `GitRepository` into `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10957
 - Update `/deployments/get_scheduled_flow_runs` endpoint to update deployment status — https://github.com/PrefectHQ/prefect/pull/10969
 
 ### Fixes
