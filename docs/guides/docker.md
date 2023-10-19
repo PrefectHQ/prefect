@@ -23,7 +23,7 @@ In this guide we'll:
 - Write a Dockerfile to build an image that stores our Prefect flow code.
 - Build a Docker image for our flow.
 - Deploy and run our Docker image on a Kubernetes cluster.
-- Look the Prefect-maintained Docker images and discuss options for use
+- Look at the Prefect-maintained Docker images and discuss options for use
 
 ## Prerequisites
 
