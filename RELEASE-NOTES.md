@@ -76,8 +76,8 @@ See implementation details in the following pull requests:
 
 ### Fixes
 - Clarify CLI prompt message for missing integration library for worker — https://github.com/PrefectHQ/prefect/pull/10990
-- Renamed ruamel-yaml to ruamel.yaml in requirements.txt — https://github.com/PrefectHQ/prefect/pull/10987
-- Make work pool banner copy less confusing — https://github.com/PrefectHQ/prefect/pull/10992
+- Renamed `ruamel-yaml` to `ruamel.yaml` in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10987
+- Clarify work pool banner on Work Pool page UI — https://github.com/PrefectHQ/prefect/pull/10992
 
 ### Documentation
 - Clean up `Using the Prefect Orchestration Client` guide — https://github.com/PrefectHQ/prefect/pull/10968
