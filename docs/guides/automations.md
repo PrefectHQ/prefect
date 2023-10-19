@@ -139,7 +139,7 @@ deployments:
   schedule: null
 ```
 
-Now lets grab our `deployment_id` from this deployment, and embed it in our automation. There are a wide variety ways to obtain the `deployment_id`, but the CLI can be the quick way to see all of the id's of your deployments. 
+Now let's grab our `deployment_id` from this deployment, and embed it in our automation. There are a wide variety ways to obtain the `deployment_id`, but the CLI can be the quickest way to see all of the id's of your deployments. 
 
 !!! Tip "Find deployment_id from the CLI"
       The quickest way to see the ID's associated with your deployment would be running `prefect deployment ls`
