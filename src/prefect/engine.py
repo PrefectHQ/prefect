@@ -1130,6 +1130,16 @@ def enter_task_run_engine(
     ):
         raise TimeoutError("Flow run timed out")
 
+    if flow_run_context is None:
+        # If not in a flow run, we need to create a context to store task run futures
+        # and states
+        flow_run_context = PartialModel(
+            FlowRunContext,
+            client=get_client(),
+            flow_run=None,
+            flow=None,
+        )
+
     begin_run = create_call(
         begin_task_map if mapped else get_task_call_return_value,
         task=task,
@@ -1140,10 +1150,14 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    is_async_autonomous_task = task.isasync and not flow_run_context
+    is_async_autonomous_task = task.isasync and isinstance(
+        flow_run_context, PartialModel
+    )
 
     is_async_task_in_async_flow = (
-        task.isasync and flow_run_context and flow_run_context.flow.isasync
+        task.isasync
+        and isinstance(flow_run_context, FlowRunContext)
+        and flow_run_context.flow.isasync
     )
 
     if is_async_autonomous_task or is_async_task_in_async_flow:
@@ -1163,6 +1177,27 @@ async def begin_task_map(
     task_runner: Optional[BaseTaskRunner],
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
     """Async entrypoint for task mapping"""
+    if isinstance(flow_run_context, PartialModel):
+        async with AsyncExitStack() as stack:
+            with flow_run_context.finalize(
+                task_runner=await stack.enter_async_context(
+                    (task_runner or ConcurrentTaskRunner()).start()
+                ),
+                background_tasks=await stack.enter_async_context(
+                    anyio.create_task_group()
+                ),
+                result_factory=await ResultFactory.from_task(task),
+                parameters=parameters,
+            ) as flow_run_context:
+                return await begin_task_map(
+                    task=task,
+                    flow_run_context=flow_run_context,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    return_type=return_type,
+                    task_runner=task_runner,
+                )
+
     # We need to resolve some futures to map over their data, collect the upstream
     # links beforehand to retain relationship tracking.
     task_inputs = {
@@ -1304,7 +1339,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 async def get_task_call_return_value(
     task: Task,
-    flow_run_context: Optional[FlowRunContext],
+    flow_run_context: Optional[Union[FlowRunContext, PartialModel]],
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
@@ -1313,54 +1348,32 @@ async def get_task_call_return_value(
 ):
     extra_task_inputs = extra_task_inputs or {}
 
-    if flow_run_context is None:
-        # Autonomous task run, just fake the flow run context
-        flow_run_context = PartialModel(
-            FlowRunContext, parameters=parameters, log_prints=should_log_prints(task)
-        )
-
+    if isinstance(flow_run_context, PartialModel):
         async with AsyncExitStack() as stack:
-            # Create a task group for background tasks
-            flow_run_context.background_tasks = await stack.enter_async_context(
-                anyio.create_task_group()
-            )
-
-            client = await stack.enter_async_context(get_client())
-
-            flow_run_context.client = client
-
-            # If the flow is async, we need to provide a portal so sync tasks can run
-            flow_run_context.sync_portal = None
-
             task_runner = task_runner or SequentialTaskRunner()
-            flow_run_context.task_runner = await stack.enter_async_context(
-                task_runner.start()
-            )
 
-            flow_run_context.result_factory = await ResultFactory.from_task(task=task)
+            if not isinstance(
+                flow_run_context.fields.get("result_factory"), ResultFactory
+            ):
+                flow_run_context.result_factory = await ResultFactory.from_task(task)
 
             with flow_run_context.finalize(
-                flow=None, flow_run=None
+                parameters=parameters,
+                background_tasks=await stack.enter_async_context(
+                    anyio.create_task_group()
+                ),
+                task_runner=await stack.enter_async_context(task_runner.start()),
+                sync_portal=None,
             ) as flow_run_context:
-                future = await create_task_run_future(
+                return await get_task_call_return_value(
                     task=task,
                     flow_run_context=flow_run_context,
                     parameters=parameters,
                     wait_for=wait_for,
+                    return_type=return_type,
                     task_runner=task_runner,
                     extra_task_inputs=extra_task_inputs,
                 )
-                if return_type == "future":
-                    return future
-                elif return_type == "state":
-                    return await future._wait()
-                elif return_type == "result":
-                    return await future._result()
-                else:
-                    raise ValueError(
-                        f"Invalid return type for task engine {return_type!r}."
-                    )
-
     else:
         future = await create_task_run_future(
             task=task,
