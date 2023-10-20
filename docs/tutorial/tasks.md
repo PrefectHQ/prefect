@@ -56,7 +56,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 
 Running the flow in your terminal will result in something like this:
 
-```bash
+```{.output .no-copy }
 09:55:55.412 | INFO    | prefect.engine - Created flow run 'great-ammonite' for flow 'get-repo-info'
 09:55:55.499 | INFO    | Flow run 'great-ammonite' - Created task run 'get_url-0' for task 'get_url'
 09:55:55.500 | INFO    | Flow run 'great-ammonite' - Executing 'get_url-0' immediately...

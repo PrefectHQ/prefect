@@ -92,10 +92,11 @@ Running `python -i repo_info.py` we can now call our flow with varying values fo
 
 ```bash
 python -i repo_info.py
->>> get_repo_info(repo_name="PrefectHQ/marvin")
 ```
 
 ```{.output .no-copy }
+>>> get_repo_info(repo_name="PrefectHQ/marvin")
+...
 >>> get_repo_info()
 ...
 >>> get_repo_info(repo_name="missing-org/missing-repo")
