@@ -187,6 +187,12 @@ rrule: An rrule schedule of when to execute runs of this deployment.
 timezone: A timezone to use for the schedule. Defaults to UTC.
 ```
 
+Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
+
+```python
+my_flow.serve(name="flowing", cron="* * * * *")
+```
+
 Block and agent-based deployments with Python files are not a recommended way to create deployments.
 However, if you are using that deployment creation method you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
 
