@@ -1,7 +1,7 @@
 import versioneer
 from setuptools import find_packages, setup
 
-install_requires = open("requirements.txt").read().strip().split("\n")
+install_requires = open("requirements-client.txt").read().strip().split("\n")
 
 setup(
     # Package metadata
