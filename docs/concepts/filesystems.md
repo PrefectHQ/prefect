@@ -12,7 +12,7 @@ search:
 
 # Filesystems
 
-A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
+A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases.
 
 - [`LocalFileSystem`](#local-filesystem)
 - [`RemoteFileSystem`](#remote-file-system)
@@ -27,7 +27,7 @@ Additional file system types are available in [Prefect Collections](/collections
 
 ## Local filesystem
 
-The `LocalFileSystem` block enables interaction with the files in your current development environment. 
+The `LocalFileSystem` block enables interaction with the files in your current development environment.
 
 `LocalFileSystem` properties include:
 
@@ -42,13 +42,13 @@ fs = LocalFileSystem(basepath="/foo/bar")
 ```
 
 !!! warning "Limited access to local file system"
-    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the environment you are writing and deploying your code on. 
-    
+    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the environment you are writing and deploying your code on.
+
     Use of this file system can limit the availability of results after a flow run has completed or prevent the code for a flow from being retrieved successfully at the start of a run.
 
 ## Remote file system
 
-The `RemoteFileSystem` block enables interaction with arbitrary remote file systems. Under the hood, `RemoteFileSystem` uses [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/) and supports any file system that `fsspec` supports. 
+The `RemoteFileSystem` block enables interaction with arbitrary remote file systems. Under the hood, `RemoteFileSystem` uses [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/) and supports any file system that `fsspec` supports.
 
 `RemoteFileSystem` properties include:
 
@@ -109,7 +109,6 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | azure_storage_client_secret | Azure storage client secret. |
 | azure_storage_anon | Anonymous authentication, disable to use `DefaultAzureCredential`. |
 
-
 To create a block:
 
 ```python
@@ -121,11 +120,9 @@ block.save("dev")
 
 To use it in a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb az/dev
 ```
-</div>
 
 You need to install `adlfs` to use it.
 
@@ -156,12 +153,9 @@ block.save("dev")
 
 To use it in a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb github/dev -a
 ```
-</div>
-
 
 ## GitLabRepository
 
@@ -192,11 +186,9 @@ gitlab_repo.save("dev")
 
 To use it in a deployment (and apply):
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gitlab-repository/dev -a
 ```
-</div>
 
 Note that to use this block, you need to install the [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab) collection.
 
@@ -212,7 +204,6 @@ The `GCS` file system block enables interaction with Google Cloud Storage. Under
 | service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
 | project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
 
-
 To create a block:
 
 ```python
@@ -224,11 +215,9 @@ block.save("dev")
 
 To use it in a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gcs/dev
 ```
-</div>
 
 You need to install `gcsfs`to use it.
 
@@ -244,7 +233,6 @@ The `S3` file system block enables interaction with Amazon S3. Under the hood, `
 | aws_access_key_id | AWS Access Key ID |
 | aws_secret_access_key | AWS Secret Access Key |
 
-
 To create a block:
 
 ```python
@@ -256,11 +244,9 @@ block.save("dev")
 
 To use it in a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb s3/dev
 ```
-</div>
 
 You need to install `s3fs`to use this block.
 
@@ -278,7 +264,6 @@ The `SMB` file system block enables interaction with SMB shared network storage.
 | smb_username | SMB username with read/write permissions. |
 | smb_password | SMB password. |
 
-
 To create a block:
 
 ```python
@@ -290,19 +275,15 @@ block.save("dev")
 
 To use it in a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb smb/dev
 ```
-</div>
 
 You need to install `smbprotocol` to use it.
-
 
 ## Handling credentials for cloud object storage services
 
 If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either explicitly on the block or as environment variables, configuration files, or IAM roles within both the build and runtime environment for your deployments.
-
 
 ## Filesystem package dependencies
 
@@ -310,7 +291,7 @@ A Prefect installation and doesn't include filesystem-specific package dependenc
 
 You must ensure that filesystem-specific libraries are installed in an execution environment where they will be used by flow runs.
 
-In Dockerized deployments using the Prefect base image, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+In Dockerized deployments using the Prefect base image, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running.
 
 In Dockerized deployments using a custom image, you must include the filesystem-specific package dependency in your image.
 
@@ -344,10 +325,10 @@ fs.read_path("foo")  # b'hello'
 
 ## Readable and writable file systems
 
-Prefect provides two abstract file system types, `ReadableFileSystem` and `WriteableFileSystem`. 
+Prefect provides two abstract file system types, `ReadableFileSystem` and `WriteableFileSystem`.
 
-- All readable file systems must implement `read_path`, which takes a file path to read content from and returns bytes. 
-- All writeable file systems must implement `write_path` which takes a file path and content and writes the content to the file as bytes. 
+- All readable file systems must implement `read_path`, which takes a file path to read content from and returns bytes.
+- All writeable file systems must implement `write_path` which takes a file path and content and writes the content to the file as bytes.
 
 A file system may implement both of these types.
 <!-- 

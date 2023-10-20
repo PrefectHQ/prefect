@@ -12,11 +12,10 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow. 
-You can think of a flow as a recipe for connecting a known sequence of tasks together. 
+A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow.
+You can think of a flow as a recipe for connecting a known sequence of tasks together.
 Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  
 When a function becomes a task, it can be executed concurrently and its return value can be cached.
-
 
 Flows and tasks share some common features:
 
@@ -57,7 +56,6 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 
 Running the flow in your terminal will result in something like this:
 
-<div class="terminal">
 ```bash
 09:55:55.412 | INFO    | prefect.engine - Created flow run 'great-ammonite' for flow 'get-repo-info'
 09:55:55.499 | INFO    | Flow run 'great-ammonite' - Created task run 'get_url-0' for task 'get_url'
@@ -68,13 +66,12 @@ Running the flow in your terminal will result in something like this:
 09:55:55.827 | INFO    | Flow run 'great-ammonite' - Forks 🍴 : 1251
 09:55:55.849 | INFO    | Flow run 'great-ammonite' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 And you should now see this task run tracked in the UI as well.
 
 ## Caching
 
-Tasks support the ability to cache their return value. 
+Tasks support the ability to cache their return value.
 Caching allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
@@ -160,8 +157,7 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
 
 The logs show that each task is running concurrently:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 12:45:28.241 | INFO    | prefect.engine - Created flow run 'intrepid-coua' for flow 'get-repo-info'
 12:45:28.311 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-0' for task 'get_url'
 12:45:28.312 | INFO    | Flow run 'intrepid-coua' - Executing 'get_url-0' immediately...
@@ -190,7 +186,6 @@ The logs show that each task is running concurrently:
 Average open issues per user 💌 : 2.27
 12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 ## Subflows
 

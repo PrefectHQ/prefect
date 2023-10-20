@@ -44,11 +44,9 @@ Select the **+** button to create a new work pool. You'll be able to specify the
 
 To create a work pool via the Prefect CLI, use the `prefect work-pool create` command:
 
-<div class="terminal">
 ```bash
 prefect work-pool create [OPTIONS] NAME
 ```
-</div>
 
 `NAME` is a required, unique name for the work pool.
 
@@ -62,11 +60,11 @@ Optional configuration parameters you can specify to filter work on the pool inc
 
 For example, to create a work pool called `test-pool`, you would run this command:
 
-<div class="terminal">
-
 ```bash
-$ prefect work-pool create test-pool
+prefect work-pool create test-pool
+```
 
+```{.output .no-copy }
 Created work pool with properties:
     name - 'test-pool'
     id - a51adf8c-58bb-4949-abe6-1b87af46eabd
@@ -79,17 +77,13 @@ Inspect the work pool:
     prefect work-pool inspect 'test-pool'
 ```
 
-</div>
-
 On success, the command returns the details of the newly created work pool.
 
 To update a work pool via the Prefect CLI, use the `prefect work-pool update` command:
 
-<div class="terminal">
 ```bash
 prefect work-pool update [OPTIONS] NAME
 ```
-</div>
 
 `NAME` is the name of the work pool to update.
 
@@ -104,11 +98,9 @@ Optional configuration parameters you can specify to update the work pool includ
 !!! tip "Managing work pools in CI/CD"
     You can version control your base job template by committing it as a JSON file to your repository and control updates to your work pools' base job templates by using the `prefect work-pool update` command in your CI/CD pipeline. For example, you could use the following command to update a work pool's base job template to the contents of a file named `base-job-template.json`:
 
-    <div class="terminal">
     ```bash
-    $ prefect work-pool update --base-job-template base-job-template.json my-work-pool
+    prefect work-pool update --base-job-template base-job-template.json my-work-pool
     ```
-    </div>
 
 #### Base job template
 
@@ -128,11 +120,9 @@ Each worker type is configured with a default base job template, making it easy 
 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
-<div class="terminal">
 ```bash
-$ prefect work-pool create --type process above-ground
+prefect work-pool create --type process above-ground
 ```
-</div>
 
 We see these configuration options available in the Prefect UI:
 ![process work pool configuration options](/img/ui/process-work-pool-config.png)
@@ -142,7 +132,7 @@ For a `process` work pool with the default base job template, we can set environ
 You can examine the default base job template for a given worker type by running:
 
 ```bash
-$ prefect work-pool get-default-base-job-template --type process
+prefect work-pool get-default-base-job-template --type process
 {
   "job_configuration": {
     "command": "{{ command }}",
@@ -230,10 +220,11 @@ To view work pools with the Prefect CLI, you can:
 
 `prefect work-pool ls` lists all configured work pools for the server.
 
-<div class="terminal">
 ```bash
-$ prefect work-pool ls
 prefect work-pool ls
+```
+
+```{.output .no-copy }
                                Work pools
 ┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
 ┃ Name       ┃    Type        ┃                                   ID ┃ Concurrency Limit ┃
@@ -245,13 +236,14 @@ prefect work-pool ls
 └────────────┴────────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
 ```
-</div>
 
 `prefect work-pool inspect` provides all configuration metadata for a specific work pool by ID.
 
-<div class="terminal">
 ```bash
-$ prefect work-pool inspect 'test-pool'
+prefect work-pool inspect 'test-pool'
+```
+
+```{.output .no-copy }
 Workpool(
     id='a51adf8c-58bb-4949-abe6-1b87af46eabd',
     created='2 minutes ago',
@@ -260,13 +252,14 @@ Workpool(
     filter=None,
 )
 ```
-</div>
 
 `prefect work-pool preview` displays scheduled flow runs for a specific work pool by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead.
 
-<div class="terminal">
 ```bash
-$ prefect work-pool preview 'test-pool' --hours 12
+prefect work-pool preview 'test-pool' --hours 12
+```
+
+```{.output .no-copy }
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Scheduled Star… ┃ Run ID                     ┃ Name         ┃ Deployment ID               ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -283,9 +276,8 @@ $ prefect work-pool preview 'test-pool' --hours 12
 └─────────────────┴────────────────────────────┴──────────────┴─────────────────────────────┘
                                    (**) denotes a late run
 ```
-</div>
 
-### Work Pool Status
+### Work pool status
 
 Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
 
@@ -295,12 +287,10 @@ A work pool can be paused at any time to stop the delivery of work to workers. W
 
 To pause a work pool through the Prefect CLI, use the `prefect work-pool pause` command:
 
-<div class="terminal">
 ```bash
 $ prefect work-pool pause 'test-pool'
 Paused work pool 'test-pool'
 ```
-</div>
 
 To resume a work pool through the Prefect CLI, use the `prefect work-pool resume` command with the work pool name.
 
@@ -397,35 +387,34 @@ Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it send
 ### Starting a worker
 
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
-<div class="terminal">
+
 ```bash
-$ prefect worker start -p [work pool name]
+prefect worker start -p [work pool name]
 ```
-</div>
+
 For example:
-<div class="terminal">
+
 ```bash
 prefect worker start -p "my-pool"
 Discovered worker type 'process' for work pool 'my-pool'.
 Worker 'ProcessWorker 65716280-96f8-420b-9300-7e94417f2673' started!
 ```
-</div>
+
 In this case, Prefect automatically discovered the worker type from the work pool.
 To create a work pool and start a worker in one command, use the `--type` flag:
-<div class="terminal">
-```bash
+
+```{.output .no-copy }
 prefect worker start -p "my-pool" --type "process"
 Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
 ```
-</div>
+
 In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag.
 For example, to limit a worker to five concurrent flow runs:
-<div class="terminal">
+
 ```bash
 prefect worker start --pool "my-pool" --limit 5
 ```
-</div>
 
 ### Configuring prefetch
 

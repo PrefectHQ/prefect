@@ -17,8 +17,8 @@ search:
 # Storage
 
 !!! warning "Storage blocks are not recommended"
-    Storage blocks are part of the legacy block-based deployment model. Instead, using `serve` or `runner`-based Python creation methods or workers and work pools with `prefect deploy` via the CLI are the recommended options for creating a deployment. 
-    Flow code storage can be specified in the Python file with `serve` or `runner`-based Python creation methods; alternatively, with the work pools and workers style of flow deployment, you can specify flow code storage during the interactive `prefect deploy` CLI experience and in its resulting `prefect.yaml` file. 
+    Storage blocks are part of the legacy block-based deployment model. Instead, using `serve` or `runner`-based Python creation methods or workers and work pools with `prefect deploy` via the CLI are the recommended options for creating a deployment.
+    Flow code storage can be specified in the Python file with `serve` or `runner`-based Python creation methods; alternatively, with the work pools and workers style of flow deployment, you can specify flow code storage during the interactive `prefect deploy` CLI experience and in its resulting `prefect.yaml` file.
 
 Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect workers](/concepts/work-pools) (or legacy [agents](/concepts/agents)). Anytime you build a block-based deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
 
@@ -95,10 +95,8 @@ block.save("example-block")
 
 This block configuration is now available to be used by anyone with appropriate access to your Prefect API.  We can use this block to build a deployment by passing its slug to the `prefect deployment build` command. The storage block slug is formatted as `block-type/block-name`. In this case, `s3/example-block` for an AWS S3 Bucket block named `example-block`. See [block identifiers](/concepts/deployments/#block-identifiers) for details.
 
-<div class="terminal">
 ```bash
 prefect deployment build ./flows/my_flow.py:my_flow --name "Example Deployment" --storage-block s3/example-block
 ```
-</div>
 
 This command will upload the contents of your flow's directory to the designated storage location, then the full deployment specification will be persisted to a newly created `deployment.yaml` file.  For more information, see [Deployments](/concepts/deployments).

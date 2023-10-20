@@ -167,25 +167,22 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 
 The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image. If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag:
 
-<div class="terminal">
 ```bash
-$ prefect init --recipe docker
+prefect init --recipe docker
 >> image_name: < insert image name here >
 >> tag: < insert image tag here >
 ```
-</div>
 
 !!! tip "Use `--field` to avoid the interactive experience"
     We recommend that you only initialize a recipe when you are first creating your deployment structure, and afterwards store your configuration files within version control.
     However, sometimes you may need to initialize programmatically and avoid the interactive prompts.  
     To do so, provide all required fields for your recipe using the `--field` flag:
-    <div class="terminal">
+
     ```bash
-    $ prefect init --recipe docker \
+    prefect init --recipe docker \
         --field image_name=my-repo/my-image \
         --field tag=my-tag
-```
-    </div>
+    ```
 
 ```yaml
 build:
@@ -228,12 +225,10 @@ The push section is most critical for situations in which code is not stored on 
 
 For example, a user wishing to store their code in an S3 bucket and rely on default worker settings for its runtime environment could use the `s3` recipe:
 
-<div class="terminal">
 ```bash
 $ prefect init --recipe s3
 >> bucket: < insert bucket name here >
 ```
-</div>
 
 Inspecting our newly created `prefect.yaml` file we find that the `push` and `pull` sections have been templated out for us as follows:
 
@@ -470,42 +465,34 @@ This file has three deployment declarations, each referencing a different flow. 
 
 For example, to deploy `deployment-1` you would run:
 
-<div class="terminal">
 ```bash
-$ prefect deploy --name deployment-1
+prefect deploy --name deployment-1
 ```
-</div>
 
 To deploy multiple deployments you can provide multiple `--name` flags:
 
-<div class="terminal">
 ```bash
-$ prefect deploy --name deployment-1 --name deployment-2
+prefect deploy --name deployment-1 --name deployment-2
 ```
-</div>
 
 To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
 
-<div class="terminal">
 ```bash
-$ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
+prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
 ```
-</div>
 
 To deploy all deployments you can use the `--all` flag:
 
-<div class="terminal">
 ```bash
-$ prefect deploy --all
+prefect deploy --all
 ```
-</div>
 
 To deploy deployments that match a pattern you can run:
-<div class="terminal">
+
 ```bash
-$ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
+prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
 ```
-</div>
+
 The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named `my-deployment`, and all deployments starting with `dep` and ending in `prod`.
 
 !!! note "CLI Options When Deploying Multiple Deployments"

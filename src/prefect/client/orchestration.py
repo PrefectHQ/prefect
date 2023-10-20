@@ -176,7 +176,6 @@ class PrefectClient:
 
         Say hello to a Prefect REST API
 
-        <div class="terminal">
         ```
         >>> async with get_client() as client:
         >>>     response = await client.hello()
@@ -184,7 +183,6 @@ class PrefectClient:
         >>> print(response.json())
         👋
         ```
-        </div>
     """
 
     def __init__(

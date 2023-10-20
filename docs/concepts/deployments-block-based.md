@@ -70,7 +70,6 @@ The minimum required information to create a deployment includes:
 
 You may provide additional settings for the deployment. Any settings you do not explicitly specify are inferred from defaults.
 
-
 ## Create a deployment on the CLI
 
 To create a deployment on the CLI, there are two steps:
@@ -78,26 +77,21 @@ To create a deployment on the CLI, there are two steps:
 1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured remote storage location, if one is specified.
 1. Create the deployment on the API.
 
-
 ### Build the deployment
 
 To build the deployment definition file `deployment.yaml`, run the `prefect deployment build` Prefect CLI command from the folder containing your flow script and any dependencies of the script.
 
-<div class="terminal">
 ```bash
-$ prefect deployment build [OPTIONS] PATH
+prefect deployment build [OPTIONS] PATH
 ```
-</div>
 
 Path to the flow is specified in the format `path-to-script:flow-function-name` &mdash; The path and filename of the flow script file, a colon, then the name of the entrypoint flow function.
 
 For example:
 
-<div class="terminal">
 ```bash
-$ prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
+prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
 ```
-</div>
 
 When you run this command, Prefect:
 
@@ -146,7 +140,7 @@ You may specify additional options to further customize your deployment.
 
 ### Block identifiers
 
-When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
+When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`.
 
 For example, `s3/example-block` is the slug for an S3 block named `example-block`.
 
@@ -155,7 +149,7 @@ In addition, when passing the storage block slug, you may pass just the block sl
 - `block-type/block-name` indicates just the block, including any path included in the block configuration.
 - `block-type/block-name/path` indicates a storage path in addition to any path included in the block configuration.
 
-When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
+When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`.
 
 | Block name         | Block class name   | Block type for a slug |
 | ------------------ | ------------------ | --------------------- |
@@ -230,9 +224,9 @@ parameter_openapi_schema:
 
 ### Parameters in deployments
 
-You may provide default parameter values in the `deployment.yaml` configuration, and these parameter values will be used for flow runs based on the deployment. 
+You may provide default parameter values in the `deployment.yaml` configuration, and these parameter values will be used for flow runs based on the deployment.
 
-To configure default parameter values, add them to the `parameters: {}` line of `deployment.yaml` as JSON key-value pairs. The parameter list configured in `deployment.yaml` *must* match the parameters expected by the entrypoint flow function.
+To configure default parameter values, add them to the `parameters: {}` line of `deployment.yaml` as JSON key-value pairs. The parameter list configured in `deployment.yaml` _must_ match the parameters expected by the entrypoint flow function.
 
 ```yaml
 parameters: {"name": "Marvin", "num": 42, "url": "https://catfact.ninja/fact"}
@@ -259,29 +253,26 @@ If you want the Prefect API to verify the parameter values passed to a flow run 
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
-<div class="terminal">
 ```bash
-$ prefect deployment apply catfacts_flow-deployment.yaml
+prefect deployment apply catfacts_flow-deployment.yaml
 ```
-</div>
 
 For example:
 
-<div class="terminal">
-```bash
-$ prefect deployment apply ./catfacts_flow-deployment.yaml
+```{.output .no-copy }
 Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```
-</div>
 
 `prefect deployment apply` accepts an optional `--upload` flag that, when provided, uploads this deployment's files to remote storage.
 
 Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
-<div class="terminal">
 ```bash
-$ prefect deployment ls
+prefect deployment ls
+```
+
+```{.output .no-copy }
                                Deployments
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Name                           ┃ ID                                   ┃
@@ -290,7 +281,6 @@ $ prefect deployment ls
 │ leonardo_dicapriflow/hello_leo │ fb4681d7-aa5a-4617-bf6f-f67e6f964984 │
 └────────────────────────────────┴──────────────────────────────────────┘
 ```
-</div>
 
 ![Viewing deployments in the Prefect UI](/img/concepts/deployments.png)
 
@@ -395,7 +385,6 @@ Deployment properties include:
 | `storage_document_id`                                     | Storage block configured for the deployment.                                                                                   |
 | <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment.                                                                            |
 
-
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
 ```bash
@@ -462,11 +451,10 @@ triggers:
       param_1: "{{ event }}"
 ```
 
-
 When applied, this deployment will start a flow run upon the completion of the upstream flow specified in the `match_related` key, with the flow run passed in as a parameter. Triggers can be configured to respond to the presence or absence of arbitrary internal or external [events](/cloud/events). The trigger system and API are detailed in [Automations](/cloud/automations/).
 
-
 ### Create a flow run with Prefect UI
+
 In the Prefect UI, you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
@@ -483,7 +471,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `run`             | Create a flow run for the given flow and deployment.            |
 | `set-schedule`    | Set schedule for a given deployment.                            |
 
-### Create a flow run in a Python script 
+### Create a flow run in a Python script
 
 You can create a flow run from a deployment in a Python script with the `run_deployment` function.
 
@@ -498,7 +486,7 @@ def main():
 
 if __name__ == "__main__":
    main()
-``` 
+```
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     You'll need to configure [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.

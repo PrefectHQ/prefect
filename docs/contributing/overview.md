@@ -18,7 +18,6 @@ Thanks for considering contributing to Prefect!
 
 First, you'll need to download the source code and install an editable version of the Python package:
 
-<div class="terminal">
 ```bash
 # Clone the repository
 git clone https://github.com/PrefectHQ/prefect.git
@@ -38,22 +37,17 @@ pip install -e ".[dev]"
 pre-commit install
 
 ```
-</div>
 
 If you don't want to install the pre-commit hooks, you can manually install the formatting dependencies with:
 
-<div class="terminal">
 ```bash
 pip install $(./scripts/precommit-versions.py)
 ```
-
-</div>
 
 You'll need to run `black` and  `ruff` before a contribution can be accepted.
 
 After installation, you can run the test suite with `pytest`:
 
-<div class="terminal">
 ```bash
 # Run all the tests
 pytest tests
@@ -63,14 +57,13 @@ pytest tests
 pytest tests/test_flows.py
 
 ```
-</div>
 
 !!! tip "Building the Prefect UI"
     If you intend to run a local Prefect server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
 ## Prefect Code of Conduct
 
-### Our Pledge
+### Our pledge
 
 In the interest of fostering an open and welcoming environment, we as
 contributors and maintainers pledge to making participation in our project and
@@ -79,7 +72,7 @@ size, disability, ethnicity, sex characteristics, gender identity and expression
 level of experience, education, socio-economic status, nationality, personal
 appearance, race, religion, or sexual identity and orientation.
 
-### Our Standards
+### Our standards
 
 Examples of behavior that contributes to creating a positive environment
 include:
@@ -101,7 +94,7 @@ Examples of unacceptable behavior by participants include:
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
 
-### Our Responsibilities
+### Our responsibilities
 
 Project maintainers are responsible for clarifying the standards of acceptable
 behavior and are expected to take appropriate and fair corrective action in
@@ -151,28 +144,21 @@ The Prefect CLI provides several helpful commands to aid development.
 
 Start all services with hot-reloading on code changes (requires UI dependencies to be installed):
 
-<div class="terminal">
 ```bash
 prefect dev start
 ```
 
-</div>
-
 Start a Prefect API that reloads on code changes:
 
-<div class="terminal">
 ```bash
 prefect dev api
 ```
-</div>
 
-Start a Prefect worker that reloads on code changes:
+Start a Prefect agent that reloads on code changes:
 
-<div class="terminal">
 ```bash
 prefect dev agent
 ```
-</div>
 
 ### UI development
 
@@ -180,19 +166,15 @@ Developing the Prefect UI requires that [npm](https://github.com/npm/cli) is ins
 
 Start a development UI that reloads on code changes:
 
-<div class="terminal">
 ```bash
 prefect dev ui
 ```
-</div>
 
 Build the static UI (the UI served by `prefect server start`):
 
-<div class="terminal">
 ```bash
 prefect dev build-ui
 ```
-</div>
 
 ### Docs Development
 
@@ -200,27 +182,21 @@ Prefect uses [mkdocs](https://www.mkdocs.org/) for the docs website and the [mkd
 
 To build the docs:
 
-<div class="terminal">
 ```bash
 mkdocs build
 ```
-</div>
 
 To serve the docs locally at <http://127.0.0.1:8000/>:
 
-<div class="terminal">
 ```bash
 mkdocs serve
 ```
-</div>
 
 For additional mkdocs help and options:
 
-<div class="terminal">
 ```bash
 mkdocs --help
 ```
-</div>
 
 We use the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
 
@@ -235,29 +211,23 @@ mkdocs build # or mkdocs build --config-file mkdocs.insiders.yml if needed
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
 
-<div class="terminal">
 ```bash
 prefect dev kubernetes-manifest
 ```
-</div>
 
 To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
 
-<div class="terminal">
 ```bash
 kubectl port-forward deployment/prefect-dev 4200:4200
 ```
-</div>
 
 This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
 
 To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
 
-<div class="terminal">
 ```bash
 export PREFECT_API_URL=http://localhost:4200/api
 ```
-</div>
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 
@@ -282,17 +252,15 @@ for how to set the database connection URL for each database type.
 
 To generate a new migration file, run the following command:
 
-<div class="terminal">
 ```bash
 prefect server database revision --autogenerate -m "<migration name>"
 ```
-</div>
 
 Try to make your migration name brief but descriptive. For example:
 
-- `add_flow_run_new_column`
-- `add_flow_run_new_column_idx`
-- `rename_flow_run_old_column_to_new_column`
+* `add_flow_run_new_column`
+* `add_flow_run_new_column_idx`
+* `rename_flow_run_old_column_to_new_column`
 
 The `--autogenerate` flag will automatically generate a migration file based on the changes to the models.
 !!! warning "Always inspect the output of `--autogenerate`"
@@ -305,11 +273,9 @@ has its own subdirectory. For example, the SQLite migrations are stored in `src/
 
 After you have inspected the migration file, you can apply the migration to your database by running the following command:
 
-<div class="terminal">
 ```bash
 prefect server database upgrade -y
 ```
-</div>
 
 Once you have successfully created and applied migrations for all database types, make sure to update `MIGRATION-NOTES.md`
 to document your additions.

@@ -198,7 +198,7 @@ Note that `validate_parameters` will check that input values conform to the anno
 
 ## Separating logic into tasks
 
-The simplest workflow is just a `@flow` function that does all the work of the workflow.
+The simplest workflow is a `@flow` function that does all the work of the workflow.
 
 ```python
 from prefect import flow
@@ -210,17 +210,14 @@ def hello_world(name="world"):
 hello_world("Marvin")
 ```
 
-When you run this flow, you'll see the following output:
+When you run this script, you'll see output that looks like this:
 
-<div class="terminal">
-```bash
-$ python hello.py
+```{.output .no-copy }
 15:11:23.594 | INFO    | prefect.engine - Created flow run 'benevolent-donkey' for flow 'hello-world'
 15:11:23.594 | INFO    | Flow run 'benevolent-donkey' - Using task runner 'ConcurrentTaskRunner'
 Hello Marvin!
 15:11:24.447 | INFO    | Flow run 'benevolent-donkey' - Finished in state Completed()
 ```
-</div>
 
 A better practice is to create `@task` functions that do the specific work of your flow, and use your `@flow` function as the conductor that orchestrates the flow of your application:
 
@@ -240,11 +237,9 @@ def hello_world(name="world"):
 hello_world("Marvin")
 ```
 
-When you run this flow, you'll see the following output, which illustrates how the work is encapsulated in a task run.
+When you run this script, you'll see the following output, which illustrates how the work is encapsulated in a task run.
 
-<div class="terminal">
-```bash
-$ python hello.py
+```{.output .no-copy }
 15:15:58.673 | INFO    | prefect.engine - Created flow run 'loose-wolverine' for flow 'Hello Flow'
 15:15:58.674 | INFO    | Flow run 'loose-wolverine' - Using task runner 'ConcurrentTaskRunner'
 15:15:58.973 | INFO    | Flow run 'loose-wolverine' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
@@ -252,7 +247,6 @@ Hello Marvin!
 15:15:59.037 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
 15:15:59.568 | INFO    | Flow run 'loose-wolverine' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 ## Visualizing flow structure
 
@@ -383,9 +377,7 @@ hello_world("Marvin")
 
 Running the `hello_world()` flow (in this example from the file `hello.py`) creates a flow run like this:
 
-<div class="terminal">
-```bash
-$ python hello.py
+```{.output .no-copy }
 15:19:21.651 | INFO    | prefect.engine - Created flow run 'daft-cougar' for flow 'Hello Flow'
 15:19:21.651 | INFO    | Flow run 'daft-cougar' - Using task runner 'ConcurrentTaskRunner'
 15:19:21.945 | INFO    | Flow run 'daft-cougar' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
@@ -396,7 +388,6 @@ Subflow says: Hello Marvin!
 15:19:22.794 | INFO    | Flow run 'ninja-duck' - Finished in state Completed()
 15:19:23.215 | INFO    | Flow run 'daft-cougar' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 !!! tip "Subflows or tasks?"
     In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
@@ -489,15 +480,13 @@ always_fails_flow()
 
 Running this flow produces the following result:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 22:22:36.864 | INFO    | prefect.engine - Created flow run 'acrid-tuatara' for flow 'always-fails-flow'
 22:22:36.864 | INFO    | Flow run 'acrid-tuatara' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
 22:22:37.060 | ERROR   | Flow run 'acrid-tuatara' - Encountered exception during execution:
 Traceback (most recent call last):...
 ValueError: This flow immediately fails
 ```
-</div>
 
 ### Return none
 
@@ -526,8 +515,7 @@ if __name__ == "__main__":
 
 Running this flow produces the following result:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 18:32:05.345 | INFO    | prefect.engine - Created flow run 'auburn-lionfish' for flow 'always-fails-flow'
 18:32:05.346 | INFO    | Flow run 'auburn-lionfish' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
 18:32:05.582 | INFO    | Flow run 'auburn-lionfish' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
@@ -546,7 +534,6 @@ Traceback (most recent call last):
   ...
 ValueError: I fail successfully
 ```
-</div>
 
 ### Return a future
 
@@ -576,8 +563,7 @@ if __name__ == "__main__":
 
 Running this flow produces the following result &mdash; it succeeds because it returns the future of the task that succeeds:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 18:35:24.965 | INFO    | prefect.engine - Created flow run 'whispering-guan' for flow 'always-succeeds-flow'
 18:35:24.965 | INFO    | Flow run 'whispering-guan' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
 18:35:25.204 | INFO    | Flow run 'whispering-guan' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
@@ -593,7 +579,6 @@ I'm fail safe!
 18:35:25.335 | INFO    | Task run 'always_succeeds_task-9c27db32-0' - Finished in state Completed()
 18:35:25.362 | INFO    | Flow run 'whispering-guan' - Finished in state Completed('All states completed.')
 ```
-</div>
 
 ### Return multiple states or futures
 
@@ -624,8 +609,7 @@ def always_fails_flow():
 
 Running this flow produces the following result. It fails because one of the three returned futures failed. Note that the final state is `Failed`, but the states of each of the returned futures is included in the flow state:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 20:57:51.547 | INFO    | prefect.engine - Created flow run 'impartial-gorilla' for flow 'always-fails-flow'
 20:57:51.548 | INFO    | Flow run 'impartial-gorilla' - Using task runner 'ConcurrentTaskRunner'
 20:57:51.645 | INFO    | Flow run 'impartial-gorilla' - Created task run 'always_fails_task-58ea43a6-0' for task 'always_fails_task'
@@ -640,7 +624,6 @@ ValueError: I am bad task
 20:57:52.811 | ERROR   | Flow run 'impartial-gorilla' - Finished in state Failed('1/3 states failed.')
 Failed(message='1/3 states failed.', type=FAILED, result=(Failed(message='Task run encountered an exception.', type=FAILED, result=ValueError('I am bad task'), task_run_id=5fd4c697-7c4c-440d-8ebc-dd9c5bbf2245), Completed(message=None, type=COMPLETED, result='foo', task_run_id=df9b6256-f8ac-457c-ba69-0638ac9b9367), Completed(message=None, type=COMPLETED, result='bar', task_run_id=cfdbf4f1-dccd-4816-8d0f-128750017d0c)), flow_run_id=6d2ec094-001a-4cb0-a24e-d2051db6318d)
 ```
-</div>
 
 !!! note "Returning multiple states"
     When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
@@ -677,8 +660,7 @@ if __name__ == "__main__":
 
 Running this flow produces the following result.
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 18:37:42.844 | INFO    | prefect.engine - Created flow run 'lavender-elk' for flow 'always-succeeds-flow'
 18:37:42.845 | INFO    | Flow run 'lavender-elk' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
 18:37:43.125 | INFO    | Flow run 'lavender-elk' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
@@ -694,7 +676,6 @@ I'm fail safe!
 18:37:43.236 | INFO    | Task run 'always_succeeds_task-9c27db32-0' - Finished in state Completed()
 18:37:43.264 | INFO    | Flow run 'lavender-elk' - Finished in state Completed('I am happy with this result')
 ```
-</div>
 
 ### Return an object
 
@@ -718,8 +699,7 @@ if __name__ == "__main__":
 
 Running this flow produces the following result.
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 21:02:45.715 | INFO    | prefect.engine - Created flow run 'sparkling-pony' for flow 'always-succeeds-flow'
 21:02:45.715 | INFO    | Flow run 'sparkling-pony' - Using task runner 'ConcurrentTaskRunner'
 21:02:45.816 | INFO    | Flow run 'sparkling-pony' - Created task run 'always_fails_task-58ea43a6-0' for task 'always_fails_task'
@@ -730,7 +710,6 @@ ValueError: I am bad task
 21:02:46.593 | INFO    | Flow run 'sparkling-pony' - Finished in state Completed()
 Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-4e00-9440-a7b33fb51153)
 ```
-</div>
 
 ## Serving a flow
 
@@ -860,7 +839,6 @@ my_flow()
 
     When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. This pattern allows you to update your flow code without restarting the serving process.
 
-
 ## Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
@@ -885,12 +863,10 @@ async def inspiring_joke():
 
 Calling this flow will pause after the first task and wait for resumption.
 
-<div class="terminal">
 ```bash
 await inspiring_joke()
 > "a raft of ducks walk into a bar..."
 ```
-</div>
 
 Paused flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
 
@@ -900,11 +876,9 @@ resume_flow_run(FLOW_RUN_ID)
 
 The paused flow run will then finish!
 
-<div class="terminal">
 ```
 > "it's a wonder none of them ducked!"
 ```
-</div>
 
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
@@ -994,22 +968,19 @@ While the cancellation process is robust, there are a few issues than can occur:
 !!! tip "Enhanced cancellation"
     We are working on improving cases where cancellation can fail. You can try the improved cancellation experience by enabling the `PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION` setting on your worker or agents:
 
-    <div class="terminal">
     ```bash
     prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
     ```
-    </div>
 
     If you encounter any issues, please let us know in Slack or with a Github issue.
+
 ### Cancel via the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.
 
-<div class="terminal">
 ```bash
-$ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
-</div>
 
 ### Cancel via the UI
 

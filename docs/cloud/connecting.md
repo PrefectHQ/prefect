@@ -25,35 +25,33 @@ Configure a local execution environment to use Prefect Cloud as the API server f
 1. Open a new terminal session.
 2. [Install Prefect](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
-<div class="terminal">
 ```bash
-$ pip install -U prefect
+pip install -U prefect
 ```
-</div>
 
 3. Use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
 ```
-</div>
 
 The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you can log in with either an API key or through a browser.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login
+prefect cloud login
+```  
+
+```{.output .no-copy }
 ? How would you like to authenticate? [Use arrows to move; enter to select]
 > Log in with a web browser
     Paste an API key
 Paste your authentication key:
 ? Which workspace would you like to use? [Use arrows to move; enter to select]
-> prefect/terry-prefect-workspace
+> prefect/my-prefect-workspace
     g-gadflow/g-workspace
-Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
+Authenticated with Prefect Cloud! Using workspace 'prefect/my-prefect-workspace'.
+
 ```
-</div>
 
 You can also log in by providing a [Prefect Cloud API key](../users/api-keys/) that you create.
 
@@ -61,11 +59,9 @@ You can also log in by providing a [Prefect Cloud API key](../users/api-keys/) t
 
 If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
 
-<div class="terminal">
 ```bash
-$ prefect cloud workspace set --workspace "prefect/my-workspace"
+prefect cloud workspace set --workspace "prefect/my-workspace"
 ```
-</div>
 
 If no workspace is provided, you will be prompted to select one.
 
@@ -73,11 +69,9 @@ If no workspace is provided, you will be prompted to select one.
 
 You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
 
-<div class="terminal">
 ```bash
-$ prefect cloud login --workspace "prefect/my-workspace"
+prefect cloud login --workspace "prefect/my-workspace"
 ```
-</div>
 
 ## Manually configure Prefect API settings
 
@@ -85,12 +79,10 @@ You can also manually configure the `PREFECT_API_URL` setting to specify the Pre
 
 For Prefect Cloud, you can configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate with Prefect Cloud by using an account ID, workspace ID, and API key.
 
-<div class="terminal">
 ```bash
-$ prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
-$ prefect config set PREFECT_API_KEY="[API-KEY]"
+prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
-</div>
 
 When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
 
@@ -132,14 +124,15 @@ If the Prefect Cloud API key, environment variable settings, or account login fo
 
 Use the `prefect config view` CLI command to make sure your execution environment is correctly configured to access Prefect Cloud.
 
-<div class="terminal">
 ```bash
-$ prefect config view
+prefect config view
+```
+
+```{.output .no-copy }
 PREFECT_PROFILE='cloud'
 PREFECT_API_KEY='pnu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' (from profile)
 PREFECT_API_URL='https://api.prefect.cloud/api/accounts/...' (from profile)
 ```
-</div>
 
 Make sure `PREFECT_API_URL` is configured to use `https://api.prefect.cloud/api/...`.
 
@@ -147,18 +140,16 @@ Make sure `PREFECT_API_KEY` is configured to use a valid API key.
 
 You can use the `prefect cloud workspace ls` CLI command to view or set the active workspace.
 
-<div class="terminal">
-```bash
-$ prefect cloud workspace ls
+```{.output .no-copy }
+prefect cloud workspace ls
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃   Available Workspaces: ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│   g-gadflow/g-workspace │
+│   g-gadflow/g-workspace  │
 │    * prefect/workinonit │
 └─────────────────────────┘
     * active workspace
 ```
-</div>
 
 You can also check that the account and workspace IDs specified in the URL for `PREFECT_API_URL` match those shown in the URL bar for your Prefect Cloud workspace.
 

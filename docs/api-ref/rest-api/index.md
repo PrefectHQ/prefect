@@ -17,22 +17,23 @@ The Prefect REST API is used for communicating data from clients to a Prefect se
 Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 
 - Prefect Cloud:
-    - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
-    - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
+  - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
+  - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
 - A Locally hosted open-source Prefect server:
-    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
-    - [Prefect REST API documentation](/api-ref/rest-api-reference/)
+  - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
+  - [Prefect REST API documentation](/api-ref/rest-api-reference/)
 
 ## Interacting with the REST API
 
 You have many options to interact with the Prefect REST API:
 
-- Create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
+- Create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient)
 - Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - Use an HTTP library in your language of choice
-- Use [curl](https://curl.se/) from the command line 
+- Use [curl](https://curl.se/) from the command line
 
 ### PrefectClient with a Prefect server
+
 This example uses `PrefectClient` with a locally hosted Prefect server:
 
 ```python
@@ -55,7 +56,6 @@ if __name__ == "__main__":
 
 Output:
 
-<div class="terminal">
 ```bash
 cat-facts 58ed68b1-0201-4f37-adef-0ea24bd2a022
 dog-facts e7c0403d-44e7-45cf-a6c8-79117b7f3766
@@ -63,7 +63,6 @@ sloth-facts 771c0574-f5bf-4f59-a69d-3be3e061a62d
 capybara-facts fbadaf8b-584f-48b9-b092-07d351edd424
 lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 ```
-</div>
 
 ### Requests with Prefect
 
@@ -113,20 +112,16 @@ curl --location --request POST "$PREFECT_API_URL/deployments/$DEPLOYMENT_ID/crea
 
 Note that in this example `--data-raw "{}"` is required and is where you can specify other aspects of the flow run such as the state. Windows users substitute `^` for `\` for line multi-line commands.
 
-
 ## Finding your Prefect Cloud details
 
 When working with the Prefect Cloud REST API you will need your Account ID and often the Workspace ID for the [workspace](/cloud/workspaces/) you want to interact with. You can find both IDs for a [Prefect profile](/concepts/settings/) in the CLI with `prefect profile inspect my_profile`. This command will also display your [Prefect API key](/cloud/users/api-keys/), as shown below:
 
-<div class="terminal">
-```bash
+```{.output .no-copy }
 PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here'
 PREFECT_API_KEY='123abc_my_api_key_is_here'
 ```
-</div>
 
-Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`. 
-
+Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`.
 
 ## REST Guidelines
 
@@ -138,9 +133,9 @@ The REST APIs adhere to the following guidelines:
 - We avoid nested resources unless there is no possibility of accessing the child resource outside the parent context. For example, we query `/task_runs` with a flow run filter instead of accessing `/flow_runs/:id/task_runs`.
 - The API is hosted with an `/api/:version` prefix that (optionally) allows versioning in the future. By convention, we treat that as part of the base URL and do not include that in API examples.
 - Filtering, sorting, and pagination parameters are provided in the request body of `POST` requests where applicable.
-    - Pagination parameters are `limit` and `offset`.
-    - Sorting is specified with a single `sort` parameter.
-    - See more information on [filtering](#filtering) below.
+  - Pagination parameters are `limit` and `offset`.
+  - Sorting is specified with a single `sort` parameter.
+  - See more information on [filtering](#filtering) below.
 
 ### HTTP verbs
 

@@ -68,14 +68,17 @@ For example, when creating your deployment files, the supported Prefect infrastr
 - `cloud-run-job`
 - `container-instance-job`
 
-<div class="terminal">
 ```bash
-$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket --override env.EXTRA_PIP_PACKAGES=s3fs
+prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket --override env.EXTRA_PIP_PACKAGES=s3fs
+```
+
+Results in output similar to the following:
+
+```{.output .no-copy }
 Found flow 'my-flow'
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
-Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
+Deployment YAML created at '/Users/my_path/deployment.yaml'.
 ```
-</div>
 
 In this example we specify the `DockerContainer` infrastructure in addition to a preconfigured AWS S3 bucket [storage](/concepts/storage/) block.
 
@@ -165,11 +168,9 @@ k8s_job.save("k8sdev")
 
 Now we can apply the infrastrucure type and settings in the block by specifying the block slug `kubernetes-job/k8sdev` as the infrastructure type when building a deployment:
 
-<div class="terminal">
 ```bash
 prefect deployment build flows/k8s_example.py:k8s_flow --name k8sdev --tag k8s -sb s3/dev -ib kubernetes-job/k8sdev
 ```
-</div>
 
 See [Deployments](/concepts/deployments/) for more information about deployment build options.
 

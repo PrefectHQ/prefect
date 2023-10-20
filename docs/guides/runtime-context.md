@@ -18,12 +18,12 @@ The run context itself contains many internal objects used by Prefect to manage 
 
 !!! tip "Mock values via environment variable"
     Oftentimes, you may want to mock certain values for testing purposes.  For example, by manually setting an ID or a scheduled start time to ensure your code is functioning properly.  Starting in version `2.10.3`, you can mock values in runtime via environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
-    <div class="terminal">
+  
     ```bash
-    $ export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
-    $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
-```
-    </div>
+    export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
+    python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
+    ```
+    
     If the environment variable mocks an existing runtime attribute, the value is cast to the same type. This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. For complex types like `list` or `dict`, we suggest mocking them using [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
 
 ## Accessing runtime information
@@ -56,9 +56,11 @@ my_flow(1)
 
 Outputs:
 
-<div class="terminal">
 ```bash
-$ python my_runtime_info.py
+python my_runtime_info.py
+```
+
+```{.output .no-copy }
 10:08:02.948 | INFO    | prefect.engine - Created flow run 'solid-gibbon' for flow 'my-flow'
 10:08:03.555 | INFO    | Flow run 'solid-gibbon' - My name is solid-gibbon
 10:08:03.558 | INFO    | Flow run 'solid-gibbon' - I belong to deployment None
@@ -69,7 +71,7 @@ $ python my_runtime_info.py
 10:08:04.105 | INFO    | Task run 'my_task-0' - Finished in state Completed()
 10:08:04.968 | INFO    | Flow run 'solid-gibbon' - Finished in state Completed('All states completed.')
 ```
-</div>
+
 Above, we demonstrate access to information about the current flow run, task run, and deployment. When run without a deployment (via `python my_runtime_info.py`), you should see `"I belong to deployment None"` logged. When information is not available, the runtime will always return an empty value. Because this flow was run without a deployment, there is no deployment data. If this flow were deployed and executed by a worker, we'd see the name of the deployment instead.
 
 See the [runtime API reference](/api-ref/prefect/runtime/flow_run/) for a full list of available attributes.
