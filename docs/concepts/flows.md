@@ -876,8 +876,8 @@ resume_flow_run(FLOW_RUN_ID)
 
 The paused flow run will then finish!
 
-```
-> "it's a wonder none of them ducked!"
+```{.output .no-copy }
+"it's a wonder none of them ducked!"
 ```
 
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
@@ -972,7 +972,7 @@ While the cancellation process is robust, there are a few issues than can occur:
     prefect config set PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION=True
     ```
 
-    If you encounter any issues, please let us know in Slack or with a Github issue.
+    If you encounter any issues, please let us know in Slack or with a GitHub issue.
 
 ### Cancel via the CLI
 
