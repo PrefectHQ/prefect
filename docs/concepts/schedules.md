@@ -175,10 +175,20 @@ schedule:
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
     A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
-## Creating schedules through a Python deployment file
+## Creating schedules through a Python deployment creation file
+
+When you create a deployment with through a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. Optionally, you can specify a timezone for the schedule with the `timezone` keyword argument.
+
+```
+interval: An interval on which to execute the new deployment. Accepts either a number
+    or a timedelta object. If a number is given, it will be interpreted as seconds.
+cron: A cron schedule of when to execute runs of this deployment.
+rrule: An rrule schedule of when to execute runs of this deployment.
+timezone: A timezone to use for the schedule. Defaults to UTC.
+```
 
 Block and agent-based deployments with Python files are not a recommended way to create deployments.
-However, you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
+However, if you are using that deployment creation method you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
 
 Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
 
