@@ -398,7 +398,6 @@ def is_state(obj: Any) -> TypeGuard[State]:
     """
     # We may want to narrow this to client-side state types but for now this provides
     # backwards compatibility
-    # from prefect.server.schemas.states import State as State_
 
     return isinstance(obj, State)
 
