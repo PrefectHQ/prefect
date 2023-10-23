@@ -511,13 +511,53 @@ async def work_pool(session):
             name="test-work-pool",
             type="test-type",
             base_job_template={
-                "job_configuration": {"command": "{{ command }}"},
+                "job_configuration": {
+                    "command": "{{ command }}",
+                },
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_with_image_variable(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                    "image_pull_policy": "{{ image_pull_policy }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                        "image_pull_policy": {
+                            "enum": ["IfNotPresent", "Always", "Never"],
+                            "type": "string",
+                            "title": "Image Pull Policy",
+                            "default": "IfNotPresent",
                         },
                     },
                     "required": [],
@@ -550,7 +590,25 @@ async def push_work_pool(session):
         work_pool=schemas.actions.WorkPoolCreate(
             name="push-work-pool",
             type="push-work-pool:push",
-            base_job_template={},
+            base_job_template={
+                "job_configuration": {
+                    "command": "{{ command }}",
+                    "image": "{{ image }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "title": "Command",
+                        },
+                        "image": {
+                            "type": "string",
+                            "title": "Image",
+                        },
+                    },
+                    "required": [],
+                },
+            },
         ),
     )
     await session.commit()

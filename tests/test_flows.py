@@ -34,7 +34,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import PrefectObjectRegistry
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import DeploymentImage, RunnerDeployment
 from prefect.events.schemas import DeploymentTrigger
 from prefect.exceptions import (
     CancelledRun,
@@ -3310,6 +3310,9 @@ def test_flow():
             with open(self._base_path / "flows.py", "w") as f:
                 f.write(code)
 
+    def to_pull_step(self):
+        return {}
+
 
 class TestFlowFromSource:
     async def test_load_flow_from_source_with_storage(self):
@@ -3352,3 +3355,144 @@ class TestFlowFromSource:
 
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
+
+
+class TestFlowDeploy:
+    @pytest.fixture
+    def mock_deploy(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.flows.deploy", mock)
+        return mock
+
+    @pytest.fixture
+    def local_flow(self):
+        @flow
+        def local_flow_deploy():
+            pass
+
+        return local_flow_deploy
+
+    @pytest.fixture
+    def remote_flow(self):
+        remote_flow = flow.from_source(
+            entrypoint="flows.py:test_flow", source=MockStorage()
+        )
+        return remote_flow
+
+    async def test_calls_deploy_with_expected_args(
+        self, mock_deploy, local_flow, work_pool, capsys
+    ):
+        image = DeploymentImage(
+            name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
+        )
+        await local_flow.deploy(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            description="This is a test",
+            version="alpha",
+            work_pool_name=work_pool.name,
+            work_queue_name="line",
+            job_variables={"foo": "bar"},
+            image=image,
+            push=False,
+            enforce_parameter_schema=True,
+        )
+
+        mock_deploy.assert_called_once_with(
+            await local_flow.to_deployment(
+                name="test",
+                tags=["price", "luggage"],
+                parameters={"name": "Arthur"},
+                description="This is a test",
+                version="alpha",
+                work_queue_name="line",
+                job_variables={"foo": "bar"},
+                enforce_parameter_schema=True,
+            ),
+            work_pool_name=work_pool.name,
+            image=image,
+            push=False,
+            print_next_steps_message=False,
+        )
+
+        console_output = capsys.readouterr().out
+        assert f"prefect worker start --pool {work_pool.name!r}" in console_output
+        assert "prefect deployment run 'local-flow-deploy/test'" in console_output
+
+    async def test_calls_deploy_with_expected_args_remote_flow(
+        self,
+        mock_deploy,
+        remote_flow,
+        work_pool,
+    ):
+        image = DeploymentImage(
+            name="my-repo/my-image", tag="dev", build_kwargs={"pull": False}
+        )
+        await remote_flow.deploy(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            description="This is a test",
+            version="alpha",
+            work_pool_name=work_pool.name,
+            work_queue_name="line",
+            job_variables={"foo": "bar"},
+            image=image,
+            push=False,
+            enforce_parameter_schema=True,
+        )
+
+        mock_deploy.assert_called_once_with(
+            await remote_flow.to_deployment(
+                name="test",
+                tags=["price", "luggage"],
+                parameters={"name": "Arthur"},
+                description="This is a test",
+                version="alpha",
+                work_queue_name="line",
+                job_variables={"foo": "bar"},
+                enforce_parameter_schema=True,
+            ),
+            work_pool_name=work_pool.name,
+            image=image,
+            push=False,
+            print_next_steps_message=False,
+        )
+
+    async def test_deploy_non_existent_work_pool(
+        self,
+        mock_deploy,
+        local_flow,
+    ):
+        with pytest.raises(
+            ValueError, match="Could not find work pool 'non-existent'."
+        ):
+            await local_flow.deploy(
+                name="test",
+                work_pool_name="non-existent",
+                image="my-repo/my-image",
+            )
+
+    async def test_no_worker_command_for_push_pool(
+        self, mock_deploy, local_flow, push_work_pool, capsys
+    ):
+        await local_flow.deploy(
+            name="test",
+            work_pool_name=push_work_pool.name,
+            image="my-repo/my-image",
+        )
+
+        assert "prefect worker start" not in capsys.readouterr().out
+
+    async def test_suppress_console_output(
+        self, mock_deploy, local_flow, work_pool, capsys
+    ):
+        await local_flow.deploy(
+            name="test",
+            work_pool_name=work_pool.name,
+            image="my-repo/my-image",
+            print_next_steps=False,
+        )
+
+        assert not capsys.readouterr().out

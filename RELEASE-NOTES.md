@@ -1,5 +1,98 @@
 # Prefect Release Notes
 
+## Release 2.13.8
+
+### Introducing `flow.deploy`
+
+When we released `flow.serve`, we introduced a radically simple way to deploy flows. Serving flows is perfect for many use cases, but the need for persistent infrastructure means serving flows may not work well for flows that require expensive or limited infrastructure.
+
+We're excited to introduce `flow.deploy` as a simple transition from running your served flows on persistent infrastructure to executing your flows on dynamically provisioned infrastructure via work pools and workers. `flow.deploy` ensures your flows execute consistently across environments by packaging your flow into a Docker image and making that image available to your workers when executing your flow.
+
+Updating your serve script to a deploy script is as simple as changing `serve` to `deploy`, providing a work pool to deploy to, and providing a name for the built image.
+
+Here's an example of a serve script:
+
+```python
+from prefect import flow
+
+
+@flow(log_prints=True)
+def hello_world(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+
+    if goodbye:
+        print(f"Goodbye {name}!")
+
+
+if __name__ == "__main__":
+    hello_world.serve(
+        name="my-first-deployment",
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        interval=60,
+    )
+```
+
+transitioned to a deploy script:
+
+```python
+from prefect import flow
+
+
+@flow(log_prints=True)
+def hello_world(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+
+    if goodbye:
+        print(f"Goodbye {name}!")
+
+
+if __name__ == "__main__":
+    hello_world.deploy(
+        name="my-first-deployment",
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        interval=60,
+        work_pool_name="above-ground",
+        image='my_registry/hello_world:demo'
+    )
+```
+
+You can also use `deploy` as a replacement for `serve` if you want to deploy multiple flows at once.
+
+For more information, check out our tutorial's newly updated [Worker & Work Pools](https://docs.prefect.io/latest/tutorial/workers/) section! 
+
+See implementation details in the following pull requests:
+- https://github.com/PrefectHQ/prefect/pull/10957
+- https://github.com/PrefectHQ/prefect/pull/10975
+- https://github.com/PrefectHQ/prefect/pull/10993
+
+### Enhancements
+- Add `last_polled` column to deployment table — https://github.com/PrefectHQ/prefect/pull/10949
+- Add `status` and `last_polled` to deployment API responses — https://github.com/PrefectHQ/prefect/pull/10951
+- Add flow run graph v2 endpoint tuned for UI applications — https://github.com/PrefectHQ/prefect/pull/10912
+- Add ability to convert `GitRepository` into `git_clone` deployment step — https://github.com/PrefectHQ/prefect/pull/10957
+- Update `/deployments/get_scheduled_flow_runs` endpoint to update deployment status — https://github.com/PrefectHQ/prefect/pull/10969
+
+### Fixes
+- Clarify CLI prompt message for missing integration library for worker — https://github.com/PrefectHQ/prefect/pull/10990
+- Renamed `ruamel-yaml` to `ruamel.yaml` in `requirements.txt` — https://github.com/PrefectHQ/prefect/pull/10987
+- Clarify work pool banner on Work Pool page UI — https://github.com/PrefectHQ/prefect/pull/10992
+
+### Documentation
+- Clean up `Using the Prefect Orchestration Client` guide — https://github.com/PrefectHQ/prefect/pull/10968
+- Add link to Coiled's documentation for hosting served flows — https://github.com/PrefectHQ/prefect/pull/10977
+- Clarify that access control lists do not affect related objects  — https://github.com/PrefectHQ/prefect/pull/10934
+- Improve block-based deployment concept page metadata and admonitions — https://github.com/PrefectHQ/prefect/pull/10970
+- Update docs to prioritize workers over agents — https://github.com/PrefectHQ/prefect/pull/10904
+- Update work pools and workers tutorial to use `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/10985
+- Move Docker image discussion to Docker guide — https://github.com/PrefectHQ/prefect/pull/10910
+
+### Contributors
+* @lpequignot made their first contribution in https://github.com/PrefectHQ/prefect/pull/10987
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.7...2.13.8
+
 ## Release 2.13.7
 
 ### Enabling Pydantic V2
