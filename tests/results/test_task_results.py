@@ -74,12 +74,15 @@ async def test_task_persisted_result_due_to_opt_in(prefect_client):
 
 
 async def test_task_with_uncached_and_unpersisted_result(prefect_client):
+    from prefect.context import get_run_context
+
     @flow
     def foo():
         return bar(return_state=True)
 
     @task(persist_result=False, cache_result_in_memory=False)
     def bar():
+        print(get_run_context().result_factory)
         return 1
 
     flow_state = foo(return_state=True)
