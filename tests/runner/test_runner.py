@@ -1,4 +1,5 @@
 import datetime
+import re
 from itertools import combinations
 from pathlib import Path
 from time import sleep
@@ -14,7 +15,12 @@ from prefect import flow, serve
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import (
+    DeploymentApplyError,
+    DeploymentImage,
+    RunnerDeployment,
+    deploy,
+)
 from prefect.flows import load_flow_from_entrypoint
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
@@ -24,6 +30,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dockerutils import parse_image_tag
 
 
 @flow(version="test")
@@ -661,8 +668,91 @@ class TestRunnerDeployment:
         assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
-        assert deployment.path == str(Path.cwd())
+        assert deployment.path == "."
         assert deployment.enforce_parameter_schema is False
+        assert deployment.infra_overrides == {}
+
+    async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+        )
+
+        deployment_id = await deployment.apply(
+            work_pool_name=work_pool.name, image="my-repo/my-image:latest"
+        )
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.infra_overrides == {
+            "image": "my-repo/my-image:latest",
+            "command": "prefect flow-run execute",
+        }
+        assert deployment.work_queue_name == "default"
+
+    @pytest.mark.parametrize(
+        "from_flow_kwargs, apply_kwargs, expected_message",
+        [
+            (
+                {"work_queue_name": "my-queue"},
+                {},
+                (
+                    "A work queue can only be provided when registering a deployment"
+                    " with a work pool."
+                ),
+            ),
+            (
+                {"job_variables": {"foo": "bar"}},
+                {},
+                (
+                    "Job variables can only be provided when registering a deployment"
+                    " with a work pool."
+                ),
+            ),
+            (
+                {},
+                {"image": "my-repo/my-image:latest"},
+                (
+                    "An image can only be provided when registering a deployment with a"
+                    " work pool."
+                ),
+            ),
+        ],
+    )
+    async def test_apply_no_work_pool_failures(
+        self, from_flow_kwargs, apply_kwargs, expected_message
+    ):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+            **from_flow_kwargs,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=expected_message,
+        ):
+            await deployment.apply(**apply_kwargs)
+
+    async def test_apply_raises_on_api_errors(self, work_pool_with_image_variable):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            work_pool_name=work_pool_with_image_variable.name,
+            job_variables={"image_pull_policy": "blork"},
+        )
+
+        with pytest.raises(
+            DeploymentApplyError,
+            match=re.escape(
+                "Error creating deployment: <ValidationError: \"'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']\">"
+            ),
+        ):
+            await deployment.apply()
 
     async def test_create_runner_deployment_from_storage(self):
         storage = MockStorage()
@@ -726,6 +816,9 @@ def test_flow():
             with open(self._base_path / "flows.py", "w") as f:
                 f.write(code)
 
+    def to_pull_step(self):
+        return {"prefect.fake.module": {}}
+
 
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
@@ -737,3 +830,346 @@ class TestServer:
 
         runner.last_polled = pendulum.now("utc")
         assert health_check().status_code == status.HTTP_200_OK
+
+
+class TestDeploy:
+    @pytest.fixture
+    def mock_build_image(self, monkeypatch):
+        mock = MagicMock()
+        monkeypatch.setattr("prefect.deployments.runner.build_image", mock)
+        return mock
+
+    @pytest.fixture
+    def mock_docker_client(self, monkeypatch):
+        mock = MagicMock()
+        mock.return_value.__enter__.return_value = mock
+        mock.api.push.return_value = []
+        monkeypatch.setattr("prefect.deployments.runner.docker_client", mock)
+        return mock
+
+    @pytest.fixture
+    def mock_generate_default_dockerfile(self, monkeypatch):
+        mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.deployments.runner.generate_default_dockerfile", mock
+        )
+        return mock
+
+    async def test_deploy(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+        capsys,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+        )
+        mock_docker_client.api.push.assert_called_once_with(
+            repository="test-registry/test-image",
+            tag="test-tag",
+            stream=True,
+            decode=True,
+        )
+
+        deployment_1 = await prefect_client.read_deployment_by_name(
+            f"{dummy_flow_1.name}/test_runner"
+        )
+        assert deployment_1.id == deployment_ids[0]
+
+        deployment_2 = await prefect_client.read_deployment_by_name(
+            "test-flow/test_runner"
+        )
+        assert deployment_2.id == deployment_ids[1]
+        assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
+
+        console_output = capsys.readouterr().out
+        assert (
+            f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
+            in console_output
+        )
+        assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
+
+    async def test_deploy_non_existent_work_pool(self):
+        with pytest.raises(
+            ValueError, match="Could not find work pool 'non-existent'."
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name="non-existent",
+                image="test-registry/test-image",
+            )
+
+    async def test_deploy_non_image_work_pool(self, process_work_pool):
+        with pytest.raises(
+            ValueError,
+            match=(
+                f"Work pool {process_work_pool.name!r} does not support custom Docker"
+                " images."
+            ),
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(__file__),
+                work_pool_name=process_work_pool.name,
+                image="test-registry/test-image",
+            )
+
+    async def test_deploy_custom_dockerfile(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+                dockerfile="Dockerfile",
+            ),
+        )
+        assert len(deployment_ids) == 2
+        # Shouldn't be called because we're providing a custom Dockerfile
+        mock_generate_default_dockerfile.assert_not_called()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            dockerfile="Dockerfile",
+        )
+
+    async def test_deploy_skip_push(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            push=False,
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+        )
+        mock_docker_client.api.push.assert_not_called()
+
+    async def test_deploy_do_not_print_next_steps(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        capsys,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            print_next_steps_message=False,
+        )
+        assert len(deployment_ids) == 2
+
+        assert "prefect deployment run [DEPLOYMENT_NAME]" not in capsys.readouterr().out
+
+    async def test_deploy_push_work_pool(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        push_work_pool,
+        capsys,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=push_work_pool.name,
+            image=DeploymentImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+            print_next_steps_message=False,
+        )
+        assert len(deployment_ids) == 2
+
+        console_output = capsys.readouterr().out
+        assert "prefect worker start" not in console_output
+        assert "prefect deployment run [DEPLOYMENT_NAME]" not in console_output
+
+    async def test_deploy_with_image_string(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image:test-tag",
+        )
+        assert len(deployment_ids) == 2
+
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+        )
+
+    async def test_deploy_with_image_string_no_tag(
+        self,
+        mock_build_image: MagicMock,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 2
+
+        used_name, used_tag = parse_image_tag(
+            mock_build_image.mock_calls[0].kwargs["tag"]
+        )
+        assert used_name == "test-registry/test-image"
+        assert used_tag is not None
+
+    async def test_deploy_with_partial_success(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        capsys,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__, job_variables={"image_pull_policy": "blork"}
+            ),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+
+        console_output = capsys.readouterr().out
+        assert (
+            "Encountered errors while creating/updating deployments" in console_output
+        )
+        assert "failed" in console_output
+        # just the start of the error due to wrapping
+        assert "'blork' is not one" in console_output
+        assert "prefect worker start" in console_output
+        assert "To execute flow runs from these deployments" in console_output
+
+    async def test_deploy_with_complete_failure(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        capsys,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__, job_variables={"image_pull_policy": "blork"}
+            ),
+            await (
+                await flow.from_source(
+                    source=MockStorage(), entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__, job_variables={"image_pull_policy": "blork"}),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 0
+
+        console_output = capsys.readouterr().out
+        assert (
+            "Encountered errors while creating/updating deployments" in console_output
+        )
+        assert "failed" in console_output
+        # just the start of the error due to wrapping
+        assert "'blork' is not one" in console_output
+
+        assert "prefect worker start" not in console_output
+        assert "To execute flow runs from these deployments" not in console_output
+
+    async def test_deploy_raises_with_only_deployment_failed(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        capsys,
+    ):
+        with pytest.raises(
+            DeploymentApplyError,
+            match=re.escape(
+                "Error creating deployment: <ValidationError: \"'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']\">"
+            ),
+        ):
+            await deploy(
+                await dummy_flow_1.to_deployment(
+                    __file__, job_variables={"image_pull_policy": "blork"}
+                ),
+                work_pool_name=work_pool_with_image_variable.name,
+                image="test-registry/test-image",
+            )

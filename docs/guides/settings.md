@@ -29,6 +29,7 @@ This section describes some commonly configured settings for Prefect installatio
 The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or a Prefect server instance.
 
 For example, using a local Prefect server instance.
+
 ```bash
 PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
@@ -39,17 +40,15 @@ Using Prefect Cloud:
 PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 ```
 
-View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. For example: https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here.
+View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud. For example: <https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here>.
 
-!!! tip "`PREFECT_API_URL` setting for agents"
-    When using [workers, agents, and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker or agent is running. 
+!!! tip "`PREFECT_API_URL` setting for workers"
+    When using [workers and work pools](/concepts/work-pools/) (agent and block-based deployments are legacy) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker is running.
 
-    If you want the worker or agent to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
-
+    If you want the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 !!! tip "Running the Prefect UI behind a reverse proxy"
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-server.example.com/ then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
-
+    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL (e.g. if your external URL is <https://prefect-server.example.com/> then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### PREFECT_API_KEY
 
@@ -74,6 +73,7 @@ The `PREFECT_LOCAL_STORAGE_PATH` value specifies the default location of local s
 ```bash
 PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 ```
+
 ### Database settings
 
 Prefect provides several self-hosting database configuration settings you can read about [here](/host/).
@@ -81,7 +81,6 @@ Prefect provides several self-hosting database configuration settings you can re
 ### Logging settings
 
 Prefect provides several logging configuration settings that you can read about in the [logging docs](/concepts/logs/).
-
 
 ## Configuring settings
 
@@ -154,6 +153,7 @@ For example, configuring the home directory:
 # environment variable
 export PREFECT_HOME="/path/to/home"
 ```
+
 ```python
 # python
 import prefect.settings
@@ -166,6 +166,7 @@ Configuring the server's port:
 # environment variable
 export PREFECT_SERVER_API_PORT=4242
 ```
+
 ```python
 # python
 prefect.settings.PREFECT_SERVER_API_PORT.value()  # 4242
@@ -186,7 +187,6 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | ls | List profile names. |
 | rename | Change the name of a profile. |
 | use | Switch the active profile. |
-
 
 If you configured settings for a profile, `prefect profile inspect` displays those settings:
 
@@ -313,25 +313,25 @@ Profile 'test' now active.
 Alternatively, you may set the environment variable `PREFECT_PROFILE` to the name of the profile:
 
 ```bash
-$ export PREFECT_PROFILE=foo
+export PREFECT_PROFILE=foo
 ```
 
 Or, specify the profile in the CLI command for one-time usage:
 
 ```bash
-$ prefect --profile "foo" ...
+prefect --profile "foo" ...
 ```
 
 Note that this option must come before the subcommand. For example, to list flow runs using the profile `foo`:
 
 ```bash
-$ prefect --profile "foo" flow-run ls
+prefect --profile "foo" flow-run ls
 ```
 
 You may use the `-p` flag as well:
 
 ```bash
-$ prefect -p "foo" flow-run ls
+prefect -p "foo" flow-run ls
 ```
 
 You may also create an 'alias' to automatically use your profile:
