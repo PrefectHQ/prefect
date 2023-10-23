@@ -104,7 +104,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow.retries:
+    if flow and flow.retries:
         return True
     return False
 
