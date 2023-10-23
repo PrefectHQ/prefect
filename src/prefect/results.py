@@ -104,7 +104,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
-    if flow and flow.retries:
+    if flow.retries:
         return True
     return False
 
@@ -242,16 +242,22 @@ class ResultFactory(pydantic.BaseModel):
             else task.result_serializer or get_default_result_serializer()
         )
         persist_result = (
-            # Use flow context if available
-            ctx.result_factory.persist_result
-            if ctx and ctx.result_factory
-            else (
-                # Otherwise use task settings
-                task.persist_result
-                if task.persist_result is not None
-                else get_default_persist_setting()
+            task.persist_result
+            if task.persist_result is not None
+            else
+            # !! Tasks persist their result by default if their parent flow uses a
+            #    feature that requires it or the task uses a feature that requires it
+            (
+                (
+                    flow_features_require_child_result_persistence(ctx.flow)
+                    if ctx
+                    else False
+                )
+                or task_features_require_result_persistence(task)
+                or get_default_persist_setting()
             )
         )
+
         cache_result_in_memory = (
             ctx.result_factory.cache_result_in_memory
             if ctx and ctx.result_factory
@@ -283,7 +289,7 @@ class ResultFactory(pydantic.BaseModel):
         client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
-            result_storage, client=client
+            result_storage, client=client, persist_result=persist_result
         )
         serializer = cls.resolve_serializer(result_serializer)
 
