@@ -722,7 +722,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                             ELSE 'task-run'
                         END as kind,
                         COALESCE(subflow.id, task_run.id) as id,
-                        COALESCE(flow.name || '/' || subflow.name, task_run.name) as label,
+                        COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(subflow.start_time, task_run.start_time) as start_time,
@@ -1114,7 +1114,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                             ELSE 'task-run'
                         END as kind,
                         COALESCE(subflow.id, task_run.id) as id,
-                        COALESCE(flow.name || '/' || subflow.name, task_run.name) as label,
+                        COALESCE(flow.name || ' / ' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(subflow.start_time, task_run.start_time) as start_time,
