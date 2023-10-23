@@ -722,7 +722,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                             ELSE 'task-run'
                         END as kind,
                         COALESCE(subflow.id, task_run.id) as id,
-                        COALESCE(subflow.name, task_run.name) as label,
+                        COALESCE(flow.name || '/' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(subflow.start_time, task_run.start_time) as start_time,
@@ -733,6 +733,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         LEFT JOIN jsonb_array_elements(input.value) as argument ON true
                         LEFT JOIN flow_run as subflow
                                 ON subflow.parent_task_run_id = task_run.id
+                        LEFT JOIN flow
+                                ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id
 
                 -- the order here is important to speed up building the two sets of
@@ -1112,7 +1114,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                             ELSE 'task-run'
                         END as kind,
                         COALESCE(subflow.id, task_run.id) as id,
-                        COALESCE(subflow.name, task_run.name) as label,
+                        COALESCE(flow.name || '/' || subflow.name, task_run.name) as label,
                         COALESCE(subflow.state_type, task_run.state_type) as state_type,
                         COALESCE(subflow.state_name, task_run.state_name) as state_name,
                         COALESCE(subflow.start_time, task_run.start_time) as start_time,
@@ -1123,6 +1125,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         LEFT JOIN json_each(input.value) as argument ON true
                         LEFT JOIN flow_run as subflow
                                 ON subflow.parent_task_run_id = task_run.id
+                        LEFT JOIN flow
+                                ON flow.id = subflow.flow_id
                 WHERE   task_run.flow_run_id = :flow_run_id
 
                 -- the order here is important to speed up building the two sets of
