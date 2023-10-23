@@ -177,7 +177,7 @@ schedule:
 
 ## Creating schedules through a Python deployment creation file
 
-When you create a deployment with through a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. Optionally, you can specify a timezone for the schedule with the `timezone` keyword argument.
+When you create a deployment with through a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
 
 ```
 interval: An interval on which to execute the new deployment. Accepts either a number
