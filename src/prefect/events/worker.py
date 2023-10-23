@@ -6,6 +6,7 @@ from typing_extensions import Self
 
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.concurrency.services import QueueService
+from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 from prefect.utilities.context import temporary_context
 
@@ -34,10 +35,9 @@ class EventsWorker(QueueService[Event]):
         return (event, copy_context())
 
     async def _handle(self, event_and_context: Tuple[Event, Context]):
-        import logging
-
+        logger = get_logger(type(self).__name__)
         event, context = event_and_context
-        logging.debug(f"Handling event {event} in context {context}")
+        logger.debug(f"Handling event {event} in context {context}")
         with temporary_context(context=context):
             await self.attach_related_resources_from_context(event)
         await self._client.emit(event)

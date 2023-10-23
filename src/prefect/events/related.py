@@ -68,16 +68,6 @@ async def related_resources_from_run_context(
     if not flow_run_context and not task_run_context:
         return []
 
-    # rudimentary checks for an autonomous task run
-    # these conditions seem to be slightly different depending on
-    # the state the event is task-run.Running vs task-run.Completed
-    if (
-        task_run_context is None
-        or task_run_context.task_run is None
-        or task_run_context.task_run.flow_run_id is None
-    ):
-        return []
-
     flow_run_id: UUID = (
         flow_run_context.flow_run.id
         if flow_run_context
