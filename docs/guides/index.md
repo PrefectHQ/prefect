@@ -19,9 +19,9 @@ This section of the documentation contains guides for common workflows and use c
 | [Hosting](/guides/host/) | Host your own Prefect server instance. |
 | [Profiles & Settings](/guides/settings/) | Configure Prefect and save your settings. |
 | [Logging](/guides/logs/) | Configure Prefect's logger and aggregate logs from other tools. |
-| [Testing](/guides/testing/) | Easily test your workflows. |
 | [Runtime Context](/guides/runtime-context/) | Enable a flow to access metadata about itself and its context when it runs.  |
 | [Variables](/guides/variables/) | Store and retrieve configuration data. |
+| [Using the Client](/guides/using-the-client/) | Make API calls with the Python client |
 
 ## Execution
 
@@ -32,6 +32,7 @@ This section of the documentation contains guides for common workflows and use c
 | [State Change Hooks](/guides/state-change-hooks/) | Execute code in response to state changes. |
 | [Dask and Ray](/guides/dask-ray-task-runners/) | Scale your flows with parallel computing frameworks. |
 | [Moving Data](/guides/moving-data/) | Move data to and from cloud providers.  |
+| [Global Concurrency Limits](/guides/global-concurrency-limits/) | Limit concurrent flow runs. |
 
 ## Workers and agents
 
@@ -39,19 +40,19 @@ This section of the documentation contains guides for common workflows and use c
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Deploying Flows to Work Pools and Workers](/guides/prefect-deploy/) | Learn how to easily manage your code and deployments. |
 | [Upgrade from Agents to Workers](/guides/upgrade-guide-agents-to-workers/) | Why and how to upgrade from Agents to Workers. |
-| [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 | [Kubernetes](/guides/deployment/kubernetes/) | Deploy flows on Kubernetes. |
-| [Push Work Pools](/guides/deployment/push-work-pools/) |  Run flows on serverless infrastructure without a worker. |
-| [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
-| [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
-| [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
+| [Serverless Push Work Pools](/guides/deployment/push-work-pools/) |  Run flows on serverless infrastructure without a worker. |
+| [Serverless Work Pools with Workers](/guides/deployment/serverless-workers) |  Run flows on serverless infrastructure with a worker. |
+| [Storage](/guides/deployment/storage-guide/) | Store your code for deployed flows. |
 
 ## Other guides
 
 | Title                                                  | Description                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
+| [Testing](/guides/testing/) | Easily test your workflows. |
 | [Troubleshooting](/guides/troubleshooting/) | Identify and resolve common issues with Prefect. |
+| [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
+| [Prefect Recipes](../recipes/recipes/) |  Common, extensible examples for setting up Prefect. |
 
 !!! tip "Need help?"
     Get your questions answered by a Prefect Product Advocate! [Book a Meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)

@@ -49,7 +49,7 @@ TK make sure that permissions are correct - check related guides
 
     From that user's page create credentials and store them somewhere safe for use in the next section.
 
-=== "Azure Container Instance"
+=== "Azure Container Instances"
 
     To push work to Azure, an Azure subscription, resource worker and tenant secret are required. 
 
@@ -151,11 +151,11 @@ Navigate to **Work Pools** in the Prefect UI and select the serverless cloud opt
 
     Fill in the subscription ID and resource group name from the resource group you created.  Add the Azure Container Instance Credentials block you created in the step above. 
 
-=== "GCP Cloud Run"
+=== "Google Cloud Run"
 
     Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
 
-=== "GCP Vertex AI"
+=== "Google Vertex AI"
 
     Each step has several optional fields that are detailed in the [work pools](/concepts/work-pools/) documentation. For our purposes, select the block you created under the GCP Credentials field. This will allow Prefect Cloud to securely interact with your GCP project.
 

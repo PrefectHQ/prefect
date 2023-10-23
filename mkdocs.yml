@@ -147,9 +147,7 @@ nav:
                 - Hosting: guides/host.md
                 - Profiles & Settings: guides/settings.md
                 - Logging: guides/logs.md
-                - Testing: guides/testing.md
                 - Runtime Context: guides/runtime-context.md
-                - Global Concurrency Limits: guides/global-concurrency-limits.md
                 - Variables: guides/variables.md
                 - Using the Client: guides/using-the-client.md
           - Execution:
@@ -157,18 +155,20 @@ nav:
                 - Webhooks: guides/webhooks.md
                 - State Change Hooks: guides/state-change-hooks.md
                 - Dask & Ray: guides/dask-ray-task-runners.md
-                - Moving data: guides/moving-data.md
-          - Workers and agents:
+                - Moving Data: guides/moving-data.md
+                - Global Concurrency Limits: guides/global-concurrency-limits.md
+          - Workers and Agents:
                 - Deploying flows to work pools and workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
-                - Storage: guides/deployment/storage-guide.md
                 - Kubernetes: guides/deployment/kubernetes.md
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
-                - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
-                - Azure Container Instance: guides/deployment/aci.md
+                - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
+                - Storage: guides/deployment/storage-guide.md
+          - Other Guides:
+                - Testing: guides/testing.md
+                - Troubleshooting: guides/troubleshooting.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
-          - Troubleshooting: guides/troubleshooting.md
-          - Recipes: recipes/recipes.md
+                - Recipes: recipes/recipes.md
     - Concepts:
           - concepts/index.md
           - Flows: concepts/flows.md
