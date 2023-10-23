@@ -48,7 +48,7 @@ When prompted, enter a password for the `prefect` account.
 
 Next, log in to the `prefect` account by running:
 
-```
+```bash
 sudo su prefect
 ```
 
@@ -56,7 +56,7 @@ sudo su prefect
 
 Run:
 
-```
+```bash
 pip install prefect
 ```
 
@@ -68,28 +68,29 @@ Next, set up your environment so that the Prefect client will know which server 
 
 === "Prefect Cloud"
 
-If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run:
+  If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run:
 
-```
-prefect cloud login -k YOUR_API_KEY
-```
+  ```bash
+  prefect cloud login -k YOUR_API_KEY
+  ```
 
-When prompted, choose the Prefect workspace you'd like to log in to.
+  When prompted, choose the Prefect workspace you'd like to log in to.
 
 === "Prefect server instance"
 
-If connecting to a local Prefect server instance, run the following and substitute the IP address of your server:
+  If connecting to a self-hosted Prefect server instance, run the following and substitute the IP address of your server:
 
-```
-prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
-```
+  ```bash
+  prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
+  ```
 
 Finally, run the `exit` command to sign out of the `prefect` Linux account.
 This command switches you back to your sudo-enabled account so you will can run the commands in the next section.
 
 ## Set up a systemd service for the Prefect worker
 
-You can set up your Prefect worker and systemd service with a text editor. Below, we use Vim:
+You can set up your Prefect worker and systemd service with a text editor.
+Below, we use Vim:
 
 ```bash
 cd /etc/systemd/system
@@ -132,4 +133,5 @@ Instead of systemd, you will want to use [NSSM](https://nssm.cc/).
 
 To run a worker in Kubernetes using Helm see [the Kubernetes guide](/guides/deployment/kubernetes/#deploy-a-worker-using-helm).
 
-To run your workflows on serverless cloud infrastructure, no worker is required if you use a push work pool with Prefect Cloud. See [the guide](/guides/deployment/push-work-pools/) to learn more.
+To run your workflows on serverless cloud infrastructure, no worker is required if you use a push work pool with Prefect Cloud.
+See [Serverless Push Work Pools guide](/guides/deployment/push-work-pools/) to learn more.
