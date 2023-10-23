@@ -232,10 +232,14 @@ class ResultFactory(pydantic.BaseModel):
         ctx = FlowRunContext.get()
 
         result_storage = task.result_storage or (
-            ctx.result_factory.storage_block if ctx and ctx.result_factory else None
+            ctx.result_factory.storage_block
+            if ctx and ctx.result_factory
+            else await get_default_result_storage()
         )
         result_serializer = task.result_serializer or (
-            ctx.result_factory.serializer if ctx and ctx.result_factory else None
+            ctx.result_factory.serializer
+            if ctx and ctx.result_factory
+            else get_default_result_serializer()
         )
         persist_result = (
             task.persist_result
