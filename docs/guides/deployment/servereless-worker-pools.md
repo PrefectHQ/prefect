@@ -16,7 +16,7 @@ search:
 
 # Run Deployments on Serverless Computing Infrastructure
 
-Prefect provides work pools for workers to run flows on cloud provider platforms. Options:
+Prefect provides work pools for workers to run serverless flows on cloud provider platforms. Options:
 
 - AWS ECS
 - Azure Container Instances (ACI)
@@ -25,9 +25,9 @@ Prefect provides work pools for workers to run flows on cloud provider platforms
 
 In this guide you will:
 
-- Create a work pool that sends work to your chosen option
+- Create a work pool that sends work to your chosen serverless infrastructure option
 - Deploy a flow to that work pool
-- Start a worker to match the work pool
+- Start a worker that will poll the matched work pool for scheduled runs
 - Schedule a deployment run that a worker will pick up from the work pool
 
 ![Work pool options](/img/ui/work-pools.png)
