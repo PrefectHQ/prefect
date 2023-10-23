@@ -8,6 +8,7 @@ search:
   boost: 2
 ---
 
+# Daemonize a worker
 
 This post demonstrates how to set up a systemd service to run a Prefect worker.
 
@@ -22,7 +23,7 @@ In this guide you will:
 * Install Prefect
 * Set up a systemd service for the Prefect worker
 
-# Prerequisites
+## Prerequisites
 
 Here's what you'll need before proceeding:
 

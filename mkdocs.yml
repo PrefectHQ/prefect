@@ -166,6 +166,7 @@ nav:
                 - Serverless Push Work Pools: guides/deployment/push-work-pools.md
                 - Run a flow on AWS ECS: https://prefecthq.github.io/prefect-aws/#using-prefect-with-aws-ecs
                 - Azure Container Instance: guides/deployment/aci.md
+                - Daemonize a Worker: guides/deployment/daemonize-worker.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
           - Troubleshooting: guides/troubleshooting.md
           - Recipes: recipes/recipes.md
