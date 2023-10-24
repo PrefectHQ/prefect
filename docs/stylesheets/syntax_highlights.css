@@ -1,6 +1,6 @@
 /* see https://squidfunk.github.io/mkdocs-material/reference/code-blocks/#custom-syntax-theme
  * for details on syntax highlighting overrides */
-:root > * {
+:root>* {
   /* code blocks */
   --md-code-hl-number-color: #3b8dff;
   --md-code-hl-function-color: #3b8dff;
