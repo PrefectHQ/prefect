@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.13.9
+## Release 2.14.0
 
 ### Introducting the `prefect-client`
 
@@ -33,10 +33,9 @@ See implementation details in the following pull request:
 - Improve handling of push pools on the workspace dashboard - https://redirect.github.com/PrefectHQ/prefect-ui-library/pull/1813
 
 ### Contributors
-- @chrisguidry
-- @urimandujano
+- @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.13.9
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.14.0
 
 ## Release 2.13.8
 
