@@ -28,6 +28,9 @@ See implementation details in the following pull request:
 ### Enhancements
 - We have added the flow name in the label for subflow runs to make it easier to associate the two — https://github.com/PrefectHQ/prefect/pull/11009
 
+### Fixes
+- Fix support for absolute Windows paths in `load_flow_from_entrypoint` - https://github.com/PrefectHQ/prefect/pull/10989
+
 ### Contributors
 - @chrisguidry
 - @urimandujano
