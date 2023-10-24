@@ -4,9 +4,9 @@
 
 ### Introducing the `prefect-client`
 
-This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect-server and Prefect-cloud **only**. You can install `prefect-client` by using `pip`:
+This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect server **only**. You can install `prefect-client` by using `pip`:
 
-```console
+```bash
 pip install prefect-client
 ```
 
@@ -34,9 +34,9 @@ See implementation details in the following pull request:
 - Rename mismatched alembic file — https://github.com/PrefectHQ/prefect/pull/10888
 
 ### Documentation
-- Standardize heading capitalization in developing-a-new-worker-type.md — https://github.com/PrefectHQ/prefect/pull/10999
-- Update Docker guide to mention image builds with prefect.yaml and `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11012
-- Update Kubernetes guide to mention and link to Python `deploy` creation method — https://github.com/PrefectHQ/prefect/pull/11010
+- Standardize heading capitalization in guide to developing a new worker type — https://github.com/PrefectHQ/prefect/pull/10999
+- Update Docker guide to mention image builds with `prefect.yaml` and `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11012
+- Update Kubernetes guide to mention and link to Python-based flow `deploy` creation method — https://github.com/PrefectHQ/prefect/pull/11010
 
 ## New Contributors
 * @m-steinhauer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10888
