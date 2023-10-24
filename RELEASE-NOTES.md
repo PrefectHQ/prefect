@@ -26,11 +26,11 @@ See implementation details in the following pull request:
 -  https://github.com/PrefectHQ/prefect/pull/10988
 
 ### Enhancements
-- Adds the flow name to the label for subflow runs, making it easier for you to associate the two in the UI. — https://github.com/PrefectHQ/prefect/pull/11009
+- Add flow name to the label for subflow runs in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11009
 
 ### Fixes
-- Fix support for absolute Windows paths in `load_flow_from_entrypoint`. This will let you pull flows and build deployments in Windows environments. - https://github.com/PrefectHQ/prefect/pull/10989
-- Removes the work queue health indicator on push pools on the workspace dashboard. Push pools do not use work queues so including them on the dashboard was misleading. - https://github.com/PrefectHQ/prefect-ui-library/pull/1813
+- Fix ability to pull flows and build deployments in Windows environments - https://github.com/PrefectHQ/prefect/pull/10989
+- Remove unnecessary work queue health indicator from push pools in the Prefect UI dashboard - https://github.com/PrefectHQ/prefect-ui-library/pull/1813
 
 ### Contributors
 - @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
