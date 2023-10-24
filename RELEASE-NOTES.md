@@ -31,9 +31,16 @@ See implementation details in the following pull request:
 ### Fixes
 - Fix ability to pull flows and build deployments in Windows environments - https://github.com/PrefectHQ/prefect/pull/10989
 - Remove unnecessary work queue health indicator from push pools in the Prefect UI dashboard - https://github.com/PrefectHQ/prefect-ui-library/pull/1813
+- Rename mismatched alembic file — https://github.com/PrefectHQ/prefect/pull/10888
 
-### Contributors
-- @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
+### Documentation
+- Standardize heading capitalization in developing-a-new-worker-type.md — https://github.com/PrefectHQ/prefect/pull/10999
+- Update Docker guide to mention image builds with prefect.yaml and `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11012
+- Update Kubernetes guide to mention and link to Python `deploy` creation method — https://github.com/PrefectHQ/prefect/pull/11010
+
+## New Contributors
+* @m-steinhauer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10888
+* @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.14.0
 
