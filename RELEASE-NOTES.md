@@ -30,6 +30,7 @@ See implementation details in the following pull request:
 
 ### Fixes
 - Fix support for absolute Windows paths in `load_flow_from_entrypoint` - https://github.com/PrefectHQ/prefect/pull/10989
+- Improve handling of push pools on the workspace dashboard - https://redirect.github.com/PrefectHQ/prefect-ui-library/pull/1813
 
 ### Contributors
 - @chrisguidry
