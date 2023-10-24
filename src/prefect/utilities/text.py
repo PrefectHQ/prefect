@@ -8,12 +8,8 @@ def truncated_to(length: int, value: Optional[str]) -> str:
     if len(value) <= length:
         return value
 
-    half = length // 2
+    help_text = "...[truncated]..."
 
-    beginning = value[:half]
-    end = value[-half:]
-    omitted = len(value) - (len(beginning) + len(end))
+    truncated = value[: length - len(help_text)]
 
-    proposed = f"{beginning}...{omitted} additional characters...{end}"
-
-    return proposed if len(proposed) < len(value) else value
+    return truncated + help_text if len(truncated) < len(help_text) else value[:length]
