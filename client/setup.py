@@ -1,16 +1,11 @@
 import versioneer
 from setuptools import find_packages, setup
 
-client_requires = open("requirements-client.txt").read().strip().split("\n")
-# strip the first line since setup.py will not recognize '-r requirements-client.txt'
-install_requires = (
-    open("requirements.txt").read().strip().split("\n")[1:] + client_requires
-)
-dev_requires = open("requirements-dev.txt").read().strip().split("\n")
+install_requires = open("requirements-client.txt").read().strip().split("\n")
 
 setup(
     # Package metadata
-    name="prefect",
+    name="prefect-client",
     description="Workflow orchestration and management.",
     author="Prefect Technologies, Inc.",
     author_email="help@prefect.io",
@@ -30,17 +25,10 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
-    # CLI
-    entry_points={
-        "console_scripts": ["prefect=prefect.cli:app"],
-        "mkdocs.plugins": [
-            "render_swagger = prefect.utilities.render_swagger:SwaggerPlugin",
-        ],
-    },
     # Requirements
     python_requires=">=3.8",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    extras_require={"notifications": ["apprise>=1.1.0, <2.0.0"]},
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",

@@ -21,7 +21,6 @@ Available attributes:
 import os
 from typing import Any, Dict, List, Optional
 
-import dateparser
 import pendulum
 
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -41,16 +40,20 @@ __all__ = [
 ]
 
 
+def _pendulum_parse(dt: str) -> pendulum.DateTime:
+    """
+    Use pendulum to cast different format date strings to pendulum.DateTime --
+    tzinfo is ignored (UTC forced)
+    """
+    return pendulum.parse(dt, tz=None, strict=False).set(tz="UTC")
+
+
 type_cast = {
     bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
     str: str,
-    # use dateparser to cast different formats of date in string, and then instance to pendulum.DateTime
-    # tzinfo is ignored (UTC forced)
-    pendulum.DateTime: lambda x: pendulum.instance(
-        dateparser.parse(x).replace(tzinfo=None), "UTC"
-    ),
+    pendulum.DateTime: _pendulum_parse,
     # for optional defined attributes, when real value is NoneType, use str
     type(None): str,
 }

@@ -9,9 +9,9 @@ import toml
 from httpx import ASGITransport, AsyncClient
 from prefect._vendor.fastapi import APIRouter, status, testclient
 
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.server.api.server import (
     API_ROUTERS,
-    SERVER_API_VERSION,
     SQLITE_LOCKED_MSG,
     _memoize_block_auto_registration,
     create_api_app,
