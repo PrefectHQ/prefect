@@ -16,6 +16,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
@@ -106,7 +107,6 @@ async def version():
     """Get the current Prefect version."""
     import sqlite3
 
-    from prefect.server.api.server import SERVER_API_VERSION
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 

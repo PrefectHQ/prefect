@@ -398,9 +398,15 @@ def is_state(obj: Any) -> TypeGuard[State]:
     """
     # We may want to narrow this to client-side state types but for now this provides
     # backwards compatibility
-    from prefect.server.schemas.states import State as State_
+    try:
+        from prefect.server.schemas.states import State as State_
 
-    return isinstance(obj, (State, State_))
+        classes_ = (State, State_)
+    except ImportError:
+        classes_ = State
+
+    # return isinstance(obj, (State, State_))
+    return isinstance(obj, classes_)
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
