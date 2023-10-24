@@ -25,6 +25,24 @@ In this guide we'll:
 - Deploy and run our Docker image on a Kubernetes cluster.
 - Look at the Prefect-maintained Docker images and discuss options for use
 
+Note that in this guide we'll create a Dockerfile from scratch. Alternatively, Prefect makes it convenient to build a Docker image as part of deployment creation. You can even include environment variables and specify additional Python packages to install at runtime.
+
+If creating a deployment with a `prefect.yaml` file, the build step makes it easy to customize your Docker image and push it to the registry of your choice. See an example [here](/guides/deployment/kubernetes/#define-a-deployment).
+
+Deployment creation with a Python script that includes `flow.deploy` similarly allows you to customize your Docker image with keyword arguments as shown below.
+
+```python
+...
+
+if __name__ == "__main__":
+    hello_world.deploy(
+        name="my-first-deployment",
+        work_pool_name="above-ground",
+        image='my_registry/hello_world:demo',
+        job_variables={"env": { "EXTRA_PIP_PACKAGES": "boto3" } }
+    )
+```
+
 ## Prerequisites
 
 To complete this guide, you'll need the following:
@@ -348,7 +366,7 @@ FROM prefecthq/prefect:2-latest
 RUN pip install scikit-learn
 ```
 
-### Choosing an Image Strategy
+### Choosing an image strategy
 
 The options described above have different complexity (and performance) characteristics. For choosing a strategy, we provide the following recommendations:
 
