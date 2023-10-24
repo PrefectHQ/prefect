@@ -39,7 +39,7 @@ if __name__ == "__main__":
         name="my-first-deployment",
         work_pool_name="above-ground",
         image='my_registry/hello_world:demo',
-        job_variables={"env": { "EXTRA_PIP_PACKAGES": "boto3"} }
+        job_variables={"env": { "EXTRA_PIP_PACKAGES": "boto3" } }
     )
 ```
 
