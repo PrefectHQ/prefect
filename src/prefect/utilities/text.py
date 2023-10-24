@@ -1,5 +1,7 @@
 from typing import Optional
 
+HELP_TEXT = "...[truncated]..."
+
 
 def truncated_to(length: int, value: Optional[str]) -> str:
     if not value:
@@ -8,8 +10,8 @@ def truncated_to(length: int, value: Optional[str]) -> str:
     if len(value) <= length:
         return value
 
-    help_text = "...[truncated]..."
-
-    truncated = value[: length - len(help_text)]
-
-    return truncated + help_text if len(truncated) < len(help_text) else value[:length]
+    return (
+        value[: length - len(HELP_TEXT)] + HELP_TEXT
+        if len(HELP_TEXT) < length
+        else value[:length]
+    )
