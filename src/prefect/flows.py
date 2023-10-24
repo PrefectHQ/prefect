@@ -1458,7 +1458,8 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
         block_code_execution=True,
         capture_failures=True,
     ):
-        path, func_name = entrypoint.split(":")
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
         try:
             flow = import_object(entrypoint)
         except AttributeError as exc:
