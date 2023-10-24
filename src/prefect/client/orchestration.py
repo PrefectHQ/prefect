@@ -31,6 +31,7 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
@@ -200,9 +201,6 @@ class PrefectClient:
             httpx_settings.setdefault("verify", False)
 
         if api_version is None:
-            # deferred import to avoid importing the entire server unless needed
-            from prefect.server.api.server import SERVER_API_VERSION
-
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
