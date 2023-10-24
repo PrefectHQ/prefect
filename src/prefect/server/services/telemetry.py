@@ -79,7 +79,7 @@ class Telemetry(LoopService):
         """
         Sends a heartbeat to the sens-o-matic
         """
-        from prefect.server.api.server import SERVER_API_VERSION
+        from prefect.client.constants import SERVER_API_VERSION
 
         if not hasattr(self, "session_id"):
             await self._fetch_or_set_telemetry_session()
