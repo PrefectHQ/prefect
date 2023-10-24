@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.13.9
+
+### Introducting the `prefect-client`
+
+This release includes a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect-server and Prefect-cloud **only**. You can install `prefect-client` by using `pip`:
+
+```console
+pip install prefect-client
+```
+
+To use it, you will need to configure your environment to interact with a remote Prefect API by setting the `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables. Using it in your code remains the same:
+
+```python
+from prefect import flow, task
+
+@flow(log_prints=True)
+def hello_world():
+    print("Hello from prefect-client!")
+
+hello_world()
+```
+
+See implementation details in the following pull request:
+-  https://github.com/PrefectHQ/prefect/pull/10988
+
+### Enhancements
+- We have added the flow name in the label for subflow runs to make it easier to associate the two — https://github.com/PrefectHQ/prefect/pull/11009
+
+### Contributors
+- @chrisguidry
+- @urimandujano
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.13.9
+
 ## Release 2.13.8
 
 ### Introducing `flow.deploy`
