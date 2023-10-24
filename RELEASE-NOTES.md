@@ -4,7 +4,7 @@
 
 ### Introducing the `prefect-client`
 
-This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect server **only**. You can install `prefect-client` by using `pip`:
+This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with the Prefect server or Prefect Cloud **only**. You can install `prefect-client` by using `pip`:
 
 ```bash
 pip install prefect-client
