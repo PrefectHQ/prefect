@@ -2,9 +2,9 @@
 
 ## Release 2.14.0
 
-### Introducting the `prefect-client`
+### Introducing the `prefect-client`
 
-This release includes a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect-server and Prefect-cloud **only**. You can install `prefect-client` by using `pip`:
+This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with Prefect-server and Prefect-cloud **only**. You can install `prefect-client` by using `pip`:
 
 ```console
 pip install prefect-client
