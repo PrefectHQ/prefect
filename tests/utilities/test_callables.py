@@ -581,3 +581,21 @@ class TestCollapseVariadicParameter:
 
         with pytest.raises(ValueError):
             callables.collapse_variadic_parameters(foo, parameters)
+
+
+class TestPartialWithName:
+    def test_partial_with_name(self):
+        def foo(a, b):
+            return a + b
+
+        partial_foo = callables.partial_with_name(foo, "partial_foo", a=1)
+        assert partial_foo.__name__ == "partial_foo"
+        assert partial_foo(b=2) == 3
+
+    def test_partial_defaults_to_original_fn_name(self):
+        def foo(a, b):
+            return a + b
+
+        partial_foo = callables.partial_with_name(foo, a=1)
+        assert partial_foo.__name__ == "foo"
+        assert partial_foo(b=2) == 3

@@ -237,6 +237,36 @@ def my_succeed_or_fail_hook(task, task_run, state):
 )
 ```
 
+#### Pass custom arguments to state change hooks
+The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects. This means that you don't have the opportunity to pass in custom arguments to your hooks at runtime. However, there are a couple ways you can provide custom arguments to your hooks:
+
+- set default values for your hooks' arguments when you define them:
+```python
+from prefect import flow
+
+def my_hook(flow, flow_run, state, my_arg="custom_value"):
+    assert my_arg == "custom_value"
+
+@flow(on_completion=[my_hook])
+def lazy_flow():
+    pass
+```
+
+- define your hook to accept `**kwargs` and bind your custom arguments to the hook:
+```python
+from prefect import flow
+from prefect.utilities.callables import partial_with_name
+
+def my_hook(flow, flow_run, state, **kwargs):
+    assert kwargs["my_arg"] == "custom_value"
+
+@flow(
+    on_completion=[partial_with_name(my_hook, my_arg="custom_value")]
+)
+def lazy_flow():
+    pass
+```
+
 ### More examples of state change hooks
 - [Send a notification when a flow run fails](/guides/state-change-hooks/#send-a-notification-when-a-flow-run-fails)
 - [Delete a Cloud Run job when a flow crashes](/guides/state-change-hooks/#delete-a-cloud-run-job-when-a-flow-crashes)
