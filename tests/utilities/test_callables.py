@@ -583,8 +583,8 @@ class TestCollapseVariadicParameter:
             callables.collapse_variadic_parameters(foo, parameters)
 
 
-class TestPartialWithName:
-    def test_partial_with_name(self):
+class TestBindKwargsToFunction:
+    def test_bind_kwargs_to_fn(self):
         def foo(a, b):
             return a + b
 
@@ -592,10 +592,18 @@ class TestPartialWithName:
         assert partial_foo.__name__ == "partial_foo"
         assert partial_foo(b=2) == 3
 
-    def test_partial_defaults_to_original_fn_name(self):
+    def test_bind_kwargs_to_fn_defaults_to_original_fn_name(self):
         def foo(a, b):
             return a + b
 
         partial_foo = callables.bind_args_to_fn(foo, a=1)
         assert partial_foo.__name__ == "foo"
         assert partial_foo(b=2) == 3
+
+    def test_bind_kwargs_to_fn_binds_unpacked_kwargs(self):
+        def foo(a, b):
+            return a + b
+
+        partial_foo = callables.bind_args_to_fn(foo, a=1, **{"b": 2})
+        assert partial_foo.__name__ == "foo"
+        assert partial_foo() == 3

@@ -3,6 +3,7 @@ import inspect
 import time
 import warnings
 from asyncio import Event, sleep
+from functools import partial
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -36,6 +37,7 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import allow_failure, unmapped
+from prefect.utilities.callables import bind_args_to_fn
 from prefect.utilities.collections import quote
 
 
@@ -3421,6 +3423,66 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestTaskHooks:
+    def test_hook_with_extra_default_arg(self):
+        from prefect import flow, task
+
+        def hook(flow, flow_run, state, foo=42):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert foo == 42
+
+        @task(on_completion=[hook])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            foo_task()
+
+        foo_flow()
+
+    def test_hook_with_bound_kwargs(self):
+        from prefect import flow, task
+
+        def hook(flow, flow_run, state, **kwargs):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert kwargs["foo"] == 42
+
+        hook_with_kwargs = partial(hook, foo=42)
+        hook_with_kwargs.__name__ = hook.__name__
+
+        @task(on_completion=[hook_with_kwargs])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            foo_task()
+
+        foo_flow()
+
+    def test_hook_with_bound_kwargs_via_utility(self):
+        from prefect import flow, task
+
+        def hook(flow, flow_run, state, **kwargs):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert kwargs["foo"] == 42
+            assert kwargs["bar"] == 99
+
+        @task(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
+        def foo_task():
+            pass
+
+        @flow
+        def foo_flow():
+            foo_task()
+
+        foo_flow()
 
 
 class TestTaskHooksOnCompletion:

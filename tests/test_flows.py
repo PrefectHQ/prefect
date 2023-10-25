@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import time
+from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -65,7 +66,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
-from prefect.utilities.callables import parameter_schema
+from prefect.utilities.callables import bind_args_to_fn, parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -2415,6 +2416,54 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestFlowHooks:
+    def test_hook_with_extra_default_arg(self):
+        from prefect import flow
+
+        def hook(flow, flow_run, state, foo=42):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert foo == 42
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+    def test_hook_with_bound_kwargs(self):
+        from prefect import flow
+
+        def hook(flow, flow_run, state, **kwargs):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert kwargs["foo"] == 42
+
+        hook_with_kwargs = partial(hook, foo=42)
+        hook_with_kwargs.__name__ = hook.__name__
+
+        @flow(on_completion=[hook_with_kwargs])
+        def foo_flow():
+            pass
+
+        foo_flow()
+
+    def test_hook_with_bound_kwargs_via_utility(self):
+        from prefect import flow
+
+        def hook(flow, flow_run, state, **kwargs):
+            assert hook.__name__ == "hook"
+            assert state.is_completed()
+            assert kwargs["foo"] == 42
+            assert kwargs["bar"] == 99
+
+        @flow(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
+        def foo_flow():
+            pass
+
+        foo_flow()
 
 
 class TestFlowHooksOnCompletion:
