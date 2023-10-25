@@ -44,7 +44,7 @@ jobs:
       - name: Prepare files for prefect-client build (omit the local build)
         run: sh client/build_client.sh   
         env:
-          TMPDIR: ${{ env.TMPDIR }}       
+          TMPDIR: ${{ env.TMPDIR }}
 
       - name: Build a binary wheel and a source tarball
         run: pip install wheel && python setup.py sdist bdist_wheel
