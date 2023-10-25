@@ -44,7 +44,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -55,7 +55,8 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect.client.orchestration import get_client
+from prefect._internal.concurrency.api import create_call, from_async
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -63,8 +64,9 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.deployments.runner import RunnerDeployment
 from prefect.engine import propose_state
 from prefect.events.schemas import DeploymentTrigger
@@ -77,18 +79,17 @@ from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_ENABLE_ON_CANCELLATION_HOOKS,
+    PREFECT_ENABLE_ON_CRASHED_HOOKS,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.processutils import run_process
 from prefect.utilities.services import critical_service_loop
-
-if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
 
 __all__ = ["Runner", "serve"]
 
@@ -485,8 +486,14 @@ class Runner:
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
-        env.update({"PREFECT__FLOW_RUN_ID": str(flow_run.id)})
-        env.update({"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)})
+        env.update(
+            {
+                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
+                "PREFECT_ENABLE_ON_CANCELLATION_HOOKS": "false",
+                "PREFECT_ENABLE_ON_CRASHED_HOOKS": "false",
+            }
+        )
         env.update(**os.environ)  # is this really necessary??
 
         storage = self._deployment_storage_map.get(flow_run.deployment_id)
@@ -706,6 +713,7 @@ class Runner:
 
         pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
         if not pid:
+            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -721,6 +729,7 @@ class Runner:
             await self._kill_process(pid)
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
+            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
             await self._mark_flow_run_as_cancelled(flow_run)
         except Exception:
             run_logger.exception(
@@ -729,8 +738,8 @@ class Runner:
             )
             # We will try again on generic exceptions
             self._cancelling_flow_run_ids.remove(flow_run.id)
-            return
         else:
+            await _run_on_cancellation_hooks(flow_run, flow_run.state, self._client)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -879,6 +888,13 @@ class Runner:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
+            )
+
+        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+        terminal_state = api_flow_run.state
+        if terminal_state.is_crashed():
+            await _run_on_crashed_hooks(
+                flow_run=flow_run, state=terminal_state, client=self._client
             )
 
         return status_code
@@ -1121,3 +1137,58 @@ async def serve(
         console.print(Panel(Group(help_message_top, table, help_message_bottom)))
 
     await runner.start()
+
+
+async def _run_hooks(
+    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+):
+    logger = flow_run_logger(flow_run, flow)
+    for hook in hooks:
+        try:
+            logger.info(
+                f"Running hook {hook.__name__!r} in response to entering state"
+                f" {state.name!r}"
+            )
+            if is_async_fn(hook):
+                await hook(flow=flow, flow_run=flow_run, state=state)
+            else:
+                await from_async.call_in_new_thread(
+                    create_call(hook, flow=flow, flow_run=flow_run, state=state)
+                )
+        except Exception:
+            logger.error(
+                f"An error was encountered while running hook {hook.__name__!r}",
+                exc_info=True,
+            )
+        else:
+            logger.info(f"Hook {hook.__name__!r} finished running successfully")
+
+
+async def _run_on_cancellation_hooks(
+    flow_run: "FlowRun",
+    state: State,
+    client: PrefectClient,
+) -> None:
+    """
+    Run the hooks for a flow.
+    """
+    if PREFECT_ENABLE_ON_CANCELLATION_HOOKS and state.is_cancelling():
+        flow = await load_flow_from_flow_run(flow_run, client=client)
+        hooks = flow.on_cancellation or []
+
+        await _run_hooks(hooks, flow_run, flow, state)
+
+
+async def _run_on_crashed_hooks(
+    flow_run: "FlowRun",
+    state: State,
+    client: PrefectClient,
+) -> None:
+    """
+    Run the hooks for a flow.
+    """
+    if PREFECT_ENABLE_ON_CRASHED_HOOKS and state.is_crashed():
+        flow = await load_flow_from_flow_run(flow_run, client=client)
+        hooks = flow.on_crashed or []
+
+        await _run_hooks(hooks, flow_run, flow, state)
