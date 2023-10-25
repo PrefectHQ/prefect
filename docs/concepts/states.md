@@ -255,13 +255,13 @@ def lazy_flow():
 - define your hook to accept `**kwargs` and bind your custom arguments to the hook:
 ```python
 from prefect import flow
-from prefect.utilities.callables import partial_with_name
+from prefect.utilities.callables import bind_args_to_fn
 
 def my_hook(flow, flow_run, state, **kwargs):
     assert kwargs["my_arg"] == "custom_value"
 
 @flow(
-    on_completion=[partial_with_name(my_hook, my_arg="custom_value")]
+    on_completion=[bind_args_to_fn(my_hook, my_arg="custom_value")]
 )
 def lazy_flow():
     pass
