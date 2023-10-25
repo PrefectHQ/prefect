@@ -42,11 +42,14 @@ from prefect.runner.storage import RunnerStorage, create_storage_from_url
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic import BaseModel as V2BaseModel
     from pydantic import ValidationError as V2ValidationError
-    from pydantic.v1.decorator import ValidatedFunction
+    from pydantic.v1 import BaseModel as V1BaseModel
+    from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 
+    from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
     from ._internal.pydantic.v2_validated_func import (
-        V2ValidatedFunction as ValidatedFunction,  # noqa: F811
+        V2ValidatedFunction as ValidatedFunction,
     )
 
 else:
@@ -470,10 +473,34 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
-        validated_fn = ValidatedFunction(
-            self.fn, config={"arbitrary_types_allowed": True}
-        )
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
+
+        if HAS_PYDANTIC_V2:
+            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+                isinstance(o, V1BaseModel) for o in kwargs.values()
+            )
+            has_v2_models = any(isinstance(o, V2BaseModel) for o in args) or any(
+                isinstance(o, V2BaseModel) for o in kwargs.values()
+            )
+
+            if has_v1_models and has_v2_models:
+                raise ParameterTypeError(
+                    "Cannot mix Pydantic v1 and v2 models as arguments to a flow."
+                )
+
+            if has_v1_models:
+                validated_fn = V1ValidatedFunction(
+                    self.fn, config={"arbitrary_types_allowed": True}
+                )
+            else:
+                validated_fn = V2ValidatedFunction(
+                    self.fn, config={"arbitrary_types_allowed": True}
+                )
+
+        else:
+            validated_fn = ValidatedFunction(
+                self.fn, config={"arbitrary_types_allowed": True}
+            )
 
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
