@@ -305,7 +305,7 @@ class TestRunner:
             tg.start_soon(runner.start)
 
             deployment = await prefect_client.read_deployment_by_name(
-                name="crashing-flow/test_runner"
+                name="cancel-flow-submitted-tasks/test_runner"
             )
 
             flow_run = await prefect_client.create_flow_run_from_deployment(
