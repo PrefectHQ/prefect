@@ -1,5 +1,59 @@
 # Prefect Release Notes
 
+## Release 2.14.1
+
+### Documentation
+- Add Python `serve` and `deploy` options to the `schedules` concepts documentation — https://github.com/PrefectHQ/prefect/pull/11000
+
+### Fixes
+- Refine flow parameter validation to use the correct form of validation depending on if the parameter is a pydantic v1 or v2 model.  — https://github.com/PrefectHQ/prefect/pull/11028
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.0...2.14.1
+
+## Release 2.14.0
+
+### Introducing the `prefect-client`
+
+This release provides a new way of running flows using the `prefect-client` package. This slimmed down version of `prefect` has a small surface area of functionality and is intended for interacting with the Prefect server or Prefect Cloud **only**. You can install `prefect-client` by using `pip`:
+
+```bash
+pip install prefect-client
+```
+
+To use it, you will need to configure your environment to interact with a remote Prefect API by setting the `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables. Using it in your code remains the same:
+
+```python
+from prefect import flow, task
+
+@flow(log_prints=True)
+def hello_world():
+    print("Hello from prefect-client!")
+
+hello_world()
+```
+
+See implementation details in the following pull request:
+-  https://github.com/PrefectHQ/prefect/pull/10988
+
+### Enhancements
+- Add flow name to the label for subflow runs in the Prefect UI — https://github.com/PrefectHQ/prefect/pull/11009
+
+### Fixes
+- Fix ability to pull flows and build deployments in Windows environments - https://github.com/PrefectHQ/prefect/pull/10989
+- Remove unnecessary work queue health indicator from push pools in the Prefect UI dashboard - https://github.com/PrefectHQ/prefect-ui-library/pull/1813
+- Rename mismatched alembic file — https://github.com/PrefectHQ/prefect/pull/10888
+
+### Documentation
+- Standardize heading capitalization in guide to developing a new worker type — https://github.com/PrefectHQ/prefect/pull/10999
+- Update Docker guide to mention image builds with `prefect.yaml` and `flow.deploy` — https://github.com/PrefectHQ/prefect/pull/11012
+- Update Kubernetes guide to mention and link to Python-based flow `deploy` creation method — https://github.com/PrefectHQ/prefect/pull/11010
+
+## New Contributors
+* @m-steinhauer made their first contribution in https://github.com/PrefectHQ/prefect/pull/10888
+* @maitlandmarshall made their first contribution in https://github.com/PrefectHQ/prefect/pull/10989
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.13.8...2.14.0
+
 ## Release 2.13.8
 
 ### Introducing `flow.deploy`
