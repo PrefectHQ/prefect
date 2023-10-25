@@ -34,7 +34,7 @@ rm utilities/validation.py
 
 # replace old build files with client build files
 cd $TMPDIR
-cp client/* .
+cp client/setup.py .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
@@ -50,7 +50,7 @@ if [ -z ${CI} ];
         pip install wheel;
         python setup.py sdist bdist_wheel;
         pip install dist/*.tar.gz;
-        python client_flow.py;
+        python client/client_flow.py;
         echo "Build and smoke test completed successfully. Final results:";
         echo "$(du -sh $VIRTUAL_ENV)";
         deactivate;
