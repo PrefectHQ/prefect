@@ -55,23 +55,3 @@ flowchart TD
     classDef orange fill:orange,stroke:orange,stroke-width:4px
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
-
-Questions
-
-1. Need customized or dynamically provisioned infrastructure?
-    No:
-        Use `flow.serve``, likely in a cloud VM - see forthcoming guide (could run in Docker container on the VM)
-    Yes
-        1. Want to run in Serverless?
-            No
-            1. Want to run on K8s?
-                No
-                    1.
-                Yes
-                    Grab a helm chart and see the nice K8s guide
-            Yes
-                1. Want/able to use a push work pool (no worker required)
-                    Yes
-                        Use a push work pool - see the guide
-                    No
-                        Use a serveless (non-push work pool) - also gives option for Vertex AI - Jeff working on combo guide
