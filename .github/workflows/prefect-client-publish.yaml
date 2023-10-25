@@ -29,5 +29,5 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          password: ${{ secrets.PREFECT_CLIENT_PYPI_API_TOKEN }}
           name: ci
