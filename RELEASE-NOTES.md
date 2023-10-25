@@ -8,10 +8,6 @@
 ### Fixes
 - Refine flow parameter validation to use the correct form of validation depending on if the parameter is a pydantic v1 or v2 model.  — https://github.com/PrefectHQ/prefect/pull/11028
 
-### Contributors
-- @chrisguidry
-- @discdiver
-
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.0...2.14.1
 
 ## Release 2.14.0
