@@ -646,9 +646,9 @@ class Flow(Generic[P, R]):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this deployment.
             rrule: An rrule schedule of when to execute runs of this deployment.
-            timezone: A timezone to use for the schedule. Defaults to UTC.
             triggers: A list of triggers that will kick off runs of this deployment.
-            schedule: A schedule object defining when to execute runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment. Used to
+                define additional scheduling options like `timezone`.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -839,9 +839,9 @@ class Flow(Generic[P, R]):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this deployment.
             rrule: An rrule schedule of when to execute runs of this deployment.
-            timezone: A timezone to use for the schedule. Defaults to UTC.
             triggers: A list of triggers that will kick off runs of this deployment.
-            schedule: A schedule object defining when to execute runs of this deployment.
+            schedule: A schedule object defining when to execute runs of this deployment. Used to
+                define additional scheduling options like `timezone`.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
