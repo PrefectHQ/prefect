@@ -1,6 +1,6 @@
 from functools import partial
 
-from prefect.utilities.callables import partial_with_name
+from prefect.utilities.callables import bind_args_to_fn
 
 
 class TestStateHooks:
@@ -44,7 +44,7 @@ class TestStateHooks:
             assert kwargs["foo"] == 42
             assert kwargs["bar"] == 99
 
-        @flow(on_completion=[partial_with_name(hook, **{"foo": 42, "bar": 99})])
+        @flow(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
         def foo_flow():
             pass
 

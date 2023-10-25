@@ -588,7 +588,7 @@ class TestPartialWithName:
         def foo(a, b):
             return a + b
 
-        partial_foo = callables.partial_with_name(foo, "partial_foo", a=1)
+        partial_foo = callables.bind_args_to_fn(foo, "partial_foo", a=1)
         assert partial_foo.__name__ == "partial_foo"
         assert partial_foo(b=2) == 3
 
@@ -596,6 +596,6 @@ class TestPartialWithName:
         def foo(a, b):
             return a + b
 
-        partial_foo = callables.partial_with_name(foo, a=1)
+        partial_foo = callables.bind_args_to_fn(foo, a=1)
         assert partial_foo.__name__ == "foo"
         assert partial_foo(b=2) == 3

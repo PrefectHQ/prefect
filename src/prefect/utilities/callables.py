@@ -330,7 +330,7 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
             )
 
 
-def partial_with_name(
+def bind_args_to_fn(
     fn: Callable,
     name: Optional[str] = None,
     *args: Any,
