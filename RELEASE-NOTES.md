@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## Release 2.14.1
+
+### Documentation
+- Add Python `serve` and `deploy` to the `schedules` concept document — https://github.com/PrefectHQ/prefect/pull/11000
+
+### Contributors
+- @discdiver
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.0...2.14.1
+
 ## Release 2.14.0
 
 ### Introducing the `prefect-client`
