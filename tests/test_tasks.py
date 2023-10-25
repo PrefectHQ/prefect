@@ -163,7 +163,7 @@ class TestTaskRunName:
 
 
 class TestTaskCall:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.14.0", reason="now allowed")
+    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_called_outside_flow_raises(self):
         @task
         def foo():
@@ -332,7 +332,7 @@ class TestTaskCall:
 
 
 class TestTaskRun:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.14.0", reason="now allowed")
+    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_run_outside_flow_raises(self):
         @task
         def foo():
@@ -432,7 +432,7 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
-    @pytest.mark.skipif(PREFECT_VERSION < "2.14.0", reason="now allowed")
+    @pytest.mark.skipif(PREFECT_VERSION < "2.15.0", reason="now allowed")
     def test_task_submitted_outside_flow_raises(self):
         @task
         def foo():
