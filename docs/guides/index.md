@@ -44,8 +44,7 @@ This section of the documentation contains guides for common workflows and use c
 | [Push Work Pools](/guides/deployment/push-work-pools/) |  Run flows on serverless infrastructure without a worker. |
 | [ECS](https://prefecthq.github.io/prefect-aws/ecs_guide/) |  Run flows on AWS ECS. |
 | [Azure Container Instances](/guides/deployment/aci/) |  Deploy flows to Azure Container Instances. |
-| [Daemonize a Worker](/guides/daemonize-worker/) | Set up a systemd service to run a Prefect worker. |
-] | |
+| [Daemonize a Worker or .serve](/guides/daemonize/) | Set up a systemd service to run a Prefect worker or .serve process. |
 | [Custom Workers](/guides/deployment/developing-a-new-worker-type/) | Develop your own worker type. |
 
 ## Other guides

@@ -1,5 +1,5 @@
 ---
-description: Set up a systemd service to daemonize a Prefect worker or create long-running deployment serve process
+description: Set up a systemd service to daemonize a Prefect worker or create a long-running deployment serve process
 tags:
     - systemd
     - daemonize
@@ -8,7 +8,7 @@ search:
   boost: 2
 ---
 
-# Daemonize a worker or `.serve` process
+# Daemonize a Prefect worker or `.serve` process
 
 In this guide you'll learn how to set up a systemd service to run long-running Prefect processes.
 
