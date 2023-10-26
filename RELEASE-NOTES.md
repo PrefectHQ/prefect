@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## Release 2.14.1
+
+### Documentation
+- Add Python `serve` and `deploy` options to the `schedules` concepts documentation — https://github.com/PrefectHQ/prefect/pull/11000
+
+### Fixes
+- Refine flow parameter validation to use the correct form of validation depending on if the parameter is a pydantic v1 or v2 model.  — https://github.com/PrefectHQ/prefect/pull/11028
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.0...2.14.1
+
 ## Release 2.14.0
 
 ### Introducing the `prefect-client`
