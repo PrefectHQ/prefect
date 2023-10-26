@@ -48,12 +48,12 @@ flowchart TD
     click I "/guides/deployment/push-work-pools/" _blank
 
     classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px
-    classDef yellow fill:gold,stroke:gold,stroke-width:4px
+    classDef yellow fill:gold,stroke:gold,stroke-width:4px:black
     classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
     classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
     classDef green fill:green,stroke:green,stroke-width:4px,color:white
     classDef red fill:red,stroke:red,stroke-width:4px,color:white
-    classDef orange fill:orange,stroke:orange,stroke-width:4px: white
+    classDef orange fill:orange,stroke:orange,stroke-width:4px:black
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
 
