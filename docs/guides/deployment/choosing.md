@@ -1,5 +1,5 @@
 ---
-description: Choosing among deployment creation, deployment serving and work pool options.
+description: Choosing among deployment serving and work pool infrastructure options
 tags:
     - orchestration
     - deploy
@@ -12,13 +12,13 @@ tags:
 search:
   boost: 2
 ---
-# Choosing how to build and serve a deployment
+# Choose how to serve and deploy your flows
 
-In this guide, we will help you choose among Prefect deployment creation, deployment serving, and work pool options.
+In this guide, we will help you choose among Prefect deployment serving options, and if needed, work pool infrastructure types.
 
 We assume that you want to be able to schedule flow runs, so you that means you need a deployment.
 
-Click on the terminal nodes in the diagram below to go to the relevant documentation.
+Follow the flow chart below and click on the terminal nodes to go to the relevant documentation.
 
 ```mermaid
 %%{
@@ -55,3 +55,10 @@ flowchart TD
     classDef orange fill:orange,stroke:orange,stroke-width:4px
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
+
+The first question in the flow chart "Need customized or dynamically provisioned infrastructure?" is getting at whether you need to run your flows in containers.
+Nearly all of the of the options on the "Yes" path use Docker containers so that you can more easily scale your infrastructure up or down.
+
+## Next steps
+
+Read more about [deployment concepts](/concepts/deployments/), [scheduling flows](/concepts/schedules/), or [creating a worker-based deployemnt](/guides/prefect-deploy).
