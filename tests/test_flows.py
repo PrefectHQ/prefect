@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import time
+from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
@@ -2418,6 +2419,38 @@ def create_async_hook(mock_obj):
         mock_obj()
 
     return my_hook
+
+
+class TestFlowHooksWithKwargs:
+    def test_hook_with_extra_default_arg(self):
+        data = {}
+
+        def hook(flow, flow_run, state, foo=42):
+            data.update(name=hook.__name__, state=state, foo=foo)
+
+        @flow(on_completion=[hook])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, foo=42)
+
+    def test_hook_with_bound_kwargs(self):
+        data = {}
+
+        def hook(flow, flow_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
+
+        hook_with_kwargs = partial(hook, foo=42)
+
+        @flow(on_completion=[hook_with_kwargs])
+        def foo_flow():
+            pass
+
+        state = foo_flow(return_state=True)
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
 
 class TestFlowHooksOnCompletion:
