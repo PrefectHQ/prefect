@@ -3427,12 +3427,10 @@ def create_async_hook(mock_obj):
 
 class TestTaskHooks:
     def test_hook_with_extra_default_arg(self):
-        from prefect import flow, task
+        data = {}
 
-        def hook(flow, flow_run, state, foo=42):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert foo == 42
+        def hook(task, task_run, state, foo=42):
+            data.update(name=hook.__name__, state=state, foo=foo)
 
         @task(on_completion=[hook])
         def foo_task():
@@ -3440,17 +3438,17 @@ class TestTaskHooks:
 
         @flow
         def foo_flow():
-            foo_task()
+            return foo_task(return_state=True)
 
-        foo_flow()
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, foo=42)
 
     def test_hook_with_bound_kwargs(self):
-        from prefect import flow, task
+        data = {}
 
-        def hook(flow, flow_run, state, **kwargs):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert kwargs["foo"] == 42
+        def hook(task, task_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         hook_with_kwargs = partial(hook, foo=42)
         hook_with_kwargs.__name__ = hook.__name__
@@ -3461,18 +3459,17 @@ class TestTaskHooks:
 
         @flow
         def foo_flow():
-            foo_task()
+            return foo_task(return_state=True)
 
-        foo_flow()
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42})
 
     def test_hook_with_bound_kwargs_via_utility(self):
-        from prefect import flow, task
+        data = {}
 
-        def hook(flow, flow_run, state, **kwargs):
-            assert hook.__name__ == "hook"
-            assert state.is_completed()
-            assert kwargs["foo"] == 42
-            assert kwargs["bar"] == 99
+        def hook(task, task_run, state, **kwargs):
+            data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         @task(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
         def foo_task():
@@ -3480,9 +3477,11 @@ class TestTaskHooks:
 
         @flow
         def foo_flow():
-            foo_task()
+            return foo_task(return_state=True)
 
-        foo_flow()
+        state = foo_flow()
+
+        assert data == dict(name="hook", state=state, kwargs={"foo": 42, "bar": 99})
 
 
 class TestTaskHooksOnCompletion:
