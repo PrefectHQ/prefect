@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.14.2
+
+## Ability to pass **kwargs to `on_completion` and `on_failure` hooks
+
+You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows.
+
+```python
+from functools import partial
+from prefect import flow
+
+data = {}
+
+def my_hook(flow, flow_run, state, **kwargs):
+    data.update(state=state, **kwargs)
+
+@flow(on_completion=[partial(my_hook, my_arg="custom_value")])
+def lazy_flow():
+    pass
+
+state = lazy_flow(return_state=True)
+
+assert data == {"my_arg": "custom_value", "state": state}
+```
+
+This can be used in conjunction with the `.with_options` method on tasks and flows to dynamically provide extra kwargs to your hooks, like [this example](docs.prefect.io/concepts/states/#pass-kwargs-to-your-hooks) in the docs.
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/11022
+
+### Fixes
+- Moves responsibility for running `on_cancellation` and `on_crashed` flow hooks to runner when present — https://github.com/PrefectHQ/prefect/pull/11026
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.14.1...2.14.2
+
 ## Release 2.14.1
 
 ### Documentation
