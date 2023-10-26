@@ -79,8 +79,6 @@ from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_ENABLE_ON_CANCELLATION_HOOKS,
-    PREFECT_ENABLE_ON_CRASHED_HOOKS,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_UI_URL,
@@ -490,8 +488,7 @@ class Runner:
             {
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
                 "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
-                "PREFECT_ENABLE_ON_CANCELLATION_HOOKS": "false",
-                "PREFECT_ENABLE_ON_CRASHED_HOOKS": "false",
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
             }
         )
         env.update(**os.environ)  # is this really necessary??
@@ -1172,7 +1169,7 @@ async def _run_on_cancellation_hooks(
     """
     Run the hooks for a flow.
     """
-    if PREFECT_ENABLE_ON_CANCELLATION_HOOKS and state.is_cancelling():
+    if state.is_cancelling():
         flow = await load_flow_from_flow_run(flow_run, client=client)
         hooks = flow.on_cancellation or []
 
@@ -1187,7 +1184,7 @@ async def _run_on_crashed_hooks(
     """
     Run the hooks for a flow.
     """
-    if PREFECT_ENABLE_ON_CRASHED_HOOKS and state.is_crashed():
+    if state.is_crashed():
         flow = await load_flow_from_flow_run(flow_run, client=client)
         hooks = flow.on_crashed or []
 

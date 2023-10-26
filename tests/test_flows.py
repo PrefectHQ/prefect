@@ -49,10 +49,6 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import (
-    PREFECT_ENABLE_ON_CANCELLATION_HOOKS,
-    PREFECT_ENABLE_ON_COMPLETION_HOOKS,
-    PREFECT_ENABLE_ON_CRASHED_HOOKS,
-    PREFECT_ENABLE_ON_FAILURE_HOOKS,
     PREFECT_FLOW_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -2536,24 +2532,6 @@ class TestFlowHooksOnCompletion:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call(), call()]
 
-    def test_on_completion_hooks_respect_setting(self):
-        my_mock = MagicMock()
-
-        def completed1(flow, flow_run, state):
-            my_mock("completed1")
-
-        def completed2(flow, flow_run, state):
-            my_mock("completed2")
-
-        @flow(on_completion=[completed1, completed2])
-        def my_flow():
-            pass
-
-        with temporary_settings(updates={PREFECT_ENABLE_ON_COMPLETION_HOOKS: False}):
-            state = my_flow._run()
-        assert state.type == StateType.COMPLETED
-        my_mock.assert_not_called()
-
 
 class TestFlowHooksOnFailure:
     def test_noniterable_hook_raises(self):
@@ -2686,24 +2664,6 @@ class TestFlowHooksOnFailure:
         state = my_flow._run()
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
-
-    def test_on_failure_hooks_respect_setting(self):
-        my_mock = MagicMock()
-
-        def failed1(flow, flow_run, state):
-            my_mock("failed1")
-
-        def failed2(flow, flow_run, state):
-            my_mock("failed2")
-
-        @flow(on_failure=[failed1, failed2])
-        def my_flow():
-            raise Exception("oops")
-
-        with temporary_settings(updates={PREFECT_ENABLE_ON_FAILURE_HOOKS: False}):
-            state = my_flow._run()
-        assert state.type == StateType.FAILED
-        my_mock.assert_not_called()
 
 
 class TestFlowHooksOnCancellation:
@@ -2913,8 +2873,9 @@ class TestFlowHooksOnCancellation:
             await my_flow._run()
         my_mock.assert_not_called()
 
-    def test_on_cancellation_hooks_respect_setting(self):
+    def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
 
         def cancelled_hook1(flow, flow_run, state):
             my_mock("cancelled_hook1")
@@ -2926,8 +2887,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.CANCELLING)
 
-        with temporary_settings(updates={PREFECT_ENABLE_ON_CANCELLATION_HOOKS: False}):
-            state = my_flow._run()
+        state = my_flow._run()
         assert state.type == StateType.CANCELLING
         my_mock.assert_not_called()
 
@@ -3141,8 +3101,9 @@ class TestFlowHooksOnCrashed:
             await my_flow._run()
         my_mock.assert_not_called()
 
-    def test_on_crashed_hooks_respect_setting(self):
+    def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
 
         def crashed_hook1(flow, flow_run, state):
             my_mock("crashed_hook1")
@@ -3154,8 +3115,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             return State(type=StateType.CRASHED)
 
-        with temporary_settings(updates={PREFECT_ENABLE_ON_CRASHED_HOOKS: False}):
-            state = my_flow._run()
+        state = my_flow._run()
         assert state.type == StateType.CRASHED
         my_mock.assert_not_called()
 

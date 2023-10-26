@@ -151,10 +151,6 @@ from prefect.logging.loggers import (
 from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_ENABLE_ON_CANCELLATION_HOOKS,
-    PREFECT_ENABLE_ON_COMPLETION_HOOKS,
-    PREFECT_ENABLE_ON_CRASHED_HOOKS,
-    PREFECT_ENABLE_ON_FAILURE_HOOKS,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -2366,21 +2362,23 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
-    if PREFECT_ENABLE_ON_FAILURE_HOOKS and state.is_failed() and flow.on_failure:
+    enable_cancellation_and_crashed_hooks = (
+        os.environ.get("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        == "true"
+    )
+    if state.is_failed() and flow.on_failure:
         hooks = flow.on_failure
-    elif (
-        PREFECT_ENABLE_ON_COMPLETION_HOOKS
-        and state.is_completed()
-        and flow.on_completion
-    ):
+    elif state.is_completed() and flow.on_completion:
         hooks = flow.on_completion
     elif (
-        PREFECT_ENABLE_ON_CANCELLATION_HOOKS
+        enable_cancellation_and_crashed_hooks
         and state.is_cancelling()
         and flow.on_cancellation
     ):
         hooks = flow.on_cancellation
-    elif PREFECT_ENABLE_ON_CRASHED_HOOKS and state.is_crashed() and flow.on_crashed:
+    elif (
+        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+    ):
         hooks = flow.on_crashed
 
     if hooks:

@@ -1375,26 +1375,6 @@ PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 Whether or not to warn when the experimental workspace dashboard is enabled.
 """
 
-PREFECT_ENABLE_ON_COMPLETION_HOOKS = Setting(bool, default=True)
-"""
-Whether or not to enable on completion hooks.
-"""
-
-PREFECT_ENABLE_ON_FAILURE_HOOKS = Setting(bool, default=True)
-"""
-Whether or not to enable on failure hooks.
-"""
-
-PREFECT_ENABLE_ON_CANCELLATION_HOOKS = Setting(bool, default=True)
-"""
-Whether or not to enable on cancellation hooks.
-"""
-
-PREFECT_ENABLE_ON_CRASHED_HOOKS = Setting(bool, default=True)
-"""
-Whether or not to enable on crashed hooks.
-"""
-
 # Deprecated settings ------------------------------------------------------------------
 
 

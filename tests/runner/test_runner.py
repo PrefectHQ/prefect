@@ -346,33 +346,16 @@ class TestRunner:
     async def test_runner_runs_on_crashed_hooks(
         self, prefect_client: PrefectClient, caplog
     ):
-        runner = Runner(query_seconds=2)
+        runner = Runner()
 
-        deployment = await crashing_flow.to_deployment(__file__)
+        deployment_id = await (await crashing_flow.to_deployment(__file__)).apply()
 
-        await runner.add_deployment(deployment)
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(runner.start)
-
-            deployment = await prefect_client.read_deployment_by_name(
-                name="crashing-flow/test_runner"
-            )
-
-            flow_run = await prefect_client.create_flow_run_from_deployment(
-                deployment_id=deployment.id
-            )
-
-            # Wait for the flow to crash
-            for _ in range(15):
-                await anyio.sleep(1)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                if flow_run.state.is_crashed():
-                    break
-
-            await runner.stop()
-            tg.cancel_scope.cancel()
-
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state.is_crashed()
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
