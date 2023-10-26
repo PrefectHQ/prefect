@@ -328,22 +328,3 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
             raise ReservedArgumentError(
                 f"{argument!r} is a reserved argument name and cannot be used."
             )
-
-
-def bind_args_to_fn(
-    fn: Callable,
-    name: Optional[str] = None,
-    *args: Any,
-    **kwargs: Any,
-) -> Callable:
-    """Creates a partial function with a name.
-
-    Args:
-        fn: The function to partially apply.
-        name: The name of the partial function. Defaults to the name of the original function.
-        *args: Positional arguments to partially apply.
-        **kwargs: Keyword arguments to partially apply.
-    """
-    partial_fn = partial(fn, *args, **kwargs)
-    partial_fn.__name__ = name or fn.__name__
-    return partial_fn

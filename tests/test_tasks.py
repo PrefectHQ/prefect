@@ -37,7 +37,6 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import allow_failure, unmapped
-from prefect.utilities.callables import bind_args_to_fn
 from prefect.utilities.collections import quote
 
 
@@ -3425,7 +3424,7 @@ def create_async_hook(mock_obj):
     return my_hook
 
 
-class TestTaskHooks:
+class TestTaskHooksWithKwargs:
     def test_hook_with_extra_default_arg(self):
         data = {}
 
@@ -3451,7 +3450,6 @@ class TestTaskHooks:
             data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         hook_with_kwargs = partial(hook, foo=42)
-        hook_with_kwargs.__name__ = hook.__name__
 
         @task(on_completion=[hook_with_kwargs])
         def foo_task():
@@ -3464,24 +3462,6 @@ class TestTaskHooks:
         state = foo_flow()
 
         assert data == dict(name="hook", state=state, kwargs={"foo": 42})
-
-    def test_hook_with_bound_kwargs_via_utility(self):
-        data = {}
-
-        def hook(task, task_run, state, **kwargs):
-            data.update(name=hook.__name__, state=state, kwargs=kwargs)
-
-        @task(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
-        def foo_task():
-            pass
-
-        @flow
-        def foo_flow():
-            return foo_task(return_state=True)
-
-        state = foo_flow()
-
-        assert data == dict(name="hook", state=state, kwargs={"foo": 42, "bar": 99})
 
 
 class TestTaskHooksOnCompletion:

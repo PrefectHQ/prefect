@@ -237,37 +237,53 @@ def my_succeed_or_fail_hook(task, task_run, state):
 )
 ```
 
-#### Pass custom arguments to state change hooks
-The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects. This means that you don't have the opportunity to pass in custom arguments to your hooks at runtime. However, there are a couple ways you can provide custom arguments to your hooks when you define them:
+#### Pass `kwargs` to your hooks
+The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects.
 
-- set default values for your hooks' additional arguments:
+However, you can define your hook to accept additional default arguments:
 ```python
 from prefect import flow
 
+data = {}
+
 def my_hook(flow, flow_run, state, my_arg="custom_value"):
-    assert my_arg == "custom_value"
+    data.update(my_arg=my_arg, state=state)
 
 @flow(on_completion=[my_hook])
 def lazy_flow():
     pass
+
+state = lazy_flow(return_state=True)
+
+assert data == {"my_arg": "custom_value", "state": state}
 ```
 
-- define your hook to accept `**kwargs` and bind your custom arguments to the hook:
+
+... or define your hook to accept arbitrary keyword arguments:
 ```python
-from prefect import flow
-from prefect.utilities.callables import bind_args_to_fn
+from functools import partial
+from prefect import flow, task
 
-def my_hook(flow, flow_run, state, **kwargs):
-    assert kwargs["my_arg"] == "custom_value"
-    assert kwargs["foo"] == "bar"
+data = {}
 
-hook_with_custom_defaults = bind_args_to_fn(
-    my_hook, my_arg="custom_value", **{"foo": "bar"}
-)
+def my_hook(task, task_run, state, **kwargs):
+    data.update(state=state, **kwargs)
 
-@flow(on_completion=[hook_with_custom_defaults])
-def lazy_flow():
-    pass
+@task
+def bad_task():
+    raise ValueError("meh")
+
+@flow
+def lazy_flow(x: str = "foo", y: int = 42):
+    bad_task_with_a_hook = bad_task.with_options(
+        on_failure=[partial(my_hook, **dict(x=x, y=y))]
+    )
+
+    return "bar", bad_task_with_a_hook(return_state=True)
+
+_, task_run_state = lazy_flow()
+
+assert data == {"x": "foo", "y": 42, "state": task_run_state}
 ```
 
 ### More examples of state change hooks

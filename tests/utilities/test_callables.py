@@ -581,29 +581,3 @@ class TestCollapseVariadicParameter:
 
         with pytest.raises(ValueError):
             callables.collapse_variadic_parameters(foo, parameters)
-
-
-class TestBindKwargsToFunction:
-    def test_bind_kwargs_to_fn(self):
-        def foo(a, b):
-            return a + b
-
-        partial_foo = callables.bind_args_to_fn(foo, "partial_foo", a=1)
-        assert partial_foo.__name__ == "partial_foo"
-        assert partial_foo(b=2) == 3
-
-    def test_bind_kwargs_to_fn_defaults_to_original_fn_name(self):
-        def foo(a, b):
-            return a + b
-
-        partial_foo = callables.bind_args_to_fn(foo, a=1)
-        assert partial_foo.__name__ == "foo"
-        assert partial_foo(b=2) == 3
-
-    def test_bind_kwargs_to_fn_binds_unpacked_kwargs(self):
-        def foo(a, b):
-            return a + b
-
-        partial_foo = callables.bind_args_to_fn(foo, a=1, **{"b": 2})
-        assert partial_foo.__name__ == "foo"
-        assert partial_foo() == 3

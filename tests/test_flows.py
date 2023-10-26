@@ -66,7 +66,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
-from prefect.utilities.callables import bind_args_to_fn, parameter_schema
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -2418,7 +2418,7 @@ def create_async_hook(mock_obj):
     return my_hook
 
 
-class TestFlowHooks:
+class TestFlowHooksWithKwargs:
     def test_hook_with_extra_default_arg(self):
         data = {}
 
@@ -2440,7 +2440,6 @@ class TestFlowHooks:
             data.update(name=hook.__name__, state=state, kwargs=kwargs)
 
         hook_with_kwargs = partial(hook, foo=42)
-        hook_with_kwargs.__name__ = hook.__name__
 
         @flow(on_completion=[hook_with_kwargs])
         def foo_flow():
@@ -2449,20 +2448,6 @@ class TestFlowHooks:
         state = foo_flow(return_state=True)
 
         assert data == dict(name="hook", state=state, kwargs={"foo": 42})
-
-    def test_hook_with_bound_kwargs_via_utility(self):
-        data = {}
-
-        def hook(flow, flow_run, state, **kwargs):
-            data.update(name=hook.__name__, state=state, kwargs=kwargs)
-
-        @flow(on_completion=[bind_args_to_fn(hook, **{"foo": 42, "bar": 99})])
-        def foo_flow():
-            pass
-
-        state = foo_flow(return_state=True)
-
-        assert data == dict(name="hook", state=state, kwargs={"foo": 42, "bar": 99})
 
 
 class TestFlowHooksOnCompletion:
