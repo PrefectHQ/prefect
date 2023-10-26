@@ -240,7 +240,7 @@ def my_succeed_or_fail_hook(task, task_run, state):
 #### Pass `kwargs` to your hooks
 The Prefect engine will call your hooks for you upon the state change, passing in the flow, flow run, and state objects.
 
-However, you can define your hook to accept additional default arguments:
+However, you can define your hook to have additional default arguments:
 ```python
 from prefect import flow
 
