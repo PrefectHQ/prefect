@@ -4,7 +4,7 @@
 
 ## Ability to pass **kwargs to state change hooks
 
-You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows.
+You can now pass a partial (sometimes called ["curried"](https://www.geeksforgeeks.org/partial-functions-python/)) hook to your tasks and flows, allowing for more tailored post-execution behavior.
 
 ```python
 from functools import partial
